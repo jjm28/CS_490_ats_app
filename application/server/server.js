@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import records from "./routes/record.js";
 import profile from "./routes/profile.js";
 import { connectDB } from "./db/connection.js";
+import { attachDevUser } from "./middleware/devUser.js";
 
 
 dotenv.config();
@@ -14,6 +15,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/record", records);
+app.use(attachDevUser);
 app.use('/api/users/me', profile);
 
 // start the Express server

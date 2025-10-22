@@ -14,6 +14,7 @@ router.use((req, _res, next) => {
 
 // GET /api/users/me
 router.get('/', async (req, res, next) => {
+  const userId = req.user.id;
   try {
     const doc = await getProfileByUserId(req.user.id);
     if (!doc) return res.status(404).send({ ok: false, error: { code: 'NOT_FOUND' } });
@@ -23,6 +24,7 @@ router.get('/', async (req, res, next) => {
 
 // PUT /api/users/me
 router.put('/', async (req, res, next) => {
+  const userId = req.user.id;
   try {
     const result = await validateProfile(req.body);
     if (!result.ok) return res.status(result.status).send(result);
