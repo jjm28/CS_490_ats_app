@@ -92,7 +92,7 @@ return (
           className="mx-auto h-10 w-auto"
         />
         <h2 className="mt-10 text-center text-2xl font-bold tracking-tight text-gray-900">
-          Welcome to [AppName]
+          Welcome to Ontrac
         </h2>
       </div>
 
