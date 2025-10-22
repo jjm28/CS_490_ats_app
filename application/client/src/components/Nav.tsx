@@ -4,61 +4,54 @@ import '../styles/Navbar.css';
 
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLUListElement | null>(null);
-  const hamburgerRef = useRef<HTMLDivElement | null>(null);
 
-  const toggleMenu = () => setIsOpen(prev => !prev);
-  const closeMenu = () => setIsOpen(false);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node) &&
-        hamburgerRef.current &&
-        !hamburgerRef.current.contains(event.target as Node)
-      ) {
-        closeMenu();
-      }
-    };
+  return (  <nav className="relative bg-gray-800">
+      <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
+        <div className="relative flex h-16 items-center justify-between">
+          {/* Left side brand + nav links */}
+          <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
+            <div className="flex shrink-0 items-center">
+              <img
+                src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=500"
+                alt="Your Company"
+                className="h-8 w-auto"
+              />
+            </div>
+            
+            <div className="hidden sm:ml-6 sm:block">
+              <div className="flex space-x-4">
+                < Link to="/"    className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white"> Home Page</Link>
+              </div>
+            </div>
+          </div>
 
-    document.addEventListener('mousedown', handleClickOutside);
+          {/* Right side actions */}
+          <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
+            <button type="button" className="relative rounded-full p-1 text-gray-400 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-500"  >
+                  < Link to="/Registration"> Sign up</Link>
+            </button>
+          </div>
+                    <div className="relative ml-3 inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
+            <button
+              type="button"
+              className="relative rounded-full p-1 text-gray-400 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-500"
+            >
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+                    < Link to="/Login" > Log in</Link>
 
-  return (
-    <nav className="navbar">
-      <div className="navbar-container">
-        <ul className="navbar-menu">
-          <li><Link to="/">Home</Link></li>
+            </button>
 
-        </ul>
-        <div className="navbar-action">
-       
-    < Link to="/Registration" onClick={closeMenu} className='navbar-Signup'> Sign UP</Link>
-        
+
+          </div>
         </div>
-
-        <div className="navbar-hamburger" onClick={toggleMenu} ref={hamburgerRef}>
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-
-    <ul className={`navbar-mobile-menu ${isOpen ? 'active' : ''}`} ref={menuRef}>
-        <li><Link to="/" onClick={closeMenu}>Page 1</Link></li>
-  <li><Link to="/page2" onClick={closeMenu}>Page 2</Link></li>
-  <li><Link to="/page3" onClick={closeMenu}>Page 3</Link></li>
-  <li><Link to="/page4" onClick={closeMenu}>Page 4</Link></li>
-  <li><Link to="/page5" onClick={closeMenu}>Page 5</Link></li>
-  <li> <Link to="/page6" onClick={closeMenu}> Sign UP</Link></li>
-        </ul>
       </div>
+
     </nav>
   );
 }
 
 export default Navbar;
+
+
+
