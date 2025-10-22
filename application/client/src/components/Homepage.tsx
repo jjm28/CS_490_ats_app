@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 function HomePage() {
 return ( 
 <div>
-<h1>HomePage</h1>
+<h1 className=' text-red-600'>HomePage</h1>
   </div>  
 );
 
