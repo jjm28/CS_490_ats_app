@@ -1,0 +1,10 @@
+#run xargs npm install < requirements.txt in the directory of server or client
+
+# Core server dependencies
+express
+cors
+mongodb
+dotenv
+
+# Dev-only tools
+nodemon

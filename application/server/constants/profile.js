@@ -1,6 +1,6 @@
-// user profile constants for user entries
+// user profile constants for user entries. K
 
-import { getDb } from '../connection.js';
+import { getDb } from '../db/connection.js';
 
 // Max character limits for various profile fields
 export const PROFILE_LIMITS = Object.freeze({
@@ -67,7 +67,7 @@ export async function loadProfileEnumsFromDataSource(/* deps */) {
     const coll = db.collection('lookups'); // expected user entries collection
 
     const [industriesDocs, levelsDocs] = await Promise.all([
-        // Fetch active industries sorted by order and name and confriming what to search for
+        // Fetch active industries sorted by order and name and confriming what to search
       coll.find({ type: 'industry', active: true })
           .sort({ order: 1, name: 1 })
           .project({ _id: 0, name: 1 })

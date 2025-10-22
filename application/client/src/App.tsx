@@ -3,7 +3,10 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 
-function App() {
+import { Routes, Route, NavLink } from 'react-router-dom' 
+import ProfilePage from './pages/ProfilePage'
+
+function Home() {
   const [count, setCount] = useState(0)
 
   return (
@@ -29,6 +32,47 @@ function App() {
         Click on the Vite and React logos to learn more
       </p>
     </>
+  )
+}
+
+function App() { 
+  const link = 'px-3 py-2 rounded hover:bg-gray-100' 
+  const active = 'bg-gray-200' 
+
+  return (
+    <div className="min-h-screen"> 
+      {/* Simple header with navigation links. Should be added to or changed later */}
+      <header className="border-b">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+          <NavLink to="/" className="font-semibold">
+            ATS for Candidates
+          </NavLink>
+          <nav className="flex gap-2">
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) => `${link} ${isActive ? active : ''}`}
+            >
+              Home
+            </NavLink>
+            <NavLink
+              to="/profile"
+              className={({ isActive }) => `${link} ${isActive ? active : ''}`}
+            >
+              Profile
+            </NavLink>
+          </nav>
+        </div>
+      </header>
+
+      {/* Route setup */}
+      <main className="max-w-5xl mx-auto px-4 py-6">
+        <Routes>
+          <Route path="/" element={<Home />} /> {/* renders your demo page */}
+          <Route path="/profile" element={<ProfilePage />} /> {/*  routes to ProfilePage */}
+        </Routes>
+      </main>
+    </div>
   )
 }
 

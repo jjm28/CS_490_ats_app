@@ -2,7 +2,7 @@
 
 import express from 'express';
 import { validateProfile } from '../validators/profile.js';
-import { getProfileByUserId, upsertProfileByUserId } from '../services/profile.service.js';
+import { getProfileByUserId, upsertProfileByUserId } from "../service/profile.js";
 
 const router = express.Router();
 
