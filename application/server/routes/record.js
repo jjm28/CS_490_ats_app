@@ -1,3 +1,4 @@
+// routes/record.js
 import express from "express";
 import { getDb } from "../db/connection.js"; // ✅ import named function
 import { ObjectId } from "mongodb";

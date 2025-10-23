@@ -1,26 +1,22 @@
-// Used to read and write information about user profiles from the database
-
-
+// server/service/profile.js
 import { getDb } from '../db/connection.js';
 
-const coll = () => getDb().collection('profiles');
-
-// Get profile by userId
 export async function getProfileByUserId(userId) {
-  return coll().findOne({ userId });
+  const db = getDb();
+  return db.collection('profiles').findOne({ userId });
 }
 
-// Create or update profile
 export async function upsertProfileByUserId(userId, data) {
+  const db = getDb();
+  const coll = db.collection('profiles');
   const now = new Date();
+
   const update = {
     $set: { ...data, userId, updatedAt: now },
     $setOnInsert: { createdAt: now },
   };
-  const res = await coll().findOneAndUpdate(
-    { userId },
-    update,
-    { upsert: true, returnDocument: 'after' }
-  );
-  return res.value;
+
+  // 🔑 filter by { userId } → one doc per user; no cross-user overwrite
+  await coll.updateOne({ userId }, update, { upsert: true });
+  return coll.findOne({ userId });
 }

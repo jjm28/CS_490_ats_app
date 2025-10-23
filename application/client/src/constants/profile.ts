@@ -1,4 +1,4 @@
-// Shared constants/types for the Profile form. Keeping values in sync between client and server.
+// Shared constants/types for the Profile form (UC-021)
 
 // Limits
 export const LIMITS = {

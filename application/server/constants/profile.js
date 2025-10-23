@@ -1,4 +1,4 @@
-// user profile constants for user entries. K
+// /constants/profile.js
 
 import { getDb } from '../db/connection.js';
 
