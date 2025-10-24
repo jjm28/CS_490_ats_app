@@ -3,7 +3,7 @@ import Nav from './components/Nav';
 import HomePage from './components/Homepage';
 import Registration from './components/Registration';
 import Dashboard from './components/Dashboard';
-import Skills from './components/Skills';
+import Skills from './components/Skills/Skills';
 import './App.css';
 
 function App() {
