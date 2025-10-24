@@ -14,6 +14,3 @@ return (
 
 
 export default HomePage;
-
-
-

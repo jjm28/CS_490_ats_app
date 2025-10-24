@@ -1,6 +1,4 @@
-// user profile constants for user entries
-
-import { getDb } from '../connection.js';
+import { getDb } from '../db/connection.js';
 
 // Max character limits for various profile fields
 export const PROFILE_LIMITS = Object.freeze({
@@ -10,7 +8,6 @@ export const PROFILE_LIMITS = Object.freeze({
     BIO_MAX: 500,
     HEADLINE_MAX: 150
 });
-
 // Creating user dropdown enums for profile details and preferences
 export const PROFILE_ENUMS = Object.freeze({
     EXPERIENCE_LEVELS: Object.freeze(["Entry", "Mid", "Senior", "Executive"]),
@@ -24,13 +21,11 @@ export const PROFILE_ENUMS = Object.freeze({
     "Other",
   ])
 });
-
 // Checking patterns to verifiy email and phone number formats
 export const PROFILE_PATTERNS = Object.freeze({
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   PHONE_E164: /^\+?[1-9]\d{7,14}$/,
 });
-
 // Keys for profile fields in the database
 export const PROFILE_FIELDS = Object.freeze({
   FULL_NAME: "fullName",
@@ -45,7 +40,6 @@ export const PROFILE_FIELDS = Object.freeze({
   EXPERIENCE_LEVEL: "experienceLevel",
   PHOTO_URL: "photoUrl", // This will be implemented later in ticket UC022
 });
-
 // Default values for optional fields
 export const PROFILE_DEFAULTS = Object.freeze({
   [PROFILE_FIELDS.PHONE]: "",
@@ -58,16 +52,14 @@ export const PROFILE_DEFAULTS = Object.freeze({
     [PROFILE_FIELDS.STATE]: "",
   },
 });
-
-
 //Used for dynamic loading of enums from data source in future
 export async function loadProfileEnumsFromDataSource(/* deps */) {
   try {
-    const db = getDb(); // throws error if initDb() didn’t run yet
+    const db = getDb(); 
     const coll = db.collection('lookups'); // expected user entries collection
 
     const [industriesDocs, levelsDocs] = await Promise.all([
-        // Fetch active industries sorted by order and name and confriming what to search for
+        // Fetch active industries sorted by order and name and confriming what to search
       coll.find({ type: 'industry', active: true })
           .sort({ order: 1, name: 1 })
           .project({ _id: 0, name: 1 })
@@ -77,23 +69,19 @@ export async function loadProfileEnumsFromDataSource(/* deps */) {
           .project({ _id: 0, name: 1 })
           .toArray(),
     ]);
-
     const INDUSTRIES = industriesDocs.length
       ? Object.freeze(industriesDocs.map(d => d.name))
       : PROFILE_ENUMS.INDUSTRIES;
-
     const EXPERIENCE_LEVELS = levelsDocs.length
       ? Object.freeze(levelsDocs.map(d => d.name))
       : PROFILE_ENUMS.EXPERIENCE_LEVELS;
 
-    
     return Object.freeze({ INDUSTRIES, EXPERIENCE_LEVELS });
   } catch (err) {
     // If DB not ready use static values
     return PROFILE_ENUMS;
   }
 }
-
 // Profile constants bundled together for easy import
 export const PROFILE_CONSTANTS = Object.freeze({
   LIMITS: PROFILE_LIMITS,
@@ -102,5 +90,3 @@ export const PROFILE_CONSTANTS = Object.freeze({
   FIELDS: PROFILE_FIELDS,
   DEFAULTS: PROFILE_DEFAULTS,
 });
-
-  
