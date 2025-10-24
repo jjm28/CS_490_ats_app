@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { isValidEmailBasic , splitEmail,isAllowedDomain, isValidPassword} from '../utils/helpers';
 import { useNavigate  } from 'react-router-dom';
+import { setAuth } from "../utils/auth";
 
 
 function Registration() {
-
-
   const [user, setUser] = useState(null);
   const [email, setemail] = useState("")
   const [password, setpassword] = useState("")
@@ -16,18 +15,25 @@ function Registration() {
   const [errconfirmpassword, setErrconfirmpassword] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [Success , setSuccess ] = useState<string | null>(null);
-
 const navigate = useNavigate();
-
   useEffect(() => {
     if (Success) {
       const timer = setTimeout(() => {
         navigate("/Dashboard"); 
       }, 2000); 
-
       return () => clearTimeout(timer); 
     }
   }, [Success, navigate]);
+
+  useEffect(() => {
+  // CHANGED: after success, go to home ("/")
+  if (Success) {
+    const timer = setTimeout(() => {
+      navigate("/"); // go to homepage
+    }, 1200); // short delay to show the success text
+    return () => clearTimeout(timer);
+  }
+}, [Success, navigate]);
 
   const validateEmail = (value: string): string | null => {
     if (!isValidEmailBasic(value)) return "Enter a valid email (e.g., name@example.com).";
@@ -41,14 +47,12 @@ const navigate = useNavigate();
     } 
     return null;
   };
-
   const validateConfirm = (value: string):  string | null => {
     if ( password != value) {
       return "Passwords do not match.";
     }
     return null
   };
-
   const onBlurEmail = () => {
     setErrEmail(validateEmail(email))
   }
@@ -58,7 +62,6 @@ const navigate = useNavigate();
     const onBlurconfirmpassword= () => {
     setErrconfirmpassword(validateConfirm(confirmpassword))
   }
-
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       const msg = validateEmail(email)
@@ -92,7 +95,7 @@ return (
           className="mx-auto h-10 w-auto"
         />
         <h2 className="mt-10 text-center text-2xl font-bold tracking-tight text-gray-900">
-          Welcome to [AppName]
+          Welcome! Create your account
         </h2>
       </div>
 
@@ -109,7 +112,6 @@ return (
             </div>
             {errEmail && <p className="mt-1 text-sm text-red-600">{errEmail}</p>}
           </div>
-
           <div>
               <label className="flex  text-sm font-medium text-gray-900" >    Password   </label>
             <div className="mt-2">
@@ -120,7 +122,7 @@ return (
             </div>
                    {errpassword && <p className="mt-1 text-sm text-red-600">{errpassword}</p>}
           </div>
-          
+
           <div>
               <label className="flex  text-sm font-medium text-gray-900" >   Confirm Password   </label>
             <div className="mt-2">
@@ -132,7 +134,7 @@ return (
             </div>
              {errconfirmpassword && <p className="mt-1 text-sm text-red-600">{errconfirmpassword}</p>}
           </div>
-          
+
           <div >
             <label className="text-sm font-medium text-gray-900 flex"  >  First Name         </label>
             <div className="mt-2">
@@ -168,15 +170,7 @@ return (
           </a>
         </p> */}
       </div>
-
     </div>
 );
-
-
 }
-
-
 export default Registration;
-
-
-
