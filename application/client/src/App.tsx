@@ -1,32 +1,25 @@
-import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Nav from './components/Nav.tsx';
-import HomePage from './components/Homepage.tsx';
-import Registration from './components/Registration.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import './App.css'
+import Nav from './components/Nav';
+import HomePage from './components/Homepage';
+import Registration from './components/Registration';
+import Dashboard from './components/Dashboard';
+import Skills from './components/Skills';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div>
-
-
-<Nav/>
-
-    <div >    
-      <Routes>
-    
-    <Route path="/" element={<HomePage />}></Route> 
-    <Route path="/Registration" element={<Registration />}></Route> 
-    <Route path="/Dashboard" element={<Dashboard />}></Route> 
-      </Routes>
-       </div>
-
-      
-    </div>
-  )
+    <>
+      <Nav />
+      <div className="main-content">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/Registration" element={<Registration />} />
+          <Route path="/Dashboard" element={<Dashboard />} />
+          <Route path="/Skills" element={<Skills />} />
+        </Routes>
+      </div>
+    </>
+  );
 }
 
-export default App
+export default App;
