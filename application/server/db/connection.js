@@ -1,26 +1,27 @@
-import { MongoClient, ServerApiVersion } from "mongodb";
+// server/db/connection.js
+import { MongoClient } from "mongodb"; 
 
-const uri = process.env.ATLAS_URI || "";
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
+let client;
+let db;
 
-try {
-  // Connect the client to the server
+export async function connectToServer() {
+  // read env at call-time so dotenv is loaded
+  const uri = process.env.ATLAS_URI || process.env.MONGO_URI;
+  if (!uri) throw new Error("Missing ATLAS_URI or MONGO_URI in environment.");
+
+  const DB_NAME = process.env.DB_NAME || "appdb";
+
+  if (db) return db;                 
+  client = new MongoClient(uri);
   await client.connect();
-  // Send a ping to confirm a successful connection
-  await client.db("admin").command({ ping: 1 });
-  console.log(
-   "Pinged your deployment. You successfully connected to MongoDB!"
-  );
-} catch(err) {
-  console.error(err);
+  db = client.db(DB_NAME);
+  console.log(`[mongo] connected to ${DB_NAME}`);
+  return db;
 }
 
-let db = client.db("employees");
+export function getDb() {
+  if (!db) throw new Error("Database not initialized. Call connectToServer() first.");
+  return db;
+}
 
-export default db;
+export { connectToServer as connectDB };

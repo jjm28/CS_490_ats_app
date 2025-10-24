@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { isValidEmailBasic , splitEmail,isAllowedDomain, isValidPassword} from '../utils/helpers';
 import { useNavigate  } from 'react-router-dom';
+import { setAuth } from "../utils/auth";
 
 
 function Registration() {
@@ -28,6 +29,16 @@ const navigate = useNavigate();
       return () => clearTimeout(timer); 
     }
   }, [Success, navigate]);
+
+  useEffect(() => {
+  // CHANGED: after success, go to home ("/")
+  if (Success) {
+    const timer = setTimeout(() => {
+      navigate("/"); // go to homepage
+    }, 1200); // short delay to show the success text
+    return () => clearTimeout(timer);
+  }
+}, [Success, navigate]);
 
   const validateEmail = (value: string): string | null => {
     if (!isValidEmailBasic(value)) return "Enter a valid email (e.g., name@example.com).";
@@ -92,7 +103,7 @@ return (
           className="mx-auto h-10 w-auto"
         />
         <h2 className="mt-10 text-center text-2xl font-bold tracking-tight text-gray-900">
-          Welcome to [AppName]
+          Welcome! Create your account
         </h2>
       </div>
 
