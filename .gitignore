@@ -2,3 +2,5 @@
 **/dist/
 **/build/
 **/.next/
+
+application/server/node_modules/
