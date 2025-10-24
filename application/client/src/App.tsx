@@ -8,7 +8,7 @@ function App() {
       <div>
           <img src={reactLogo} className="logo react" alt="React logo" />
       </div>
-      <h1>logo test</h1>
+      <h1>H1</h1>
     </>
   )
 }
