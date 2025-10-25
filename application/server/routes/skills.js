@@ -1,11 +1,12 @@
 import express from "express";
-import db from "../db/connection.js";
+import { getDb } from "../db/connection.js";
 import { ObjectId } from "mongodb";
 const router = express.Router();
 
 //Get all skills
 router.get("/", async (req, res) => {
   try {
+    const db = getDb();
     const skills = await db.collection("skills").find({}).toArray();
     res.status(200).json(skills);
   } catch (err) {
@@ -21,6 +22,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
     //Prevent duplicates
+    const db = getDb();
     const existingSkill = await db.collection("skills").findOne({ name });
     if (existingSkill) {
       return res.status(409).json({ message: "Skill already exists" });
@@ -38,6 +40,7 @@ router.put("/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const updatedSkill = req.body;
+    const db = getDb();
     const result = await db
       .collection("skills")
       .updateOne({ _id: new ObjectId(id) }, { $set: updatedSkill });
@@ -54,6 +57,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const id = req.params.id;
+    const db = getDb();
     const result = await db
       .collection("skills")
       .deleteOne  ({ _id: new ObjectId(id) });

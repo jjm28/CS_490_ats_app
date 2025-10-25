@@ -22,19 +22,18 @@ app.use(cors({
 
 app.use(express.json());
 
-// Routes
-app.use('/record', records);
-app.use('/api/skills', skills);
-app.use('/api/auth', auth);
-// Profile routes (optionally inject dev user)
-app.use('/api/profile', attachDevUser, profileRouter);
-
-// Health check
-app.get('/healthz', (_req, res) => res.sendStatus(204));
-
 // Start after DB connects
 try {
   await connectDB();
+  // Routes
+  app.use('/record', records);
+  app.use('/api/skills', skills);
+  app.use('/api/auth', auth);
+  // Profile routes (optionally inject dev user)
+  app.use('/api/profile', attachDevUser, profileRouter);
+
+  // Health check
+  app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

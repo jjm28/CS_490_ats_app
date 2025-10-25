@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Nav from './components/Nav';
 import HomePage from './components/Homepage';
 import Registration from './components/Registration';
@@ -12,7 +12,7 @@ import './App.css';
 
 function App() {
   return (
-    <Router>
+    <>
       <Nav />
       <div className="main-content">
         <Routes>
@@ -26,7 +26,7 @@ function App() {
           <Route path="/Logout" element={<Logout />} />
         </Routes>
       </div>
-    </Router>
+    </>
   );
 }
 
