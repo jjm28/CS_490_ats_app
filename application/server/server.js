@@ -7,6 +7,8 @@ import records from './routes/record.js';
 import skills from './routes/skills.js';
 import auth from './routes/auth.js';
 import profileRouter from './routes/profile.js';
+import education from './routes/education.js';
+
 import { attachDevUser } from './middleware/devUser.js';
 
 const PORT = process.env.PORT || 5050;
@@ -29,6 +31,7 @@ try {
   app.use('/record', records);
   app.use('/api/skills', skills);
   app.use('/api/auth', auth);
+  app.use('/api/education', education);
   // Profile routes (optionally inject dev user)
   app.use('/api/profile', attachDevUser, profileRouter);
 

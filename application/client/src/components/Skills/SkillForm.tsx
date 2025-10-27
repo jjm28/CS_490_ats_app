@@ -9,6 +9,7 @@ interface SkillFormProps {
   setCategory: (value: string) => void;
   setProficiency: (value: Proficiency) => void;
   addSkill: () => void;
+  setIsAdding: (val: boolean) => void;
 }
 
 export default function SkillForm({
@@ -19,9 +20,23 @@ export default function SkillForm({
   setCategory,
   setProficiency,
   addSkill,
+  setIsAdding,
 }: SkillFormProps) {
+  const handleAddSkill = () => {
+    addSkill();
+    setIsAdding(false);
+  };
+
   return (
-    <div className="form">
+    <div
+      className="form"
+      onFocus={() => setIsAdding(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          setIsAdding(false);
+        }
+      }}
+    >
       <input
         type="text"
         placeholder="Skill name"
@@ -54,7 +69,7 @@ export default function SkillForm({
         ))}
       </select>
 
-      <button onClick={addSkill}>Add Skill</button>
+      <button onClick={handleAddSkill}>Add Skill</button>
     </div>
   );
 }

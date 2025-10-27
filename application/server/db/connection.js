@@ -6,7 +6,6 @@ let client;
 let db;
 
 export async function connectToServer() {
-  // read env at call-time so dotenv is loaded
   const uri = process.env.ATLAS_URI || process.env.MONGO_URI;
   if (!uri) throw new Error("Missing ATLAS_URI or MONGO_URI in environment.");
 

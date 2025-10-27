@@ -8,6 +8,7 @@ import LoginPage from './components/Login';
 import ProfilePage from './components/ProfilePage';
 import ProfileForm from './components/ProfileForm';
 import Logout from './components/Logout';
+import Education from './components/Education/Education';
 import './App.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           <Route path="/ProfilePage" element={<ProfilePage />} />
           <Route path="/ProfileForm" element={<ProfileForm />} />
           <Route path="/Logout" element={<Logout />} />
+          <Route path="/Education" element={<Education />} />
         </Routes>
       </div>
     </>

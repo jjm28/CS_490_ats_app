@@ -16,6 +16,7 @@ export interface Skill {
   name: string;
   category: string;
   proficiency: Proficiency;
+  order?: number;
 }
 
 //Define skills component
@@ -24,6 +25,9 @@ export default function Skills() {
   const [name, setName] = useState("");//State for input name
   const [category, setCategory] = useState(categories[0]);//State for input category
   const [proficiency, setProficiency] = useState<Proficiency>("Beginner");//State for input proficiency
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
   //Fetch skills from thebackend
   useEffect(() => {
@@ -33,10 +37,16 @@ export default function Skills() {
   //Function that makes GET request to fetch all the skills
   const fetchSkills = async () => {
     try {
-      const data = await getSkills();//GET request to backend
-      setSkills(data);//Updates skills
+      const data = await getSkills();
+      data.sort((a: Skill, b: Skill) => {
+        if (a.category === b.category) {
+          return (a.order || 0) - (b.order || 0);
+        }
+        return categories.indexOf(a.category) - categories.indexOf(b.category);
+      });
+      setSkills(data);
     } catch (err) {
-      console.error("Error fetching skills:", err);//Error fetching skills
+      console.error("Error fetching skills:", err);
     }
   };
 
@@ -88,71 +98,124 @@ export default function Skills() {
   };
 
   const groupedSkills: Record<string, Skill[]> = categories.reduce((acc, category) => {
-    acc[category] = skills.filter(skill => skill.category === category);
+    acc[category] = skills
+      .filter(skill => skill.category === category)
+      .filter(skill => skill.name.toLowerCase().includes(searchTerm.toLowerCase()));
     return acc;
   }, {} as Record<string, Skill[]>);
+
 
   const onDragEnd = async (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
+
     const sourceCategory = source.droppableId;
     const destCategory = destination.droppableId;
+
     if (sourceCategory === destCategory) {
       const items = Array.from(groupedSkills[sourceCategory]);
       const [moved] = items.splice(source.index, 1);
       items.splice(destination.index, 0, moved);
+
+      const updatedItems = items.map((skill, index) => ({ ...skill, order: index }));
       setSkills((prev) => [
         ...prev.filter((s) => s.category !== sourceCategory),
-        ...items,
+        ...updatedItems,
       ]);
+
+      for (const skill of updatedItems) {
+        await updateSkillApi(skill._id!, { order: skill.order });
+      }
     } else {
       const sourceItems = Array.from(groupedSkills[sourceCategory]);
       const destItems = Array.from(groupedSkills[destCategory]);
       const [moved] = sourceItems.splice(source.index, 1);
-      const updatedSkill = { ...moved, category: destCategory };
-      destItems.splice(destination.index, 0, updatedSkill);
+      const updatedMoved = { ...moved, category: destCategory };
+      destItems.splice(destination.index, 0, updatedMoved);
+
+      const updatedSource = sourceItems.map((s, idx) => ({ ...s, order: idx }));
+      const updatedDest = destItems.map((s, idx) => ({ ...s, order: idx }));
+
       setSkills((prev) => [
         ...prev.filter(
           (s) => s.category !== sourceCategory && s.category !== destCategory
         ),
-        ...sourceItems,
-        ...destItems,
+        ...updatedSource,
+        ...updatedDest,
       ]);
-      try {
-        await updateSkillApi(updatedSkill._id!, { category: destCategory });
-      } catch (err) {
-        console.error("Failed to update skill category:", err);
+
+      for (const skill of [...updatedSource, ...updatedDest]) {
+        await updateSkillApi(skill._id!, { category: skill.category, order: skill.order });
       }
     }
   };
 
   return (
     <div className="skills-manager">
-      <h2>Skills Manager</h2>
+      <h2 className="skills-title">
+        Skills
+        {!showForm && (
+          <button
+            className="add-skill-inline-btn"
+            onClick={() => setShowForm(true)}
+          >
+            +
+          </button>
+        )}
+      </h2>
 
-      <SkillForm
-        name={name}
-        category={category}
-        proficiency={proficiency}
-        setName={setName}
-        setCategory={setCategory}
-        setProficiency={setProficiency}
-        addSkill={addSkill}
-      />
-
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div className="skills-list">
-          {Object.entries(groupedSkills).map(([cat, skillsInCategory]) => (
-            <SkillsCategory
-              key={cat}
-              category={cat}
-              skills={skillsInCategory}
-              editSkill={editSkill}
-              removeSkill={removeSkill}
-            />
-          ))}
+      {!isAdding && !showForm && (
+        <div className="skills-search">
+          <input
+            type="text"
+            placeholder="Search skills..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-      </DragDropContext>
+      )}
+
+
+      {showForm && (
+        <div className="skill-form-popup">
+          <SkillForm
+            name={name}
+            category={category}
+            proficiency={proficiency}
+            setName={setName}
+            setCategory={setCategory}
+            setProficiency={setProficiency}
+            addSkill={() => {
+              addSkill();
+              setShowForm(false);
+            }}
+            setIsAdding={setIsAdding}
+          />
+          <div className="form-buttons">
+            <button type="button" onClick={() => setShowForm(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!showForm && (
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="skills-list">
+            {Object.entries(groupedSkills).map(([cat, skillsInCategory]) => (
+              <SkillsCategory
+                key={cat}
+                category={cat}
+                skills={skillsInCategory}
+                editSkill={editSkill}
+                removeSkill={removeSkill}
+                skillCount={skillsInCategory.length}
+              />
+            ))}
+          </div>
+        </DragDropContext>
+      )}
+
     </div>
   );
 }

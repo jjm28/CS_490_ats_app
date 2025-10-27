@@ -1,9 +1,11 @@
 import type { Skill } from "./Skills";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
+import { useState } from "react";
 
 interface SkillsCategoryProps {
   category: string;
   skills: Skill[];
+  skillCount: number;
   editSkill: (index: number, field: keyof Skill, value: string) => void;
   removeSkill: (index: number) => void;
 }
@@ -14,6 +16,11 @@ export default function SkillsCategory({
   editSkill,
   removeSkill,
 }: SkillsCategoryProps) {
+  const [filter, setFilter] = useState<string>("All");
+
+  const filteredSkills =
+    filter === "All" ? skills : skills.filter((s) => s.proficiency === filter);
+
   return (
     <Droppable droppableId={category}>
       {(provided) => (
@@ -22,8 +29,26 @@ export default function SkillsCategory({
           {...provided.droppableProps}
           ref={provided.innerRef}
         >
-          <h3>{category}</h3>
-          {skills.map((skill, idx) => (
+          <div className="category-header">
+            <div className="category-title">
+              <h3>
+                {category} ({skills.length})
+              </h3>
+            </div>
+            <div className="category-filter">
+              <label>Filter:</label>
+              <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+                {["All", "Beginner", "Intermediate", "Advanced", "Expert"].map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+
+          {filteredSkills.map((skill, idx) => (
             <Draggable
               key={skill._id || `${category}-${idx}`}
               draggableId={skill._id || `${category}-${idx}`}
