@@ -63,7 +63,7 @@ export default function Login() {
     try {
      const user = await LoginUser({email,password})
      console.log("Register with:",user.user.email);
-    setAuth(user.token,user)
+      setAuth(user.token,user)
       setSuccess("Welcome back! Redirecting…");
     } catch (err: any) {
       setFormErr(err?.message || "Something went wrong. Please try again.");

@@ -13,7 +13,9 @@ router.post('/register', async (req, res) => {
     }
     const user = await createUser({ email, password, firstName, lastName });
     // Return new userId so client can use it for subsequent profile calls
-    return res.status(201).json({ userId: String(user._id), user });
+    const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "10m"});
+
+    return res.status(201).json({ token, userId: String(user._id), user });
   } catch (err) {
     if (err?.code === 11000) {
       return res.status(409).json({ error: 'Email already registered' });
@@ -31,7 +33,7 @@ router.post('/login', async (req, res) => {
     }
     const user = await verifyUser({ email, password});
     // Return new userId so client can use it for subsequent profile calls
-    const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "1m"});
+    const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "10m"});
       console.log(token)
     return res.status(201).json({token, userId: String(user._id), user });
   } catch (err) {

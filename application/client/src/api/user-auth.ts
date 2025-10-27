@@ -10,8 +10,9 @@ export interface Register {
 }
 
 export interface PostRegisterResponse {
+  token: string;
   userid: string;
-  User: {
+  user: {
     email: string;
   };
 }

@@ -67,7 +67,8 @@ const navigate = useNavigate();
       setSubmitting(true);
       try {
       const user =  await createUser({email,password,firstName,lastName})
-      console.log("Register with:", user.User.email);
+      console.log("Register with:", user.user.email);
+      setAuth(user.token,user)
       setErrEmail(null);
       setErrpassword(null);
       setErrconfirmpassword(null);
