@@ -1,8 +1,41 @@
-import { Link } from "react-router-dom";
 import "../styles/Navbar.css";
 import { Disclosure } from "@headlessui/react";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import "../styles/Navbar.css";
 
 function Navbar() {
+  // ✅ show logged-in state based on token
+  const [loggedIn, setLoggedIn] = useState<boolean>(() => !!localStorage.getItem("authToken"));
+  const navigate = useNavigate();
+  const { pathname } = useLocation(); // ✅ re-check token when route changes
+
+  // ✅ update state when route changes (same-tab logins/registrations)
+  useEffect(() => {
+    setLoggedIn(!!localStorage.getItem("authToken"));
+  }, [pathname]);
+
+  // ✅ update state when another tab logs in/out
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "authToken" || e.key === "auth:changed") {
+        setLoggedIn(!!localStorage.getItem("authToken"));
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("authToken");   // ✅ clear token
+    localStorage.removeItem("authUser");
+    // optional “poke” to notify other tabs
+    localStorage.setItem("auth:changed", String(Date.now()));
+    localStorage.removeItem("auth:changed");
+    setLoggedIn(false);
+    navigate("/");
+  };
+
   return (
     <nav className="relative bg-gray-800">
       <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
@@ -26,36 +59,43 @@ function Navbar() {
               to="#"
               className="text-gray-300 hover:bg-white/5 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
             >
-              Dashboard
+              Home Page
             </Link>
             <Link
               to="#"
               className="text-gray-300 hover:bg-white/5 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
             >
-              Job Posts
-            </Link>
-            <Link
-              to="#"
-              className="text-gray-300 hover:bg-white/5 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
-            >
-              Application Tracking
-            </Link>
-            <Link
-              to="#"
-              className="text-gray-300 hover:bg-white/5 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
-            >
-              Analytics
+              Profile
             </Link>
           </div>
 
-          {/* Right: Sign In */}
-          <div className="flex items-center space-x-4">
-            <Link
-              to="/Registration"
-              className="text-gray-300 hover:text-white text-sm font-medium"
-            >
-              Sign In
-            </Link>
+          {/* Right: auth actions */}
+          <div className="flex items-center gap-3 space-x-4">
+            {!loggedIn ? (
+              <>
+                {/* Shown when NOT signed in */}
+                <Link
+                  to="/Registration"
+                  className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  Sign up
+                </Link>
+                <Link
+                  to="/Login"
+                  className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
+                >
+                  Log in
+                </Link>
+              </>
+            ) : (
+              // Shown ONLY when signed in
+              <button
+                onClick={logout}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
+              >
+                Log out
+              </button>
+            )}
 
             {/* Mobile Menu (Disclosure) */}
             <Disclosure as="div" className="sm:hidden">
@@ -99,25 +139,13 @@ function Navbar() {
                       to="#"
                       className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
                     >
-                      Dashboard
+                      Home Page
                     </Link>
                     <Link
                       to="#"
                       className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
                     >
-                      Job Posts
-                    </Link>
-                    <Link
-                      to="#"
-                      className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
-                    >
-                      Application Tracking
-                    </Link>
-                    <Link
-                      to="#"
-                      className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
-                    >
-                      Analytics
+                      Profile
                     </Link>
                   </Disclosure.Panel>
                 </>
