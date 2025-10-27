@@ -1,6 +1,3 @@
-// Used to read and write information about user profiles from the database
-
-
 import { getDb } from '../connection.js';
 
 const coll = () => getDb().collection('profiles');
