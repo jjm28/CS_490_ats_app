@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { isValidEmailBasic , splitEmail,isAllowedDomain, isValidPassword} from '../utils/helpers';
 import { useNavigate  } from 'react-router-dom';
+import { createUser } from '../api/user-auth';
 import { setAuth } from "../utils/auth";
 
 
@@ -8,6 +9,8 @@ function Registration() {
   const [user, setUser] = useState(null);
   const [email, setemail] = useState("")
   const [password, setpassword] = useState("")
+  const [firstName, setfirstName] = useState("")
+  const [lastName, setlastName] = useState("")
   const [confirmpassword, setconfirmpassword] = useState("")
   const [err, setErr] = useState<string | null>(null);
   const [errEmail, setErrEmail] = useState<string | null>(null);
@@ -25,15 +28,6 @@ const navigate = useNavigate();
     }
   }, [Success, navigate]);
 
-  useEffect(() => {
-  // CHANGED: after success, go to home ("/")
-  if (Success) {
-    const timer = setTimeout(() => {
-      navigate("/"); // go to homepage
-    }, 1200); // short delay to show the success text
-    return () => clearTimeout(timer);
-  }
-}, [Success, navigate]);
 
   const validateEmail = (value: string): string | null => {
     if (!isValidEmailBasic(value)) return "Enter a valid email (e.g., name@example.com).";
@@ -72,16 +66,20 @@ const navigate = useNavigate();
       if (msg) return setErrEmail(msg);
       setSubmitting(true);
       try {
-      // Make post request ot backend server register account and verify if email already exist in database
-      //
-      console.log("Register with:", email);
+      const user =  await createUser({email,password,firstName,lastName})
+      console.log("Register with:", user.User.email);
       setErrEmail(null);
       setErrpassword(null);
       setErrconfirmpassword(null);
       setErr(null)
       setSuccess("Success! Your account has been created. Welcome aboard!")
     } catch (err) {
+     if (err instanceof Error) {
+      setErr(err.message)
+     }
+     else {
       setErr("Something went wrong. Please try again.");
+     }
     } finally {
       setSubmitting(false);
     }
@@ -138,13 +136,13 @@ return (
           <div >
             <label className="text-sm font-medium text-gray-900 flex"  >  First Name         </label>
             <div className="mt-2">
-              <input  type="text"  name="firstname"  required  autoComplete="firstname"  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"/>
+              <input  type="text"  name="firstname"  required  onChange={(e) => setfirstName(e.target.value)}  autoComplete="firstname"  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"/>
             </div>
           </div>
           <div >
             <label className="text-sm font-medium text-gray-900 flex"  >     Last Name        </label>
             <div className="mt-2">
-              <input  type="text"  name="lastname"  required  autoComplete="lastname"  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"/>
+              <input  type="text"  name="lastname"  required onChange={(e) => setlastName(e.target.value)}  autoComplete="lastname"  className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"/>
             </div>
           </div>
           <div>
