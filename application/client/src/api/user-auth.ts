@@ -15,7 +15,18 @@ export interface PostRegisterResponse {
     email: string;
   };
 }
+export interface Login {
+  email: string;
+  password: string;
+}
 
+export interface PostLoginResponse {
+  token: string;
+  userId: string;
+  user: {
+    email: string;
+  };
+}
 // API Function
 export const createUser = async (  registerInfo: Register ): Promise<PostRegisterResponse> => {
   const res = await fetch(API_URL + "register", {
@@ -31,4 +42,20 @@ export const createUser = async (  registerInfo: Register ): Promise<PostRegiste
   }
 
   return data as Promise<PostRegisterResponse>;
+};
+
+export const LoginUser = async (  LoginInfo: Login ): Promise<PostLoginResponse> => {
+  const res = await fetch(API_URL + "login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(LoginInfo),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Unknown error occurred");
+  }
+
+  return data as Promise<PostLoginResponse>;
 };
