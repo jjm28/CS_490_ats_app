@@ -16,11 +16,11 @@ export default function Login() {
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // // If already logged in, skip the form
-  // useEffect(() => {
-  //   const existing = localStorage.getItem("authToken");
-  //   if (existing) navigate("/Dashboard");
-  // }, [navigate]);
+  // If already logged in, skip the form
+  useEffect(() => {
+    const existing = localStorage.getItem("authToken");
+    if (existing) navigate("/Dashboard");
+  }, [navigate]);
 
   // After success, send to Dashboard
   useEffect(() => {
