@@ -1,21 +1,8 @@
 // src/components/Login.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-// Reuse your existing helpers like in Registration.tsx
-import {
-  isValidEmailBasic,
-  splitEmail,
-  isAllowedDomain,
-  isValidPassword,
-} from "../utils/helpers";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ""; // e.g., http://localhost:3001
-const LOGIN_ENDPOINT = "/api/auth/login";                  // adjust if your backend differs
-
-type LoginResponse =
-  | { token: string; user?: { id?: string; email?: string; fullName?: string } }
-  | { message?: string; error?: string };
+import { LoginUser } from "../api/user-auth";
+import { setAuth } from "../utils/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -38,24 +25,20 @@ export default function Login() {
   // After success, send to Dashboard
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => navigate("/Dashboard"), 1200);
+      const timer = setTimeout(() => navigate("/Dashboard"), 2000);
       return () => clearTimeout(timer);
     }
   }, [success, navigate]);
 
   // --- validation helpers (same style as Registration.tsx) ---
   const validateEmail = (value: string): string | null => {
-    if (!isValidEmailBasic(value)) return "Enter a valid email (e.g., name@example.com).";
-    const { domain } = splitEmail(value);
-    if (!isAllowedDomain(domain)) return "This email domain isn’t allowed.";
+    if (value == "") return "Please Input Your Email";
     return null;
   };
 
   // If you want looser login rules, replace with: `return value ? null : "Enter your password.";`
   const validatePwdForLogin = (value: string): string | null => {
-    if (!isValidPassword(value)) {
-      return "Password must be at least 8 characters, include 1 uppercase, 1 lowercase, and 1 number.";
-    }
+    if (value == "") return "Please Input Your Password";
     return null;
   };
 
@@ -78,41 +61,17 @@ export default function Login() {
     setErrPassword(null);
 
     try {
-      const res = await fetch(API_BASE + LOGIN_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // if you also use cookies/session
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) {
-        let detail = "";
-        try {
-          const j = (await res.json()) as LoginResponse;
-          detail = ("error" in j && j.error) || ("message" in j && j.message) || "";
-        } catch {
-          /* ignore parse errors */
-        }
-        throw new Error(
-          `Login failed (${res.status}) ${res.statusText}${detail ? ` – ${detail}` : ""}`
-        );
-      }
-
-      const data = (await res.json()) as LoginResponse;
-      const token = "token" in data ? data.token : null;
-      if (!token) throw new Error("No token returned from server.");
-
-      // Persist auth token (stay signed in until explicit logout)
-      localStorage.setItem("authToken", token);
-      if ("user" in data && data.user) {
-        localStorage.setItem("authUser", JSON.stringify(data.user));
-      }
-
+     const user = await LoginUser({email,password})
+     console.log("Register with:",user.user.email);
+      setAuth(user.token,user)
       setSuccess("Welcome back! Redirecting…");
     } catch (err: any) {
       setFormErr(err?.message || "Something went wrong. Please try again.");
+
     } finally {
       setSubmitting(false);
+      setEmail("")    // Clear Form
+      setPassword("") // Clear Form
     }
   };
 

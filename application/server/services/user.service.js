@@ -20,7 +20,25 @@ export async function createUser({ email, password, firstName, lastName }) {
   const res = await users.insertOne(doc); // throws an error if duplicate email is entered
   return { _id: res.insertedId, email: doc.email, firstName, lastName };
 }
+export async function verifyUser({ email, password }) {
+  const db = getDb();
+  const users = db.collection('users');
 
+  const user = await users.findOne({ email: email});
+  if (!user) {
+    const err =  Error('Invalid credentials');
+    err.statusCode = 400;
+    throw err
+  }
+  const authpass = await bcrypt.compare(password, user.passwordHash)
+  if (!authpass){
+    const err =  Error('Invalid credentials');
+    err.statusCode = 400;
+    throw err
+  }
+  console.log(user)
+  return { _id: user._id, email: email}
+}
 export async function findUserByEmail(email) {
   const db = getDb();
   return db.collection('users').findOne({ email: String(email).toLowerCase() });

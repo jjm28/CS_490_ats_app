@@ -56,13 +56,13 @@ function Navbar() {
           {/* Center: Desktop Nav Links */}
           <div className="hidden sm:flex space-x-4">
             <Link
-              to="#"
+              to="/"
               className="text-gray-300 hover:bg-white/5 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
             >
               Home Page
             </Link>
             <Link
-              to="#"
+              to="/ProfilePage"
               className="text-gray-300 hover:bg-white/5 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
             >
               Profile
@@ -136,13 +136,13 @@ function Navbar() {
 
                   <Disclosure.Panel className="absolute top-16 right-0 w-48 bg-gray-800 shadow-lg rounded-md py-2 z-50">
                     <Link
-                      to="#"
+                      to="/"
                       className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
                     >
                       Home Page
                     </Link>
                     <Link
-                      to="#"
+                      to="/ProfilePage"
                       className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
                     >
                       Profile
