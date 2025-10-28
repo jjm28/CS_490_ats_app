@@ -11,12 +11,12 @@ import ProfileForm from './components/ProfileForm';
 import Logout from './components/Logout';
 import Education from './components/Education/Education';
 import AuthCallback from './components/AuthCallback';
-<<<<<<< HEAD
+
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-=======
+
 import PrivateRoute from './components/PrivateRoute';
->>>>>>> 9e0f24e86a2df91fdf914695da6e132cbe935f66
+
 import './App.css';
 
 function App() {
@@ -41,13 +41,10 @@ function App() {
           <Route path="/ProfilePage" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Logout" element={<Logout />} />
-<<<<<<< HEAD
           <Route path="/Education" element={<Education />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-=======
           <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
->>>>>>> 9e0f24e86a2df91fdf914695da6e132cbe935f66
         </Routes>
       </div>
     </>
