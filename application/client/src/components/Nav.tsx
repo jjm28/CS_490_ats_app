@@ -35,13 +35,8 @@ function Navbar() {
   }, []);
 
   const logout = () => {
-    localStorage.removeItem("authToken"); // ✅ clear token
-    localStorage.removeItem("authUser");
-    // optional “poke” to notify other tabs
-    localStorage.setItem("auth:changed", String(Date.now()));
-    localStorage.removeItem("auth:changed");
     setLoggedIn(false);
-    navigate("/");
+    navigate("/Logout");
   };
 
   return (
