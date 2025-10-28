@@ -139,6 +139,16 @@ export default function Login() {
             )}
           </div>
 
+          {/* Forgot Password Link */}
+          <div className="mt-2 text-right">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-indigo-600 hover:text-indigo-500 underline"
+             >
+            Forgot Password?
+            </Link>
+          </div>
+          
           {/* Submit */}
           <div>
             <Button type="submit" disabled={submitting}>

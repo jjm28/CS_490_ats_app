@@ -10,11 +10,13 @@ import ProfileForm from './components/ProfileForm';
 import Logout from './components/Logout';
 import Education from './components/Education/Education';
 import AuthCallback from './components/AuthCallback';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
 import './App.css';
 
 function App() {
   const location = useLocation();
-  const hideNavbarRoutes = ["/Login", "/Registration"];
+  const hideNavbarRoutes = ["/Login", "/Registration","/forgot-password", "/reset-password"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
   return (
     <>
@@ -31,6 +33,8 @@ function App() {
           <Route path="/ProfileForm" element={<ProfileForm />} />
           <Route path="/Logout" element={<Logout />} />
           <Route path="/Education" element={<Education />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </div>
     </>
