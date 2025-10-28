@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import Button from "./StyledComponents/Button";
 
 function ProfilePage() {
   const navigate = useNavigate();
@@ -25,15 +26,14 @@ function ProfilePage() {
         Set up your profile so employers can learn more about you.
       </p>
 
-      <button
+      <Button
         onClick={goToForm}
         disabled={!isLoggedIn}
-        className={`rounded-md px-4 py-2 text-white font-medium shadow
-          ${!isLoggedIn ? "bg-gray-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-500"}`}
+        variant="primary"
         title={!isLoggedIn ? "Log in first to create your profile" : "Open profile form"}
       >
         {isLoggedIn ? "Create / Edit Profile" : "Log in to continue"}
-      </button>
+      </Button>
 
       {!isLoggedIn && (
         <p className="mt-3 text-sm text-amber-700">

@@ -1,8 +1,10 @@
 // src/components/Login.tsx
+import logo from "../assets/img/logos/ontrac-trans-1.png";
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { LoginUser } from "../api/user-auth";
 import { setAuth } from "../utils/auth";
+import Button from "./StyledComponents/Button";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -61,38 +63,36 @@ export default function Login() {
     setErrPassword(null);
 
     try {
-     const user = await LoginUser({email,password})
-     console.log("Register with:",user.user.email);
-      setAuth(user.token,user)
+      const user = await LoginUser({ email, password });
+      console.log("Register with:", user.user.email);
+      setAuth(user.token, user);
       setSuccess("Welcome back! Redirecting…");
     } catch (err: any) {
       setFormErr(err?.message || "Something went wrong. Please try again.");
-
     } finally {
       setSubmitting(false);
-      setEmail("")    // Clear Form
-      setPassword("") // Clear Form
+      setEmail(""); // Clear Form
+      setPassword(""); // Clear Form
     }
   };
 
   return (
     <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-        <img
-          src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600"
-          alt="Your Company"
-          className="mx-auto h-10 w-auto"
-        />
-        <h2 className="mt-10 text-center text-2xl font-bold tracking-tight text-gray-900">
+        <img src={logo} alt="ontrac Logo" className="mx-auto h-14" />
+        {/* <h2 className="mt-10 text-center text-2xl font-bold tracking-tight text-gray-900">
           Welcome back — log in
-        </h2>
+        </h2> */}
+        <h1>Welcome back — log in</h1>
       </div>
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
         <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email */}
           <div>
-            <label className="text-sm font-medium text-gray-900 flex">Email address</label>
+            <label className="text-sm font-medium text-gray-900 flex">
+              Email address
+            </label>
             <div className="mt-2">
               <input
                 type="email"
@@ -108,12 +108,16 @@ export default function Login() {
                 }`}
               />
             </div>
-            {errEmail && <p className="mt-1 text-sm text-red-600">{errEmail}</p>}
+            {errEmail && (
+              <p className="mt-1 text-sm text-red-600">{errEmail}</p>
+            )}
           </div>
 
           {/* Password */}
           <div>
-            <label className="flex text-sm font-medium text-gray-900">Password</label>
+            <label className="flex text-sm font-medium text-gray-900">
+              Password
+            </label>
             <div className="mt-2">
               <input
                 type="password"
@@ -128,22 +132,26 @@ export default function Login() {
                 }`}
               />
             </div>
-            {errPassword && <p className="mt-1 text-sm text-red-600">{errPassword}</p>}
+            {errPassword && (
+              <p className="mt-1 text-sm text-red-600">{errPassword}</p>
+            )}
           </div>
 
           {/* Submit */}
           <div>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-            >
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Checking…" : "Log in"}
-            </button>
+            </Button>
           </div>
-
           {formErr && <p className="mt-1 text-sm text-red-600">{formErr}</p>}
           {success && <p className="mt-1 text-sm text-green-600">{success}</p>}
+          
+          <div>
+            Don't have an account?{" "}
+            <Link to="/Registration" className="underline">
+              Sign up
+            </Link>
+          </div>
         </form>
       </div>
     </div>

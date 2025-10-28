@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import Button from "./StyledComponents/Button";
 
 type Location = { city?: string; state?: string };
 type ProfileInput = {
@@ -89,8 +90,8 @@ const ProfileForm: React.FC = () => {
       if (values.fullName.length > LIMITS.NAME_MAX) throw new Error("Full name is too long.");
       if (values.headline.length > LIMITS.HEADLINE_MAX) throw new Error("Headline is too long.");
       if (values.bio.length > LIMITS.BIO_MAX) throw new Error("Bio is too long.");
-      if (values.location.city.length > LIMITS.CITY_MAX) throw new Error("City is too long.");
-      if (values.location.state.length > LIMITS.STATE_MAX) throw new Error("State is too long.");
+      if (values.location.city && values.location.city.length > LIMITS.CITY_MAX) throw new Error("City is too long.");
+      if (values.location.state && values.location.state.length > LIMITS.STATE_MAX) throw new Error("State is too long.");
 
       const res = await fetch(API_BASE + PROFILE_ENDPOINT, {
         method: "POST",
@@ -250,13 +251,13 @@ const ProfileForm: React.FC = () => {
 
         {/* Submit */}
         <div className="pt-2">
-          <button
+          <Button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            // className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             {submitting ? "Saving…" : "Save profile"}
-          </button>
+          </Button>
         </div>
 
         {err && <p className="text-sm text-red-600">{err}</p>}
