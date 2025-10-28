@@ -10,19 +10,25 @@ import profileRouter from './routes/profile.js';
 import education from './routes/education.js';
 
 import { attachDevUser } from './middleware/devUser.js';
+import cookieParser from 'cookie-parser';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
+const CORS_ORGIN = process.env.CORS_ORGIN || true;
+const DB = process.env.DB_NAME || 'appb'
 
 const app = express();
 
+app.set('baseUrl', BASE);
+
 app.use(cors({
-  origin: true,
+  origin: CORS_ORGIN,
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-dev-user-id'],
 }));
 
 app.use(express.json());
+app.use(cookieParser());
 
 // Start after DB connects
 try {
@@ -38,7 +44,8 @@ try {
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on ${BASE}`);
+    console.log(`Server connected to ${DB}`)
   });
 } catch (err) {
   console.error('Failed to start server:', err);
