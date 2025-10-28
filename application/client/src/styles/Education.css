@@ -110,3 +110,64 @@
   gap: 16px;
   margin-bottom: 16px;
 }
+
+.education-timeline {
+  position: relative;
+  margin: 30px 0;
+  padding-left: 40px;
+  border-left: 3px solid #ddd;
+}
+
+.education-item {
+  position: relative;
+  margin-bottom: 40px;
+  padding-left: 20px;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -11px;
+  top: 5px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background-color: #bbb;
+  border: 3px solid white;
+}
+
+.education-item.current .timeline-dot {
+  background-color: #28a745;
+}
+
+.education-item.completed .timeline-dot {
+  background-color: #6c757d;
+}
+
+.education-content {
+  background-color: #fff;
+  padding: 10px 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.badge.ongoing {
+  background-color: #28a745;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  margin-left: 6px;
+}
+
+.education-date {
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+.education-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}

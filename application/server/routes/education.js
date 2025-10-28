@@ -66,7 +66,8 @@ router.put("/:id", async (req, res) => {
     if (result.matchedCount === 0) {
       return res.status(404).json({ message: "Education entry not found" });
     }
-    res.status(200).json({ message: "Education updated successfully" });
+    const updatedDoc = await db.collection("education").findOne({ _id: new ObjectId(id) });
+    res.status(200).json(updatedDoc);
   } catch (err) {
     res.status(500).json({ message: "Error updating education", error: err });
   }
