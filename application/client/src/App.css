@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 #root {
   margin: 0 auto;
@@ -27,9 +28,10 @@
   --link-hover: var(--brand-teal-light);
 
   /* Font Families */
-  --font-heading: 'League Spartan', system-ui, sans-serif;
+  /* --font-heading: 'League Spartan', system-ui, sans-serif; */
+  /* --font-heading: 'Inter', system-ui, sans-serif;
   --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
+  --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace; */
 
   /* Font Sizes */
   --font-size-h1: 3rem;      /* 48px */
@@ -54,12 +56,15 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 }
-h1{
-  font-family: var(--font-heading);
+h1 {
+  font-size: 2rem;
   line-height: var(--line-height-tight);
   font-weight: var(--font-weight-bold);
   color: var(--brand-navy);
-  margin-top: 0;
+  text-align: center;
+  letter-spacing: -0.025em;
+  margin-top: 2.5rem;
+  line-height: var(--line-height-tight);
 }
 .logo {
   height: 35em;
@@ -95,4 +100,16 @@ h1{
 
 .read-the-docs {
   color: #888;
+}
+
+body {
+  background-color: #dadada;
+  color: #1f2023;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1f2023;
+    color: #dadada;
+  }
 }

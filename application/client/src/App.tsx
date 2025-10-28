@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Nav from './components/Nav';
 import HomePage from './components/Homepage';
 import Registration from './components/Registration';
@@ -12,9 +12,12 @@ import Education from './components/Education/Education';
 import './App.css';
 
 function App() {
+  const location = useLocation();
+  const hideNavbarRoutes = ["/Login", "/Registration"];
+  const showNavbar = !hideNavbarRoutes.includes(location.pathname);
   return (
     <>
-      <Nav />
+      {showNavbar && <Nav />}
       <div className="main-content">
         <Routes>
           <Route path="/" element={<HomePage />} />

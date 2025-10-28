@@ -1,8 +1,9 @@
-import "../styles/Navbar.css";
+import logo from "../assets/img/logos/ontrac-trans-2.png";
 import { Disclosure } from "@headlessui/react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "../styles/Navbar.css";
+import Button from "../components/StyledComponents/Buttons";
 
 function Navbar() {
   // ✅ show logged-in state based on token
@@ -37,71 +38,68 @@ function Navbar() {
   };
 
   return (
-    <nav className="relative bg-gray-800">
-      <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
+    <nav className="relative border-b border-gray-300 shadow-sm">
+      <div className="px-2 sm:px-6 lg:px-8">
         <div className="relative flex h-16 items-center justify-between">
 
           {/* Left: Brand */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center">
+            <Link to="/">
               <img
-                src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=500"
+                src={logo}
                 alt="Logo"
-                className="h-8 w-auto"
+                className="w-1/2"
               />
-              <span className="ml-2 text-white font-semibold">MyApp</span>
             </Link>
           </div>
 
           {/* Center: Desktop Nav Links */}
-          <div className="hidden sm:flex space-x-4">
+          <div className="absolute left-1/2 transform -translate-x-1/2 hidden sm:flex space-x-4">
             <Link
               to="/"
-              className="text-gray-300 hover:bg-white/5 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
+              className="text-(--brand-sage) hover:bg-gray-50 hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium"
             >
               Home Page
             </Link>
             <Link
               to="/ProfilePage"
-              className="text-gray-300 hover:bg-white/5 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
+              className="text-(--brand-sage) hover:bg-gray-50 hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium"
             >
               Profile
             </Link>
           </div>
 
+          {/* */}
+
           {/* Right: auth actions */}
-          <div className="flex items-center gap-3 space-x-4">
+          <div className="flex items-center space-x-4">
             {!loggedIn ? (
               <>
                 {/* Shown when NOT signed in */}
-                <Link
-                  to="/Registration"
-                  className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
-                >
-                  Sign up
-                </Link>
-                <Link
-                  to="/Login"
-                  className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
-                >
-                  Log in
-                </Link>
+                <Button variant="primary" onClick={navigate("/Registration")}>
+                    Sign up
+                </Button>
+                <Button variant="primary" onClick={navigate("/Login")}>
+                    Log in
+                </Button>
               </>
             ) : (
               // Shown ONLY when signed in
-              <button
-                onClick={logout}
-                className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
-              >
+              // <button
+              //   onClick={logout}
+              //   className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500"
+              // >
+              <Button variant="primary" onClick={logout}>
                 Log out
-              </button>
+              </Button>
+              // </button>
             )}
 
             {/* Mobile Menu (Disclosure) */}
             <Disclosure as="div" className="sm:hidden">
               {({ open }) => (
                 <>
-                  <Disclosure.Button className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-white/5 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <Disclosure.Button className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-white/5 hover:text-white focus:outline-none focus:ring-2 focus:ring-white">
                     <span className="sr-only">Open main menu</span>
                     {!open ? (
                       <svg
