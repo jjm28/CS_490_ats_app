@@ -145,7 +145,16 @@ export default function Login() {
           </div>
           {formErr && <p className="mt-1 text-sm text-red-600">{formErr}</p>}
           {success && <p className="mt-1 text-sm text-green-600">{success}</p>}
-          
+          <div className="mt-6">
+            <div className="flex items-center justify-center">
+              <span className="text-sm text-gray-600">Or log in with</span>
+            </div>
+            <div className="mt-4 flex justify-center gap-4">
+              <button type="button" className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
           <div>
             Don't have an account?{" "}
             <Link to="/Registration" className="underline">

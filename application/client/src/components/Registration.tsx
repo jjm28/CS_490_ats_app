@@ -209,6 +209,16 @@ function Registration() {
             <Button type="submit" onClick={handleSubmit}>
               {submitting ? "Checking..." : "Register"}
             </Button>
+        <div className="mt-6">
+          <div className="flex items-center justify-center">
+            <span className="text-sm text-gray-600">Or register with</span>
+          </div>
+          <div className="mt-4 flex justify-center gap-4">
+            <button type="button" className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
           </div>
           {err && <p className="mt-1 text-sm text-red-600">{err}</p>}
           {Success != null ? (

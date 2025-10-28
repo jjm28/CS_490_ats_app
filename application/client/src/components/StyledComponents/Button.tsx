@@ -1,5 +1,5 @@
 import "../../App.css";
-import "../../styles/StyledComponents/Buttons.css";
+import "../../styles/StyledComponents/Button.css";
 
 function Button({
   variant = "primary",
