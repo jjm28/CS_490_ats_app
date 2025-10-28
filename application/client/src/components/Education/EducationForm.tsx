@@ -3,18 +3,19 @@ import { useState } from "react";
 interface EducationFormProps {
   onSubmit: (edu: any) => void;
   onCancel: () => void;
+  initialData?: any;
 }
 
-export default function EducationForm({ onSubmit, onCancel }: EducationFormProps) {
-  const [institution, setInstitution] = useState("");
-  const [degree, setDegree] = useState("");
-  const [field, setField] = useState("");
-  const [graduationDate, setGraduationDate] = useState("");
-  const [gpa, setGpa] = useState("");
-  const [privacy, setPrivacy] = useState(false);
-  const [currentlyEnrolled, setCurrentlyEnrolled] = useState(false);
-  const [level, setLevel] = useState("Bachelor's");
-  const [honors, setHonors] = useState("");
+export default function EducationForm({ onSubmit, onCancel, initialData }: EducationFormProps) {
+  const [institution, setInstitution] = useState(initialData?.institution || "");
+  const [degree, setDegree] = useState(initialData?.degree || "");
+  const [field, setField] = useState(initialData?.fieldOfStudy || "");
+  const [graduationDate, setGraduationDate] = useState(initialData?.graduationDate || "");
+  const [gpa, setGpa] = useState(initialData?.gpa || "");
+  const [privacy, setPrivacy] = useState(initialData?.isPrivateGpa || false);
+  const [currentlyEnrolled, setCurrentlyEnrolled] = useState(initialData?.currentlyEnrolled || false);
+  const [level, setLevel] = useState(initialData?.educationLevel || "Bachelor's");
+  const [honors, setHonors] = useState(initialData?.achievements || "");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
