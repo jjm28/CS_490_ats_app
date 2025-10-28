@@ -126,10 +126,10 @@ function Navbar() {
             {!loggedIn ? (
               <>
                 {/* Shown when NOT signed in */}
-                <Button variant="primary" onClick={navigate("/Registration")}>
+                <Button variant="primary" onClick={() => navigate("/Registration")}>
                   Sign up
                 </Button>
-                <Button variant="primary" onClick={navigate("/Login")}>
+                <Button variant="primary"  onClick={() => navigate("/Login")}>
                   Log in
                 </Button>
               </>
