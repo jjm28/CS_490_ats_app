@@ -38,6 +38,8 @@ export default function Login() {
     return null;
   };
 
+    const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
+
   // If you want looser login rules, replace with: `return value ? null : "Enter your password.";`
   const validatePwdForLogin = (value: string): string | null => {
     if (value == "") return "Please Input Your Password";
@@ -150,7 +152,7 @@ export default function Login() {
               <span className="text-sm text-gray-600">Or log in with</span>
             </div>
             <div className="mt-4 flex justify-center gap-4">
-              <button type="button" className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+              <button type="button" onClick={go} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
                 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="h-6 w-6" />
               </button>
             </div>

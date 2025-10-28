@@ -9,6 +9,7 @@ import ProfilePage from './components/ProfilePage';
 import ProfileForm from './components/ProfileForm';
 import Logout from './components/Logout';
 import Education from './components/Education/Education';
+import AuthCallback from './components/AuthCallback';
 import './App.css';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/Registration" element={<Registration />} />
+          <Route path="/auth/callback" element={<AuthCallback />} /> 
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Skills" element={<Skills />} />
           <Route path="/Login" element={<LoginPage />} />
