@@ -3,10 +3,14 @@ import "../../styles/StyledComponents/Buttons.css";
 
 function Button({
   variant = "primary",
+  disabled = false,
+  className = "",
   children,
   ...props
 }: {
   variant?: "primary" | "secondary";
+  disabled?: boolean;
+  className?: string;
   children: React.ReactNode;
   [key: string]: any;
 }) {
@@ -15,8 +19,9 @@ function Button({
     primary: "btn-primary",
     secondary: "btn-secondary",
   };
+  const classes = `${base} ${variants[variant]} ${disabled ? "btn-disabled" : ""} ${className}`;
   return (
-    <button className={`${base} ${variants[variant]}`} {...props}>
+    <button disabled={disabled} className={classes} {...props}>
       {children}
     </button>
   );

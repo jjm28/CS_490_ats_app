@@ -69,8 +69,6 @@ function Navbar() {
             </Link>
           </div>
 
-          {/* */}
-
           {/* Right: auth actions */}
           <div className="flex items-center space-x-4">
             {!loggedIn ? (

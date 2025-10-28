@@ -12,3 +12,7 @@
 .btn-disabled {
   @apply opacity-50 cursor-not-allowed;
 }
+
+.btn-disabled {
+  @apply opacity-50 cursor-not-allowed;
+}

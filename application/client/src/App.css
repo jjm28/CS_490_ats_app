@@ -103,13 +103,13 @@ h1 {
 }
 
 body {
-  background-color: #dadada;
+  background-color: #F9FAF9;
   color: #1f2023;
 }
-
+/* 
 @media (prefers-color-scheme: dark) {
   body {
     background-color: #1f2023;
-    color: #dadada;
+    color: #F9FAF9;
   }
-}
+} */
