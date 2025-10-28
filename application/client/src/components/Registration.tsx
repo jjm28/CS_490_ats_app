@@ -9,7 +9,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { createUser } from "../api/user-auth";
 import { setAuth } from "../utils/auth";
 import logo from "../assets/img/logos/ontrac-trans-1.png";
-import Button from "./StyledComponents/Buttons";
+import Button from "./StyledComponents/Button";
 
 function Registration() {
   const [user, setUser] = useState(null);
@@ -223,16 +223,6 @@ function Registration() {
             </Link>
           </div>
         </form>
-        {/* 
-        <p className="mt-10 text-center text-sm text-gray-500">
-          Not a member?{" "}
-          <a
-            href="#"
-            className="font-semibold text-indigo-600 hover:text-indigo-500"
-          >
-            Start a 14 day free trial
-          </a>
-        </p> */}
       </div>
     </div>
   );

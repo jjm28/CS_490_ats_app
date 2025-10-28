@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import Button from "./StyledComponents/Buttons";
+import Button from "./StyledComponents/Button";
 
 function ProfilePage() {
   const navigate = useNavigate();

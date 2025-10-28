@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LoginUser } from "../api/user-auth";
 import { setAuth } from "../utils/auth";
-import Button from "./StyledComponents/Buttons";
+import Button from "./StyledComponents/Button";
 
 export default function Login() {
   const navigate = useNavigate();
