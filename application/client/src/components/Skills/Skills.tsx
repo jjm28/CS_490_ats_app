@@ -193,6 +193,7 @@ export default function Skills() {
             placeholder="Search skills..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="form-input"
           />
         </div>
       )}
@@ -212,10 +213,10 @@ export default function Skills() {
             }}
             setIsAdding={setIsAdding}
           />
-          <div className="form-buttons">
-            <button type="button" onClick={() => setShowForm(false)}>
+          <div className="flex justify-start">
+            <Button type="button" onClick={() => setShowForm(false)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </Card>
       )}
