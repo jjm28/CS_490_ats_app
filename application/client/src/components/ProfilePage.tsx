@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Button from "./StyledComponents/Button";
 import { listProfiles, type Profile } from "../api/profiles";
+import API_BASE from "../utils/apiBase"; 
 
 function ProfilePage() {
   const navigate = useNavigate();
@@ -38,11 +39,26 @@ function ProfilePage() {
       }
     }
     if (isLoggedIn) run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isLoggedIn]);
 
   const createNew = () => navigate("/ProfileForm");
   const editProfile = (id: string) => navigate(`/ProfileForm/${id}`);
+
+  // Default avatar (inline SVG) for when no photoUrl is present
+  const DEFAULT_AVATAR =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.5'><circle cx='12' cy='8' r='4'/><path d='M4 20c0-4 4-6 8-6s8 2 8 6'/></svg>`
+    );
+
+  const resolvePhoto = (p: Profile) => {
+    if (!p.photoUrl) return DEFAULT_AVATAR;
+    if (p.photoUrl.startsWith("http")) return p.photoUrl;
+    return API_BASE + p.photoUrl;
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -77,17 +93,26 @@ function ProfilePage() {
               {profiles.map((p) => (
                 <li key={p._id} className="rounded-xl border bg-white p-4">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="font-semibold text-gray-900">{p.fullName}</div>
-                      <div className="text-sm text-gray-600">{p.email}</div>
-                      <div className="text-sm text-gray-600">
-                        {p.headline || p.industry} • {p.experienceLevel}
-                      </div>
-                      {p.location?.city || p.location?.state ? (
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={resolvePhoto(p)}
+                        alt=""
+                        className="h-10 w-10 rounded-full object-cover border"
+                      />
+                      <div>
+                        <div className="font-semibold text-gray-900">{p.fullName}</div>
+                        <div className="text-sm text-gray-600">{p.email}</div>
                         <div className="text-sm text-gray-600">
-                          {p.location?.city}{p.location?.city && p.location?.state ? ", " : ""}{p.location?.state}
+                          {p.headline || p.industry} • {p.experienceLevel}
                         </div>
-                      ) : null}
+                        {p.location?.city || p.location?.state ? (
+                          <div className="text-sm text-gray-600">
+                            {p.location?.city}
+                            {p.location?.city && p.location?.state ? ", " : ""}
+                            {p.location?.state}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                     <div>
                       <Button onClick={() => editProfile(p._id!)}>Edit</Button>
