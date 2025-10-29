@@ -1,12 +1,14 @@
-import React, { useMemo, useState, useEffect } from "react";
+// application/client/src/components/ProfileForm.tsx
+import React, { useState, useEffect } from "react";
 import Button from "./StyledComponents/Button";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   type Profile,
   createProfile,
   updateProfile,
   getProfile,
 } from "../api/profiles";
+import ProfilePhotoUploader from "./ProfilePhotoUploader";
 
 const EXPERIENCE_LEVELS = ["Entry", "Mid", "Senior", "Executive"] as const;
 const INDUSTRIES = [
@@ -36,6 +38,7 @@ const empty: Profile = {
   industry: "Other",
   experienceLevel: "Entry",
   location: { city: "", state: "" },
+  photoUrl: "",
 };
 
 const ProfileForm: React.FC = () => {
@@ -48,30 +51,41 @@ const ProfileForm: React.FC = () => {
   const [values, setValues] = useState<Profile>(empty);
   const isEdit = !!profileId;
 
-  // Prefill if editing
   useEffect(() => {
     let cancelled = false;
     async function load() {
       if (!profileId) return;
       try {
         const data = await getProfile(profileId);
-        if (!cancelled) setValues({
-          ...empty,
-          ...data,
-          location: { city: data.location?.city || "", state: data.location?.state || "" },
-        });
+        if (!cancelled)
+          setValues({
+            ...empty,
+            ...data,
+            location: {
+              city: data.location?.city || "",
+              state: data.location?.state || "",
+            },
+            photoUrl: data.photoUrl || "",
+          });
       } catch (e: any) {
         if (!cancelled) setErr(e?.message || "Failed to load profile.");
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [profileId]);
 
   const onChange =
     (field: keyof Profile) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      if (field === "location") return; // handled separately
+    (
+      e:
+        | React.ChangeEvent<HTMLInputElement>
+        | React.ChangeEvent<HTMLTextAreaElement>
+        | React.ChangeEvent<HTMLSelectElement>
+    ) => {
+      if (field === "location") return;
       setValues((v) => ({ ...v, [field]: e.target.value }));
     };
 
@@ -89,14 +103,26 @@ const ProfileForm: React.FC = () => {
     setErr(null);
     setSubmitting(true);
     try {
-      if (values.fullName.length > LIMITS.NAME_MAX) throw new Error("Full name is too long.");
-      if (values.headline.length > LIMITS.HEADLINE_MAX) throw new Error("Headline is too long.");
-      if (values.bio.length > LIMITS.BIO_MAX) throw new Error("Bio is too long.");
-      if (values.location.city && values.location.city.length > LIMITS.CITY_MAX) throw new Error("City is too long.");
-      if (values.location.state && values.location.state.length > LIMITS.STATE_MAX) throw new Error("State is too long.");
+      if (values.fullName.length > LIMITS.NAME_MAX)
+        throw new Error("Full name is too long.");
+      if (values.headline.length > LIMITS.HEADLINE_MAX)
+        throw new Error("Headline is too long.");
+      if (values.bio.length > LIMITS.BIO_MAX)
+        throw new Error("Bio is too long.");
+      if (values.location.city && values.location.city.length > LIMITS.CITY_MAX)
+        throw new Error("City is too long.");
+      if (values.location.state && values.location.state.length > LIMITS.STATE_MAX)
+        throw new Error("State is too long.");
 
       if (isEdit && profileId) {
-        await updateProfile(profileId, values);
+        const payload: Partial<Profile> = {
+          ...values,
+          photoUrl:
+            values.photoUrl && values.photoUrl.trim() !== ""
+              ? values.photoUrl.trim()
+              : undefined,
+        };
+        await updateProfile(profileId, payload as Profile);
         navigate("/ProfilePage", { state: { flash: "Profile updated." } });
       } else {
         await createProfile(values);
@@ -118,10 +144,21 @@ const ProfileForm: React.FC = () => {
         Tell us about yourself. Fields marked * are required.
       </p>
 
+      {values._id && (
+        <div className="mb-6">
+          <ProfilePhotoUploader
+            profileId={values._id}
+            photoUrl={values.photoUrl}
+            onChange={(url) => setValues((v) => ({ ...v, photoUrl: url }))}
+          />
+        </div>
+      )}
+
       <form onSubmit={onSubmit} className="space-y-5">
-        {/* Full Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-900">Full name *</label>
+          <label className="block text-sm font-medium text-gray-900">
+            Full name *
+          </label>
           <input
             required
             maxLength={LIMITS.NAME_MAX}
@@ -132,9 +169,10 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-gray-900">Email *</label>
+          <label className="block text-sm font-medium text-gray-900">
+            Email *
+          </label>
           <input
             type="email"
             required
@@ -145,9 +183,10 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Phone */}
         <div>
-          <label className="block text-sm font-medium text-gray-900">Phone</label>
+          <label className="block text-sm font-medium text-gray-900">
+            Phone
+          </label>
           <input
             value={values.phone}
             onChange={onChange("phone")}
@@ -156,9 +195,10 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Headline */}
         <div>
-          <label className="block text-sm font-medium text-gray-900">Headline</label>
+          <label className="block text-sm font-medium text-gray-900">
+            Headline
+          </label>
           <input
             maxLength={LIMITS.HEADLINE_MAX}
             value={values.headline}
@@ -168,7 +208,6 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Bio */}
         <div>
           <label className="block text-sm font-medium text-gray-900">Bio</label>
           <textarea
@@ -181,39 +220,47 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Industry & Experience */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900">Industry</label>
+            <label className="block text-sm font-medium text-gray-900">
+              Industry
+            </label>
             <select
               value={values.industry}
               onChange={onChange("industry")}
               className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
             >
               {INDUSTRIES.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-900">Experience level</label>
+            <label className="block text-sm font-medium text-gray-900">
+              Experience level
+            </label>
             <select
               value={values.experienceLevel}
               onChange={onChange("experienceLevel")}
               className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
             >
               {EXPERIENCE_LEVELS.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Location */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900">City</label>
+            <label className="block text-sm font-medium text-gray-900">
+              City
+            </label>
             <input
               value={values.location.city || ""}
               onChange={onChangeCity}
@@ -223,7 +270,9 @@ const ProfileForm: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-900">State</label>
+            <label className="block text-sm font-medium text-gray-900">
+              State
+            </label>
             <input
               value={values.location.state || ""}
               onChange={onChangeState}
@@ -234,10 +283,15 @@ const ProfileForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Submit */}
         <div className="pt-2">
           <Button type="submit" disabled={submitting}>
-            {submitting ? (isEdit ? "Updating…" : "Saving…") : (isEdit ? "Save changes" : "Save profile")}
+            {submitting
+              ? isEdit
+                ? "Updating…"
+                : "Saving…"
+              : isEdit
+              ? "Save changes"
+              : "Save profile"}
           </Button>
         </div>
 

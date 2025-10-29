@@ -18,6 +18,7 @@ const ProfileSchema = new Schema(
     experienceLevel: String,
     // optional
     profileType: { type: String, default: 'default' },
+    photoUrl: { type: String, default: '' },
   },
   { timestamps: true }
 );

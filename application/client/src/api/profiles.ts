@@ -44,6 +44,7 @@ export type Profile = {
   location: Location;
   createdAt?: string;
   updatedAt?: string;
+  photoUrl?: string;
 };
 
 const BASE = API_BASE || ""; // empty = same-origin during prod behind reverse proxy
