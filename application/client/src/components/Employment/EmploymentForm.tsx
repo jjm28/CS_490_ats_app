@@ -130,7 +130,9 @@ const EmploymentForm: React.FC = () => {
         setValues(empty); // clear after create
       }
 
-      setTimeout(() => navigate("/Employment"), 800);
+      navigate("/EmploymentPage");
+
+      //setTimeout(() => navigate("/Employment"), 800);
     } catch (e: any) {
       setErr(e?.message || "Could not save.");
     } finally {
@@ -138,7 +140,7 @@ const EmploymentForm: React.FC = () => {
     }
   };
 
-  const onCancel = () => navigate("/Employment");
+  const onCancel = () => navigate("/EmploymentPage");
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">

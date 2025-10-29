@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../StyledComponents/Button";
-import { listEmployment, removeEmployment, type Employment } from "../../api/employment";
+import { listEmployment, deleteEmployment, type Employment } from "../../api/employment";
+
+
 
 const EmploymentPage: React.FC = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState<Employment[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+
+  const [flash, setFlash] = useState<string | null>(null);
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 2500);
+    return () => clearTimeout(t);
+  }, [flash]);
 
   async function load() {
     setLoading(true);
@@ -26,15 +35,24 @@ const EmploymentPage: React.FC = () => {
 
   const addNew = () => navigate("/EmploymentForm");
   const edit = (id: string) => navigate(`/EmploymentForm/${id}`);
+  
   const del = async (id: string) => {
+    if (items.length <= 1) {
+      alert("You must have at least one employment entry.");
+      return;
+    }
     if (!confirm("Delete this entry?")) return;
     try {
-      await removeEmployment(id);
+      await deleteEmployment(id);
+      setFlash("Entry deleted successfully.");
       await load();
     } catch (e: any) {
       alert(e?.message || "Delete failed");
     }
   };
+
+  const canDelete = items.length > 1;
+  
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -43,8 +61,19 @@ const EmploymentPage: React.FC = () => {
         Add and manage your work experience entries.
       </p>
 
+      {flash && (
+        <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
+          {flash}
+        </div>
+      )}
+
       <div className="mb-4">
         <Button onClick={addNew}>Add Employment</Button>
+        {!canDelete && items.length === 1 && !loading && !err && (
+          <div className="mt-1">
+          <span className="text-xs text-gray-600"> Delete not Available. </span>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -74,7 +103,12 @@ const EmploymentPage: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={() => edit(e._id!)}>Edit</Button>
-                  <Button onClick={() => del(e._id!)} variant="secondary">Delete</Button>
+                  {/*<Button onClick={() => del(e._id!)} variant="secondary">Delete</Button>*/}
+                  {canDelete && (
+                    <Button onClick={() => del(e._id!)} variant="secondary">
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </div>
             </li>
