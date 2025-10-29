@@ -1,22 +1,16 @@
-import React, { useMemo, useState, useEffect } from "react";
+// application/client/src/components/ProfileForm.tsx
+import React, { useState, useEffect } from "react";
 import Button from "./StyledComponents/Button";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  type Profile,
+  createProfile,
+  updateProfile,
+  getProfile,
+} from "../api/profiles";
+import Card from "./StyledComponents/Card";
+import ProfilePhotoUploader from "./ProfilePhotoUploader";
 
-type Location = { city?: string; state?: string };
-type ProfileInput = {
-  fullName: string;
-  email: string;
-  phone: string;
-  headline: string;
-  bio: string;
-  industry: string;
-  experienceLevel: string;
-  location: Location;
-};
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ""; // e.g. http://localhost:3001
-const PROFILE_ENDPOINT = "/api/profile"; // POST to create or upsert
-
-// Static fallbacks that match your backend PROFILE_ENUMS
 const EXPERIENCE_LEVELS = ["Entry", "Mid", "Senior", "Executive"] as const;
 const INDUSTRIES = [
   "Software",
@@ -36,37 +30,68 @@ const LIMITS = {
   HEADLINE_MAX: 150,
 };
 
+const empty: Profile = {
+  fullName: "",
+  email: "",
+  phone: "",
+  headline: "",
+  bio: "",
+  industry: "Other",
+  experienceLevel: "Entry",
+  location: { city: "", state: "" },
+  photoUrl: "",
+};
+
 const ProfileForm: React.FC = () => {
-  const token = useMemo(
-    () =>
-      localStorage.getItem("authToken") ||
-      localStorage.getItem("token") ||
-      "",
-    []
-  );
+  const navigate = useNavigate();
+  const params = useParams<{ id?: string }>();
+  const profileId = params.id || null;
 
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [values, setValues] = useState<Profile>(empty);
+  const isEdit = !!profileId;
 
-  const [values, setValues] = useState<ProfileInput>({
-    fullName: "",
-    email: "",
-    phone: "",
-    headline: "",
-    bio: "",
-    industry: "Other",
-    experienceLevel: "Entry",
-    location: { city: "", state: "" },
-  });
-
-  // OPTIONAL: If your backend exposes enums at an endpoint, you could fetch them here
-  // and replace EXPERIENCE_LEVELS/INDUSTRIES with live data.
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!profileId) return;
+      try {
+        const data = await getProfile(profileId);
+        if (!cancelled)
+          setValues({
+            ...empty,
+            ...data,
+            location: {
+              city: data.location?.city || "",
+              state: data.location?.state || "",
+            },
+            photoUrl: data.photoUrl || "",
+          });
+      } catch (e: any) {
+        if (!cancelled) setErr(e?.message || "Failed to load profile.");
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId]);
 
   const onChange =
-    (field: keyof ProfileInput) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    (field: keyof Profile) =>
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => {
       if (field === "location") return; // handled separately
+      e:
+        | React.ChangeEvent<HTMLInputElement>
+        | React.ChangeEvent<HTMLTextAreaElement>
+        | React.ChangeEvent<HTMLSelectElement>
+    ) => {
+      if (field === "location") return;
       setValues((v) => ({ ...v, [field]: e.target.value }));
     };
 
@@ -82,39 +107,37 @@ const ProfileForm: React.FC = () => {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
-    setSuccess(null);
     setSubmitting(true);
-
     try {
-      // Basic client-side length checks (optional)
-      if (values.fullName.length > LIMITS.NAME_MAX) throw new Error("Full name is too long.");
-      if (values.headline.length > LIMITS.HEADLINE_MAX) throw new Error("Headline is too long.");
-      if (values.bio.length > LIMITS.BIO_MAX) throw new Error("Bio is too long.");
-      if (values.location.city && values.location.city.length > LIMITS.CITY_MAX) throw new Error("City is too long.");
-      if (values.location.state && values.location.state.length > LIMITS.STATE_MAX) throw new Error("State is too long.");
+      if (values.fullName.length > LIMITS.NAME_MAX)
+        throw new Error("Full name is too long.");
+      if (values.headline.length > LIMITS.HEADLINE_MAX)
+        throw new Error("Headline is too long.");
+      if (values.bio.length > LIMITS.BIO_MAX)
+        throw new Error("Bio is too long.");
+      if (values.location.city && values.location.city.length > LIMITS.CITY_MAX)
+        throw new Error("City is too long.");
+      if (
+        values.location.state &&
+        values.location.state.length > LIMITS.STATE_MAX
+      )
+      if (values.location.state && values.location.state.length > LIMITS.STATE_MAX)
+        throw new Error("State is too long.");
 
-      const res = await fetch(API_BASE + PROFILE_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: "include",
-        body: JSON.stringify(values),
-      });
-
-      if (!res.ok) {
-        let detail = "";
-        try {
-          const j = await res.json();
-          detail = j?.message || j?.error || "";
-        } catch {}
-        throw new Error(
-          `Request failed (${res.status}) ${res.statusText}${detail ? ` – ${detail}` : ""}`
-        );
+      if (isEdit && profileId) {
+        const payload: Partial<Profile> = {
+          ...values,
+          photoUrl:
+            values.photoUrl && values.photoUrl.trim() !== ""
+              ? values.photoUrl.trim()
+              : undefined,
+        };
+        await updateProfile(profileId, payload as Profile);
+        navigate("/ProfilePage", { state: { flash: "Profile updated." } });
+      } else {
+        await createProfile(values);
+        navigate("/ProfilePage", { state: { flash: "Profile created." } });
       }
-
-      setSuccess("Profile saved!");
     } catch (e: any) {
       setErr(e?.message || "Could not save profile.");
     } finally {
@@ -123,16 +146,42 @@ const ProfileForm: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile</h1>
+    <div className="mx-auto max-w-3xl px-4 py-6">
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        {isEdit ? "Edit Profile" : "Profile"}
+      </h1>
       <p className="text-gray-600 mb-6">
         Tell us about yourself. Fields marked * are required.
       </p>
 
+      <form onSubmit={onSubmit} className="space-y-5 px-6">
+        <Card>
+          {/* Full Name */}
+          <div>
+            <label className="form-label">Full name *</label>
+            <input
+              required
+              maxLength={LIMITS.NAME_MAX}
+              value={values.fullName}
+              onChange={onChange("fullName")}
+              className="form-input"
+              placeholder="Alex Johnson"
+            />
+      {values._id && (
+        <div className="mb-6">
+          <ProfilePhotoUploader
+            profileId={values._id}
+            photoUrl={values.photoUrl}
+            onChange={(url) => setValues((v) => ({ ...v, photoUrl: url }))}
+          />
+        </div>
+      )}
+
       <form onSubmit={onSubmit} className="space-y-5">
-        {/* Full Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-900">Full name *</label>
+          <label className="block text-sm font-medium text-gray-900">
+            Full name *
+          </label>
           <input
             required
             maxLength={LIMITS.NAME_MAX}
@@ -143,9 +192,10 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-gray-900">Email *</label>
+          <label className="block text-sm font-medium text-gray-900">
+            Email *
+          </label>
           <input
             type="email"
             required
@@ -156,9 +206,10 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Phone */}
         <div>
-          <label className="block text-sm font-medium text-gray-900">Phone</label>
+          <label className="block text-sm font-medium text-gray-900">
+            Phone
+          </label>
           <input
             value={values.phone}
             onChange={onChange("phone")}
@@ -167,9 +218,10 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Headline */}
         <div>
-          <label className="block text-sm font-medium text-gray-900">Headline</label>
+          <label className="block text-sm font-medium text-gray-900">
+            Headline
+          </label>
           <input
             maxLength={LIMITS.HEADLINE_MAX}
             value={values.headline}
@@ -179,7 +231,6 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Bio */}
         <div>
           <label className="block text-sm font-medium text-gray-900">Bio</label>
           <textarea
@@ -192,10 +243,11 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Industry & Experience */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900">Industry</label>
+            <label className="block text-sm font-medium text-gray-900">
+              Industry
+            </label>
             <select
               value={values.industry}
               onChange={onChange("industry")}
@@ -209,8 +261,20 @@ const ProfileForm: React.FC = () => {
             </select>
           </div>
 
+          {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-900">Experience level</label>
+            <label className="form-label">Email *</label>
+            <input
+              type="email"
+              required
+              value={values.email}
+              onChange={onChange("email")}
+              className="form-input"
+              placeholder="you@example.com"
+            />
+            <label className="block text-sm font-medium text-gray-900">
+              Experience level
+            </label>
             <select
               value={values.experienceLevel}
               onChange={onChange("experienceLevel")}
@@ -223,45 +287,134 @@ const ProfileForm: React.FC = () => {
               ))}
             </select>
           </div>
-        </div>
 
-        {/* Location */}
+          {/* Phone */}
+          <div>
+            <label className="form-label">Phone</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900">City</label>
+            <label className="block text-sm font-medium text-gray-900">
+              City
+            </label>
             <input
-              value={values.location.city || ""}
-              onChange={onChangeCity}
-              maxLength={LIMITS.CITY_MAX}
-              className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
-              placeholder="Newark"
+              value={values.phone}
+              onChange={onChange("phone")}
+              className="form-input"
+              placeholder="+1 555-123-4567"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900">State</label>
-            <input
-              value={values.location.state || ""}
-              onChange={onChangeState}
-              maxLength={LIMITS.STATE_MAX}
-              className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
-              placeholder="NJ"
-            />
-          </div>
-        </div>
 
-        {/* Submit */}
+          {/* Headline */}
+          <div>
+            <label className="form-label">Headline</label>
+            <label className="block text-sm font-medium text-gray-900">
+              State
+            </label>
+            <input
+              maxLength={LIMITS.HEADLINE_MAX}
+              value={values.headline}
+              onChange={onChange("headline")}
+              className="form-input"
+              placeholder="Full-stack developer seeking new opportunities"
+            />
+          </div>
+
+          {/* Bio */}
+          <div>
+            <label className="form-label">Bio</label>
+            <textarea
+              rows={4}
+              maxLength={LIMITS.BIO_MAX}
+              value={values.bio}
+              onChange={onChange("bio")}
+              className="form-input"
+              placeholder="Tell us about your experience, interests, and goals…"
+            />
+          </div>
+
+          {/* Industry & Experience */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+            <div>
+              <label className="form-label">Industry</label>
+              <select
+                value={values.industry}
+                onChange={onChange("industry")}
+                className="form-input"
+              >
+                {INDUSTRIES.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="form-label">Experience level</label>
+              <select
+                value={values.experienceLevel}
+                onChange={onChange("experienceLevel")}
+                className="form-input"
+              >
+                {EXPERIENCE_LEVELS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Location */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">City</label>
+              <input
+                value={values.location.city || ""}
+                onChange={onChangeCity}
+                maxLength={LIMITS.CITY_MAX}
+                className="form-input"
+                placeholder="Newark"
+              />
+            </div>
+            <div>
+              <label className="form-label">State</label>
+              <input
+                value={values.location.state || ""}
+                onChange={onChangeState}
+                maxLength={LIMITS.STATE_MAX}
+                className="form-input"
+                placeholder="NJ"
+              />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="pt-2">
+            <Button type="submit" disabled={submitting}>
+              {submitting
+                ? isEdit
+                  ? "Updating…"
+                  : "Saving…"
+                : isEdit
+                ? "Save changes"
+                : "Save profile"}
+            </Button>
+          </div>
         <div className="pt-2">
-          <Button
-            type="submit"
-            disabled={submitting}
-            // className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-          >
-            {submitting ? "Saving…" : "Save profile"}
+          <Button type="submit" disabled={submitting}>
+            {submitting
+              ? isEdit
+                ? "Updating…"
+                : "Saving…"
+              : isEdit
+              ? "Save changes"
+              : "Save profile"}
           </Button>
         </div>
 
-        {err && <p className="text-sm text-red-600">{err}</p>}
-        {success && <p className="text-sm text-green-600">{success}</p>}
+          {err && <p className="text-sm text-red-600">{err}</p>}
+        </Card>
       </form>
     </div>
   );

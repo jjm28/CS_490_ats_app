@@ -1,5 +1,4 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { useState } from "react";
 import Nav from './components/Nav';
 import HomePage from './components/Homepage';
 import Registration from './components/Registration';
@@ -14,14 +13,11 @@ import AuthCallback from './components/AuthCallback';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import PrivateRoute from './components/PrivateRoute';
-
+import Certifications from './components/Certifications/Certifications';
 
 import './App.css';
 
 function App() {
-  const [loggedIn, setLoggedIn] = useState<boolean>(
-    () => !!localStorage.getItem("authToken")
-  );
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
@@ -39,8 +35,9 @@ function App() {
           <Route path="/Login" element={<LoginPage />} />
           <Route path="/ProfilePage" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />{/* Protected Routes */}
+          <Route path="/ProfileForm/:id" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />
           <Route path="/Logout" element={<Logout />} />
-          <Route path="/Education" element={<Education />} />
+          <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}

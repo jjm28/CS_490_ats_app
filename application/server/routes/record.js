@@ -5,7 +5,7 @@ import { ObjectId } from "mongodb";
 
 const router = express.Router();
 
-// ✅ GET all records
+//  GET all records
 router.get("/", async (req, res) => {
   try {
     const db = getDb(); // ✅ get active database
@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ GET single record by ID
+//  GET single record by ID
 router.get("/:id", async (req, res) => {
   try {
     const db = getDb();
@@ -52,7 +52,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ✅ PATCH update record by ID
+// PATCH update record by ID
 router.patch("/:id", async (req, res) => {
   try {
     const db = getDb();
@@ -74,7 +74,7 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-// ✅ DELETE record by ID
+//  DELETE record by ID
 router.delete("/:id", async (req, res) => {
   try {
     const db = getDb();
