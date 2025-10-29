@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import Button from "./StyledComponents/Button";
+import Button from "../StyledComponents/Button";
 
 type Props = {
   asButton?: boolean;     // if true, shows a button instead of auto-logout on mount

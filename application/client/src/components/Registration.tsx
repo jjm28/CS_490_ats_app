@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   isValidEmailBasic,
   splitEmail,
@@ -10,9 +10,10 @@ import { createUser } from "../api/user-auth";
 import { setAuth } from "../utils/auth";
 import logo from "../assets/img/logos/ontrac-trans-1.png";
 import Button from "./StyledComponents/Button";
+import "../styles/StyledComponents/FormInput.css";
 
 function Registration() {
-  const [user, setUser] = useState(null);
+  // const [user, setUser] = useState(null);
   const [email, setemail] = useState("");
   const [password, setpassword] = useState("");
   const [firstName, setfirstName] = useState("");
@@ -55,8 +56,8 @@ function Registration() {
     }
     return null;
   };
-   const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
-   const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
+  const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
+  const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
 
   const onBlurEmail = () => {
     setErrEmail(validateEmail(email));
@@ -80,6 +81,11 @@ function Registration() {
       const user = await createUser({ email, password, firstName, lastName });
       console.log("Register with:", user.user.email);
       setAuth(user.token, user);
+      if (user.token) {
+        localStorage.setItem("token", user.token);
+        localStorage.setItem("userId", user.userid);
+      }
+
       setErrEmail(null);
       setErrpassword(null);
       setErrconfirmpassword(null);
@@ -105,7 +111,7 @@ function Registration() {
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
         <form action="#" method="POST" className="space-y-6">
           <div>
-            <label className="text-sm font-medium text-gray-900 flex">
+            <label className="form-label">
               Email address
             </label>
             <div className="mt-2">
@@ -116,11 +122,10 @@ function Registration() {
                 required
                 onChange={(e) => setemail(e.target.value)}
                 onBlur={onBlurEmail}
-                className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm ${
-                  errEmail
+                className={`form-input ${errEmail
                     ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                    : "border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                }`}
+                    : "border-gray-300 focus:ring-(--brand-navy) focus:border-(--brand-navy)"
+                  }`}
               />
             </div>
             {errEmail && (
@@ -128,8 +133,7 @@ function Registration() {
             )}
           </div>
           <div>
-            <label className="flex  text-sm font-medium text-gray-900">
-              {" "}
+            <label className="form-label">
               Password{" "}
             </label>
             <div className="mt-2">
@@ -139,11 +143,10 @@ function Registration() {
                 required
                 onBlur={onBlurpassword}
                 onChange={(e) => setpassword(e.target.value)}
-                className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm ${
-                  errpassword
+                className={`form-input ${errpassword
                     ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                    : "border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                }`}
+                    : "border-gray-300 focus:ring-(--brand-navy) focus:border-(--brand-navy)"
+                  }`}
               />
             </div>
             {errpassword && (
@@ -152,7 +155,7 @@ function Registration() {
           </div>
 
           <div>
-            <label className="flex  text-sm font-medium text-gray-900">
+            <label className="form-label">
               {" "}
               Confirm Password{" "}
             </label>
@@ -164,11 +167,10 @@ function Registration() {
                 onBlur={onBlurconfirmpassword}
                 onChange={(e) => setconfirmpassword(e.target.value)}
                 autoComplete="current-password"
-                className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm ${
-                  errconfirmpassword
+                className={`form-input ${errconfirmpassword
                     ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                    : "border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                }`}
+                    : "border-gray-300 focus:ring-(--brand-navy) focus:border-(--brand-navy)"
+                  }`}
               />
             </div>
             {errconfirmpassword && (
@@ -177,7 +179,7 @@ function Registration() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-900 flex">
+            <label className="form-label">
               {" "}
               First Name{" "}
             </label>
@@ -188,12 +190,12 @@ function Registration() {
                 required
                 onChange={(e) => setfirstName(e.target.value)}
                 autoComplete="firstname"
-                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                className="form-input"
               />
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-900 flex">
+            <label className="form-label">
               {" "}
               Last Name{" "}
             </label>
@@ -204,7 +206,7 @@ function Registration() {
                 required
                 onChange={(e) => setlastName(e.target.value)}
                 autoComplete="lastname"
-                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                className="form-input"
               />
             </div>
           </div>
@@ -212,19 +214,19 @@ function Registration() {
             <Button type="submit" onClick={handleSubmit}>
               {submitting ? "Checking..." : "Register"}
             </Button>
-        <div className="mt-6">
-          <div className="flex items-center justify-center">
-            <span className="text-sm text-gray-600">Or register with</span>
-          </div>
-          <div className="mt-4 flex justify-center gap-4">
-            <button type="button" onClick={go} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
-              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="h-6 w-6" />
-            </button>
-              <button type="button" onClick={mi} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft" className="h-6 w-6" />
-              </button>
-          </div>
-        </div>
+            <div className="mt-6">
+              <div className="flex items-center justify-center">
+                <span className="text-sm text-gray-600">Or register with</span>
+              </div>
+              <div className="mt-4 flex justify-center gap-4">
+                <button type="button" onClick={go} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+                  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="h-6 w-6" />
+                </button>
+                <button type="button" onClick={mi} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft" className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
           </div>
           {err && <p className="mt-1 text-sm text-red-600">{err}</p>}
           {Success != null ? (

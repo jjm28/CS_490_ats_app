@@ -1,10 +1,11 @@
 // src/components/Login.tsx
-import logo from "../assets/img/logos/ontrac-trans-1.png";
+import logo from "../../assets/img/logos/ontrac-trans-1.png";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LoginUser } from "../api/user-auth";
-import { setAuth } from "../utils/auth";
-import Button from "./StyledComponents/Button";
+import { LoginUser } from "../../api/user-auth";
+import { setAuth } from "../../utils/auth";
+import Button from "../StyledComponents/Button";
+import "../../styles/StyledComponents/FormInput.css";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -38,8 +39,8 @@ export default function Login() {
     return null;
   };
 
-    const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
-   const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
+  const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
+  const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
 
   // If you want looser login rules, replace with: `return value ? null : "Enter your password.";`
   const validatePwdForLogin = (value: string): string | null => {
@@ -69,6 +70,11 @@ export default function Login() {
       const user = await LoginUser({ email, password });
       console.log("Register with:", user.user.email);
       setAuth(user.token, user);
+      if (user.token) {
+        localStorage.setItem("token", user.token);
+        localStorage.setItem("userId", user.userId);
+      }
+
       setSuccess("Welcome back! Redirecting…");
     } catch (err: any) {
       setFormErr(err?.message || "Something went wrong. Please try again.");
@@ -93,7 +99,7 @@ export default function Login() {
         <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email */}
           <div>
-            <label className="text-sm font-medium text-gray-900 flex">
+            <label className="form-label">
               Email address
             </label>
             <div className="mt-2">
@@ -104,11 +110,10 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={onBlurEmail}
                 placeholder="you@example.com"
-                className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm ${
-                  errEmail
+                className={`form-input ${errEmail
                     ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                    : "border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                }`}
+                    : "border-gray-300 focus:ring-(--brand-navy) focus:border-(--brand-navy)"
+                  }`}
               />
             </div>
             {errEmail && (
@@ -118,7 +123,7 @@ export default function Login() {
 
           {/* Password */}
           <div>
-            <label className="flex text-sm font-medium text-gray-900">
+            <label className="form-label">
               Password
             </label>
             <div className="mt-2">
@@ -128,11 +133,10 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onBlur={onBlurPassword}
-                className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm ${
-                  errPassword
+                className={`form-input ${errPassword
                     ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                    : "border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                }`}
+                    : "border-gray-300 focus:ring-(--brand-navy) focus:border-(--brand-navy)"
+                  }`}
               />
             </div>
             {errPassword && (
@@ -141,15 +145,15 @@ export default function Login() {
           </div>
 
           {/* Forgot Password Link */}
-          <div className="mt-2 text-right">
+          <div className="mt-2 text-center">
             <Link
               to="/forgot-password"
-              className="text-sm text-indigo-600 hover:text-indigo-500 underline"
-             >
-            Forgot Password?
+              className="text-sm text-(--brand-navy) hover:text-(--brand-navy) underline"
+            >
+              Forgot Password?
             </Link>
           </div>
-          
+
           {/* Submit */}
           <div>
             <Button type="submit" disabled={submitting}>
@@ -166,7 +170,7 @@ export default function Login() {
               <button type="button" onClick={go} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
                 <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="h-6 w-6" />
               </button>
-                 <button type="button" onClick={mi} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+              <button type="button" onClick={mi} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft" className="h-6 w-6" />
               </button>
             </div>
