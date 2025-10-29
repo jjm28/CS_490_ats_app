@@ -176,7 +176,7 @@ export default function Skills() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-10 py-6">
+    <div className="mx-auto max-w-3xl px-12 py-6">
       <div className="flex items-center justify-between mb-2">
         <h1>Skills</h1>
         {!showForm && (
@@ -212,18 +212,14 @@ export default function Skills() {
               setShowForm(false);
             }}
             setIsAdding={setIsAdding}
+            onCancel={() => setShowForm(false)}
           />
-          <div className="flex justify-start">
-            <Button type="button" onClick={() => setShowForm(false)}>
-              Cancel
-            </Button>
-          </div>
         </Card>
       )}
 
       {!showForm && (
         <DragDropContext onDragEnd={onDragEnd}>
-          <Card>
+          <div>
             {Object.entries(groupedSkills).map(([cat, skillsInCategory]) => (
               <SkillsCategory
                 key={cat}
@@ -234,7 +230,7 @@ export default function Skills() {
                 skillCount={skillsInCategory.length}
               />
             ))}
-          </Card>
+          </div>
         </DragDropContext>
       )}
     </div>
