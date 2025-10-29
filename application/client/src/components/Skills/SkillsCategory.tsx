@@ -1,6 +1,7 @@
 import type { Skill } from "./Skills";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { useState } from "react";
+import Button from "../StyledComponents/Button";
 
 interface SkillsCategoryProps {
   category: string;
@@ -25,7 +26,7 @@ export default function SkillsCategory({
     <Droppable droppableId={category}>
       {(provided) => (
         <div
-          className="category-card"
+          className="card category-card"
           {...provided.droppableProps}
           ref={provided.innerRef}
         >
@@ -56,7 +57,7 @@ export default function SkillsCategory({
             >
               {(provided) => (
                 <div
-                  className="skill-badge"
+                  className="skill-badge mt-2"
                   ref={provided.innerRef}
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
@@ -80,7 +81,7 @@ export default function SkillsCategory({
                       )
                     )}
                   </select>
-                  <button onClick={() => removeSkill(idx)}>Remove</button>
+                  <Button className="ml-auto" onClick={() => removeSkill(idx)}>Remove</Button>
                 </div>
               )}
             </Draggable>
