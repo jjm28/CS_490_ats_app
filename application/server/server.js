@@ -16,6 +16,8 @@ import employmentRouter from './routes/employment.js';
 
 
 import certificationRoutes from "./routes/certifications.js";
+import projectsRoutes from "./routes/projects.js";
+
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -47,6 +49,8 @@ try {
   app.use('/api/auth', auth);
   app.use('/api/education', education);
   app.use("/api/certifications", certificationRoutes);
+  app.use("/api/projects", projectsRoutes);
+  
   // Profile routes (optionally inject dev user)
   app.use('/api/profile', attachDevUser, profileRouter);
   app.use('/api/profile', attachDevUser, profilePhoto);
