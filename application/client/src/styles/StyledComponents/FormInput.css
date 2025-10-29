@@ -16,6 +16,7 @@
     focus:outline-none
     sm:text-base 
     transition-colors duration-200
+    bg-white
     mb-2;
 }
 
