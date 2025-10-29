@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Button from "./StyledComponents/Button";
 import { listProfiles, type Profile } from "../api/profiles";
+import Card from "./StyledComponents/Card";
+import "../styles/StyledComponents/FormInput.css";
 
 function ProfilePage() {
   const navigate = useNavigate();
@@ -55,13 +57,13 @@ function ProfilePage() {
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
 
       {!isLoggedIn && (
-        <>
+        <Card>
           <Button disabled>Log in to continue</Button>
           <p className="mt-3 text-sm text-amber-700">
             You’re not logged in. Log in, then create your profile(s).
           </p>
           <div className="mt-10" />
-        </>
+        </Card>
       )}
 
       {isLoggedIn && (
@@ -69,8 +71,10 @@ function ProfilePage() {
           {loading ? (
             <p className="text-sm text-gray-600">Loading…</p>
           ) : profiles.length === 0 ? (
-            <div className="rounded-md border p-4 text-sm text-gray-700 bg-white">
-              You don’t have any profiles yet. Click “Create new profile” to get started.
+            <div className="mx-6">
+              <Card>
+                You don’t have any profiles yet. Click “Create new profile” to get started.
+              </Card>
             </div>
           ) : (
             <ul className="space-y-3">
