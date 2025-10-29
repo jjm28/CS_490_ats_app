@@ -6,7 +6,7 @@ import {
   PopoverPanel,
 } from "@headlessui/react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import "../styles/Navbar.css";
 import Button from "./StyledComponents/Button";
 
@@ -57,44 +57,69 @@ function Navbar() {
 
           {/* Center: Desktop Nav Links */}
           <div className="absolute left-1/2 transform -translate-x-1/2 hidden sm:flex space-x-4">
-            <Link
+            <NavLink
               to="/"
-              className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
             >
               Home Page
-            </Link>
+            </NavLink>
+
+            <NavLink
+              to="/Skills"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Skills
+            </NavLink>
+
+            <NavLink
+              to="/Education"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Education
+            </NavLink>
+
             <Popover>
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
                 Profile
               </PopoverButton>
               <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg">
-                <Link
+                <NavLink
                   to="/ProfilePage"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  className={({ isActive }) =>
+                    `block px-4 py-2 ${isActive ? "bg-gray-200 text-gray-900" : "text-gray-700 hover:bg-gray-100"
+                    }`
+                  }
                 >
                   Profile Page
-                </Link>
-                <Link
+                </NavLink>
+                <NavLink
                   to="/ProfileForm"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  className={({ isActive }) =>
+                    `block px-4 py-2 ${isActive ? "bg-gray-200 text-gray-900" : "text-gray-700 hover:bg-gray-100"
+                    }`
+                  }
                 >
                   Profile Form
-                </Link>
-                <Link
-                  to="/Education"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  Education
-                </Link>
-                <Link
-                  to="/Skills"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  Skills
-                </Link>
+                </NavLink>
               </PopoverPanel>
             </Popover>
           </div>
+
           {/* <Popover>
       {({ open }) => (
         <>
@@ -178,18 +203,54 @@ function Navbar() {
                   </Disclosure.Button>
 
                   <Disclosure.Panel className="absolute top-16 right-0 w-48 bg-gray-800 shadow-lg rounded-md py-2 z-50">
-                    <Link
+                    <NavLink
                       to="/"
-                      className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
+                      className={({ isActive }) =>
+                        `block px-4 py-2 ${isActive
+                          ? "bg-white/10 text-white"
+                          : "text-gray-300 hover:bg-white/5 hover:text-white"
+                        }`
+                      }
                     >
                       Home Page
-                    </Link>
-                    <Link
+                    </NavLink>
+
+                    <NavLink
                       to="/ProfilePage"
-                      className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
+                      className={({ isActive }) =>
+                        `block px-4 py-2 ${isActive
+                          ? "bg-white/10 text-white"
+                          : "text-gray-300 hover:bg-white/5 hover:text-white"
+                        }`
+                      }
                     >
                       Profile
-                    </Link>
+                    </NavLink>
+
+                    <NavLink
+                      to="/Skills"
+                      className={({ isActive }) =>
+                        `block px-4 py-2 ${isActive
+                          ? "bg-white/10 text-white"
+                          : "text-gray-300 hover:bg-white/5 hover:text-white"
+                        }`
+                      }
+                    >
+                      Skills
+                    </NavLink>
+
+                    <NavLink
+                      to="/Education"
+                      className={({ isActive }) =>
+                        `block px-4 py-2 ${isActive
+                          ? "bg-white/10 text-white"
+                          : "text-gray-300 hover:bg-white/5 hover:text-white"
+                        }`
+                      }
+                    >
+                      Education
+                    </NavLink>
+
                   </Disclosure.Panel>
                 </>
               )}
