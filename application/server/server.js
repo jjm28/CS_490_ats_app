@@ -12,12 +12,20 @@ import education from './routes/education.js';
 import { attachDevUser } from './middleware/devUser.js';
 import cookieParser from 'cookie-parser';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import profilePhoto from './routes/profile-photo.js';
+
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORGIN = process.env.CORS_ORGIN || true;
 const DB = process.env.DB_NAME || 'appb'
 
 const app = express();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.set('baseUrl', BASE);
 
@@ -40,6 +48,18 @@ try {
   app.use('/api/education', education);
   // Profile routes (optionally inject dev user)
   app.use('/api/profile', attachDevUser, profileRouter);
+  app.use('/api/profile', attachDevUser, profilePhoto);
+
+  // for picture uploads
+  app.use(
+  '/uploads',
+  express.static(path.join(__dirname, 'uploads'), {
+    etag: false,
+    lastModified: false,
+    cacheControl: false,
+    setHeaders: (res) => res.set('Cache-Control', 'no-store'),
+  })
+  );  
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

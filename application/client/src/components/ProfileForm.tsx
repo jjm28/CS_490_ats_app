@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useEffect } from "react";
+// application/client/src/components/ProfileForm.tsx
+import React, { useState, useEffect } from "react";
 import Button from "./StyledComponents/Button";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   type Profile,
   createProfile,
@@ -8,6 +9,7 @@ import {
   getProfile,
 } from "../api/profiles";
 import Card from "./StyledComponents/Card";
+import ProfilePhotoUploader from "./ProfilePhotoUploader";
 
 const EXPERIENCE_LEVELS = ["Entry", "Mid", "Senior", "Executive"] as const;
 const INDUSTRIES = [
@@ -37,6 +39,7 @@ const empty: Profile = {
   industry: "Other",
   experienceLevel: "Entry",
   location: { city: "", state: "" },
+  photoUrl: "",
 };
 
 const ProfileForm: React.FC = () => {
@@ -49,7 +52,6 @@ const ProfileForm: React.FC = () => {
   const [values, setValues] = useState<Profile>(empty);
   const isEdit = !!profileId;
 
-  // Prefill if editing
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -64,6 +66,7 @@ const ProfileForm: React.FC = () => {
               city: data.location?.city || "",
               state: data.location?.state || "",
             },
+            photoUrl: data.photoUrl || "",
           });
       } catch (e: any) {
         if (!cancelled) setErr(e?.message || "Failed to load profile.");
@@ -83,6 +86,12 @@ const ProfileForm: React.FC = () => {
       >
     ) => {
       if (field === "location") return; // handled separately
+      e:
+        | React.ChangeEvent<HTMLInputElement>
+        | React.ChangeEvent<HTMLTextAreaElement>
+        | React.ChangeEvent<HTMLSelectElement>
+    ) => {
+      if (field === "location") return;
       setValues((v) => ({ ...v, [field]: e.target.value }));
     };
 
@@ -112,10 +121,18 @@ const ProfileForm: React.FC = () => {
         values.location.state &&
         values.location.state.length > LIMITS.STATE_MAX
       )
+      if (values.location.state && values.location.state.length > LIMITS.STATE_MAX)
         throw new Error("State is too long.");
 
       if (isEdit && profileId) {
-        await updateProfile(profileId, values);
+        const payload: Partial<Profile> = {
+          ...values,
+          photoUrl:
+            values.photoUrl && values.photoUrl.trim() !== ""
+              ? values.photoUrl.trim()
+              : undefined,
+        };
+        await updateProfile(profileId, payload as Profile);
         navigate("/ProfilePage", { state: { flash: "Profile updated." } });
       } else {
         await createProfile(values);
@@ -150,6 +167,98 @@ const ProfileForm: React.FC = () => {
               className="form-input"
               placeholder="Alex Johnson"
             />
+      {values._id && (
+        <div className="mb-6">
+          <ProfilePhotoUploader
+            profileId={values._id}
+            photoUrl={values.photoUrl}
+            onChange={(url) => setValues((v) => ({ ...v, photoUrl: url }))}
+          />
+        </div>
+      )}
+
+      <form onSubmit={onSubmit} className="space-y-5">
+        <div>
+          <label className="block text-sm font-medium text-gray-900">
+            Full name *
+          </label>
+          <input
+            required
+            maxLength={LIMITS.NAME_MAX}
+            value={values.fullName}
+            onChange={onChange("fullName")}
+            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+            placeholder="Alex Johnson"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-900">
+            Email *
+          </label>
+          <input
+            type="email"
+            required
+            value={values.email}
+            onChange={onChange("email")}
+            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+            placeholder="you@example.com"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-900">
+            Phone
+          </label>
+          <input
+            value={values.phone}
+            onChange={onChange("phone")}
+            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+            placeholder="+1 555-123-4567"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-900">
+            Headline
+          </label>
+          <input
+            maxLength={LIMITS.HEADLINE_MAX}
+            value={values.headline}
+            onChange={onChange("headline")}
+            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+            placeholder="Full-stack developer seeking new opportunities"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-900">Bio</label>
+          <textarea
+            rows={4}
+            maxLength={LIMITS.BIO_MAX}
+            value={values.bio}
+            onChange={onChange("bio")}
+            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+            placeholder="Tell us about your experience, interests, and goals…"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-900">
+              Industry
+            </label>
+            <select
+              value={values.industry}
+              onChange={onChange("industry")}
+              className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+            >
+              {INDUSTRIES.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Email */}
@@ -163,11 +272,30 @@ const ProfileForm: React.FC = () => {
               className="form-input"
               placeholder="you@example.com"
             />
+            <label className="block text-sm font-medium text-gray-900">
+              Experience level
+            </label>
+            <select
+              value={values.experienceLevel}
+              onChange={onChange("experienceLevel")}
+              className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+            >
+              {EXPERIENCE_LEVELS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Phone */}
           <div>
             <label className="form-label">Phone</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-900">
+              City
+            </label>
             <input
               value={values.phone}
               onChange={onChange("phone")}
@@ -179,6 +307,9 @@ const ProfileForm: React.FC = () => {
           {/* Headline */}
           <div>
             <label className="form-label">Headline</label>
+            <label className="block text-sm font-medium text-gray-900">
+              State
+            </label>
             <input
               maxLength={LIMITS.HEADLINE_MAX}
               value={values.headline}
@@ -270,6 +401,17 @@ const ProfileForm: React.FC = () => {
                 : "Save profile"}
             </Button>
           </div>
+        <div className="pt-2">
+          <Button type="submit" disabled={submitting}>
+            {submitting
+              ? isEdit
+                ? "Updating…"
+                : "Saving…"
+              : isEdit
+              ? "Save changes"
+              : "Save profile"}
+          </Button>
+        </div>
 
           {err && <p className="text-sm text-red-600">{err}</p>}
         </Card>
