@@ -3,10 +3,17 @@ import "../../App.css";
 import "../../styles/Skills.css";
 import SkillsCategory from "./SkillsCategory";
 import SkillForm from "./SkillForm";
-import { getSkills, addSkillApi, updateSkillApi, deleteSkillApi } from "../../api/skills";
+import {
+  getSkills,
+  addSkillApi,
+  updateSkillApi,
+  deleteSkillApi,
+} from "../../api/skills";
 import { categories } from "../../constants/skills";
 import { DragDropContext } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
+import Button from "../StyledComponents/Button";
+import Card from "../StyledComponents/Card";
 
 //Define type for proficiency levels
 export type Proficiency = "Beginner" | "Intermediate" | "Advanced" | "Expert";
@@ -22,10 +29,10 @@ export interface Skill {
 
 //Define skills component
 export default function Skills() {
-  const [skills, setSkills] = useState<Skill[]>([]);//Array of skills displayed, start empty
-  const [name, setName] = useState("");//State for input name
-  const [category, setCategory] = useState(categories[0]);//State for input category
-  const [proficiency, setProficiency] = useState<Proficiency>("Beginner");//State for input proficiency
+  const [skills, setSkills] = useState<Skill[]>([]); //Array of skills displayed, start empty
+  const [name, setName] = useState(""); //State for input name
+  const [category, setCategory] = useState(categories[0]); //State for input category
+  const [proficiency, setProficiency] = useState<Proficiency>("Beginner"); //State for input proficiency
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -54,7 +61,8 @@ export default function Skills() {
   //Function that makes POST request to add skill
   const addSkill = async () => {
     if (!name) return;
-    if (skills.some((s) => s.name === name)) {//Duplicate skill prevention
+    if (skills.some((s) => s.name === name)) {
+      //Duplicate skill prevention
       alert("Skill already added!");
       return;
     }
@@ -71,8 +79,12 @@ export default function Skills() {
   };
 
   //Function that makes PUT request to update skill
-  const editSkill = async (index: number, field: keyof Skill, value: string) => {
-    const skillToUpdate = { ...skills[index], [field]: value as any };//Copy of skill
+  const editSkill = async (
+    index: number,
+    field: keyof Skill,
+    value: string
+  ) => {
+    const skillToUpdate = { ...skills[index], [field]: value as any }; //Copy of skill
     try {
       if (!skillToUpdate._id) throw new Error("Missing skill ID");
       await updateSkillApi(skillToUpdate._id, { [field]: value });
@@ -100,13 +112,17 @@ export default function Skills() {
     }
   };
 
-  const groupedSkills: Record<string, Skill[]> = categories.reduce((acc, category) => {
-    acc[category] = skills
-      .filter(skill => skill.category === category)
-      .filter(skill => skill.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    return acc;
-  }, {} as Record<string, Skill[]>);
-
+  const groupedSkills: Record<string, Skill[]> = categories.reduce(
+    (acc, category) => {
+      acc[category] = skills
+        .filter((skill) => skill.category === category)
+        .filter((skill) =>
+          skill.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      return acc;
+    },
+    {} as Record<string, Skill[]>
+  );
 
   const onDragEnd = async (result: DropResult) => {
     const { source, destination } = result;
@@ -120,7 +136,10 @@ export default function Skills() {
       const [moved] = items.splice(source.index, 1);
       items.splice(destination.index, 0, moved);
 
-      const updatedItems = items.map((skill, index) => ({ ...skill, order: index }));
+      const updatedItems = items.map((skill, index) => ({
+        ...skill,
+        order: index,
+      }));
       setSkills((prev) => [
         ...prev.filter((s) => s.category !== sourceCategory),
         ...updatedItems,
@@ -148,24 +167,24 @@ export default function Skills() {
       ]);
 
       for (const skill of [...updatedSource, ...updatedDest]) {
-        await updateSkillApi(skill._id!, { category: skill.category, order: skill.order });
+        await updateSkillApi(skill._id!, {
+          category: skill.category,
+          order: skill.order,
+        });
       }
     }
   };
 
   return (
-    <div className="skills-manager">
-      <h2 className="skills-title">
-        Skills
+    <div className="mx-auto max-w-3xl px-10 py-6">
+      <div className="flex items-center justify-between mb-2">
+        <h1>Skills</h1>
         {!showForm && (
-          <button
-            className="add-skill-inline-btn"
-            onClick={() => setShowForm(true)}
-          >
+          <Button variant="primary" onClick={() => setShowForm(true)}>
             +
-          </button>
+          </Button>
         )}
-      </h2>
+      </div>
 
       {!isAdding && !showForm && (
         <div className="skills-search">
@@ -178,9 +197,8 @@ export default function Skills() {
         </div>
       )}
 
-
       {showForm && (
-        <div className="skill-form-popup">
+        <Card>
           <SkillForm
             name={name}
             category={category}
@@ -199,12 +217,12 @@ export default function Skills() {
               Cancel
             </button>
           </div>
-        </div>
+        </Card>
       )}
 
       {!showForm && (
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="skills-list">
+          <Card>
             {Object.entries(groupedSkills).map(([cat, skillsInCategory]) => (
               <SkillsCategory
                 key={cat}
@@ -215,10 +233,9 @@ export default function Skills() {
                 skillCount={skillsInCategory.length}
               />
             ))}
-          </div>
+          </Card>
         </DragDropContext>
       )}
-
     </div>
   );
 }

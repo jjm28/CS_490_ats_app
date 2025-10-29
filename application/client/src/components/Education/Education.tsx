@@ -83,7 +83,7 @@ export default function Education() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="flex items-center justify-between mb-2 px-6">
         <h1 className="mb-2">
           Education

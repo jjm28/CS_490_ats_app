@@ -110,7 +110,7 @@ const ProfileForm: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">
         {isEdit ? "Edit Profile" : "Profile"}
       </h1>
