@@ -1,11 +1,11 @@
 // src/components/Login.tsx
-import logo from "../assets/img/logos/ontrac-trans-1.png";
+import logo from "../../assets/img/logos/ontrac-trans-1.png";
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LoginUser } from "../api/user-auth";
-import { setAuth } from "../utils/auth";
-import Button from "./StyledComponents/Button";
-import "../styles/StyledComponents/FormInput.css";
+import { LoginUser } from "../../api/user-auth";
+import { setAuth } from "../../utils/auth";
+import Button from "../StyledComponents/Button";
+import "../../styles/StyledComponents/FormInput.css";
 
 export default function Login() {
   const navigate = useNavigate();

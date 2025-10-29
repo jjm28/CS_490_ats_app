@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import Button from "./StyledComponents/Button";
-import { listProfiles, type Profile } from "../api/profiles";
-import Card from "./StyledComponents/Card";
-import "../styles/StyledComponents/FormInput.css";
-import API_BASE from "../utils/apiBase"; 
+import Button from "../StyledComponents/Button";
+import { listProfiles, type Profile } from "../../api/profiles";
+import Card from "../StyledComponents/Card";
+import "../../styles/StyledComponents/FormInput.css";
+import API_BASE from "../../utils/apiBase"; 
 
 function ProfilePage() {
   const navigate = useNavigate();
