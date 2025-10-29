@@ -1,21 +1,10 @@
 // src/components/Login.tsx
+import logo from "../assets/img/logos/ontrac-trans-1.png";
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
-// Reuse your existing helpers like in Registration.tsx
-import {
-  isValidEmailBasic,
-  splitEmail,
-  isAllowedDomain,
-  isValidPassword,
-} from "../utils/helpers";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ""; // e.g., http://localhost:3001
-const LOGIN_ENDPOINT = "/api/auth/login";                  // adjust if your backend differs
-
-type LoginResponse =
-  | { token: string; user?: { id?: string; email?: string; fullName?: string } }
-  | { message?: string; error?: string };
+import { Link, useNavigate } from "react-router-dom";
+import { LoginUser } from "../api/user-auth";
+import { setAuth } from "../utils/auth";
+import Button from "./StyledComponents/Button";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -38,24 +27,23 @@ export default function Login() {
   // After success, send to Dashboard
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => navigate("/Dashboard"), 1200);
+      const timer = setTimeout(() => navigate("/Dashboard"), 2000);
       return () => clearTimeout(timer);
     }
   }, [success, navigate]);
 
   // --- validation helpers (same style as Registration.tsx) ---
   const validateEmail = (value: string): string | null => {
-    if (!isValidEmailBasic(value)) return "Enter a valid email (e.g., name@example.com).";
-    const { domain } = splitEmail(value);
-    if (!isAllowedDomain(domain)) return "This email domain isn’t allowed.";
+    if (value == "") return "Please Input Your Email";
     return null;
   };
 
+    const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
+   const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
+
   // If you want looser login rules, replace with: `return value ? null : "Enter your password.";`
   const validatePwdForLogin = (value: string): string | null => {
-    if (!isValidPassword(value)) {
-      return "Password must be at least 8 characters, include 1 uppercase, 1 lowercase, and 1 number.";
-    }
+    if (value == "") return "Please Input Your Password";
     return null;
   };
 
@@ -78,62 +66,36 @@ export default function Login() {
     setErrPassword(null);
 
     try {
-      const res = await fetch(API_BASE + LOGIN_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // if you also use cookies/session
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) {
-        let detail = "";
-        try {
-          const j = (await res.json()) as LoginResponse;
-          detail = ("error" in j && j.error) || ("message" in j && j.message) || "";
-        } catch {
-          /* ignore parse errors */
-        }
-        throw new Error(
-          `Login failed (${res.status}) ${res.statusText}${detail ? ` – ${detail}` : ""}`
-        );
-      }
-
-      const data = (await res.json()) as LoginResponse;
-      const token = "token" in data ? data.token : null;
-      if (!token) throw new Error("No token returned from server.");
-
-      // Persist auth token (stay signed in until explicit logout)
-      localStorage.setItem("authToken", token);
-      if ("user" in data && data.user) {
-        localStorage.setItem("authUser", JSON.stringify(data.user));
-      }
-
+      const user = await LoginUser({ email, password });
+      console.log("Register with:", user.user.email);
+      setAuth(user.token, user);
       setSuccess("Welcome back! Redirecting…");
     } catch (err: any) {
       setFormErr(err?.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
+      setEmail(""); // Clear Form
+      setPassword(""); // Clear Form
     }
   };
 
   return (
     <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-        <img
-          src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600"
-          alt="Your Company"
-          className="mx-auto h-10 w-auto"
-        />
-        <h2 className="mt-10 text-center text-2xl font-bold tracking-tight text-gray-900">
+        <img src={logo} alt="ontrac Logo" className="mx-auto h-14" />
+        {/* <h2 className="mt-10 text-center text-2xl font-bold tracking-tight text-gray-900">
           Welcome back — log in
-        </h2>
+        </h2> */}
+        <h1>Welcome back — log in</h1>
       </div>
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
         <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email */}
           <div>
-            <label className="text-sm font-medium text-gray-900 flex">Email address</label>
+            <label className="text-sm font-medium text-gray-900 flex">
+              Email address
+            </label>
             <div className="mt-2">
               <input
                 type="email"
@@ -149,12 +111,16 @@ export default function Login() {
                 }`}
               />
             </div>
-            {errEmail && <p className="mt-1 text-sm text-red-600">{errEmail}</p>}
+            {errEmail && (
+              <p className="mt-1 text-sm text-red-600">{errEmail}</p>
+            )}
           </div>
 
           {/* Password */}
           <div>
-            <label className="flex text-sm font-medium text-gray-900">Password</label>
+            <label className="flex text-sm font-medium text-gray-900">
+              Password
+            </label>
             <div className="mt-2">
               <input
                 type="password"
@@ -169,22 +135,48 @@ export default function Login() {
                 }`}
               />
             </div>
-            {errPassword && <p className="mt-1 text-sm text-red-600">{errPassword}</p>}
+            {errPassword && (
+              <p className="mt-1 text-sm text-red-600">{errPassword}</p>
+            )}
           </div>
 
+          {/* Forgot Password Link */}
+          <div className="mt-2 text-right">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-indigo-600 hover:text-indigo-500 underline"
+             >
+            Forgot Password?
+            </Link>
+          </div>
+          
           {/* Submit */}
           <div>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-            >
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Checking…" : "Log in"}
-            </button>
+            </Button>
           </div>
-
           {formErr && <p className="mt-1 text-sm text-red-600">{formErr}</p>}
           {success && <p className="mt-1 text-sm text-green-600">{success}</p>}
+          <div className="mt-6">
+            <div className="flex items-center justify-center">
+              <span className="text-sm text-gray-600">Or log in with</span>
+            </div>
+            <div className="mt-4 flex justify-center gap-4">
+              <button type="button" onClick={go} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" className="h-6 w-6" />
+              </button>
+                 <button type="button" onClick={mi} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft" className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+          <div>
+            Don't have an account?{" "}
+            <Link to="/Registration" className="underline">
+              Sign up
+            </Link>
+          </div>
         </form>
       </div>
     </div>

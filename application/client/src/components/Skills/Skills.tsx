@@ -86,14 +86,16 @@ export default function Skills() {
   //Function that makes DELETE request to delete skill
   const removeSkill = async (index: number) => {
     const skillToDelete = skills[index];
-    if (!window.confirm("Remove this skill?")) return;//Confirmation message
+    if (!window.confirm("Are you sure you want to remove this skill?")) return;
     try {
       if (!skillToDelete._id) throw new Error("Missing skill ID");
       await deleteSkillApi(skillToDelete._id);
       //Remove the skill from front end
       setSkills(skills.filter((_, i) => i !== index));
+      alert("Skill deleted successfully!");
     } catch (err) {
       console.error("Error deleting skill:", err);
+      alert("Failed to delete skill. Please try again.");
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-
+import Button from "./StyledComponents/Button";
 
 type Props = {
   asButton?: boolean;     // if true, shows a button instead of auto-logout on mount
@@ -29,7 +29,11 @@ export default function Logout({
 
     // Decide where to go next
     const to = redirectTo || params.get("to") || "/";
-    navigate(to);
+    //wait 3 seconds
+    setTimeout(() => {
+      navigate(to);
+    }, 3000);
+ 
   };
 
   // Auto-logout when mounted if used as a route (no button)
@@ -40,9 +44,9 @@ export default function Logout({
 
   if (asButton) {
     return (
-      <button onClick={doLogout} className={className} title="Log out">
+      <Button onClick={doLogout} className={className} title="Log out">
         {label}
-      </button>
+      </Button>
     );
   }
 
