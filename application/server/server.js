@@ -17,6 +17,8 @@ import { fileURLToPath } from 'url';
 
 import profilePhoto from './routes/profile-photo.js';
 
+import certificationRoutes from "./routes/certifications.js";
+
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORGIN = process.env.CORS_ORGIN || true;
@@ -46,6 +48,7 @@ try {
   app.use('/api/skills', skills);
   app.use('/api/auth', auth);
   app.use('/api/education', education);
+  app.use("/api/certifications", certificationRoutes);
   // Profile routes (optionally inject dev user)
   app.use('/api/profile', attachDevUser, profileRouter);
   app.use('/api/profile', attachDevUser, profilePhoto);
