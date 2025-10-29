@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import "../../App.css";
 import "../../styles/Skills.css";
 import SkillsCategory from "./SkillsCategory";
 import SkillForm from "./SkillForm";

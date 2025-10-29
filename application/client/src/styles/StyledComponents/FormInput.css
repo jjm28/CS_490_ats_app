@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Label styling */
+.form-label {
+  @apply block text-left text-base text-gray-800 font-normal mb-2;
+  font-family: inherit;
+}
+
+/* Base input styling */
+.form-input {
+  @apply block w-full rounded-md border border-gray-300 
+    px-4 py-3     
+    text-base    
+    placeholder-gray-400 
+    focus:border-(--brand-teal) focus:ring-(--brand-teal)
+    focus:outline-none
+    sm:text-base 
+    transition-colors duration-200
+    mb-2;
+}
+
+/* Optional sizes */
+.form-input-sm {
+  @apply px-2 py-1 text-sm;
+}
+
+.form-input-md {
+  @apply px-3 py-2 text-base;
+}
+
+.form-input-lg {
+  @apply px-4 py-2 text-lg;
+}

@@ -4,10 +4,10 @@
   @apply font-medium rounded-md px-4 py-2 transition-colors;
 }
 .btn-primary {
-  @apply bg-[var(--brand-olive)] text-white hover:bg-[var(--brand-teal)];
+  @apply bg-(--brand-olive) text-white hover:bg-(--brand-teal);
 }
 .btn-secondary {
-  @apply bg-transparent border border-[var(--brand-olive)] text-[var(--brand-olive)] hover:bg-[var(--brand-olive)] hover:text-white;
+  @apply bg-transparent border border-(--brand-olive) text-(--brand-olive) hover:bg-(--brand-olive) hover:text-white;
 }
 .btn-disabled {
   @apply opacity-50 cursor-not-allowed;
