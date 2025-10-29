@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect } from "react";
+// application/client/src/components/ProfileForm.tsx
+import React, { useState, useEffect } from "react";
 import Button from "./StyledComponents/Button";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -7,7 +8,7 @@ import {
   updateProfile,
   getProfile,
 } from "../api/profiles";
-import ProfilePhotoUploader from "./ProfilePhotoUploader"; 
+import ProfilePhotoUploader from "./ProfilePhotoUploader";
 
 const EXPERIENCE_LEVELS = ["Entry", "Mid", "Senior", "Executive"] as const;
 const INDUSTRIES = [
@@ -50,7 +51,6 @@ const ProfileForm: React.FC = () => {
   const [values, setValues] = useState<Profile>(empty);
   const isEdit = !!profileId;
 
-  // Prefill if editing
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -65,6 +65,7 @@ const ProfileForm: React.FC = () => {
               city: data.location?.city || "",
               state: data.location?.state || "",
             },
+            photoUrl: data.photoUrl || "",
           });
       } catch (e: any) {
         if (!cancelled) setErr(e?.message || "Failed to load profile.");
@@ -84,7 +85,7 @@ const ProfileForm: React.FC = () => {
         | React.ChangeEvent<HTMLTextAreaElement>
         | React.ChangeEvent<HTMLSelectElement>
     ) => {
-      if (field === "location") return; // handled separately
+      if (field === "location") return;
       setValues((v) => ({ ...v, [field]: e.target.value }));
     };
 
@@ -114,11 +115,17 @@ const ProfileForm: React.FC = () => {
         throw new Error("State is too long.");
 
       if (isEdit && profileId) {
-        await updateProfile(profileId, values);
+        const payload: Partial<Profile> = {
+          ...values,
+          photoUrl:
+            values.photoUrl && values.photoUrl.trim() !== ""
+              ? values.photoUrl.trim()
+              : undefined,
+        };
+        await updateProfile(profileId, payload as Profile);
         navigate("/ProfilePage", { state: { flash: "Profile updated." } });
       } else {
         await createProfile(values);
-        // per your spec: go back to list and show the new card
         navigate("/ProfilePage", { state: { flash: "Profile created." } });
       }
     } catch (e: any) {
@@ -137,7 +144,6 @@ const ProfileForm: React.FC = () => {
         Tell us about yourself. Fields marked * are required.
       </p>
 
-      {/* Photo uploader appears when editing an existing profile (has _id) */}
       {values._id && (
         <div className="mb-6">
           <ProfilePhotoUploader
@@ -149,7 +155,6 @@ const ProfileForm: React.FC = () => {
       )}
 
       <form onSubmit={onSubmit} className="space-y-5">
-        {/* Full Name */}
         <div>
           <label className="block text-sm font-medium text-gray-900">
             Full name *
@@ -164,7 +169,6 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Email */}
         <div>
           <label className="block text-sm font-medium text-gray-900">
             Email *
@@ -179,7 +183,6 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Phone */}
         <div>
           <label className="block text-sm font-medium text-gray-900">
             Phone
@@ -192,7 +195,6 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Headline */}
         <div>
           <label className="block text-sm font-medium text-gray-900">
             Headline
@@ -206,7 +208,6 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Bio */}
         <div>
           <label className="block text-sm font-medium text-gray-900">Bio</label>
           <textarea
@@ -219,7 +220,6 @@ const ProfileForm: React.FC = () => {
           />
         </div>
 
-        {/* Industry & Experience */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-900">
@@ -256,7 +256,6 @@ const ProfileForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Location */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-900">
@@ -284,7 +283,6 @@ const ProfileForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Submit */}
         <div className="pt-2">
           <Button type="submit" disabled={submitting}>
             {submitting

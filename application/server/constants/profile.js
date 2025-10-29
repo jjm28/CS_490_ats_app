@@ -38,7 +38,7 @@ export const PROFILE_FIELDS = Object.freeze({
   BIO: "bio",
   INDUSTRY: "industry",
   EXPERIENCE_LEVEL: "experienceLevel",
-  PHOTO_URL: "photoUrl", // This will be implemented later in ticket UC022
+  PHOTO_URL: "photoUrl", 
 });
 // Default values for optional fields
 export const PROFILE_DEFAULTS = Object.freeze({
