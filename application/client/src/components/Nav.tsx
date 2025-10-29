@@ -1,10 +1,5 @@
 import logo from "../assets/img/logos/ontrac-trans-2.png";
-import {
-  Disclosure,
-  Popover,
-  PopoverButton,
-  PopoverPanel,
-} from "@headlessui/react";
+import { Disclosure } from "@headlessui/react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "../styles/Navbar.css";
@@ -51,12 +46,30 @@ function Navbar() {
           </div>
 
           {/* Center: Desktop Nav Links */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 hidden sm:flex space-x-4">
+          <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:flex space-x-4">
             <Link
               to="/"
               className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium"
             >
-              Home Page
+              Home
+            </Link>
+            <Link
+              to="/ProfilePage"
+              className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium"
+            >
+              Profile
+            </Link>
+            <Link
+              to="/Education"
+              className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium"
+            >
+              Education
+            </Link>
+            <Link
+              to="/Skills"
+              className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium"
+            >
+              Skills
             </Link>
             <Popover>
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
@@ -105,41 +118,19 @@ function Navbar() {
               </PopoverPanel>
             </Popover>
           </div>
-          {/* <Popover>
-      {({ open }) => (
-        <>
-          <PopoverButton>Solutions</PopoverButton>
-          <AnimatePresence>
-            {open && (
-              <PopoverPanel
-                static
-                as={motion.div}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                anchor="bottom"
-                className="flex origin-top flex-col"
-              >
-                <a href="/analytics">Analytics</a>
-                <a href="/engagement">Engagement</a>
-                <a href="/security">Security</a>
-                <a href="/integrations">Integrations</a>
-              </PopoverPanel>
-            )}
-          </AnimatePresence>
-        </>
-      )}
-    </Popover> */}
 
           {/* Right: auth actions */}
           <div className="flex items-center space-x-4">
             {!loggedIn ? (
               <>
                 {/* Shown when NOT signed in */}
-                <Button variant="primary" onClick={() => navigate("/Registration")}>
+                <Button
+                  variant="primary"
+                  onClick={() => navigate("/Registration")}
+                >
                   Sign up
                 </Button>
-                <Button variant="primary"  onClick={() => navigate("/Login")}>
+                <Button variant="primary" onClick={() => navigate("/Login")}>
                   Log in
                 </Button>
               </>
@@ -151,7 +142,7 @@ function Navbar() {
             )}
 
             {/* Mobile Menu (Disclosure) */}
-            <Disclosure as="div" className="sm:hidden">
+            <Disclosure as="div" className="md:hidden">
               {({ open }) => (
                 <>
                   <Disclosure.Button className="relative inline-flex items-center justify-center rounded-md p-2 text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) focus:outline-none focus:ring-2 focus:ring-white">
@@ -187,18 +178,30 @@ function Navbar() {
                     )}
                   </Disclosure.Button>
 
-                  <Disclosure.Panel className="absolute top-16 right-0 w-48 bg-gray-800 shadow-lg rounded-md py-2 z-50">
+                  <Disclosure.Panel className="absolute top-16 right-0 w-48 bg-(--brand-olive) shadow-lg rounded-md py-2 z-50">
                     <Link
                       to="/"
-                      className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
+                      className="block px-4 py-2 text-white hover:bg-white/5 hover:text-white"
                     >
-                      Home Page
+                      Home
                     </Link>
                     <Link
                       to="/ProfilePage"
-                      className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
+                      className="block px-4 py-2 text-white hover:bg-white/5 hover:text-white"
                     >
                       Profile
+                    </Link>
+                    <Link
+                      to="/Education"
+                      className="block px-4 py-2 text-white hover:bg-white/5 hover:text-white"
+                    >
+                      Education
+                    </Link>
+                    <Link
+                      to="/Skills"
+                      className="block px-4 py-2 text-white hover:bg-white/5 hover:text-white"
+                    >
+                      Skills
                     </Link>
                   </Disclosure.Panel>
                 </>

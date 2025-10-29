@@ -8,6 +8,7 @@ import {
   updateProfile,
   getProfile,
 } from "../api/profiles";
+import Card from "./StyledComponents/Card";
 import ProfilePhotoUploader from "./ProfilePhotoUploader";
 
 const EXPERIENCE_LEVELS = ["Entry", "Mid", "Senior", "Executive"] as const;
@@ -80,6 +81,11 @@ const ProfileForm: React.FC = () => {
   const onChange =
     (field: keyof Profile) =>
     (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => {
+      if (field === "location") return; // handled separately
       e:
         | React.ChangeEvent<HTMLInputElement>
         | React.ChangeEvent<HTMLTextAreaElement>
@@ -111,6 +117,10 @@ const ProfileForm: React.FC = () => {
         throw new Error("Bio is too long.");
       if (values.location.city && values.location.city.length > LIMITS.CITY_MAX)
         throw new Error("City is too long.");
+      if (
+        values.location.state &&
+        values.location.state.length > LIMITS.STATE_MAX
+      )
       if (values.location.state && values.location.state.length > LIMITS.STATE_MAX)
         throw new Error("State is too long.");
 
@@ -136,7 +146,7 @@ const ProfileForm: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">
         {isEdit ? "Edit Profile" : "Profile"}
       </h1>
@@ -144,6 +154,19 @@ const ProfileForm: React.FC = () => {
         Tell us about yourself. Fields marked * are required.
       </p>
 
+      <form onSubmit={onSubmit} className="space-y-5 px-6">
+        <Card>
+          {/* Full Name */}
+          <div>
+            <label className="form-label">Full name *</label>
+            <input
+              required
+              maxLength={LIMITS.NAME_MAX}
+              value={values.fullName}
+              onChange={onChange("fullName")}
+              className="form-input"
+              placeholder="Alex Johnson"
+            />
       {values._id && (
         <div className="mb-6">
           <ProfilePhotoUploader
@@ -238,7 +261,17 @@ const ProfileForm: React.FC = () => {
             </select>
           </div>
 
+          {/* Email */}
           <div>
+            <label className="form-label">Email *</label>
+            <input
+              type="email"
+              required
+              value={values.email}
+              onChange={onChange("email")}
+              className="form-input"
+              placeholder="you@example.com"
+            />
             <label className="block text-sm font-medium text-gray-900">
               Experience level
             </label>
@@ -254,35 +287,120 @@ const ProfileForm: React.FC = () => {
               ))}
             </select>
           </div>
-        </div>
 
+          {/* Phone */}
+          <div>
+            <label className="form-label">Phone</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-900">
               City
             </label>
             <input
-              value={values.location.city || ""}
-              onChange={onChangeCity}
-              maxLength={LIMITS.CITY_MAX}
-              className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
-              placeholder="Newark"
+              value={values.phone}
+              onChange={onChange("phone")}
+              className="form-input"
+              placeholder="+1 555-123-4567"
             />
           </div>
+
+          {/* Headline */}
           <div>
+            <label className="form-label">Headline</label>
             <label className="block text-sm font-medium text-gray-900">
               State
             </label>
             <input
-              value={values.location.state || ""}
-              onChange={onChangeState}
-              maxLength={LIMITS.STATE_MAX}
-              className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
-              placeholder="NJ"
+              maxLength={LIMITS.HEADLINE_MAX}
+              value={values.headline}
+              onChange={onChange("headline")}
+              className="form-input"
+              placeholder="Full-stack developer seeking new opportunities"
             />
           </div>
-        </div>
 
+          {/* Bio */}
+          <div>
+            <label className="form-label">Bio</label>
+            <textarea
+              rows={4}
+              maxLength={LIMITS.BIO_MAX}
+              value={values.bio}
+              onChange={onChange("bio")}
+              className="form-input"
+              placeholder="Tell us about your experience, interests, and goals…"
+            />
+          </div>
+
+          {/* Industry & Experience */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+            <div>
+              <label className="form-label">Industry</label>
+              <select
+                value={values.industry}
+                onChange={onChange("industry")}
+                className="form-input"
+              >
+                {INDUSTRIES.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="form-label">Experience level</label>
+              <select
+                value={values.experienceLevel}
+                onChange={onChange("experienceLevel")}
+                className="form-input"
+              >
+                {EXPERIENCE_LEVELS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Location */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">City</label>
+              <input
+                value={values.location.city || ""}
+                onChange={onChangeCity}
+                maxLength={LIMITS.CITY_MAX}
+                className="form-input"
+                placeholder="Newark"
+              />
+            </div>
+            <div>
+              <label className="form-label">State</label>
+              <input
+                value={values.location.state || ""}
+                onChange={onChangeState}
+                maxLength={LIMITS.STATE_MAX}
+                className="form-input"
+                placeholder="NJ"
+              />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="pt-2">
+            <Button type="submit" disabled={submitting}>
+              {submitting
+                ? isEdit
+                  ? "Updating…"
+                  : "Saving…"
+                : isEdit
+                ? "Save changes"
+                : "Save profile"}
+            </Button>
+          </div>
         <div className="pt-2">
           <Button type="submit" disabled={submitting}>
             {submitting
@@ -295,7 +413,8 @@ const ProfileForm: React.FC = () => {
           </Button>
         </div>
 
-        {err && <p className="text-sm text-red-600">{err}</p>}
+          {err && <p className="text-sm text-red-600">{err}</p>}
+        </Card>
       </form>
     </div>
   );
