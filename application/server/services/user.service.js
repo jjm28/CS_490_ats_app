@@ -30,13 +30,13 @@ export async function verifyUser({ email, password },isprovider) {
   const users = db.collection('users');
 
   const user = await users.findOne({ email: email});
-  if (!isprovider){
-
+  if (!user) {
     const err =  Error('Invalid credentials');
     err.statusCode = 400;
     throw err
-  }
-  if (!user) {
+    }
+  
+if(!isprovider){
   const authpass = await bcrypt.compare(password, user.passwordHash)
   if (!authpass){
     const err =  Error('Invalid credentials');
