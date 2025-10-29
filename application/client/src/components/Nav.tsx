@@ -35,13 +35,8 @@ function Navbar() {
   }, []);
 
   const logout = () => {
-    localStorage.removeItem("authToken"); // ✅ clear token
-    localStorage.removeItem("authUser");
-    // optional “poke” to notify other tabs
-    localStorage.setItem("auth:changed", String(Date.now()));
-    localStorage.removeItem("auth:changed");
     setLoggedIn(false);
-    navigate("/");
+    navigate("/Logout");
   };
 
   return (
@@ -151,10 +146,10 @@ function Navbar() {
             {!loggedIn ? (
               <>
                 {/* Shown when NOT signed in */}
-                <Button variant="primary" onClick={navigate("/Registration")}>
+                <Button variant="primary" onClick={() => navigate("/Registration")}>
                   Sign up
                 </Button>
-                <Button variant="primary" onClick={navigate("/Login")}>
+                <Button variant="primary"  onClick={() => navigate("/Login")}>
                   Log in
                 </Button>
               </>
