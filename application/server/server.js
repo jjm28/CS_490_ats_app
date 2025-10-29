@@ -1,21 +1,19 @@
 import 'dotenv/config'; // Loads env variables
 import express from 'express';
 import cors from 'cors';
-
 import { connectDB } from './db/connection.js';
 import records from './routes/record.js';
 import skills from './routes/skills.js';
 import auth from './routes/auth.js';
 import profileRouter from './routes/profile.js';
 import education from './routes/education.js';
-
 import { attachDevUser } from './middleware/devUser.js';
 import cookieParser from 'cookie-parser';
-
 import path from 'path';
 import { fileURLToPath } from 'url';
-
 import profilePhoto from './routes/profile-photo.js';
+import employmentRouter from './routes/employment.js';
+
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -49,6 +47,7 @@ try {
   // Profile routes (optionally inject dev user)
   app.use('/api/profile', attachDevUser, profileRouter);
   app.use('/api/profile', attachDevUser, profilePhoto);
+  app.use('/api/employment', attachDevUser, employmentRouter);
 
   // for picture uploads
   app.use(

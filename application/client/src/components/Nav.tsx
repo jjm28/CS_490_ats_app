@@ -75,6 +75,21 @@ function Navbar() {
                 >
                   Profile Form
                 </Link>
+                {/* Employment (added) */}
+                <div className="mt-1 border-t border-white/10" />
+                <Link
+                to="/Employment"
+                className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
+                >
+                Employment History
+                </Link>
+                <Link
+                 to="/EmploymentForm"
+                className="block px-4 py-2 text-gray-300 hover:bg-white/5 hover:text-white"
+                > 
+                Add Employment
+                </Link>
+
                 <Link
                   to="/Education"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
