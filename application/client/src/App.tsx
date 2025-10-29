@@ -12,6 +12,10 @@ import Education from './components/Education/Education';
 import AuthCallback from './components/AuthCallback';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+
+import EmploymentPage from "./components/EmploymentPage";
+import EmploymentForm from "./components/EmploymentForm";
+
 import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
 
@@ -36,6 +40,9 @@ function App() {
           <Route path="/ProfilePage" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm/:id" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />
+          <Route path="/Employment" element={<PrivateRoute><EmploymentPage/></PrivateRoute>} />
+          <Route path="/EmploymentForm" element={<PrivateRoute><EmploymentForm /></PrivateRoute>} />
+          <Route path="/EmploymentForm/:id" element={<PrivateRoute><EmploymentForm /></PrivateRoute>} />
           <Route path="/Logout" element={<Logout />} />
           <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/forgot-password" element={<ForgotPassword />} />

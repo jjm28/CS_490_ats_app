@@ -10,12 +10,10 @@ function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  // update login state when route changes
   useEffect(() => {
     setLoggedIn(!!localStorage.getItem("authToken"));
   }, [pathname]);
 
-  // update login state across tabs
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === "authToken" || e.key === "auth:changed") {
@@ -35,106 +33,64 @@ function Navbar() {
     <nav className="relative border-b border-gray-300 shadow-sm bg-white">
       <div className="px-2 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          {/* Left: Logo */}
           <div className="flex items-center">
             <Link to="/">
               <img src={logo} alt="Logo" className="w-32" />
             </Link>
           </div>
 
-          {/* Center: Navigation Links */}
           <div className="hidden md:flex space-x-4">
-            <NavLink
-              to="/"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Home
-            </NavLink>
+            <NavLink to="/" className={({ isActive }) =>
+              `rounded-md px-3 py-2 text-lg font-medium ${
+                isActive ? "bg-(--brand-sage) text-(--brand-navy)"
+                         : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+              }`
+            }>Home</NavLink>
 
-            <NavLink
-              to="/Skills"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Skills
-            </NavLink>
+            <NavLink to="/Skills" className={({ isActive }) =>
+              `rounded-md px-3 py-2 text-lg font-medium ${
+                isActive ? "bg-(--brand-sage) text-(--brand-navy)"
+                         : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+              }`
+            }>Skills</NavLink>
 
-            <NavLink
-              to="/Education"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Education
-            </NavLink>
+            <NavLink to="/Education" className={({ isActive }) =>
+              `rounded-md px-3 py-2 text-lg font-medium ${
+                isActive ? "bg-(--brand-sage) text-(--brand-navy)"
+                         : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+              }`
+            }>Education</NavLink>
 
-            <NavLink
-              to="/Certifications"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Certifications
-            </NavLink>
+            <NavLink to="/Certifications" className={({ isActive }) =>
+              `rounded-md px-3 py-2 text-lg font-medium ${
+                isActive ? "bg-(--brand-sage) text-(--brand-navy)"
+                         : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+              }`
+            }>Certifications</NavLink>
 
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
                 Profile
               </PopoverButton>
               <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg">
-                <NavLink
-                  to="/ProfilePage"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  Profile Page
-                </NavLink>
-                <NavLink
-                  to="/ProfileForm"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  Profile Form
-                </NavLink>
+                <NavLink to="/ProfilePage" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile Page</NavLink>
+                <NavLink to="/ProfileForm" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile Form</NavLink>
+                <NavLink to="/Employment" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Employment History</NavLink>
+                <NavLink to="/EmploymentForm" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Add Employment</NavLink>
               </PopoverPanel>
             </Popover>
           </div>
 
-          {/* Right: Auth Buttons */}
           <div className="flex items-center space-x-4">
             {!loggedIn ? (
               <>
-                <Button variant="primary" onClick={() => navigate("/Registration")}>
-                  Sign up
-                </Button>
-                <Button variant="primary" onClick={() => navigate("/Login")}>
-                  Log in
-                </Button>
+                <Button variant="primary" onClick={() => navigate("/Registration")}>Sign up</Button>
+                <Button variant="primary" onClick={() => navigate("/Login")}>Log in</Button>
               </>
             ) : (
-              <Button variant="primary" onClick={logout}>
-                Log out
-              </Button>
+              <Button variant="primary" onClick={logout}>Log out</Button>
             )}
 
-            {/* Mobile Menu */}
             <Disclosure as="div" className="md:hidden">
               {({ open }) => (
                 <>
@@ -149,7 +105,6 @@ function Navbar() {
                       </svg>
                     )}
                   </Disclosure.Button>
-
                   <Disclosure.Panel className="absolute top-16 right-0 w-48 bg-gray-800 rounded-md shadow-lg py-2 z-50">
                     <NavLink to="/" className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white">Home</NavLink>
                     <NavLink to="/ProfilePage" className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white">Profile</NavLink>

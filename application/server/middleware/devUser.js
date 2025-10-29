@@ -12,7 +12,7 @@ export function attachDevUser(req, res, next) {
   // If not provided, try cookie (so browser keeps the same id)
   if (!devId) devId = req.cookies?.dev_user_id;
 
-  // Build a namespace (machine/user specific) to avoid collisions
+  // Build a namespace to avoid collisions
   const ns =
     process.env.DEV_USER_NAMESPACE ||
     process.env.USER ||
