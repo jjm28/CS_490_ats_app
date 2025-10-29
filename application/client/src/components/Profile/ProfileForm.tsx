@@ -1,14 +1,14 @@
 // application/client/src/components/ProfileForm.tsx
 import React, { useState, useEffect } from "react";
-import Button from "./StyledComponents/Button";
+import Button from "../StyledComponents/Button";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   type Profile,
   createProfile,
   updateProfile,
   getProfile,
-} from "../api/profiles";
-import Card from "./StyledComponents/Card";
+} from "../../api/profiles";
+import Card from "../StyledComponents/Card";
 import ProfilePhotoUploader from "./ProfilePhotoUploader";
 
 const EXPERIENCE_LEVELS = ["Entry", "Mid", "Senior", "Executive"] as const;

@@ -41,32 +41,39 @@ function Navbar() {
 
           <div className="hidden md:flex space-x-4">
             <NavLink to="/" className={({ isActive }) =>
-              `rounded-md px-3 py-2 text-lg font-medium ${
-                isActive ? "bg-(--brand-sage) text-(--brand-navy)"
-                         : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+              `rounded-md px-3 py-2 text-lg font-medium ${isActive ? "bg-(--brand-sage) text-(--brand-navy)"
+                : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
               }`
             }>Home</NavLink>
 
             <NavLink to="/Skills" className={({ isActive }) =>
-              `rounded-md px-3 py-2 text-lg font-medium ${
-                isActive ? "bg-(--brand-sage) text-(--brand-navy)"
-                         : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+              `rounded-md px-3 py-2 text-lg font-medium ${isActive ? "bg-(--brand-sage) text-(--brand-navy)"
+                : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
               }`
             }>Skills</NavLink>
 
             <NavLink to="/Education" className={({ isActive }) =>
-              `rounded-md px-3 py-2 text-lg font-medium ${
-                isActive ? "bg-(--brand-sage) text-(--brand-navy)"
-                         : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+              `rounded-md px-3 py-2 text-lg font-medium ${isActive ? "bg-(--brand-sage) text-(--brand-navy)"
+                : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
               }`
             }>Education</NavLink>
 
             <NavLink to="/Certifications" className={({ isActive }) =>
-              `rounded-md px-3 py-2 text-lg font-medium ${
-                isActive ? "bg-(--brand-sage) text-(--brand-navy)"
-                         : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+              `rounded-md px-3 py-2 text-lg font-medium ${isActive ? "bg-(--brand-sage) text-(--brand-navy)"
+                : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
               }`
             }>Certifications</NavLink>
+            <NavLink
+              to="/Projects"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Projects
+            </NavLink>
 
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
