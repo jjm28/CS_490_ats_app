@@ -1,4 +1,7 @@
 import { getDb } from '../db/connection.js';
+import express from "express";
+import { ObjectId } from "mongodb";
+import { verifyJWT } from "../middleware/auth.js";
 
 // Max character limits for various profile fields
 export const PROFILE_LIMITS = Object.freeze({
@@ -90,3 +93,4 @@ export const PROFILE_CONSTANTS = Object.freeze({
   FIELDS: PROFILE_FIELDS,
   DEFAULTS: PROFILE_DEFAULTS,
 });
+
