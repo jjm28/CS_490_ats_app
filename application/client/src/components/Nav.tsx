@@ -113,6 +113,18 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
+
+            <NavLink
+              to="/Certifications"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Certifications
+            </NavLink>
           </div>
 
           {/* <Popover>
@@ -149,7 +161,7 @@ function Navbar() {
                 <Button variant="primary" onClick={() => navigate("/Registration")}>
                   Sign up
                 </Button>
-                <Button variant="primary"  onClick={() => navigate("/Login")}>
+                <Button variant="primary" onClick={() => navigate("/Login")}>
                   Log in
                 </Button>
               </>
