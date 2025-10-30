@@ -31,7 +31,7 @@ function Registration() {
   useEffect(() => {
     if (Success) {
       const timer = setTimeout(() => {
-        navigate("/Dashboard");
+        navigate("/ProfileDashboard");
       }, 2000);
       return () => clearTimeout(timer);
     }

@@ -22,7 +22,7 @@ export default function Login() {
   // If already logged in, skip the form
   useEffect(() => {
     const existing = localStorage.getItem("authToken");
-    if (existing) navigate("/Dashboard");
+    if (existing) navigate("/ProfileDashboard");
   }, [navigate]);
 
   // After success, send to Dashboard

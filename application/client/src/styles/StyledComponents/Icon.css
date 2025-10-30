@@ -1,0 +1,91 @@
+/* Icon.css - Simple icon styles */
+
+/* Base icon styling */
+svg {
+  flex-shrink: 0;
+  vertical-align: middle;
+  color: inherit;
+}
+
+/* Loading spinner animation */
+.icon-loading,
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Common icon sizes (optional - can use size prop instead) */
+.icon-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-md {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-lg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Color utility classes using your app's color scheme */
+.icon-navy {
+  color: var(--brand-navy);
+}
+
+.icon-teal {
+  color: var(--brand-teal);
+}
+
+.icon-teal-light {
+  color: var(--brand-teal-light);
+}
+
+.icon-sage {
+  color: var(--brand-sage);
+}
+
+.icon-olive {
+  color: var(--brand-olive);
+}
+
+.icon-success {
+  color: var(--success);
+}
+
+.icon-warning {
+  color: var(--warning);
+}
+
+.icon-error {
+  color: var(--error);
+}
+
+/* Hover effects with your brand colors */
+.icon-hover-teal:hover {
+  color: var(--brand-teal);
+  transition: color 200ms ease;
+}
+
+.icon-hover-olive:hover {
+  color: var(--brand-olive);
+  transition: color 200ms ease;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .icon-loading,
+  .animate-spin {
+    animation: none;
+  }
+}
