@@ -34,9 +34,36 @@ export default function Projects() {
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
+  //added in UC032
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"date_desc" | "date_asc">("date_desc");
+  const [view, setView] = useState<"list" | "grid">("list");
+  const [techFilter, setTechFilter] = useState(""); // for "Filter by technology"
+  const [industryFilter, setIndustryFilter] = useState(""); // for "Filter by industry"
+  
+
   const fetchProjects = async () => {
     try {
-      const data = await getProjects();
+      //added in UC032
+      const hasFilters =
+        search.trim().length > 0 ||
+        sort !== "date_desc" ||
+        techFilter.trim().length > 0 ||
+        industryFilter.trim().length > 0;
+
+      //changed in UC032. old data intialize below in comment
+      const data = await getProjects(
+        hasFilters
+          ? {
+              search: search.trim() || undefined,
+              sort,
+              tech: techFilter.trim() || undefined,
+              industry: industryFilter.trim() || undefined,
+            }
+          : undefined
+      );
+      
+      //const data = await getProjects();
       data.sort((a: Project, b: Project) => {
         const dateA = a.startDate ? new Date(a.startDate).getTime() : 0;
         const dateB = b.startDate ? new Date(b.startDate).getTime() : 0;
@@ -52,11 +79,17 @@ export default function Projects() {
     fetchProjects();
   }, []);
 
+  //added in UC032
+  useEffect(() => {
+    fetchProjects();
+  }, [search, sort, techFilter, industryFilter]);
+
   const addProject = async (newProj: Project) => {
     try {
-      const created = await addProjectApi(newProj);
-      setProjects([...projects, created]);
-      setShowForm(false);
+      //const created = await addProjectApi(newProj);
+      //setProjects([...projects, created]);
+      //setShowForm(false);//
+      await addProject(newProj);
     } catch (err) {
       console.error("Error adding project:", err);
     }
@@ -91,6 +124,8 @@ export default function Projects() {
     return date.toLocaleString("default", { month: "short", year: "numeric" });
   };
 
+  
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="flex items-center justify-between mb-2 px-6">
@@ -101,6 +136,26 @@ export default function Projects() {
           </Button>
         )}
       </div>
+
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <div className="text-sm text-gray-500">
+          {projects.length} project{projects.length === 1 ? "" : "s"} found
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={view === "grid" ? "primary" : "secondary"}
+            onClick={() => setView("grid")}
+          >
+            Grid
+          </Button>
+          <Button
+            variant={view === "list" ? "primary" : "secondary"}
+            onClick={() => setView("list")}
+          >
+            List
+          </Button>
+        </div>
+      </div> 
 
       {(showForm || editingProject) && (
         <ProjectForm
@@ -123,57 +178,144 @@ export default function Projects() {
         />
       )}
 
+      {/*added in UC032*/}
       {!showForm && !editingProject && (
-        <div className="flex flex-col gap-4 mx-6 my-8">
-          {projects.map((proj, idx) => (
-            <Card key={proj._id || idx}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`status-dot ${proj.status.toLowerCase()}`}></div>
-                <h3 className="text-lg font-semibold text-[var(--brand-olive)]">
-                  {proj.name} — <span className="text-gray-700">Status: {proj.status}</span>
-                </h3>
-              </div>
+        <div className="flex flex-wrap gap-3 items-center mb-4 px-1 sm:px-6">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects…"
+            className="form-input w-full sm:w-[220px]"
+          />
 
-              <p><strong>Role:</strong> {proj.role}</p>
-              <p>
-                <strong>Duration:</strong> {formatDate(proj.startDate)} –{" "}
-                {proj.endDate ? formatDate(proj.endDate) : "Present"}
-              </p>
-              {proj.industry && <p><strong>Industry:</strong> {proj.industry}</p>}
-              {proj.technologies && <p><strong>Technologies:</strong> {proj.technologies}</p>}
-              {proj.teamSize && <p><strong>Team Size:</strong> {proj.teamSize}</p>}
-              {proj.url && (
-                <p>
-                  <strong>Link:</strong>{" "}
-                  <a
-                    href={proj.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--brand-teal)] hover:underline"
-                  >
-                    {proj.url}
-                  </a>
-                </p>
-              )}
-              {proj.outcomes && <p><strong>Outcomes:</strong> {proj.outcomes}</p>}
-              {proj.collaborationDetails && (
-                <p><strong>Collaboration:</strong> {proj.collaborationDetails}</p>
-              )}
-              {proj.mediaUrl && <p><strong>Media:</strong> {proj.mediaUrl}</p>}
+          <input
+            value={techFilter}
+            onChange={(e) => setTechFilter(e.target.value)}
+            placeholder="Filter by technology…"
+            className="form-input w-full sm:w-[200px]"
+          />
 
-              <div className="flex justify-center space-x-2 p-2">
-                <Button variant="secondary" onClick={() => setEditingProject(proj)}>
-                  Edit
-                </Button>
-                <Button variant="secondary" onClick={() => removeProject(proj._id!)}>
-                  Delete
-                </Button>
-              </div>
-            </Card>
-          ))}
+          <input
+            value={industryFilter}
+            onChange={(e) => setIndustryFilter(e.target.value)}
+            placeholder="Filter by industry…"
+            className="form-input w-full sm:w-[200px]"
+          />
 
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as any)}
+            className="form-select w-full sm:w-[160px]"
+          >
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+          </select>
 
+          <div className="flex gap-1 ml-auto">
+            <Button
+              variant={view === "list" ? "primary" : "secondary"}
+              onClick={() => setView("list")}
+            >
+              List
+            </Button>
+            <Button
+              variant={view === "grid" ? "primary" : "secondary"}
+              onClick={() => setView("grid")}
+            >
+              Grid
+            </Button>
+          </div>
         </div>
+      )}
+
+      {!showForm && !editingProject && (
+        view === "list" ? (
+          <div className="flex flex-col gap-4 mx-6 my-8">
+            {projects.map((proj, idx) => (
+              <Card key={proj._id || idx}>
+                {/* ... list markup ... */}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`status-dot ${proj.status.toLowerCase()}`}></div>
+                  <h3 className="text-lg font-semibold text-[var(--brand-olive)]">
+                    {proj.name} —{" "}
+                    <span className="text-gray-700">Status: {proj.status}</span>
+                  </h3>
+                </div>
+                {/* rest of fields */}
+                <p><strong>Role:</strong> {proj.role}</p>
+                <p>
+                  <strong>Duration:</strong> {formatDate(proj.startDate)} –{" "}
+                  {proj.endDate ? formatDate(proj.endDate) : "Present"}
+                </p>
+                {proj.industry && <p><strong>Industry:</strong> {proj.industry}</p>}
+                {proj.technologies && <p><strong>Technologies:</strong> {proj.technologies}</p>}
+                {proj.teamSize && <p><strong>Team Size:</strong> {proj.teamSize}</p>}
+                {proj.url && (
+                  <p>
+                    <strong>Link:</strong>{" "}
+                    <a
+                      href={proj.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[var(--brand-teal)] hover:underline"
+                    >
+                      {proj.url}
+                    </a>
+                  </p>
+                )}
+                {proj.outcomes && <p><strong>Outcomes:</strong> {proj.outcomes}</p>}
+                {proj.collaborationDetails && (
+                  <p><strong>Collaboration:</strong> {proj.collaborationDetails}</p>
+                )}
+                {proj.mediaUrl && <p><strong>Media:</strong> {proj.mediaUrl}</p>}
+                <div className="flex justify-center space-x-2 p-2">
+                  <Button variant="secondary" onClick={() => setEditingProject(proj)}>
+                    Edit
+                  </Button>
+                  <Button variant="secondary" onClick={() => removeProject(proj._id!)}>
+                    Delete
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mx-1 sm:mx-6 my-8">
+            {projects.map((proj, idx) => (
+              <Card key={proj._id || idx} className="flex flex-col gap-2">
+                {proj.mediaUrl ? (
+                  <img
+                    src={proj.mediaUrl}
+                    alt={proj.name}
+                    className="w-full h-36 object-cover rounded-md"
+                  />
+                ) : (
+                  <div className="w-full h-36 bg-gray-100 rounded-md flex items-center justify-center text-xs text-gray-500">
+                    No thumbnail
+                  </div>
+                )}
+                <h3 className="text-base font-semibold text-[var(--brand-olive)]">
+                  {proj.name}
+                </h3>
+                <p className="text-sm text-gray-700 line-clamp-3">
+                  {proj.description}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatDate(proj.startDate)} –{" "}
+                  {proj.endDate ? formatDate(proj.endDate) : "Present"}
+                </p>
+                <div className="flex gap-2 mt-auto pt-2">
+                  <Button variant="secondary" onClick={() => setEditingProject(proj)}>
+                    Edit
+                  </Button>
+                  <Button variant="secondary" onClick={() => removeProject(proj._id!)}>
+                    Delete
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

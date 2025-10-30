@@ -24,6 +24,7 @@ export default function ProjectForm({ onSubmit, onCancel, initialData }: Project
   const [industry, setIndustry] = useState(initialData?.industry || "");
   const [status, setStatus] = useState(initialData?.status || "Planned");
   const [mediaUrl, setMediaUrl] = useState(initialData?.mediaUrl || "");
+  const [thumbnailUrl, setThumbnailUrl] = useState((initialData as any)?.thumbnailUrl || ""); //Added in UC032
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +42,8 @@ export default function ProjectForm({ onSubmit, onCancel, initialData }: Project
       industry,
       status: status as Project["status"],
       mediaUrl,
-    });
+      thumbnailUrl, //Added in UC032
+    } as Project); // Added in UC032 to fix errors
   };
 
   return (
