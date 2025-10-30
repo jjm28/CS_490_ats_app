@@ -7,9 +7,12 @@ import type { Education } from "../Education/Education";
 import { getEducation } from "../../api/education";
 import type { Skill } from "../Skills/Skills";
 import type { Certification } from "../Certifications/Certifications";
+import  type {Employment} from "../../api/employment" 
 import { getSkills } from "../../api/skills";
 import { categories as SKILL_CATEGORIES } from "../../constants/skills";
 import { getCertifications } from "../../api/certifications";
+import { listEmployment } from "../../api/employment";
+
 import API_BASE from "../../utils/apiBase";
 
 // ---- Routes ----
@@ -59,6 +62,20 @@ function SkillChip({ name, proficiency }: { name: string; proficiency: Skill["pr
   );
 }
 
+function formatYMD(date?: string) {
+  if (!date) return "";
+  const t = Date.parse(date);
+  if (Number.isNaN(t)) return "";
+  return new Date(t).toLocaleString("default", { month: "short", year: "numeric" });
+}
+
+function roleDates(e: Employment) {
+  const start = formatYMD(e.startDate ?? undefined);
+  const end = e.currentPosition ? "Present" : formatYMD(e.endDate ?? undefined);
+  return start && end ? `${start} – ${end}` : start || end || "";
+}
+
+
 // ---------- component ----------
 const ProfileDashboard: React.FC = () => {
   const location = useLocation() as { state?: { flash?: string } };
@@ -83,6 +100,11 @@ const ProfileDashboard: React.FC = () => {
   const [certs, setCerts] = useState<Certification[]>([]);
   const [certsLoading, setCertsLoading] = useState(true);
   const [certsErr, setCertsErr] = useState<string | null>(null);
+
+  // Employment
+  const [employment, setEmployment] = useState<Employment[]>([]);
+  const [empLoading, setEmpLoading] = useState(true);
+  const [empErr, setEmpErr] = useState<string | null>(null);
 
   // Fetch profiles
   useEffect(() => {
@@ -163,6 +185,31 @@ const ProfileDashboard: React.FC = () => {
       }
     })();
   }, []);
+
+// Fetch employment
+useEffect(() => {
+  (async () => {
+    setEmpLoading(true);
+    setEmpErr(null);
+    try {
+      const data = await listEmployment();
+      // Sort: current roles first, then by endDate desc (or startDate if no end)
+      data.sort((a, b) => {
+        if (a.currentPosition !== b.currentPosition) {
+          return a.currentPosition ? -1 : 1; // current first
+        }
+        const ta = a.endDate ? Date.parse(a.endDate) : Date.parse(a.startDate || "") || 0;
+        const tb = b.endDate ? Date.parse(b.endDate) : Date.parse(b.startDate || "") || 0;
+        return tb - ta; // newest first
+      });
+      setEmployment(data);
+    } catch (e: any) {
+      setEmpErr(e?.message || "Failed to load employment.");
+    } finally {
+      setEmpLoading(false);
+    }
+  })();
+}, []);
 
   const latest = useMemo(() => pickLatest(profiles || []), [profiles]);
 
@@ -470,6 +517,58 @@ const ProfileDashboard: React.FC = () => {
     </div>
   )}
 </div>
+{/* Employment (read-only) */}
+<div className="mt-10">
+  <div className="mb-5 flex items-center justify-between">
+    <h2 className="text-xl font-bold text-gray-900">Employment</h2>
+    <Button
+      variant="primary"
+      aria-label="Manage employment"
+      title="Manage employment"
+      onClick={() => navigate("/EmploymentPage")}
+    >
+      +
+    </Button>
+  </div>
+
+  {empLoading && <p className="text-gray-600">Loading employment…</p>}
+  {empErr && <p className="text-sm text-red-600">{empErr}</p>}
+
+  {!empLoading && !empErr && employment.length === 0 && (
+    <Card className="p-4 sm:p-5">
+      <p className="text-gray-700">No employment entries yet.</p>
+    </Card>
+  )}
+
+  {!empLoading && !empErr && employment.length > 0 && (
+    <div className="space-y-3">
+      {employment.map((e) => (
+        <Card key={e._id} className="p-4 sm:p-5">
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="text-base font-semibold text-gray-900 break-words">
+                {e.jobTitle || "—"}
+              </h3>
+              <p className="text-sm text-gray-600">{roleDates(e)}</p>
+            </div>
+
+            <p className="text-gray-700">
+              <span className="font-medium">{e.company || "—"}</span>
+              {e.location ? <span className="text-gray-600">{` — ${e.location}`}</span> : null}
+            </p>
+
+            {e.description && (
+              <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
+                {e.description}
+              </p>
+            )}
+          </div>
+        </Card>
+      ))}
+    </div>
+  )}
+</div>
+
     </div>
   );
 };
