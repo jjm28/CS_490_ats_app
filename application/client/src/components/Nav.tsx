@@ -83,6 +83,15 @@ function Navbar() {
                   : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
                 }`
               }>Profile</NavLink>
+            
+            <NavLink
+              to="/ProfileDashboard"
+              className={({ isActive }) => 
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }>Dashboard</NavLink>
 
             <NavLink
               to="/EmploymentPage"
