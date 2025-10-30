@@ -7,6 +7,7 @@ import {
   updateEmployment,
   getEmployment,
 } from "../../api/employment";
+import "../../styles/StyledComponents/FormInput.css";
 
 const LIMITS = {
   TITLE_MAX: 150,
@@ -153,55 +154,55 @@ const EmploymentForm: React.FC = () => {
 
       <form onSubmit={onSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-900">Job title *</label>
+          <label className="form-label">Job title *</label>
           <input
             value={values.jobTitle}
             onChange={onChange("jobTitle")}
             required
             maxLength={LIMITS.TITLE_MAX}
-            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
+            className="form-input"
             placeholder="Software Engineer"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900">Company *</label>
+          <label className="form-label">Company *</label>
           <input
             value={values.company}
             onChange={onChange("company")}
             required
             maxLength={LIMITS.COMPANY_MAX}
-            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
+            className="form-input"
             placeholder="Acme Corp"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900">Location</label>
+          <label className="form-label">Location</label>
           <input
             value={values.location || ""}
             onChange={onChange("location")}
             maxLength={LIMITS.LOCATION_MAX}
-            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
+            className="form-input"
             placeholder="Newark, NJ"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-900">Start date *</label>
+            <label className="form-label">Start date *</label>
             <input
               type="date"
               value={values.startDate}
               onChange={onChange("startDate")}
               required
               max={TODAY} // start ≤ today
-              className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
+            className="form-input"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-900">
+            <label className="form-label">
               End date{values.currentPosition ? " (disabled)" : ""}
             </label>
             <input
@@ -211,7 +212,7 @@ const EmploymentForm: React.FC = () => {
               disabled={values.currentPosition}
               required={!values.currentPosition}
               max={YESTERDAY} // end ≤ yesterday
-              className={`mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm ${
+              className={`form-input ${
                 values.currentPosition ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""
               }`}
             />
@@ -225,13 +226,13 @@ const EmploymentForm: React.FC = () => {
             checked={values.currentPosition}
             onChange={onChange("currentPosition")}
           />
-          <label htmlFor="currentPosition" className="text-sm text-gray-900">
+          <label htmlFor="currentPosition" className="form-label">
             Current position
           </label>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900">
+          <label className="form-label">
             Job description
           </label>
           <textarea
@@ -239,7 +240,7 @@ const EmploymentForm: React.FC = () => {
             onChange={onChange("description")}
             rows={5}
             maxLength={LIMITS.DESC_MAX}
-            className="mt-1 block w-full rounded-md bg-white px-3 py-2 text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
+            className="form-input"
             placeholder="What did you do in this role?"
           />
           <div className="text-xs text-gray-500 mt-1">

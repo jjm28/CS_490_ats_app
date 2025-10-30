@@ -42,7 +42,7 @@ export default function CertificationForm({
   };
 
   return (
-    <div className="certification-form-popup">
+    <div>
       <Card>
         <form onSubmit={handleSubmit}>
           <label className="form-label">Certification Name</label>

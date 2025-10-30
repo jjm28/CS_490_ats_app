@@ -1,6 +1,7 @@
 // application/client/src/components/Profile/ProfilePhotoUploader.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import API_BASE from "../../utils/apiBase";
+import Button from "../StyledComponents/Button";
 
 // ===== START: new helper to get auth token =====
 function getAuthToken() {
@@ -191,23 +192,25 @@ const ProfilePhotoUploader: React.FC<Props> = ({
           className="h-24 w-24 rounded-full object-cover border"
         />
         <div className="space-x-2">
-          <button
+          <Button
+            variant="primary"
             type="button"
             onClick={chooseFile}
             disabled={busy}
             className="rounded-md bg-indigo-600 px-3 py-2 text-white text-sm"
           >
             {absoluteCurrent || preview ? "Replace photo" : "Upload photo"}
-          </button>
+          </Button>
           {(absoluteCurrent || preview) && (
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={removePhoto}
               disabled={busy}
               className="rounded-md border px-3 py-2 text-sm"
             >
               Remove
-            </button>
+            </Button>
           )}
           <input
             ref={fileInputRef}
@@ -221,14 +224,15 @@ const ProfilePhotoUploader: React.FC<Props> = ({
 
       {preview && (
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="primary"
             type="button"
             onClick={upload}
             disabled={busy}
             className="rounded-md bg-green-600 px-3 py-1.5 text-white text-sm"
           >
             Confirm upload
-          </button>
+          </Button>
           <div className="h-2 flex-1 bg-gray-200 rounded">
             <div
               className="h-2 bg-green-600 rounded"
