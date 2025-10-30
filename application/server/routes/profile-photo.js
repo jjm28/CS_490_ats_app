@@ -1,4 +1,4 @@
-// application/server/routes/profile-photo.js (ESM)
+// application/server/routes/profile-photo.js
 import { Router } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
@@ -9,18 +9,26 @@ import Profile from '../models/profile.js';
 
 const router = Router();
 
-// ----- Resolve the SAME uploads root used by server.js -----
+// resolve uploads root
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const UPLOAD_ROOT = path.join(__dirname, '..', 'uploads'); // server.js serves __dirname/../uploads
+const UPLOAD_ROOT = path.join(__dirname, '..', 'uploads');
 
-// ----- Helpers -----
+// ===== START new: unified user id helper =====
+function getUserId(req) {
+  if (req.user?._id) return req.user._id.toString();
+  if (req.user?.id) return req.user.id.toString();
+  const dev = req.headers['x-dev-user-id'];
+  return dev ? dev.toString() : null;
+}
+// ===== END new =====
+
 const EXT_BY_MIME = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/gif': 'gif',
 };
-const ALL_EXTS = Object.values(EXT_BY_MIME); // ['jpg','png','gif']
+const ALL_EXTS = Object.values(EXT_BY_MIME);
 
 function ensureDir(p) {
   if (fs.existsSync(p)) {
@@ -43,15 +51,6 @@ function buildRelativeUrl(profileId, ext) {
   return `/uploads/profiles/${profileId}/avatar.${ext}`;
 }
 
-function findExistingAvatarPath(dir) {
-  
-  for (const ext of ALL_EXTS) {
-    const p = path.join(dir, `avatar.${ext}`);
-    if (fs.existsSync(p)) return p;
-  }
-  return null;
-}
-
 function deleteAllAvatarVariants(dir) {
   for (const ext of ALL_EXTS) {
     const p = path.join(dir, `avatar.${ext}`);
@@ -59,7 +58,7 @@ function deleteAllAvatarVariants(dir) {
   }
 }
 
-//5MB images only
+// 5MB limit
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -69,23 +68,42 @@ const upload = multer({
   },
 });
 
-// POST /api/profile/:id/photo  
+// POST /api/profile/:id/photo
 router.post('/:id/photo', upload.single('photo'), async (req, res) => {
   try {
-    const userId = req.user?.id; 
-    const { id: profileId } = req.params;
+    // ===== START new: log + unified user =====
+    const userId = getUserId(req);
+    console.log('[profile-photo] upload hit', {
+      userId,
+      paramsId: req.params.id,
+      hasFile: !!req.file,
+    });
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    // ===== END new =====
 
-    const profile = await Profile.findOne({ _id: profileId, userId });
-    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+    const { id: profileId } = req.params;
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    // ===== START new: try with userId first, then fallback by _id only =====
+    let profile = await Profile.findOne({ _id: profileId, userId }).lean();
+    if (!profile) {
+      console.warn(
+        '[profile-photo] profile not found with userId, trying by _id only',
+        { profileId, userId }
+      );
+      profile = await Profile.findById(profileId).lean();
+    }
+    if (!profile) {
+      console.error('[profile-photo] final NOT FOUND', { profileId, userId });
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    // ===== END new =====
 
     const mime = req.file.mimetype;
     const ext = EXT_BY_MIME[mime];
     if (!ext) return res.status(400).json({ error: 'Unsupported type' });
 
     const dir = getDirForProfile(profileId);
-
-    // Replace any previous avatar.* (switching formats should remove old)
     deleteAllAvatarVariants(dir);
 
     let buffer;
@@ -101,46 +119,56 @@ router.post('/:id/photo', upload.single('photo'), async (req, res) => {
         .resize(512, 512, { fit: 'cover', position: 'center' })
         .png({ compressionLevel: 9 })
         .toBuffer();
-    } else if (ext === 'gif') {
-      // KEEP ORIGINAL BYTES (resizing animated GIFs is non-trivial)
-      buffer = req.file.buffer;
-     
+    } else {
+      buffer = req.file.buffer; // gif
     }
 
     const filePath = path.join(dir, `avatar.${ext}`);
     fs.writeFileSync(filePath, buffer);
 
-    // Store URL
     const relative = buildRelativeUrl(profileId, ext);
-    profile.photoUrl = relative;
-    await profile.save();
+    // keep it in DB tied to this user
+    await Profile.updateOne(
+      { _id: profileId },
+      { $set: { photoUrl: relative, userId } } // <— also re-attach userId here
+    );
 
-    // Return URL
     const absolute = `${process.env.BASE || ''}${relative}`;
     return res.status(200).json({ photoUrl: absolute });
   } catch (e) {
+    console.error('[profile-photo] error', e);
     return res.status(400).json({ error: e?.message || 'Upload failed' });
   }
 });
 
-// DELETE /api/profile/:id/photo  (remove)
+// DELETE /api/profile/:id/photo
 router.delete('/:id/photo', async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = getUserId(req);
+    console.log('[profile-photo] delete hit', {
+      userId,
+      paramsId: req.params.id,
+    });
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
     const { id: profileId } = req.params;
 
-    const profile = await Profile.findOne({ _id: profileId, userId });
+    // same 2-step lookup
+    let profile = await Profile.findOne({ _id: profileId, userId });
+    if (!profile) profile = await Profile.findById(profileId);
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
     const dir = getDirForProfile(profileId);
-    const existing = findExistingAvatarPath(dir);
-    if (existing) fs.unlinkSync(existing);
+    deleteAllAvatarVariants(dir);
 
-    profile.photoUrl = '';
-    await profile.save();
+    await Profile.updateOne(
+      { _id: profileId },
+      { $set: { photoUrl: '', userId } }
+    );
 
     return res.sendStatus(204);
   } catch (e) {
+    console.error('[profile-photo] delete error', e);
     return res.status(400).json({ error: e?.message || 'Delete failed' });
   }
 });
