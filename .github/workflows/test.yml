@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18, 20] # you can test against multiple Node versions
+        node-version: [18, 20]
 
     steps:
       - name: Checkout repository
@@ -24,7 +24,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
+        working-directory: ./application/server
         run: npm ci
 
       - name: Run tests
+        working-directory: ./application/server
         run: npm test
