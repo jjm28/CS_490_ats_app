@@ -28,7 +28,7 @@ export default function Login() {
   // After success, send to Dashboard
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => navigate("/Dashboard"), 2000);
+      const timer = setTimeout(() => navigate("/ProfileDashboard"), 2000);
       return () => clearTimeout(timer);
     }
   }, [success, navigate]);

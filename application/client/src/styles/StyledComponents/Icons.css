@@ -1,0 +1,46 @@
+/* Icon.css - Simple icon styles */
+
+/* Base icon styling */
+svg {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Loading spinner animation */
+.icon-loading,
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Common icon sizes (optional - can use size prop instead) */
+.icon-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-md {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-lg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .icon-loading,
+  .animate-spin {
+    animation: none;
+  }
+}

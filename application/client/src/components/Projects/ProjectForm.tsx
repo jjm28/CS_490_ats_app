@@ -74,7 +74,7 @@ export default function ProjectForm({ onSubmit, onCancel, initialData }: Project
   };
 
   return (
-    <div className="project-form-popup">
+    <div>
       <Card>
         <form onSubmit={handleSubmit}>
           <label className="form-label">Project Name</label>

@@ -28,7 +28,7 @@ export default function Logout({
     localStorage.removeItem("auth:changed");
 
     // Decide where to go next
-    const to = redirectTo || params.get("to") || "/";
+    const to = redirectTo || params.get("to") || "/Login";
     //wait 3 seconds
     setTimeout(() => {
       navigate(to);
