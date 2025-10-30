@@ -6,7 +6,6 @@ import "dotenv/config";
 
 const router = express.Router();
 
-// 🔐 Helper to extract userId from JWT
 function getUserIdFromToken(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return null;
@@ -19,7 +18,6 @@ function getUserIdFromToken(req) {
   }
 }
 
-// ✅ GET: Fetch all projects for logged-in user
 router.get("/", async (req, res) => {
   try {
     const userId = getUserIdFromToken(req);
@@ -33,7 +31,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ POST: Add a new project
 router.post("/", async (req, res) => {
   try {
     const userId = getUserIdFromToken(req);
@@ -84,7 +81,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ✅ PUT: Update a project
 router.put("/:id", async (req, res) => {
   try {
     const userId = getUserIdFromToken(req);
@@ -112,7 +108,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// ✅ DELETE: Delete a project
 router.delete("/:id", async (req, res) => {
   try {
     const userId = getUserIdFromToken(req);

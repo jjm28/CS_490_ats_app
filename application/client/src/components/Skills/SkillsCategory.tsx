@@ -106,6 +106,20 @@ export default function SkillsCategory({
             </Draggable>
           ))}
           {provided.placeholder}
+
+          {skills.length > 0 && (
+            <div className="mt-3 text-sm text-gray-700 bg-gray-50 border-t border-gray-200 rounded-md p-2">
+              <strong>Summary:</strong>{" "}
+              {(() => {
+                const counts = { Beginner: 0, Intermediate: 0, Advanced: 0, Expert: 0 };
+                skills.forEach((s) => counts[s.proficiency]++);
+                return Object.entries(counts)
+                  .filter(([_, c]) => c > 0)
+                  .map(([level, c]) => `${c} ${level}`)
+                  .join(", ");
+              })()}
+            </div>
+          )}
         </div>
       )}
     </Droppable>

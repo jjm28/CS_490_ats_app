@@ -159,7 +159,24 @@ export default function Projects() {
               {proj.collaborationDetails && (
                 <p><strong>Collaboration:</strong> {proj.collaborationDetails}</p>
               )}
-              {proj.mediaUrl && <p><strong>Media:</strong> {proj.mediaUrl}</p>}
+              {proj.mediaUrl && (
+                <div className="mt-3">
+                  <p className="font-medium text-gray-700 mb-1">Project Screenshot:</p>
+                  <img
+                    src={
+                      proj.mediaUrl.startsWith("http")
+                        ? proj.mediaUrl
+                        : `${import.meta.env.VITE_API_BASE_URL}${proj.mediaUrl}`
+                    }
+                    alt={`${proj.name} media`}
+                    className="rounded-lg border border-gray-200 shadow-sm max-h-60 object-contain bg-gray-50"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
+
 
               <div className="flex justify-center space-x-2 p-2">
                 <Button variant="secondary" onClick={() => setEditingProject(proj)}>
@@ -171,7 +188,6 @@ export default function Projects() {
               </div>
             </Card>
           ))}
-
 
         </div>
       )}
