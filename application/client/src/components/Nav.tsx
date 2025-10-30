@@ -39,7 +39,7 @@ function Navbar() {
             </Link>
           </div>
 
-          <div className="hidden md:flex space-x-4">
+        <div className="hidden md:flex space-x-4">
             <NavLink to="/" className={({ isActive }) =>
               `rounded-md px-3 py-2 text-lg font-medium ${isActive ? "bg-(--brand-sage) text-(--brand-navy)"
                 : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
@@ -75,7 +75,26 @@ function Navbar() {
               Projects
             </NavLink>
 
-            <Popover className="relative">
+            <NavLink
+              to="/ProfilePage"
+              className={({ isActive }) => 
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }>Profile</NavLink>
+
+            <NavLink
+              to="/EmploymentPage"
+              className={({ isActive }) => 
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }>Employment</NavLink>
+
+
+           {/* <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
                 Profile
               </PopoverButton>
@@ -85,8 +104,8 @@ function Navbar() {
                 <NavLink to="/Employment" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Employment History</NavLink>
                 <NavLink to="/EmploymentForm" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Add Employment</NavLink>
               </PopoverPanel>
-            </Popover>
-          </div>
+            </Popover> */}
+          </div> 
 
           <div className="flex items-center space-x-4">
             {!loggedIn ? (
