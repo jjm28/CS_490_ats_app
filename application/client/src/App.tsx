@@ -5,6 +5,7 @@ import Registration from './components/Registration';
 import Dashboard from './components/Dashboard';
 import Skills from './components/Skills/Skills';
 import LoginPage from './components/Login_Logout/Login';
+import ProfileDashboard from './components/Profile/ProfileDashboard';
 import ProfilePage from './components/Profile/ProfilePage';
 import ProfileForm from './components/Profile/ProfileForm';
 import Logout from './components/Login_Logout/Logout';
@@ -38,6 +39,7 @@ function App() {
           <Route path="/Dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} /> {/* Protected Routes */}
           <Route path="/Skills" element={<PrivateRoute><Skills /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Login" element={<LoginPage />} />
+          <Route path="/ProfileDashboard" element={<PrivateRoute><ProfileDashboard /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfilePage" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm/:id" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />
