@@ -24,6 +24,49 @@ router.get("/", async (req, res) => {
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const db = getDb();
+
+    // Start of what was added in UC032
+    const {
+      search = "",
+      tech = "",
+      industry = "",
+      sort = "date_desc", // default newest → oldest
+    } = req.query;
+
+    const q = { userId };
+
+    // text-like filters
+    if (search) {
+      // match in name or description
+      q.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (tech) {
+      // your field is "technologies" as string; do regex
+      q.technologies = { $regex: tech, $options: "i" };
+    }
+
+    if (industry) {
+      q.industry = { $regex: industry, $options: "i" };
+    }
+
+    // build sort
+    let sortObj = {};
+    if (sort === "date_desc") {
+      sortObj = { startDate: -1, _id: -1 };
+    } else if (sort === "date_asc") {
+      sortObj = { startDate: 1, _id: 1 };
+    } else if (sort === "name_asc") {
+      sortObj = { name: 1 };
+    } else if (sort === "name_desc") {
+      sortObj = { name: -1 };
+    }
+    // END of what was added in UC032
+
+    //How would new line access userId
     const projects = await db.collection("projects").find({ userId }).toArray();
     res.status(200).json(projects);
   } catch (err) {
@@ -50,6 +93,7 @@ router.post("/", async (req, res) => {
       industry,
       status,
       mediaUrl,
+      thumbnailUrl, //UC032
     } = req.body;
 
     if (!name || !description || !role || !startDate) {
@@ -72,6 +116,7 @@ router.post("/", async (req, res) => {
       status,
       mediaUrl,
       userId,
+      thumbnailUrl: thumbnailUrl || "", //UC032
     };
 
     const result = await db.collection("projects").insertOne(newProject);
@@ -127,6 +172,37 @@ router.delete("/:id", async (req, res) => {
     res.status(200).json({ message: "Project deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: "Error deleting project", error: err });
+  }
+});
+
+// printing the summary for each user UC032
+router.get("/:id/summary", async (req, res) => {
+  try {
+    const userId = getUserIdFromToken(req);
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const db = getDb();
+    const proj = await db
+      .collection("projects")
+      .findOne({ _id: new ObjectId(req.params.id), userId });
+
+    if (!proj) return res.status(404).json({ message: "Not found" });
+
+    // print-friendly data
+    res.json({
+      name: proj.name,
+      description: proj.description,
+      role: proj.role,
+      duration: proj.startDate + (proj.endDate ? ` – ${proj.endDate}` : " – Present"),
+      technologies: proj.technologies,
+      outcomes: proj.outcomes,
+      industry: proj.industry,
+      url: proj.url,
+      status: proj.status,
+      createdAt: proj.createdAt,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching summary", error: err });
   }
 });
 
