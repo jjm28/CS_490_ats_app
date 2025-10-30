@@ -2,9 +2,11 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
+
+
 const ProfileSchema = new Schema(
   {
-    userId: { type: String, index: true }, 
+    userId: { type: String, required: true, unique: true, index: true },
     fullName: String,
     email: String,
     phone: String,
@@ -18,6 +20,7 @@ const ProfileSchema = new Schema(
     experienceLevel: String,
     // optional
     profileType: { type: String, default: 'default' },
+    photoUrl: { type: String, default: '' },
   },
   { timestamps: true }
 );

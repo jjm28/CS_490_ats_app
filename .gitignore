@@ -3,3 +3,5 @@ dist/
 *.env
 /application/server/node_modules
 /application/client/node_modules
+application/server/uploads/
+!application/server/uploads/.gitkeep

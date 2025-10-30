@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
+import "../../App.css";
 import "../../styles/Education.css";
 import EducationForm from "./EducationForm";
 import { getEducation, addEducationApi, updateEducationApi, deleteEducationApi } from "../../api/education";
+import Button from "../StyledComponents/Button";
+import Card from "../StyledComponents/Card";
 
 export interface Education {
   _id?: string;
@@ -80,69 +83,71 @@ export default function Education() {
   };
 
   return (
-    <div className="education-manager">
-      <h2 className="education-title">
-        Education
+    <div className="mx-auto max-w-3xl px-4 py-6">
+      <div className="flex items-center justify-between mb-2 px-6">
+        <h1 className="mb-2">
+          Education
+        </h1>
         {!showForm && (
-          <button
-            className="add-education-inline-btn"
+          <Button
+            variant="primary"
             onClick={() => setShowForm(true)}
           >
             +
-          </button>
+          </Button>
         )}
-      </h2>
+      </div>
 
-      {(showForm || editingEdu) && (
-        <EducationForm
-          onSubmit={async (data) => {
-            if (editingEdu) {
-              await editEducation(editingEdu._id!, data);
-              await fetchEducation();
+      <div>
+        {(showForm || editingEdu) && (
+          <EducationForm
+            onSubmit={async (data) => {
+              if (editingEdu) {
+                await editEducation(editingEdu._id!, data);
+                await fetchEducation();
+                setEditingEdu(null);
+              } else {
+                await addEducation(data);
+                await fetchEducation();
+              }
+              setShowForm(false);
+            }}
+            onCancel={() => {
+              setShowForm(false);
               setEditingEdu(null);
-            } else {
-              await addEducation(data);
-              await fetchEducation();
-            }
-            setShowForm(false);
-          }}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingEdu(null);
-          }}
-          initialData={editingEdu}
-        />
-      )}
+            }}
+            initialData={editingEdu}
+          />
+        )}
+      </div>
 
       {!showForm && !editingEdu && (
-        <div className="education-timeline">
+        <div className="relative mx-6 my-8 border-l-2 border-gray-700">
           {educationList.map((edu, idx) => (
-            <div
-              className={`education-item ${edu.currentlyEnrolled ? "current" : "completed"
-                }`}
+            <Card
               key={edu._id || idx}
+              className={`education-item max-w-lg ${edu.currentlyEnrolled ? "current" : "completed"}`}
             >
               <div className="timeline-dot"></div>
 
-              <div className="education-content">
-                <p className="education-date">
-                  {formatDate(edu.graduationDate)}
-                  {edu.currentlyEnrolled && " - Currently Enrolled"}
-                </p>
-                <p className="education-title">
-                  {edu.institution} — {edu.degree}
-                </p>
 
-                <p>Field of Study: {edu.fieldOfStudy}</p>
-                <p>Level: {edu.educationLevel}</p>
-                {edu.gpa && !edu.isPrivateGpa && <p>GPA: {edu.gpa}</p>}
-                {edu.achievements && <p>Achievements: {edu.achievements}</p>}
-                <div className="education-actions">
-                  <button onClick={() => setEditingEdu(edu)}>Edit</button>
-                  <button onClick={() => removeEducation(edu._id!)}>Delete</button>
-                </div>
+              <p className="education-date">
+                {formatDate(edu.graduationDate)}
+                {edu.currentlyEnrolled && " - Currently Enrolled"}
+              </p>
+              <p className="education-title">
+                {edu.institution} — {edu.degree}
+              </p>
+
+              <p>Field of Study: {edu.fieldOfStudy}</p>
+              <p>Level: {edu.educationLevel}</p>
+              {edu.gpa && !edu.isPrivateGpa && <p>GPA: {edu.gpa}</p>}
+              {edu.achievements && <p>Achievements: {edu.achievements}</p>}
+              <div className="flex justify-center space-x-2 p-2">
+                <Button variant="secondary" onClick={() => setEditingEdu(edu)}>Edit</Button>
+                <Button variant="secondary" onClick={() => removeEducation(edu._id!)}>Delete</Button>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

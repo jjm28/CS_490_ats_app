@@ -1,0 +1,107 @@
+.certifications-manager {
+  min-height: 100vh;
+  width: 100vw;
+  padding: 2rem;
+  box-sizing: border-box;
+  background-color: transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.certifications-manager h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: left;
+  width: 100%;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.add-cert-inline-btn {
+  display: none;
+}
+
+.certifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cert-item {
+  width: 100%;
+  text-align: left;
+}
+
+.cert-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--brand-olive);
+  margin-bottom: 6px;
+}
+
+.cert-content p {
+  margin: 2px 0;
+  font-size: 0.95rem;
+  color: #444;
+}
+
+.verified {
+  color: var(--brand-teal);
+  font-weight: 600;
+}
+
+.unverified {
+  color: #888;
+  font-style: italic;
+}
+
+.certification-form-popup {
+  padding: 16px 24px;
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+.certification-form-popup form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.file-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-label {
+  font-size: 0.9rem;
+  color: #555;
+  text-align: left;
+}
+
+.certifications-list .card {
+  text-align: left;
+  align-items: flex-start;
+}
+
+.renew-alert {
+  color: #dc3545; /* red alert color */
+  font-weight: 600;
+  font-size: 0.9rem;
+}
