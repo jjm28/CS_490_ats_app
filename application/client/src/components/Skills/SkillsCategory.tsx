@@ -22,6 +22,21 @@ export default function SkillsCategory({
   const filteredSkills =
     filter === "All" ? skills : skills.filter((s) => s.proficiency === filter);
 
+  const iconForProficiency = (level: string) => {
+    switch (level) {
+      case "Beginner":
+        return "💡";
+      case "Intermediate":
+        return "⚡";
+      case "Advanced":
+        return "💎";
+      case "Expert":
+        return "🏆";
+      default:
+        return "";
+    }
+  };
+
   return (
     <Droppable droppableId={category}>
       {(provided) => (
@@ -39,15 +54,16 @@ export default function SkillsCategory({
             <div className="category-filter">
               <label>Filter:</label>
               <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-                {["All", "Beginner", "Intermediate", "Advanced", "Expert"].map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
+                {["All", "Beginner", "Intermediate", "Advanced", "Expert"].map(
+                  (p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  )
+                )}
               </select>
             </div>
           </div>
-
 
           {filteredSkills.map((skill, idx) => (
             <Draggable
@@ -57,11 +73,12 @@ export default function SkillsCategory({
             >
               {(provided) => (
                 <div
-                  className="skill-badge mt-2"
+                  className={`skill-badge ${skill.proficiency.toLowerCase()}`}
                   ref={provided.innerRef}
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
                 >
+                  <span>{iconForProficiency(skill.proficiency)}</span>
                   <input
                     type="text"
                     value={skill.name}
@@ -81,7 +98,9 @@ export default function SkillsCategory({
                       )
                     )}
                   </select>
-                  <Button className="ml-auto" onClick={() => removeSkill(idx)}>Remove</Button>
+                  <Button className="ml-auto" onClick={() => removeSkill(idx)}>
+                    Remove
+                  </Button>
                 </div>
               )}
             </Draggable>

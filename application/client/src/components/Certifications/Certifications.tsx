@@ -1,5 +1,10 @@
-import { useState, useEffect } from "react";
+import "../../App.css";
 import "../../styles/Certifications.css";
+import "../../styles/StyledComponents/FormInput.css";
+
+import { useState, useEffect } from "react";
+import Button from "../StyledComponents/Button";
+import Card from "../StyledComponents/Card";
 import CertificationForm from "./CertificationForm";
 import {
     getCertifications,
@@ -86,71 +91,83 @@ export default function Certifications() {
     };
 
     return (
-        <div className="certifications-manager">
-            <h2 className="certifications-title">
-                Certifications
+        <div className="mx-auto max-w-3xl px-4 py-6">
+            <div className="flex items-center justify-between mb-2 px-6">
+                <h1 className="mb-2">Certifications</h1>
                 {!showForm && (
-                    <button
-                        className="add-cert-inline-btn"
-                        onClick={() => setShowForm(true)}
-                    >
+                    <Button variant="primary" onClick={() => setShowForm(true)}>
                         +
-                    </button>
+                    </Button>
                 )}
-            </h2>
+            </div>
 
-            {(showForm || editingCert) && (
-                <CertificationForm
-                    onSubmit={async (data) => {
-                        if (editingCert) {
-                            await editCertification(editingCert._id!, data);
-                            await fetchCertifications();
+            <div>
+                {(showForm || editingCert) && (
+                    <CertificationForm
+                        onSubmit={async (data) => {
+                            if (editingCert) {
+                                await editCertification(editingCert._id!, data);
+                                await fetchCertifications();
+                                setEditingCert(null);
+                            } else {
+                                await addCertification(data);
+                                await fetchCertifications();
+                            }
+                            setShowForm(false);
+                        }}
+                        onCancel={() => {
+                            setShowForm(false);
                             setEditingCert(null);
-                        } else {
-                            await addCertification(data);
-                            await fetchCertifications();
-                        }
-                        setShowForm(false);
-                    }}
-                    onCancel={() => {
-                        setShowForm(false);
-                        setEditingCert(null);
-                    }}
-                    initialData={editingCert ?? undefined}
-                />
-            )}
+                        }}
+                        initialData={editingCert ?? undefined}
+                    />
+                )}
+            </div>
 
             {!showForm && !editingCert && (
-                <div className="certifications-list">
+                <div className="relative mx-6 my-8">
                     {certifications.map((cert, idx) => (
-                        <div className="cert-item" key={cert._id || idx}>
-                            <div className="cert-content">
-                                <h3>{cert.name}</h3>
-                                <p><strong>Organization:</strong> {cert.organization}</p>
-                                <p><strong>Date Earned:</strong> {formatDate(cert.dateEarned)}</p>
-                                {cert.doesNotExpire ? (
-                                    <p>Does not expire</p>
-                                ) : (
-                                    <p><strong>Expires:</strong> {formatDate(cert.expirationDate)}</p>
-                                )}
-                                {cert.certificationId && (
-                                    <p><strong>ID:</strong> {cert.certificationId}</p>
-                                )}
-                                {cert.category && <p><strong>Category:</strong> {cert.category}</p>}
-                                {cert.verified ? (
-                                    <p className="verified">Verified</p>
-                                ) : (
-                                    <p className="unverified">Not Verified</p>
-                                )}
-                                <div className="cert-actions">
-                                    <button onClick={() => setEditingCert(cert)}>Edit</button>
-                                    <button onClick={() => removeCertification(cert._id!)}>Delete</button>
-                                </div>
+                        <Card key={cert._id || idx} className="max-w-lg">
+                            <h3 className="text-lg font-semibold mb-1">{cert.name}</h3>
+                            <p><strong>Organization:</strong> {cert.organization}</p>
+                            <p><strong>Date Earned:</strong> {formatDate(cert.dateEarned)}</p>
+                            {cert.doesNotExpire ? (
+                                <p>Does not expire</p>
+                            ) : (
+                                (() => {
+                                    const today = new Date();
+                                    const isExpired =
+                                        cert.expirationDate && new Date(cert.expirationDate) <= today;
+
+                                    return (
+                                        <p>
+                                            <strong>Expires:</strong> {formatDate(cert.expirationDate)}
+                                            {isExpired && <span className="renew-alert ml-2">⚠️ Renew Now</span>}
+                                        </p>
+                                    );
+                                })()
+                            )}
+
+                            {cert.certificationId && <p><strong>ID:</strong> {cert.certificationId}</p>}
+                            {cert.category && <p><strong>Category:</strong> {cert.category}</p>}
+                            {cert.verified ? (
+                                <p className="text-green-600 font-medium">Verified</p>
+                            ) : (
+                                <p className="text-gray-500 font-medium">Not Verified</p>
+                            )}
+                            <div className="flex justify-center space-x-2 p-2">
+                                <Button variant="secondary" onClick={() => setEditingCert(cert)}>
+                                    Edit
+                                </Button>
+                                <Button variant="secondary" onClick={() => removeCertification(cert._id!)}>
+                                    Delete
+                                </Button>
                             </div>
-                        </div>
+                        </Card>
                     ))}
                 </div>
             )}
         </div>
     );
+
 }
