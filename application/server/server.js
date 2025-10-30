@@ -13,8 +13,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import profilePhoto from './routes/profile-photo.js';
 import employmentRouter from './routes/employment.js';
-
-
+import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
 
@@ -44,13 +43,15 @@ app.use(cookieParser());
 try {
   await connectDB();
   // Routes
+  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/record', records);
   app.use('/api/skills', skills);
   app.use('/api/auth', auth);
   app.use('/api/education', education);
   app.use("/api/certifications", certificationRoutes);
   app.use("/api/projects", projectsRoutes);
-  
+  app.use("/api/projects", projectMediaRoutes);
+
   // Profile routes (optionally inject dev user)
   app.use('/api/profile', attachDevUser, profileRouter);
   app.use('/api/profile', attachDevUser, profilePhoto);
@@ -58,14 +59,14 @@ try {
 
   // for picture uploads
   app.use(
-  '/uploads',
-  express.static(path.join(__dirname, 'uploads'), {
-    etag: false,
-    lastModified: false,
-    cacheControl: false,
-    setHeaders: (res) => res.set('Cache-Control', 'no-store'),
-  })
-  );  
+    '/uploads',
+    express.static(path.join(__dirname, 'uploads'), {
+      etag: false,
+      lastModified: false,
+      cacheControl: false,
+      setHeaders: (res) => res.set('Cache-Control', 'no-store'),
+    })
+  );
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

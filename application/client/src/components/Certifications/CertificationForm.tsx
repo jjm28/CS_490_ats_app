@@ -3,6 +3,7 @@ import type { Certification } from "./Certifications";
 import "../../styles/StyledComponents/FormInput.css";
 import Button from "../StyledComponents/Button";
 import Card from "../StyledComponents/Card";
+import { organizationSuggestions } from "../../constants/organizations";
 
 interface CertificationFormProps {
   onSubmit: (cert: Certification) => void;
@@ -48,7 +49,21 @@ export default function CertificationForm({
           <input className="form-input" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
 
           <label className="form-label">Issuing Organization</label>
-          <input className="form-input" type="text" value={organization} onChange={(e) => setOrganization(e.target.value)} required />
+          <input
+            className="form-input"
+            type="text"
+            value={organization}
+            onChange={(e) => setOrganization(e.target.value)}
+            list="organization-suggestions"
+            placeholder="Start typing..."
+            required
+          />
+          <datalist id="organization-suggestions">
+            {organizationSuggestions.map((org) => (
+              <option key={org} value={org} />
+            ))}
+          </datalist>
+
 
           <label className="form-label">Date Earned</label>
           <input className="form-input" type="date" value={dateEarned} onChange={(e) => setDateEarned(e.target.value)} required />
