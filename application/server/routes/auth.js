@@ -60,7 +60,7 @@ router.post('/login', async (req, res) => {
 });
 
 router.get('/google/login', async (req, res) => {
-const url = oauth2.generateAuthUrl({ access_type: "online", scope: ["openid", "email", "profile"]})
+const url = oauth2.generateAuthUrl({ access_type: "online", scope: ["openid", "email", "profile"], prompt: 'consent'})
 res.redirect(url)
 });
 
