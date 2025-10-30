@@ -24,7 +24,7 @@ router.post('/register', async (req, res) => {
     }
     const user = await createUser({ email, password, firstName, lastName });
     // Return new userId so client can use it for subsequent profile calls
-    const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "10m"});
+    const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "1h"});
 
     return res.status(201).json({ token, userId: String(user._id), user });
   } catch (err) {
