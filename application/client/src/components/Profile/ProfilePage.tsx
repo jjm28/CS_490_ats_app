@@ -5,6 +5,10 @@ import { listProfiles, type Profile } from "../../api/profiles";
 import Card from "../StyledComponents/Card";
 import "../../styles/StyledComponents/FormInput.css";
 import API_BASE from "../../utils/apiBase"; 
+import ProfileStrength from "./ProfileStrength";
+import Education from "../Education/Education";
+import Skills from "../Skills/Skills";
+import Projects from "../Projects/Projects";
 
 function ProfilePage() {
   const navigate = useNavigate();
@@ -50,6 +54,48 @@ function ProfilePage() {
       cancelled = true;
     };
   }, [isLoggedIn]);
+
+  // Profile completeness
+  const [completeness, setCompleteness] = useState<any | null>(null);
+  const [completenessLoading, setCompletenessLoading] = useState(false);
+
+  const refreshCompleteness = async () => {
+    if (!profiles.length) return;
+    const userId = profiles[0]?.userId;
+    if (!userId) return;
+
+    setCompletenessLoading(true);
+
+    try {
+      const token = localStorage.getItem("token") || "";
+      const res = await fetch(`${API_BASE}/api/profile/completeness/${userId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error(`Failed to fetch completeness (${res.status})`);
+      const data = await res.json();
+      setCompleteness({ ...data, score: Number(data.score ?? 0) });
+    } catch (err) {
+      console.error("Error fetching completeness:", err);
+      setCompleteness({
+        score: 0,
+        badge: "Unknown",
+        suggestions: [],
+        comparison: 0,
+        industryAverage: 0,
+      });
+    } finally {
+      setCompletenessLoading(false);
+    }
+  };
+
+  // Run completeness refresh **after profiles are loaded**
+  useEffect(() => {
+    if (profiles.length > 0) refreshCompleteness();
+  }, [profiles, location.key]);
 
   // Navigate to create/edit form
   const createOrEditProfile = () => navigate("/ProfileForm");
@@ -106,6 +152,38 @@ const handleDelete = async () => {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Profiles</h1>
+      
+    <div className="mt-6">
+      {completenessLoading ? (
+      // Loading placeholder
+    <div className="p-4 bg-white rounded-lg shadow-sm border">
+      <h2 className="text-lg font-semibold text-gray-800 mb-2">Profile Strength</h2>
+      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div className="bg-gray-400 h-3 rounded-full animate-pulse w-3/4"></div>
+      </div>
+      <p className="mt-2 text-sm text-gray-700">Loading...</p>
+    </div>
+  ) : completeness ? (
+    <ProfileStrength
+      score={completeness.score}
+      badge={completeness.badge}
+      suggestions={completeness.suggestions}
+      comparison={completeness.comparison}
+      industryAverage={completeness.industryAverage}
+    />
+  ) : (
+    // Fallback if no profile at all
+    <ProfileStrength
+      score={0}
+      badge="No profile yet"
+      suggestions={[]}
+      comparison={0}
+      industryAverage={0}
+    />
+  )}
+      </div>
+      
+
       <p className="text-gray-600 mb-6">
         Create multiple profiles for different roles. Select one to edit or create a new one below.
       </p>

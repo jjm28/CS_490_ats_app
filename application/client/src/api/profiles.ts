@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_BASE ||
-  "";
+  "http://localhost:5050";
 
 function getDevUserId(): string {
   // Keep one per browser (matches your dev middleware behavior)

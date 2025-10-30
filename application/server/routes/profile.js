@@ -2,6 +2,8 @@
 import { Router } from 'express';
 import Profile from '../models/profile.js';
 import { verifyJWT } from '../middleware/auth.js';
+import { getDb } from "../db/connection.js";
+import { ObjectId } from "mongodb";
 
 const router = Router();
 
@@ -49,6 +51,80 @@ function pickProfileFields(src = {}) {
 
   return out;
 }
+
+function calculateProfileCompleteness(profile) {
+  const weights = {
+    fullName: 10,
+    headline: 10,
+    industry: 10,
+    experienceLevel: 10,
+    location: 10,
+    skills: 15,
+    education: 10,
+    summary: 10,
+    photoUrl: 5,
+    projects: 10,
+  };
+
+  let score = 0;
+  let totalWeight = 0;
+
+  for (const [field, weight] of Object.entries(weights)) {
+    totalWeight += weight;
+    const value = profile[field];
+    if (Array.isArray(value) && value.length > 0) score += weight;
+    else if (typeof value === "string" && value.trim()) score += weight;
+    else if (value) score += weight;
+  }
+
+  const percent = Math.round((score / totalWeight) * 100);
+
+  let badge;
+  if (percent >= 90) badge = "🏆 Profile Expert";
+  else if (percent >= 70) badge = "💼 Career Ready";
+  else if (percent >= 50) badge = "🚀 Rising Star";
+  else badge = "✨ Getting Started";
+
+  return { score: percent, badge };
+}
+
+function getProfileSuggestions(profile) {
+  const suggestions = [];
+  if (!profile.photoUrl) suggestions.push("Add a professional photo to make your profile stand out.");
+  if (!profile.summary) suggestions.push("Write a short professional summary about yourself.");
+  if (!profile.skills?.length) suggestions.push("Add at least 5 skills relevant to your field.");
+  if (!profile.projects?.length) suggestions.push("Showcase your experience by adding projects.");
+  if (!profile.education) suggestions.push("Include your educational background.");
+  if (!profile.experienceLevel) suggestions.push("Specify your experience level to attract recruiters.");
+  return suggestions;
+}
+
+// GET /api/profile/completeness/:userId
+router.get("/completeness/:userId", async (req, res) => {
+  try {
+    const db = getDb();
+    const { userId } = req.params;
+    const profile = await db.collection("profiles").findOne({ userId });
+
+    if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+    const completeness = calculateProfileCompleteness(profile);
+    const suggestions = getProfileSuggestions(profile);
+
+    const industryAverage = 80;
+    const comparison = completeness.score - industryAverage;
+
+    res.json({
+      ...completeness,
+      suggestions,
+      comparison,
+      industryAverage,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to calculate profile completeness" });
+  }
+});
 
 /**
  * GET /api/profile
