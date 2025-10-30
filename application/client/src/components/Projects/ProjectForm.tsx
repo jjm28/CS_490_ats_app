@@ -3,6 +3,7 @@ import Card from "../StyledComponents/Card";
 import Button from "../StyledComponents/Button";
 import "../../styles/StyledComponents/FormInput.css";
 import type { Project } from "./Projects";
+import axios from "axios";
 
 interface ProjectFormProps {
   onSubmit: (project: Project) => void;
@@ -24,6 +25,34 @@ export default function ProjectForm({ onSubmit, onCancel, initialData }: Project
   const [industry, setIndustry] = useState(initialData?.industry || "");
   const [status, setStatus] = useState(initialData?.status || "Planned");
   const [mediaUrl, setMediaUrl] = useState(initialData?.mediaUrl || "");
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !initialData?._id) {
+      alert("You must save the project first before uploading media.");
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/api/projects/${initialData._id}/media`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      setMediaUrl(res.data.url);
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,12 +117,59 @@ export default function ProjectForm({ onSubmit, onCancel, initialData }: Project
             <option value="Planned">Planned</option>
           </select>
 
-          <label className="form-label">Media / Screenshot Link</label>
-          <input className="form-input" type="text" value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} />
+          <label className="form-label">Upload Screenshot / Media</label>
+          <input
+            className="form-input"
+            type="file"
+            accept="image/*"
+            onChange={handleUpload}
+            disabled={uploading || !initialData?._id}
+          />
+          {!initialData?._id && (
+            <p className="text-sm text-gray-500 mt-1">Save the project first to enable uploads.</p>
+          )}
+          {uploading && <p>Uploading...</p>}
+          {mediaUrl && (
+            <div className="mt-3 flex flex-col items-start gap-2">
+              <img
+                src={mediaUrl}
+                alt="Project Media"
+                className="rounded-md max-h-48 border"
+              />
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={async () => {
+                    if (!initialData?._id) return;
+                    if (!window.confirm("Delete this image?")) return;
 
-          <div className="flex gap-4">
-            <Button variant="primary" type="submit">Save</Button>
-            <Button variant="secondary" type="button" onClick={onCancel}>Cancel</Button>
+                    try {
+                      await axios.delete(
+                        `${import.meta.env.VITE_API_BASE_URL}/api/projects/${initialData._id}/media`
+                      );
+                      setMediaUrl("");
+                      alert("Image deleted successfully!");
+                    } catch (err) {
+                      console.error("Delete failed", err);
+                      alert("Failed to delete image.");
+                    }
+                  }}
+                >
+                  Delete Image
+                </Button>
+              </div>
+            </div>
+          )}
+
+
+          <div className="flex gap-4 mt-4">
+            <Button variant="primary" type="submit" disabled={uploading}>
+              Save
+            </Button>
+            <Button variant="secondary" type="button" onClick={onCancel}>
+              Cancel
+            </Button>
           </div>
         </form>
       </Card>

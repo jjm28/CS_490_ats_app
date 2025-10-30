@@ -29,7 +29,8 @@
     "parser": "^0.1.4",
     "react-beautiful-dnd": "^13.1.1",
     "sharp": "^0.34.4",
-    "sparse-bitfield": "^3.0.3"
+    "sparse-bitfield": "^3.0.3",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",

@@ -9,6 +9,7 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [errEmail, setErrEmail] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [resetLink, setResetLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -22,6 +23,7 @@ const ForgotPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+    setResetLink(null);
     setError(null);
 
     const eMsg = validateEmail(email);
@@ -31,8 +33,18 @@ const ForgotPassword = () => {
     setErrEmail(null);
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/auth/forgot-password`, { email });
-      setMessage("If that email exists, a reset link has been sent.");
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/forgot-password`,
+        { email }
+      );
+
+      // Show the reset link if backend returned it
+      if (response.data.resetLink) {
+        setResetLink(response.data.resetLink);
+        setMessage("Password reset link generated:");
+      } else {
+        setMessage("If that email exists, a reset link has been sent.");
+      }
     } catch (err: any) {
       console.error(err);
       setError("Something went wrong. Please try again.");
@@ -81,11 +93,28 @@ const ForgotPassword = () => {
             </Button>
           </div>
 
-          {message && <p className="mt-1 text-sm text-green-600">{message}</p>}
+          {message && (
+            <p className="mt-1 text-sm text-green-600">
+              {message}{" "}
+              {resetLink && (
+                <a
+                  href={resetLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-indigo-600"
+                >
+                  {resetLink}
+                </a>
+              )}
+            </p>
+          )}
           {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
 
           <div className="text-center mt-4">
-            <Link to="/Login" className="text-sm text-indigo-600 hover:text-indigo-500 underline">
+            <Link
+              to="/Login"
+              className="text-sm text-indigo-600 hover:text-indigo-500 underline"
+            >
               Back to Login
             </Link>
           </div>

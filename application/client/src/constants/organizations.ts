@@ -1,0 +1,17 @@
+export const organizationSuggestions = [
+  "Amazon Web Services (AWS)",
+  "Google Cloud",
+  "Microsoft",
+  "CompTIA",
+  "Cisco",
+  "Oracle",
+  "IBM",
+  "Meta",
+  "Coursera",
+  "edX",
+  "LinkedIn Learning",
+  "Scrum Alliance",
+  "ISACA",
+  "Red Hat",
+  "Adobe",
+];

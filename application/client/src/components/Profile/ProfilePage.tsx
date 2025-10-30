@@ -35,6 +35,11 @@ function ProfilePage() {
         const data = await listProfiles();
         if (!cancelled) setProfiles(data);
       } catch (e: any) {
+        if (!cancelled) setErr(e?.message || "Failed to load profile.");
+        if (e?.message?.includes("Account deleted") || e?.message?.includes("Unauthorized")) {
+          localStorage.removeItem("token");
+          navigate("/login", { state: { flash: "Your account has been deleted or your session expired." } });
+        }
         if (!cancelled) setErr(e?.message || "Failed to load profiles.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -46,8 +51,44 @@ function ProfilePage() {
     };
   }, [isLoggedIn]);
 
+  // Navigate to create/edit form
+  const createOrEditProfile = () => navigate("/ProfileForm");
+
+  // Helper to join fields only if they exist
+  const joinFields = (fields: (string | undefined)[], separator = " - ") =>
+    fields.filter(Boolean).join(separator);
+
+  // DELETE account handler
+ // src/components/ProfilePage.tsx
+const handleDelete = async () => {
+  const password = prompt("Confirm your password to delete your account:");
+  if (!password) return;
+
+  const response = await fetch("http://localhost:5050/api/profile/delete", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ password }),
+  });
+
+  const data = await response.json();
+  alert(data.message || data.error);
+
+  if (response.ok) {
+    // ✅ Log out user and redirect
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  }
+};
+
+
+  if (loading) return <p className="p-6">Loading...</p>;
+
   const createNew = () => navigate("/ProfileForm");
   const editProfile = (id: string) => navigate(`/ProfileForm/${id}`);
+
 
   // Default avatar (inline SVG) for when no photoUrl is present
   const DEFAULT_AVATAR =
