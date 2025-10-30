@@ -1,4 +1,5 @@
 // Icon.tsx - Simple icon component
+import "../../styles/StyledComponents/Icon.css";
 import React from 'react';
 import {
   // Navigation

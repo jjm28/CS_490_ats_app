@@ -28,8 +28,8 @@ export default function AuthCallback() {
 
     setAuth(token,user)
     // optional: clean up the URL (no token in history)
-    window.history.replaceState({}, "", "/Dashboard");
-    navigate("/Dashboard");
+    window.history.replaceState({}, "", "/ProfileDashboard");
+    navigate("/ProfileDashboard");
   }, [navigate]);
 
   return <p>Signing you in…</p>;
