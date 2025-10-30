@@ -12,6 +12,8 @@ import { getSkills } from "../../api/skills";
 import { categories as SKILL_CATEGORIES } from "../../constants/skills";
 import { getCertifications } from "../../api/certifications";
 import { listEmployment } from "../../api/employment";
+import { getProjects} from "../../api/projects";
+import type { Project } from "../Projects/Projects";
 
 import API_BASE from "../../utils/apiBase";
 
@@ -74,6 +76,19 @@ function roleDates(e: Employment) {
   const end = e.currentPosition ? "Present" : formatYMD(e.endDate ?? undefined);
   return start && end ? `${start} – ${end}` : start || end || "";
 }
+function formatMonYear(date?: string | null) {
+  if (!date) return "";
+  const t = Date.parse(date);
+  if (Number.isNaN(t)) return "";
+  return new Date(t).toLocaleString("default", { month: "short", year: "numeric" });
+}
+
+// status badge styles
+const STATUS_STYLES: Record<Project["status"], string> = {
+  Completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  Ongoing: "bg-blue-50 text-blue-700 ring-blue-200",
+  Planned: "bg-gray-100 text-gray-700 ring-gray-200",
+};
 
 
 // ---------- component ----------
@@ -105,6 +120,10 @@ const ProfileDashboard: React.FC = () => {
   const [employment, setEmployment] = useState<Employment[]>([]);
   const [empLoading, setEmpLoading] = useState(true);
   const [empErr, setEmpErr] = useState<string | null>(null);
+  // Projects
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projLoading, setProjLoading] = useState(true);
+  const [projErr, setProjErr] = useState<string | null>(null);
 
   // Fetch profiles
   useEffect(() => {
@@ -207,6 +226,28 @@ useEffect(() => {
       setEmpErr(e?.message || "Failed to load employment.");
     } finally {
       setEmpLoading(false);
+    }
+  })();
+}, []);
+
+// Fetch projects
+useEffect(() => {
+  (async () => {
+    setProjLoading(true);
+    setProjErr(null);
+    try {
+      const data = await getProjects();
+      // Sort by startDate desc
+      data.sort((a, b) => {
+        const ta = a.startDate ? Date.parse(a.startDate) : 0;
+        const tb = b.startDate ? Date.parse(b.startDate) : 0;
+        return tb - ta;
+      });
+      setProjects(data);
+    } catch (e: any) {
+      setProjErr(e?.message || "Failed to load projects.");
+    } finally {
+      setProjLoading(false);
     }
   })();
 }, []);
@@ -568,6 +609,140 @@ useEffect(() => {
     </div>
   )}
 </div>
+{/* Projects (read-only) */}
+<div className="mt-10">
+  <div className="mb-5 flex items-center justify-between">
+    <h2 className="text-xl font-bold text-gray-900">Projects</h2>
+    <Button
+      variant="primary"
+      aria-label="Manage projects"
+      title="Manage projects"
+      onClick={() => navigate("/projects")}
+    >
+      +
+    </Button>
+  </div>
+
+  {projLoading && <p className="text-gray-600">Loading projects…</p>}
+  {projErr && <p className="text-sm text-red-600">{projErr}</p>}
+
+  {!projLoading && !projErr && projects.length === 0 && (
+    <Card className="p-4 sm:p-5">
+      <p className="text-gray-700">No projects added yet.</p>
+    </Card>
+  )}
+
+  {!projLoading && !projErr && projects.length > 0 && (
+    <div className="flex flex-col gap-3">
+      {projects.map((p) => {
+        const statusStyle = STATUS_STYLES[p.status];
+        const techs =
+          p.technologies
+            ?.split(/[,\n]/)
+            .map((t) => t.trim())
+            .filter(Boolean)
+          || [];
+
+        return (
+          <Card key={p._id} className="p-4 sm:p-5">
+            <div className="flex flex-col gap-1">
+              {/* Title row */}
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="text-base font-semibold text-gray-900 break-words">
+                  {p.name}
+                </h3>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs ring-1 ${statusStyle}`}>
+                  {p.status}
+                </span>
+              </div>
+
+              {/* Meta */}
+              <p className="text-gray-700">
+                <span className="font-medium">{p.role}</span>
+                {(p.startDate || p.endDate) && (
+                  <span className="text-gray-600">{` • ${formatMonYear(p.startDate)} – ${p.endDate ? formatMonYear(p.endDate) : "Present"}`}</span>
+                )}
+                {p.industry && <span className="text-gray-600">{` • ${p.industry}`}</span>}
+                {p.teamSize ? <span className="text-gray-600">{` • Team: ${p.teamSize}`}</span> : null}
+              </p>
+
+              {/* Description */}
+              {p.description && (
+                <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
+                  {p.description}
+                </p>
+              )}
+
+              {/* Technologies */}
+              {techs.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {techs.slice(0, 12).map((t, i) => (
+                    <span
+                      key={`${p._id || p.name}-${t}-${i}`}
+                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-800 shadow-sm"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                  {techs.length > 12 && (
+                    <span className="text-xs text-blue-700">
+                      +{techs.length - 12} more
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Links / Media */}
+              {(p.url || p.mediaUrl) && (
+                <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                  {p.url && (
+                    <a
+                      href={p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-700 underline-offset-2 hover:underline break-all"
+                    >
+                      Project link
+                    </a>
+                  )}
+                  {p.mediaUrl && (
+                    <a
+                      href={p.mediaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-700 underline-offset-2 hover:underline break-all"
+                    >
+                      Media
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Outcomes / Collaboration */}
+              {(p.outcomes || p.collaborationDetails) && (
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {p.outcomes && (
+                    <div>
+                      <div className="text-xs uppercase tracking-wide text-gray-500">Outcomes</div>
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{p.outcomes}</p>
+                    </div>
+                  )}
+                  {p.collaborationDetails && (
+                    <div>
+                      <div className="text-xs uppercase tracking-wide text-gray-500">Collaboration</div>
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{p.collaborationDetails}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  )}
+</div>
+
 
     </div>
   );
