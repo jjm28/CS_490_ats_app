@@ -113,7 +113,7 @@ export default function EducationForm({
             <option>PhD</option>
           </select>
 
-          <label className="form-label">Degree</label>
+          <label className="form-label">Achievements/Honors</label>
           <input
             className="form-input"
             type="text"

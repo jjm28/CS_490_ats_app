@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
+import "../../App.css";
 import "../../styles/Projects.css";
+import "../../styles/StyledComponents/FormInput.css";
+import Button from "../StyledComponents/Button";
+import Card from "../StyledComponents/Card";
 import ProjectForm from "./ProjectForm";
 import {
   getProjects,
@@ -88,18 +92,15 @@ export default function Projects() {
   };
 
   return (
-    <div className="projects-manager">
-      <h2 className="projects-title">
-        Special Projects
+    <div className="mx-auto max-w-3xl px-4 py-6">
+      <div className="flex items-center justify-between mb-2 px-6">
+        <h1 className="mb-2">Projects</h1>
         {!showForm && (
-          <button
-            className="add-project-inline-btn"
-            onClick={() => setShowForm(true)}
-          >
+          <Button variant="primary" onClick={() => setShowForm(true)}>
             +
-          </button>
+          </Button>
         )}
-      </h2>
+      </div>
 
       {(showForm || editingProject) && (
         <ProjectForm
@@ -123,40 +124,55 @@ export default function Projects() {
       )}
 
       {!showForm && !editingProject && (
-        <div className="projects-list">
+        <div className="flex flex-col gap-4 mx-6 my-8">
           {projects.map((proj, idx) => (
-            <div className="project-item" key={proj._id || idx}>
-              <div className="project-content">
-                <h3>{proj.name}</h3>
-                <p><strong>Role:</strong> {proj.role}</p>
-                <p><strong>Duration:</strong> {formatDate(proj.startDate)} – {proj.endDate ? formatDate(proj.endDate) : "Present"}</p>
-                <p><strong>Status:</strong> {proj.status}</p>
-                {proj.industry && <p><strong>Industry:</strong> {proj.industry}</p>}
-                {proj.technologies && <p><strong>Technologies:</strong> {proj.technologies}</p>}
-                {proj.teamSize && <p><strong>Team Size:</strong> {proj.teamSize}</p>}
-                {proj.url && (
-                  <p>
-                    <strong>Link:</strong>{" "}
-                    <a href={proj.url} target="_blank" rel="noopener noreferrer">
-                      {proj.url}
-                    </a>
-                  </p>
-                )}
-                {proj.outcomes && <p><strong>Outcomes:</strong> {proj.outcomes}</p>}
-                {proj.collaborationDetails && (
-                  <p><strong>Collaboration:</strong> {proj.collaborationDetails}</p>
-                )}
-                {proj.mediaUrl && (
-                  <p><strong>Media:</strong> {proj.mediaUrl}</p>
-                )}
-
-                <div className="project-actions">
-                  <button onClick={() => setEditingProject(proj)}>Edit</button>
-                  <button onClick={() => removeProject(proj._id!)}>Delete</button>
-                </div>
+            <Card key={proj._id || idx}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`status-dot ${proj.status.toLowerCase()}`}></div>
+                <h3 className="text-lg font-semibold text-[var(--brand-olive)]">
+                  {proj.name} — <span className="text-gray-700">Status: {proj.status}</span>
+                </h3>
               </div>
-            </div>
+
+              <p><strong>Role:</strong> {proj.role}</p>
+              <p>
+                <strong>Duration:</strong> {formatDate(proj.startDate)} –{" "}
+                {proj.endDate ? formatDate(proj.endDate) : "Present"}
+              </p>
+              {proj.industry && <p><strong>Industry:</strong> {proj.industry}</p>}
+              {proj.technologies && <p><strong>Technologies:</strong> {proj.technologies}</p>}
+              {proj.teamSize && <p><strong>Team Size:</strong> {proj.teamSize}</p>}
+              {proj.url && (
+                <p>
+                  <strong>Link:</strong>{" "}
+                  <a
+                    href={proj.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--brand-teal)] hover:underline"
+                  >
+                    {proj.url}
+                  </a>
+                </p>
+              )}
+              {proj.outcomes && <p><strong>Outcomes:</strong> {proj.outcomes}</p>}
+              {proj.collaborationDetails && (
+                <p><strong>Collaboration:</strong> {proj.collaborationDetails}</p>
+              )}
+              {proj.mediaUrl && <p><strong>Media:</strong> {proj.mediaUrl}</p>}
+
+              <div className="flex justify-center space-x-2 p-2">
+                <Button variant="secondary" onClick={() => setEditingProject(proj)}>
+                  Edit
+                </Button>
+                <Button variant="secondary" onClick={() => removeProject(proj._id!)}>
+                  Delete
+                </Button>
+              </div>
+            </Card>
           ))}
+
+
         </div>
       )}
     </div>

@@ -47,6 +47,11 @@
   align-items: center;
 }
 
+.skill-badge span:first-child {
+  font-size: 1.2rem;
+  margin-right: 6px;
+}
+
 .category-card {
   border: 1px solid #ccc;
   border-radius: 10px;

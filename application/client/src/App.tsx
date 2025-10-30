@@ -43,7 +43,7 @@ function App() {
           <Route path="/ProfilePage" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm/:id" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />
-          <Route path="/Employment" element={<PrivateRoute><EmploymentPage/></PrivateRoute>} />
+          <Route path="/EmploymentPage" element={<PrivateRoute><EmploymentPage/></PrivateRoute>} />
           <Route path="/EmploymentForm" element={<PrivateRoute><EmploymentForm /></PrivateRoute>} />
           <Route path="/EmploymentForm/:id" element={<PrivateRoute><EmploymentForm /></PrivateRoute>} />
           <Route path="/Logout" element={<Logout />} />
