@@ -150,3 +150,31 @@ textarea {
 .form-buttons button[type="button"]:hover {
   background-color: #a71d2a;
 }
+
+.projects-list .card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+.status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.15);
+}
+
+.status-dot.planned {
+  background-color: #6c757d;
+}
+
+.status-dot.completed {
+  background-color: #28a745;
+}
+
+.status-dot.ongoing {
+  background-color: #ffc107;
+}
