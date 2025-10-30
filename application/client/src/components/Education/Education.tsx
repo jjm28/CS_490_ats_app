@@ -89,46 +89,47 @@ export default function Education() {
           Education
         </h1>
         {!showForm && (
-            <Button
-              variant="primary"
-              onClick={() => setShowForm(true)}
-            >
-              +
-            </Button>
-          )}
+          <Button
+            variant="primary"
+            onClick={() => setShowForm(true)}
+          >
+            +
+          </Button>
+        )}
       </div>
-      
+
       <div>
-      {(showForm || editingEdu) && (
-        <EducationForm
-          onSubmit={async (data) => {
-            if (editingEdu) {
-              await editEducation(editingEdu._id!, data);
-              await fetchEducation();
+        {(showForm || editingEdu) && (
+          <EducationForm
+            onSubmit={async (data) => {
+              if (editingEdu) {
+                await editEducation(editingEdu._id!, data);
+                await fetchEducation();
+                setEditingEdu(null);
+              } else {
+                await addEducation(data);
+                await fetchEducation();
+              }
+              setShowForm(false);
+            }}
+            onCancel={() => {
+              setShowForm(false);
               setEditingEdu(null);
-            } else {
-              await addEducation(data);
-              await fetchEducation();
-            }
-            setShowForm(false);
-          }}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingEdu(null);
-          }}
-          initialData={editingEdu}
-        />
-      )}
+            }}
+            initialData={editingEdu}
+          />
+        )}
       </div>
 
       {!showForm && !editingEdu && (
         <div className="relative mx-6 my-8 border-l-2 border-gray-700">
           {educationList.map((edu, idx) => (
-            <Card 
-              className="max-w-lg"
+            <Card
               key={edu._id || idx}
+              className={`education-item max-w-lg ${edu.currentlyEnrolled ? "current" : "completed"}`}
             >
               <div className="timeline-dot"></div>
+
 
               <p className="education-date">
                 {formatDate(edu.graduationDate)}

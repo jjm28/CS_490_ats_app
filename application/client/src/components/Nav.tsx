@@ -85,6 +85,15 @@ function Navbar() {
                   : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
                 }`
               }>Profile</NavLink>
+            
+            <NavLink
+              to="/ProfileDashboard"
+              className={({ isActive }) => 
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }>Dashboard</NavLink>
 
             <NavLink
               to="/EmploymentPage"
@@ -101,6 +110,7 @@ function Navbar() {
                 Profile
               </PopoverButton>
               <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg">
+                <NavLink to="/ProfileDashboard" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile Dashboard</NavLink>
                 <NavLink to="/ProfilePage" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile Page</NavLink>
                 <NavLink to="/ProfileForm" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile Form</NavLink>
                 <NavLink to="/Employment" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">Employment History</NavLink>

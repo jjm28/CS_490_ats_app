@@ -1,5 +1,6 @@
 export function setAuth(token: string, user?: any) {
   localStorage.setItem("authToken", token);
+  localStorage.setItem("token", token);
   if (user) localStorage.setItem("authUser", JSON.stringify(user));
   // poke other tabs/components
   localStorage.setItem("auth:changed", String(Date.now()));

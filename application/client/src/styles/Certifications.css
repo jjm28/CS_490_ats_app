@@ -3,14 +3,14 @@
   width: 100vw;
   padding: 2rem;
   box-sizing: border-box;
-  background-color: #f9f9f9;
+  background-color: transparent;
   display: flex;
   flex-direction: column;
 }
 
 .certifications-manager h2 {
-  font-size: 2.0rem;
-  font-weight: bold;
+  font-size: 2rem;
+  font-weight: 700;
   text-align: left;
   width: 100%;
   margin-bottom: 1.5rem;
@@ -20,52 +20,24 @@
 }
 
 .add-cert-inline-btn {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  width: 32px;
-  height: 32px;
-  font-size: 1.5rem;
-  line-height: 1;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  padding: 0;
-  transition: background-color 0.2s ease;
-}
-
-.add-cert-inline-btn:hover {
-  background-color: #0056b3;
+  display: none;
 }
 
 .certifications-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .cert-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  width: 100%;
   text-align: left;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  background-color: #ffffff;
-  transition: border-color 0.2s ease;
-}
-
-.cert-item:hover {
-  border-color: #007bff;
 }
 
 .cert-content h3 {
   font-size: 1.1rem;
   font-weight: 600;
+  color: var(--brand-olive);
   margin-bottom: 6px;
 }
 
@@ -76,7 +48,7 @@
 }
 
 .verified {
-  color: #28a745;
+  color: var(--brand-teal);
   font-weight: 600;
 }
 
@@ -86,9 +58,8 @@
 }
 
 .certification-form-popup {
-  border: 1px solid #ccc;
-  border-radius: 10px;
   padding: 16px 24px;
+  border-radius: 10px;
   background-color: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   margin-bottom: 20px;
@@ -97,17 +68,7 @@
 .certification-form-popup form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.certification-form-popup input,
-.certification-form-popup select {
-  display: block;
-  width: 100%;
-  margin-bottom: 8px;
-  padding: 6px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  gap: 12px;
 }
 
 .checkbox-row {
@@ -118,34 +79,8 @@
 
 .form-buttons {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   margin-top: 8px;
-}
-
-.form-buttons button {
-  padding: 6px 10px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.form-buttons button[type="submit"] {
-  background-color: #28a745;
-  color: white;
-}
-
-.form-buttons button[type="submit"]:hover {
-  background-color: #1e7e34;
-}
-
-.form-buttons button[type="button"] {
-  background-color: #dc3545;
-  color: white;
-}
-
-.form-buttons button[type="button"]:hover {
-  background-color: #a71d2a;
 }
 
 .file-input-wrapper {
@@ -160,9 +95,13 @@
   text-align: left;
 }
 
-.certification-form-popup label.form-label {
+.certifications-list .card {
   text-align: left;
-  font-weight: normal;
-  font-size: 0.95rem;
-  color: #333;
+  align-items: flex-start;
+}
+
+.renew-alert {
+  color: #dc3545; /* red alert color */
+  font-weight: 600;
+  font-size: 0.9rem;
 }
