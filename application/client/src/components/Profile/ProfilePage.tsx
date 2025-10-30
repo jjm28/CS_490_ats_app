@@ -58,6 +58,10 @@ function ProfilePage() {
         if (!cancelled) setProfile(data);
       } catch (e: any) {
         if (!cancelled) setErr(e?.message || "Failed to load profile.");
+        if (e?.message?.includes("Account deleted") || e?.message?.includes("Unauthorized")) {
+          localStorage.removeItem("token");
+          navigate("/login", { state: { flash: "Your account has been deleted or your session expired." } });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -77,38 +81,30 @@ function ProfilePage() {
     fields.filter(Boolean).join(separator);
 
   // DELETE account handler
-  const handleDelete = async () => {
-    setDeleteLoading(true);
-    setDeleteError(null);
+ // src/components/ProfilePage.tsx
+const handleDelete = async () => {
+  const password = prompt("Confirm your password to delete your account:");
+  if (!password) return;
 
-    try {
-      const res = await fetch("http://localhost:5050/api/profile/delete", {
-  method: "DELETE",
-  headers: {
-    "Authorization": `Bearer ${token}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({ password: deletePassword }),
-});
+  const response = await fetch("http://localhost:5050/api/profile/delete", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ password }),
+  });
 
-      const data = await res.json();
-      if (!res.ok) {
-        setDeleteError(data.error || "Failed to delete account");
-        setDeleteLoading(false);
-        return;
-      }
+  const data = await response.json();
+  alert(data.message || data.error);
 
-      // Success: logout immediately
-      localStorage.removeItem("authToken");
-      navigate("/Login", {
-        state: { flash: "Your account is scheduled for deletion. You have been logged out." },
-      });
-    } catch (err: any) {
-      console.error(err);
-      setDeleteError("Failed to delete account");
-      setDeleteLoading(false);
-    }
-  };
+  if (response.ok) {
+    // ✅ Log out user and redirect
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  }
+};
+
 
   if (loading) return <p className="p-6">Loading...</p>;
 
