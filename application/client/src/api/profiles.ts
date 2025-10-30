@@ -51,7 +51,7 @@ const BASE = API_BASE || ""; // empty = same-origin during prod behind reverse p
 const EP = "/api/profile";
 
 // ----- API calls -----
-export async function listProfiles(token: string): Promise<Profile[]> {
+export async function listProfiles(): Promise<Profile[]> {
   const res = await fetch(BASE + EP, {
     credentials: "include",
     headers: authHeaders(),
