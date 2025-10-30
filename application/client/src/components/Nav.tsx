@@ -26,6 +26,8 @@ function Navbar() {
 
   const logout = () => {
     setLoggedIn(false);
+    //localStorage.removeItem("authToken"); //added to fix issues with different accounts having same profile and employment
+    localStorage.removeItem("devUserId");
     navigate("/Logout");
   };
 
