@@ -29,6 +29,7 @@ export interface Project {
   mediaUrl?: string;
 }
 
+
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -90,6 +91,9 @@ export default function Projects() {
       setProjects([...projects, created]);
       setShowForm(false);//
       //await addProject(newProj);
+      setShowForm(false);
+
+
     } catch (err) {
       console.error("Error adding project:", err);
     }
@@ -101,6 +105,7 @@ export default function Projects() {
       setProjects((prev) =>
         prev.map((proj) => (proj._id === id ? updated : proj))
       );
+        
     } catch (err) {
       console.error("Error updating project:", err);
     }
@@ -112,6 +117,7 @@ export default function Projects() {
       await deleteProjectApi(id);
       setProjects((prev) => prev.filter((proj) => proj._id !== id));
       alert("Project deleted successfully!");
+       
     } catch (err) {
       console.error("Error deleting project:", err);
       alert("Failed to delete project. Please try again.");
