@@ -59,10 +59,9 @@ function calculateProfileCompleteness(profile) {
     industry: 10,
     experienceLevel: 10,
     location: 10,
-    skills: 15,
+    skills: 20,
     education: 10,
-    summary: 10,
-    photoUrl: 5,
+    photoUrl:10,
     projects: 10,
   };
 
@@ -90,24 +89,39 @@ function calculateProfileCompleteness(profile) {
 
 function getProfileSuggestions(profile) {
   const suggestions = [];
-  if (!profile.photoUrl) suggestions.push("Add a professional photo to make your profile stand out.");
-  if (!profile.summary) suggestions.push("Write a short professional summary about yourself.");
-  if (!profile.skills?.length) suggestions.push("Add at least 5 skills relevant to your field.");
-  if (!profile.projects?.length) suggestions.push("Showcase your experience by adding projects.");
-  if (!profile.education) suggestions.push("Include your educational background.");
-  if (!profile.experienceLevel) suggestions.push("Specify your experience level to attract recruiters.");
+
+  if (!profile.photoUrl)
+    suggestions.push("Add a professional photo to make your profile stand out.");
+  if (!profile.skills?.length)
+    suggestions.push("Add skills relevant to your field.");
+  if (!profile.projects?.length)
+    suggestions.push("Showcase your experience by adding projects.");
+  if (!profile.education)
+    suggestions.push("Include your educational background.");
+
   return suggestions;
 }
-
 // GET /api/profile/completeness/:userId
 router.get("/completeness/:userId", async (req, res) => {
   try {
     const db = getDb();
     const { userId } = req.params;
-    const profile = await db.collection("profiles").findOne({ userId });
 
+    // Get the base profile
+    const profile = await db.collection("profiles").findOne({ userId });
     if (!profile) return res.status(404).json({ error: "Profile not found" });
 
+    // 🔹 Fetch counts from related collections
+    const skillsCount = await db.collection("skills").countDocuments({ userId });
+    const projectsCount = await db.collection("projects").countDocuments({ userId });
+    const educationCount = await db.collection("education").countDocuments({ userId });
+
+    // 🔹 Attach as pseudo-arrays for completeness calculation
+    profile.skills = Array(skillsCount).fill("x");
+    profile.projects = Array(projectsCount).fill("x");
+    profile.education = Array(educationCount).fill("x");
+
+    // 🔹 Calculate and build response
     const completeness = calculateProfileCompleteness(profile);
     const suggestions = getProfileSuggestions(profile);
 
@@ -125,6 +139,7 @@ router.get("/completeness/:userId", async (req, res) => {
     res.status(500).json({ error: "Failed to calculate profile completeness" });
   }
 });
+
 
 /**
  * GET /api/profile
