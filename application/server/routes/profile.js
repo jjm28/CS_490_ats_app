@@ -10,7 +10,7 @@ const router = Router();
 // all profile routes need auth
 router.use(verifyJWT);
 
-// ================== START: new helper ==================
+
 // unified way to get "who is this?"
 function getUserId(req) {
   if (req.user?._id) return req.user._id.toString();
@@ -18,7 +18,7 @@ function getUserId(req) {
   const dev = req.headers['x-dev-user-id'];
   return dev ? dev.toString() : null;
 }
-// ================== END: new helper ==================
+
 
 // pick only allowed fields
 function pickProfileFields(src = {}) {
@@ -167,7 +167,7 @@ router.get('/:id', async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // ================== START: new fallback logic ==================
+    
     let doc = await Profile.findOne({ _id: req.params.id, userId }).lean();
     if (!doc) {
       // old doc saved without this userId? grab it
@@ -180,7 +180,7 @@ router.get('/:id', async (req, res) => {
         );
       }
     }
-    // ================== END: new fallback logic ==================
+    
 
     if (!doc) return res.status(404).json({ error: 'Not found' });
     res.json(doc);
@@ -249,7 +249,7 @@ router.put('/:id', async (req, res) => {
         { new: true, runValidators: true, omitUndefined: true }
       );
     }
-    // ================== END: new fallback logic ==================
+    
 
     res.json(updated);
   } catch (e) {
