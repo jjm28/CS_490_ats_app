@@ -29,7 +29,11 @@ export interface Project {
   mediaUrl?: string;
 }
 
-export default function Projects() {
+interface ProjectsProps {
+  onUpdate?: () => void;
+}
+
+export default function Projects({ onUpdate }: ProjectsProps) { 
   const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -40,9 +44,9 @@ export default function Projects() {
   const [view, setView] = useState<"list" | "grid">("list");
   const [techFilter, setTechFilter] = useState(""); // for "Filter by technology"
   const [industryFilter, setIndustryFilter] = useState(""); // for "Filter by industry"
-  
 
-  const fetchProjects = async () => {
+
+  const fetchProjects = async () => { 
     try {
       //added in UC032
       const hasFilters =
@@ -90,6 +94,8 @@ export default function Projects() {
       setProjects([...projects, created]);
       setShowForm(false);//
       //await addProject(newProj);
+      setShowForm(false);
+      onUpdate?.();
     } catch (err) {
       console.error("Error adding project:", err);
     }
@@ -101,6 +107,7 @@ export default function Projects() {
       setProjects((prev) =>
         prev.map((proj) => (proj._id === id ? updated : proj))
       );
+      onUpdate?.();
     } catch (err) {
       console.error("Error updating project:", err);
     }
@@ -112,6 +119,7 @@ export default function Projects() {
       await deleteProjectApi(id);
       setProjects((prev) => prev.filter((proj) => proj._id !== id));
       alert("Project deleted successfully!");
+      onUpdate?.();
     } catch (err) {
       console.error("Error deleting project:", err);
       alert("Failed to delete project. Please try again.");
