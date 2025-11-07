@@ -16,7 +16,7 @@ import employmentRouter from './routes/employment.js';
 import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
-
+import jobRoutes from "./routes/jobs.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -56,6 +56,9 @@ try {
   app.use('/api/profile', attachDevUser, profileRouter);
   app.use('/api/profile', attachDevUser, profilePhoto);
   app.use('/api/employment', attachDevUser, employmentRouter);
+
+  // Job routes
+  app.use('/api/jobs', attachDevUser, jobRoutes);
 
   // for picture uploads
   app.use(
