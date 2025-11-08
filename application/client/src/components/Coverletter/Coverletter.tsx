@@ -1,45 +1,16 @@
-import { useEffect, useState } from "react";
+import { act, useEffect, useState } from "react";
 import Card from "../StyledComponents/Card"; // adjust to your path
-
-type Template = {
-  key: "formal" | "creative" | "technical";
-  title: string;
-  img: string;
-  blurb?: string;
-};
-
-const TEMPLATES: Template[] = [
-  {
-    key: "formal",
-    title: "Formal Template",
-    img: "https://cdn-images.zety.com/pages/formal-cover-letter-example-ztus-cta1-cover-letter.webp",
-    blurb: "Classic business layout for corporate and government roles.",
-  },
-  {
-    key: "creative",
-    title: "Creative Template",
-    img: "https://cdn-images.zety.com/pages/formal-cover-letter-example-ztus-cta1-cover-letter.webp",
-    blurb: "Bold headings and modern typography for design/marketing.",
-  },
-  {
-    key: "technical",
-    title: "Technical Template",
-    img: "https://cdn-images.zety.com/pages/formal-cover-letter-example-ztus-cta1-cover-letter.webp",
-    blurb: "Minimalist, skills-first layout for SWE/Data/IT roles.",
-  },
-];
+import { useNavigate } from "react-router-dom";
+import type { Template } from "./Coverletterstore";
+import { TEMPLATES } from "./Coverletterstore";
 
 
-// ...imports and TEMPLATES unchanged...
 
-export default function Coverletter({
-  onSelect,
-}: {
-  onSelect?: (key: "formal" | "creative" | "technical") => void;
-}) {
+
+export default function Coverletter() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<(typeof TEMPLATES)[number] | null>(null);
-
+  const navigate = useNavigate();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     if (open) window.addEventListener("keydown", onKey);
@@ -52,8 +23,9 @@ export default function Coverletter({
   };
 
   const handleSelect = () => {
-    if (active?.key && onSelect) onSelect(active.key);
+    if (!active) return;
     setOpen(false);
+    navigate("/coverletter/editor", {state: {template: active}})
   };
 
   return (
@@ -69,7 +41,7 @@ export default function Coverletter({
             key={t.key}
             className="overflow-hidden rounded-2xl shadow-sm bg-white flex flex-col"
           >
-            <div className="w-full aspect-[3/4] overflow-hidden">
+            <div className="w-full aspect-3/4 overflow-hidden">
               <img
                 src={t.img}
                 alt={t.title}

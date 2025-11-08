@@ -18,6 +18,7 @@ import EmploymentPage from "./components/Employment/EmploymentPage";
 import EmploymentForm from "./components/Employment/EmploymentForm";
 
 import Coverletter from './components/Coverletter/Coverletter';
+import CoverletterEditor from './components/Coverletter/CoverletterEditor';
 
 import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
@@ -56,6 +57,7 @@ function App() {
           <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} /> {/* Protected Routes */}
           <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
           <Route path="/coverletter" element={<PrivateRoute><Coverletter /></PrivateRoute>} />
+          <Route path="/coverletter/editor" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
         </Routes>
       </div>
     </>
