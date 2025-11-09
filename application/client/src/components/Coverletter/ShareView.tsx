@@ -23,6 +23,7 @@ export default function ShareView() {
   // UI state
   const [loading, setLoading] = useState(true);
   const [error, setErr] = useState<string | null>(null);
+  const [lastSaved, setlastSaved] = useState<string | null>(null);
 
   // Core doc state
   const [filename, setFilename] = useState<string>("Untitled");
@@ -74,6 +75,7 @@ export default function ShareView() {
         setFilename(payload.filename ?? "Untitled");
         setTemplateKey(payload.templateKey ?? "formal");
         setData(payload.coverletterdata);
+        setlastSaved(payload.lastSaved)
       } catch (e: any) {
         if (e.name !== "AbortError") {
           setErr(e?.message ?? "Failed to load shared document.");
@@ -104,19 +106,24 @@ export default function ShareView() {
 
 
   // Export/import as before (left intact)
-  const handleImport = async () => {
-    const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
+  const handleExport = async () => {
+      const tk = templateKey ??  "formal";
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename || "coverletter.json";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        const jsondata =  { userid:"", filename: filename,templateKey: tk,coverletterdata: {...data},lastSaved: lastSaved }
 
-    URL.revokeObjectURL(url);
+
+        const jsonStr = JSON.stringify(jsondata, null, 2)
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
   };
 
   // ----------------------
@@ -157,7 +164,7 @@ export default function ShareView() {
           />
 
           <div className="flex-1" />
-          <Button onClick={handleImport}>Export JSON</Button>
+          <Button onClick={handleExport}>Export JSON</Button>
         </div>
       </div>
 

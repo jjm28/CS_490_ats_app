@@ -118,7 +118,7 @@ export  const  updateCoverletter = async (  coverletterinfo: UpdateCoverletter )
 export interface CreateSharedCoverletter {
   userid: string;
   coverletterid: string;
-
+  coverletterdata: CoverLetterData;
 }
 export interface PostSharedCoverletterResponse {
   sharedid: string;
@@ -162,4 +162,20 @@ export  const fetchSharedCoverletter = async (  coverletterinfo: fetchSharedCove
   }
 
   return data as Promise<GetSharedCoverletterResponse>;
+};
+
+export interface GetmostpopularCoverletterResponse {
+  templateKey: Template["key"];
+
+}
+export  const GetmostpopularCoverletter = async ( ): Promise<GetmostpopularCoverletterResponse> => {
+  const res = await fetch(API_URL+ "mostpop" , {
+    headers: authHeaders() ,  });
+  const data = await res.json() ?? {    "templateKey": "formal" };
+  console.log(data)
+  if (!res.ok) {
+    throw new Error(data.error || "Unknown error occurred");
+  }
+
+  return data as Promise<GetmostpopularCoverletterResponse>;
 };

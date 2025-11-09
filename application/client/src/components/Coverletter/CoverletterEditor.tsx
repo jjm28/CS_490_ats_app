@@ -416,7 +416,7 @@ useEffect(() => {
       try {
       const user = JSON.parse(localStorage.getItem("authUser") ?? "")
       const ts = new Date().toLocaleTimeString();
-      const Sharedcoverletter = await createdsharedcoverletter({userid: user._id,coverletterid: CoverletterID ?? ""});
+      const Sharedcoverletter = await createdsharedcoverletter({userid: user._id,coverletterid: CoverletterID ?? "", coverletterdata: data});
       navigator.clipboard.writeText(Sharedcoverletter.url)
         .then(() => {
           alert("Link copied to clipboard!");

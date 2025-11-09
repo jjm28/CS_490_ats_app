@@ -47,7 +47,6 @@ export default function Coverletter() {
     };
   }, []);
 
-  // client-side filtering only (no extra API calls)
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;

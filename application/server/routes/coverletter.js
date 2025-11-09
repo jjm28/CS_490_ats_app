@@ -1,12 +1,12 @@
 import express from 'express';
-import { createCoverletter, updateCoverletter, getCoverletter, createSharedLink, fetchSharedCoverletter} from '../services/coverletter.service.js';
+import { createCoverletter, updateCoverletter, getCoverletter, createSharedLink, fetchSharedCoverletter,findmostpopular} from '../services/coverletter.service.js';
 import { verifyJWT } from '../middleware/auth.js'; 
 import 'dotenv/config';
 import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
-// router.use(verifyJWT);
+router.use(verifyJWT);
 
 // GET /api/coverletter/
 router.get("/", async (req, res) => {
@@ -19,6 +19,20 @@ router.get("/", async (req, res) => {
     const coverletters = await getCoverletter({userid,coverletterid})
 
     res.status(200).json(coverletters);
+  } catch (err) {
+    console.log(err)
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/coverletter/mostpop
+router.get("/mostpop", async (req, res) => {
+  try {
+
+
+    const templateKey = await findmostpopular()
+
+    res.status(200).json(templateKey);
   } catch (err) {
     console.log(err)
     return res.status(500).json({ error: 'Server error' });
@@ -64,11 +78,11 @@ router.put('/update', async (req, res) => {
   // POST /api/coverletter/share
 router.post('/share', async (req, res) => {
   try {
-    const { coverletterid, userid} = req.body || {};
-    if (!userid || !coverletterid) {
+    const { coverletterid, userid,coverletterdata} = req.body || {};
+    if (!userid || !coverletterid || !coverletterdata ) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const coverletter = await createSharedLink({ userid,coverletterid});
+    const coverletter = await createSharedLink({ userid,coverletterid,coverletterdata});
 
   
     return res.status(201).json(coverletter);

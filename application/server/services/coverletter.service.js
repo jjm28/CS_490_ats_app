@@ -64,13 +64,13 @@ export async function getCoverletter({ userid,coverletterid}) {
 
 
 
-export async function createSharedLink({ userid,coverletterid}) {
+export async function createSharedLink({ userid,coverletterid,coverletterdata}) {
   const db = getDb();
   const sharedcoverletters = db.collection('sharedcoverletters');
   
   const result = await db.collection("sharedcoverletters").updateOne(
   { coverletterid: coverletterid, owner: userid },  // filter
-  { $set: { expiresAt: new Date() } }    );
+  { $set: { expiresAt: new Date() , coverletterdata: coverletterdata} }    );
   if (result.matchedCount == 1){
     const sharedcoverletter = await db
     .collection("sharedcoverletters")
@@ -93,5 +93,30 @@ export async function fetchSharedCoverletter({ sharedid}) {
     .findOne(  { _id: new ObjectId(sharedid) } )
     return sharedcoverletter
 
-  return;
+}
+
+export async function findmostpopular() {
+    const db = getDb();
+
+  try {
+    const result = await db
+      .collection("coverletters")
+      .aggregate([
+        { $match: { templateKey: { $exists: true, $ne: null } } },
+        { $group: { _id: "$templateKey", count: { $sum: 1 } } },
+        { $sort: { count: -1, _id: 1 } }, // sort by count desc, then alphabetically
+        { $limit: 1 },
+      ])
+      .toArray();
+
+    if (result.length > 0) {
+      return {templateKey: result[0]._id}; // the most frequent templateKey
+    } else {
+      return null;
+    }
+  } catch (err) {
+    console.error("Error while aggregating:", err);
+    return null;
+  }
+
 }
