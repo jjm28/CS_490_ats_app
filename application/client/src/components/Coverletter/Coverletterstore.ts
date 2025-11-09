@@ -100,7 +100,7 @@ export  const TEMPLATES: Template[] = [
   {
     key: "technical",
     title: "Technical Template",
-    img: "https://www.myperfectresume.com/wp-content/themes/myperfectresume/img/cl-templates/color-cat/defaults/bold-cover-letter-template.svg",
+    img: "https://aicdn.picsart.com/4f91a566-9d5c-4317-a045-667f4988b5cf.png",
     blurb: "Minimalist, skills-first layout for SWE/Data/IT roles.",
     Industries: ["Technology", "Engineering", "IT"],
         TemplateData: {
