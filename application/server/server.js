@@ -16,7 +16,7 @@ import employmentRouter from './routes/employment.js';
 import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
-
+import coverletter from  "./routes/coverletter.js"
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -67,6 +67,7 @@ try {
       setHeaders: (res) => res.set('Cache-Control', 'no-store'),
     })
   );
+  app.use('/api/coverletter',coverletter)
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
