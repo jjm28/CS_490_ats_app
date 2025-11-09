@@ -40,6 +40,9 @@ function safeTime(d?: string) { // NEW
   return Number.isNaN(t) ? NaN : t; // NEW
 }
 
+const resolveMediaUrl = (u?: string) =>
+  u ? (u.startsWith("http") ? u : `${import.meta.env.VITE_API_BASE_URL}${u}`) : "";
+
 export default function Projects({ onUpdate }: ProjectsProps) { 
   const [allProjects, setAllProjects] = useState<Project[]>([]);
 
@@ -439,7 +442,20 @@ export default function Projects({ onUpdate }: ProjectsProps) {
                 {proj.collaborationDetails && (
                   <p><strong>Collaboration:</strong> {proj.collaborationDetails}</p>
                 )}
-                {proj.mediaUrl && <p><strong>Media:</strong> {proj.mediaUrl}</p>}
+                {proj.mediaUrl && (
+                  <div className="mt-3">
+                    <p className="font-medium text-gray-700 mb-1">Project Screenshot:</p>
+                    <img
+                      src={resolveMediaUrl(proj.mediaUrl)}
+                      alt={`${proj.name} media`}
+                      className="rounded-lg border border-gray-200 shadow-sm max-h-60 object-contain bg-gray-50"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
                 <div className="flex justify-center space-x-2 p-2">
                   <Button variant="secondary" onClick={() => setEditingProject(proj)}>
                     Edit
