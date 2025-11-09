@@ -44,7 +44,7 @@ const ResetPassword = () => {
       
       localStorage.setItem("authToken", res.data.token); // auto-login
       setMessage("Password reset successful! Redirecting...");
-      setTimeout(() => navigate("/ProfileDashboard"), 1500);
+      setTimeout(() => navigate("/Login"), 1500);
     } catch (err: any) {
       setError(err.response?.data?.error || "Something went wrong. Please try again.");
     } finally {

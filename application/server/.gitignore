@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?server/node
 server/server@1.0.0
+
+# Coverage directory
+coverage/
