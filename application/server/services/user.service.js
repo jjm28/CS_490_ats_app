@@ -2,6 +2,8 @@
 import { getDb } from '../db/connection.js';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { ObjectId } from "mongodb";
+
 
 const ROUNDS = 10;
 
@@ -60,13 +62,14 @@ if(!isprovider){
     return { _id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName };
 }
 
-export async function createCoverletter({ userid, filename, lastSaved},coverletterdata) {
+export async function createCoverletter({ userid, filename, lastSaved,templateKey},coverletterdata) {
   const db = getDb();
   const coverletters = db.collection('coverletters');
 
   const doc = {
     owner: userid,
     filename: filename,
+    templateKey: templateKey,
     coverletterdata: coverletterdata,
     lastSaved: lastSaved
   };
@@ -75,7 +78,48 @@ export async function createCoverletter({ userid, filename, lastSaved},coverlett
   return { _id: res.insertedId, owner: doc.id };
 }
 
+export async function updateCoverletter({ coverletterid,userid, filename, lastSaved},coverletterdata) {
+  const db = getDb();
 
+  const doc = {
+    filename: filename,
+    coverletterdata: coverletterdata,
+    lastSaved: lastSaved
+  };
+      const result = await db
+      .collection("coverletters")
+      .updateOne(
+        { _id: new ObjectId(coverletterid), owner: userid }, 
+        { $set: doc }
+      );
+
+    if (result.matchedCount === 0) {
+      return { message: "CoverLetter not found" };
+    }
+
+  return { _id: coverletterid};
+}
+
+export async function getCoverletter({ userid,coverletterid}) {
+  const db = getDb();
+  let result;
+  if (coverletterid == undefined){
+   result = await db
+    .collection("coverletters")
+    .find(
+      { owner: userid },
+      { projection: { _id: 1, filename: 1, templateKey: 1, lastSaved: 1 } }
+    )
+    .toArray();
+  }
+  else {
+       result = await db
+    .collection("coverletters")
+    .findOne(  { _id: new ObjectId(coverletterid), owner: userid}    )
+  }
+
+  return result ;
+}
 export async function findUserByEmail(email) {
   const db = getDb();
   return db.collection('users').findOne({ email: String(email).toLowerCase() });

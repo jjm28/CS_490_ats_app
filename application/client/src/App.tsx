@@ -17,8 +17,9 @@ import ResetPassword from './components/ResetPassword';
 import EmploymentPage from "./components/Employment/EmploymentPage";
 import EmploymentForm from "./components/Employment/EmploymentForm";
 
-import Coverletter from './components/Coverletter/Coverletter';
+import NewCoverletter from './components/Coverletter/NewCoverletter';
 import CoverletterEditor from './components/Coverletter/CoverletterEditor';
+import Coverletter from './components/Coverletter/Coverletters';
 
 import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
@@ -57,7 +58,8 @@ function App() {
           <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} /> {/* Protected Routes */}
           <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
           <Route path="/coverletter" element={<PrivateRoute><Coverletter /></PrivateRoute>} />
-          <Route path="/coverletter/editor" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
+          <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
+          <Route path="/coverletter/editor/:id?" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
         </Routes>
       </div>
     </>

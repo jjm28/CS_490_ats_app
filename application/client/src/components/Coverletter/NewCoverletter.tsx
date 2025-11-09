@@ -7,7 +7,7 @@ import { TEMPLATES } from "./Coverletterstore";
 
 
 
-export default function Coverletter() {
+export default function NewCoverletter() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<(typeof TEMPLATES)[number] | null>(null);
   const navigate = useNavigate();

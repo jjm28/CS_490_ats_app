@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState , Suspense} from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate,useParams  } from "react-router-dom";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import type { CoverLetterData } from "./CoverLetterTemplates/Pdf/Formalpdf";
 import type { Template } from "./Coverletterstore";
@@ -7,8 +7,10 @@ import type { SectionKey } from "./Coverletterstore";
 import { previewRegistry } from ".";
 import { pdfRegistry } from ".";
 import Button from "../StyledComponents/Button";
+import { saveCoverletter , updateCoverletter} from "../../api/coverletter";
+import type { GetCoverletterResponse } from "../../api/coverletter";
 
-type LocationState = { template: Template };
+type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse};
 
 // ---- simple modal ----
 function Modal({
@@ -42,11 +44,16 @@ export default function CoverletterEditor() {
   const navigate = useNavigate();
   const state = useLocation().state as LocationState | null;
   const template = state?.template;
-
+  const docid = state?.Coverletterid;
+  const coverletterData = state?.coverletterData
+  
   // redirect if no template
   useEffect(() => {
     if (!template) navigate("/coverletter", { replace: true });
   }, [template, navigate]);
+
+
+
 
   // initial data (from your example)
   const [data, setData] = useState<CoverLetterData>({
@@ -67,7 +74,33 @@ export default function CoverletterEditor() {
   type Section = SectionKey
   const [editing, setEditing] = useState<Section | null>(null);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [CoverletterID, setCoverletterID] = useState<string | null>(    () => sessionStorage.getItem("CoverletterID")  );
+  const [filename, setFilename] = useState<string>("Untitled");
 
+  const [error, setErr] = useState<string | null>(null);
+
+      useEffect(() => {
+      if (docid && coverletterData) {
+        setCoverletterID(docid);
+        setData(coverletterData.coverletterdata);
+        console.log(coverletterData)
+      }
+      }, [docid,coverletterData]);
+
+  useEffect(() => {
+    if (CoverletterID !== null) {
+      sessionStorage.setItem("CoverletterID", CoverletterID);
+    }
+  }, [CoverletterID]);
+
+  const location = useLocation();
+
+    useEffect(() => {
+    // Adjust condition to only clear if leaving *this* page
+    if (location.pathname !== "/cover-letter-editor") {
+      sessionStorage.removeItem("CoverletterID");
+    }
+  }, [location.pathname]);
 
   if (!template) return null;
 
@@ -305,16 +338,42 @@ export default function CoverletterEditor() {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!CoverletterID){
   try {
+      const user = JSON.parse(localStorage.getItem("authUser") ?? "")
+  
+       const ts = new Date().toLocaleTimeString();
 
-    console.log(localStorage.getItem("authUser"))
+      const Coverletter = await saveCoverletter({userid: user._id, filename: filename, templateKey: template.key, coverletterdata: data, lastSaved: ts});
+      setLastSaved(ts);
+      setCoverletterID(Coverletter._id)     
   }
   catch (err: any) {
-
+      if (err instanceof Error) {
+        setErr(err.message);
+      } else {
+        setErr("Something went wrong. Please try again.");
+      }
   }
-    const ts = new Date().toLocaleTimeString();
-    setLastSaved(ts);
+    }
+  else {
+      try {
+      const user = JSON.parse(localStorage.getItem("authUser") ?? "")
+       const ts = new Date().toLocaleTimeString();
+     
+      const Coverletter = await updateCoverletter({coverletterid: CoverletterID,userid: user._id, filename: filename,  coverletterdata: data, lastSaved: ts});
+      setLastSaved(ts);
+      setCoverletterID(Coverletter._id)     
+  }
+  catch (err: any) {
+      if (err instanceof Error) {
+        setErr(err.message);
+      } else {
+        setErr("Something went wrong. Please try again.");
+      }
+  }
+  }
   }
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
@@ -322,9 +381,24 @@ export default function CoverletterEditor() {
       <h1 className="text-2xl font-semibold mb-2">Coverletter Editor Mode</h1>
 
       <div className="flex items-center justify-end gap-3">
-        {lastSaved && (
-          <span className="text-xs text-gray-500">Saved {lastSaved}</span>
+        {error ? (
+        <span className="text-xs text-red-500">Error: {error}</span>
+        ) : (
+        lastSaved && (          <span className="text-xs text-gray-500">Saved {lastSaved}</span>     )
         )}
+<div className="mb-3 flex items-center gap-3">
+  <label htmlFor="filename" className="text-sm font-medium text-gray-700">
+    File name:
+  </label>
+  <input
+    id="filename"
+    type="text"
+    className="flex-1 max-w-md rounded border px-3 py-2 text-sm"
+    placeholder="e.g., Acme Sales – Dec 2025"
+    value={filename}
+    onChange={(e) => setFilename(e.target.value)}
+  />
+</div>
         <Button onClick={handleSave}>Save</Button>
       </div>
     </div>
@@ -365,15 +439,7 @@ export default function CoverletterEditor() {
           </PDFDownloadLink>
         </Suspense>
         
-                <Suspense fallback={<button className="px-4 py-2 bg-gray-300 text-white rounded">Preparing…</button>}>
-          <PDFDownloadLink
-            document={pdfDoc}
-            fileName="coverletter.pdf"
-            className="inline-block px-4 py-2 bg-black text-white rounded"
-          >
-            {({ loading }) => (loading ? "Preparing…" : "Save")}
-          </PDFDownloadLink>
-        </Suspense>
+
       </div>
 
       {/* modal */}
