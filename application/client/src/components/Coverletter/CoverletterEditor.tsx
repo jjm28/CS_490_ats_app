@@ -82,6 +82,7 @@ export default function CoverletterEditor() {
       useEffect(() => {
       if (docid && coverletterData) {
         setCoverletterID(docid);
+        setFilename(coverletterData.filename)
         setData(coverletterData.coverletterdata);
         console.log(coverletterData)
       }
@@ -375,6 +376,23 @@ export default function CoverletterEditor() {
   }
   }
   }
+
+    const handleImport = async () => {
+        const jsonStr = JSON.stringify(data, null, 2)
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+  }
+
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
     <div className="mb-4">
@@ -400,6 +418,7 @@ export default function CoverletterEditor() {
   />
 </div>
         <Button onClick={handleSave}>Save</Button>
+        <Button onClick={handleImport}>Import</Button>
       </div>
     </div>
 
