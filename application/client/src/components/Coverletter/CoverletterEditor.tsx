@@ -7,7 +7,7 @@ import type { SectionKey } from "./Coverletterstore";
 import { previewRegistry } from ".";
 import { pdfRegistry } from ".";
 import Button from "../StyledComponents/Button";
-import { saveCoverletter , updateCoverletter,createdsharedcoverletter} from "../../api/coverletter";
+import { saveCoverletter , updateCoverletter,createdsharedcoverletter,Getfullcoverletter} from "../../api/coverletter";
 import type { GetCoverletterResponse } from "../../api/coverletter";
 import { Share } from "lucide-react";
 
@@ -80,6 +80,7 @@ export default function CoverletterEditor() {
 
   const [error, setErr] = useState<string | null>(null);
 
+
       useEffect(() => {
       if (docid && coverletterData) {
         setCoverletterID(docid);
@@ -94,11 +95,16 @@ export default function CoverletterEditor() {
         setData(importcoverletterData.coverletterdata);
       }
       }, [importcoverletterData]);
-  useEffect(() => {
-    if (CoverletterID !== null) {
-      sessionStorage.setItem("CoverletterID", CoverletterID);
-    }
-  }, [CoverletterID]);
+useEffect(() => {
+  if (!CoverletterID) return;
+    const user = JSON.parse(localStorage.getItem("authUser") ?? "")
+    Getfullcoverletter({userid: user._id, coverletterid: CoverletterID}).then((data) => {
+    setFilename(data.filename)
+    setData(data.coverletterdata)
+    sessionStorage.setItem("CoverletterID", CoverletterID);
+  });
+}, [CoverletterID]);
+
 
   const location = useLocation();
 
