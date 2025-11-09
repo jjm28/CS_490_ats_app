@@ -11,7 +11,7 @@ import { saveCoverletter , updateCoverletter,createdsharedcoverletter} from "../
 import type { GetCoverletterResponse } from "../../api/coverletter";
 import { Share } from "lucide-react";
 
-type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse};
+type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse, importcoverletterData?: GetCoverletterResponse};
 
 // ---- simple modal ----
 function Modal({
@@ -47,7 +47,7 @@ export default function CoverletterEditor() {
   const template = state?.template;
   const docid = state?.Coverletterid;
   const coverletterData = state?.coverletterData
-  
+    const importcoverletterData = state?.importcoverletterData
   // redirect if no template
   useEffect(() => {
     if (!template) navigate("/coverletter", { replace: true });
@@ -88,6 +88,12 @@ export default function CoverletterEditor() {
       }
       }, [docid,coverletterData]);
 
+  useEffect(() => {
+      if (importcoverletterData) {
+        setFilename(importcoverletterData.filename)
+        setData(importcoverletterData.coverletterdata);
+      }
+      }, [importcoverletterData]);
   useEffect(() => {
     if (CoverletterID !== null) {
       sessionStorage.setItem("CoverletterID", CoverletterID);
@@ -380,8 +386,13 @@ export default function CoverletterEditor() {
   }
   }
 
-    const handleImport = async () => {
-        const jsonStr = JSON.stringify(data, null, 2)
+    const handleExport = async () => {
+      const tk = template?.key ??  "formal";
+
+        const jsondata =  { userid:"", filename: filename,templateKey: tk,coverletterdata: {...data},lastSaved: lastSaved }
+
+
+        const jsonStr = JSON.stringify(jsondata, null, 2)
         const blob = new Blob([jsonStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
 
@@ -458,7 +469,7 @@ export default function CoverletterEditor() {
         )
       )}
       <Button onClick={handleSave}>Save</Button>
-      <Button onClick={handleImport}>Import</Button>
+      <Button onClick={handleExport}>Export</Button>
     </div>
   </div>
 

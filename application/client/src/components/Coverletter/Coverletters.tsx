@@ -68,6 +68,49 @@ export default function Coverletter() {
   }, [items, query, TEMPLATE_MAP]);
 
   const handleCreateClick = () => navigate("/newcoverletter");
+  
+const handleImport = async () => {
+  try {
+    // create a hidden file input dynamically
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,application/json";
+
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+           console.log(json)
+
+        // Validate that it's shaped like your CoverLetterData
+        if (
+          !json.filename 
+          
+        ) {
+          throw new Error("Invalid file format — missing fields");
+        }
+
+        // Load into your editor state
+        navigate(`/coverletter/editor`, {
+        state: { template: TEMPLATE_MAP[json.templateKey],
+         importcoverletterData: json     },
+      });
+        setErr(null);
+        alert("✅ Imported successfully!");
+      } catch (err: any) {
+        console.error(err);
+        setErr("Failed to import file. Make sure it’s a valid JSON export.");
+      }
+    };
+
+    input.click(); // trigger file picker
+  } catch (err: any) {
+    setErr("Import failed.");
+  }
+};
 
 const handleOpen = async (doc: CoverletterSummary) => {
   try {
@@ -81,7 +124,7 @@ const handleOpen = async (doc: CoverletterSummary) => {
       state: {
         Coverletterid: doc._id,
         template: TEMPLATE_MAP[doc.templateKey],
-        coverletterData: item, // optional: pass the fetched data
+        coverletterData: item, 
       },
     });
   } catch (err) {
@@ -109,6 +152,9 @@ const handleOpen = async (doc: CoverletterSummary) => {
 
           <Button onClick={handleCreateClick}>
             Create A New Coverletter
+          </Button>
+            <Button onClick={handleImport}>
+            Import A New Coverletter
           </Button>
         </div>
       </div>
