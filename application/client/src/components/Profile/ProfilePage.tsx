@@ -208,7 +208,7 @@ const handleDelete = async () => {
       <Projects onUpdate={handleProfileUpdated} />
 
       <p className="text-gray-600 mb-6">
-        Create multiple profiles for different roles. Select one to edit or create a new one below.
+        Create your Personal Profile
       </p>
 
       {flash && <p className="mb-4 text-sm text-green-700">{flash}</p>}

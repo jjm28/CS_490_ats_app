@@ -17,6 +17,10 @@ import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
 
+import templatesRouter from './routes/templates.js';           
+import resumesRouter from './routes/resume.js';               
+import { ensureSystemTemplates } from './services/templates.service.js';
+
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -42,6 +46,7 @@ app.use(cookieParser());
 // Start after DB connects
 try {
   await connectDB();
+  await ensureSystemTemplates();
   // Routes
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/record', records);
@@ -56,6 +61,10 @@ try {
   app.use('/api/profile', attachDevUser, profileRouter);
   app.use('/api/profile', attachDevUser, profilePhoto);
   app.use('/api/employment', attachDevUser, employmentRouter);
+
+  app.use('/api/templates', attachDevUser, templatesRouter); 
+  app.use('/api/resumes', attachDevUser, resumesRouter); 
+  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
   // for picture uploads
   app.use(
