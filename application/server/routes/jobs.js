@@ -1,18 +1,28 @@
 // routes/jobs.js
 import { Router } from "express";
 import { verifyJWT } from "../middleware/auth.js";
-import { validateJobCreate, validateJobUpdate } from "../validators/jobs.js";
+import { 
+  validateJobCreate, 
+  validateJobUpdate,
+  validateStatusUpdate,
+  validateBulkStatusUpdate
+} from "../validators/jobs.js";
 import { 
     createJob, 
     getAllJobs, 
     getJob, 
     updateJob, 
-    deleteJob 
+    deleteJob,
+    getJobsByStatus,
+    updateJobStatus,
+    bulkUpdateJobStatus
 } from "../services/jobs.service.js";
 
 const router = Router();
 
 // router.use(verifyJWT);
+
+const VALID_STATUSES = ['interested', 'applied', 'phone_screen', 'interview', 'offer', 'rejected'];
 
 router.use((req, res, next) => {
   if (req.headers['x-dev-user-id']) {
@@ -60,6 +70,22 @@ router.get("/", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    // Check if filtering by status
+    const statusParam = req.query.status;
+    
+    if (statusParam) {
+      // Validate status enum
+      if (!VALID_STATUSES.includes(statusParam)) {
+        return res.status(400).json({ 
+          error: "Invalid status value",
+          validStatuses: VALID_STATUSES
+        });
+      }
+      
+      const jobs = await getJobsByStatus({ userId, status: statusParam });
+      return res.json(jobs);  // <-- Make sure this returns the filtered jobs
+    }
 
     const jobs = await getAllJobs({ userId });
     res.json(jobs);
@@ -144,6 +170,82 @@ router.delete('/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err?.message || 'Delete failed' });
+  }
+});
+
+/**
+ * PATCH /api/jobs/:id/status
+ * Update the status of a single job
+ */
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const r = await validateStatusUpdate(req.body);
+    if (!r.ok) return res.status(r.status).json(r.error);
+
+    // Try with real user
+    let updated = await updateJobStatus({
+      userId,
+      id: req.params.id,
+      status: r.value.status,
+      note: r.value.note
+    });
+
+    // Legacy fallback
+    const devId = getDevId(req);
+    if (!updated && devId && devId !== userId) {
+      updated = await updateJobStatus({
+        userId: devId,
+        id: req.params.id,
+        status: r.value.status,
+        note: r.value.note
+      });
+      // Migrate ownership if found
+      if (updated) {
+        await updateJob({ 
+          userId: devId, 
+          id: req.params.id, 
+          payload: { userId } 
+        });
+      }
+    }
+
+    if (!updated) return res.status(404).json({ error: 'Job not found' });
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err?.message || 'Status update failed' });
+  }
+});
+
+/**
+ * PATCH /api/jobs/bulk-status
+ * Update the status of multiple jobs at once
+ */
+router.patch('/bulk-status', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const r = await validateBulkStatusUpdate(req.body);
+    if (!r.ok) return res.status(r.status).json(r.error);
+
+    const result = await bulkUpdateJobStatus({
+      userId,
+      jobIds: r.value.jobIds,
+      status: r.value.status,
+      note: r.value.note
+    });
+
+    res.json({
+      success: true,
+      modifiedCount: result.modifiedCount,
+      jobs: result.jobs
+    });
+  } catch (err) {
+    res.status(500).json({ error: err?.message || 'Bulk update failed' });
   }
 });
 

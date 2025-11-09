@@ -1,5 +1,7 @@
 // validators/jobs.js
 
+const VALID_STATUSES = ['interested', 'applied', 'phone_screen', 'interview', 'offer', 'rejected'];
+
 export async function validateJobCreate(input) {
   const errors = {};
 
@@ -66,6 +68,13 @@ export async function validateJobCreate(input) {
     }
   }
 
+  // NEW: Status validation (optional on create, defaults to 'interested')
+  if (input.status !== undefined && input.status !== null) {
+    if (!VALID_STATUSES.includes(input.status)) {
+      errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
+    }
+  }
+
   // Return result
   if (Object.keys(errors).length > 0) {
     return { 
@@ -94,6 +103,11 @@ export async function validateJobCreate(input) {
   }
   if (input.applicationDeadline) {
     value.applicationDeadline = new Date(input.applicationDeadline);
+  }
+
+  // NEW: Include status if provided (otherwise defaults to 'interested' in schema)
+  if (input.status) {
+    value.status = input.status;
   }
 
   return { ok: true, value };
@@ -167,6 +181,13 @@ export async function validateJobUpdate(input) {
     }
   }
 
+  // NEW: Status validation for updates
+  if (input.status !== undefined && input.status !== null) {
+    if (!VALID_STATUSES.includes(input.status)) {
+      errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
+    }
+  }
+
   if (Object.keys(errors).length > 0) {
     return { 
       ok: false, 
@@ -189,6 +210,111 @@ export async function validateJobUpdate(input) {
   if (input.salaryMax !== undefined) value.salaryMax = input.salaryMax;
   if (input.applicationDeadline !== undefined) {
     value.applicationDeadline = new Date(input.applicationDeadline);
+  }
+
+  // NEW: Include status if provided
+  if (input.status !== undefined) {
+    value.status = input.status;
+  }
+
+  return { ok: true, value };
+}
+
+/**
+ * Validate status update request
+ */
+export async function validateStatusUpdate(input) {
+  const errors = {};
+
+  // Status is required
+  if (!input.status) {
+    errors.status = 'Status is required';
+  } else if (!VALID_STATUSES.includes(input.status)) {
+    errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
+  }
+
+  // Note is optional but has max length
+  if (input.note !== undefined && input.note !== null) {
+    if (typeof input.note !== 'string') {
+      errors.note = 'Note must be a string';
+    } else if (input.note.length > 500) {
+      errors.note = 'Note must be 500 characters or less';
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return {
+      ok: false,
+      status: 422,
+      error: { code: 'VALIDATION_FAILED', fields: errors }
+    };
+  }
+
+  const value = {
+    status: input.status
+  };
+
+  if (input.note !== undefined && input.note !== null) {
+    value.note = input.note.trim();
+  }
+
+  return { ok: true, value };
+}
+
+/**
+ * Validate bulk status update request
+ */
+export async function validateBulkStatusUpdate(input) {
+  const errors = {};
+
+  // Job IDs array is required
+  if (!input.jobIds) {
+    errors.jobIds = 'Job IDs array is required';
+  } else if (!Array.isArray(input.jobIds)) {
+    errors.jobIds = 'Job IDs must be an array';
+  } else if (input.jobIds.length === 0) {
+    errors.jobIds = 'At least one job ID is required';
+  } else if (input.jobIds.length > 50) {
+    errors.jobIds = 'Cannot update more than 50 jobs at once';
+  } else {
+    // Validate each ID is a string
+    const invalidIds = input.jobIds.filter(id => typeof id !== 'string' || id.trim() === '');
+    if (invalidIds.length > 0) {
+      errors.jobIds = 'All job IDs must be non-empty strings';
+    }
+  }
+
+  // Status is required
+  if (!input.status) {
+    errors.status = 'Status is required';
+  } else if (!VALID_STATUSES.includes(input.status)) {
+    errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
+  }
+
+  // Note is optional but has max length
+  if (input.note !== undefined && input.note !== null) {
+    if (typeof input.note !== 'string') {
+      errors.note = 'Note must be a string';
+    } else if (input.note.length > 500) {
+      errors.note = 'Note must be 500 characters or less';
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return {
+      ok: false,
+      status: 422,
+      error: { code: 'VALIDATION_FAILED', fields: errors }
+    };
+  }
+
+  const value = {
+    jobIds: input.jobIds.map(id => id.trim()),
+    status: input.status
+  };
+
+  if (input.note !== undefined && input.note !== null) {
+    value.note = input.note.trim();
   }
 
   return { ok: true, value };
