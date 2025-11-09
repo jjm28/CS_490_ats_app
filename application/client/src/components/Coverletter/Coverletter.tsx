@@ -106,7 +106,8 @@ export default function Coverletter() {
             </div>
 
             {/* Sticky footer (always visible) */}
-            <div className="shrink-0 sticky bottom-0 px-4 md:px-6 py-3 border-t border-gray-200/70 bg-white">              <div className="flex justify-end gap-3">
+            <div className="shrink-0 sticky bottom-0 px-4 md:px-6 py-3 border-t border-gray-200/70 bg-white">              
+            <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setOpen(false)}
                   className="px-4 py-2 rounded-md bg-gray-100 text-gray-800 hover:bg-gray-200"

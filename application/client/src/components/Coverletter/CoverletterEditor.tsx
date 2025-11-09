@@ -306,7 +306,10 @@ export default function CoverletterEditor() {
   };
 
   const handleSave = () => {
-  try {}
+  try {
+
+    console.log(localStorage.getItem("authUser"))
+  }
   catch (err: any) {
 
   }

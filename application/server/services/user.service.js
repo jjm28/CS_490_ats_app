@@ -60,6 +60,22 @@ if(!isprovider){
     return { _id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName };
 }
 
+export async function createCoverletter({ userid, filename, lastSaved},coverletterdata) {
+  const db = getDb();
+  const coverletters = db.collection('coverletters');
+
+  const doc = {
+    owner: userid,
+    filename: filename,
+    coverletterdata: coverletterdata,
+    lastSaved: lastSaved
+  };
+
+  const res = await coverletters.insertOne(doc);
+  return { _id: res.insertedId, owner: doc.id };
+}
+
+
 export async function findUserByEmail(email) {
   const db = getDb();
   return db.collection('users').findOne({ email: String(email).toLowerCase() });
