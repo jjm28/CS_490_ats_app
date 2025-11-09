@@ -714,9 +714,12 @@ function JobsEntry() {
             </ul>
           )}
 
-          <div className="mt-6">
+          <div className="flex gap-1 mt-6 justify-between">
             <Button onClick={() => setShowForm(!showForm)}>
               {showForm ? 'Cancel' : 'Add new opportunity'}
+            </Button>
+            <Button onClick={() => navigate("/Jobs/Pipeline")}>
+              View Pipeline
             </Button>
           </div>
         </>
