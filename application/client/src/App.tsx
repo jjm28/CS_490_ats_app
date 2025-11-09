@@ -29,6 +29,12 @@ import Projects from "./components/Projects/Projects";
 
 import JobsEntry from './components/Jobs/JobsEntry';
 import JobsPipeline from './components/Jobs/JobsPipeline';
+import TemplateLibrary from "./components/Resume/TemplateLibrary"; 
+import TemplateEditor from "./components/Resume/TemplateEditor";   
+import ResumeCreator from "./components/Resume/ResumeCreator";
+import ResumeDocEditor from "./components/Resume/ResumeDocEditor";
+import ResumeList from "./components/Resume/ResumeList";
+import TemplatePreview from "./components/Resume/TemplatePreview";
 
 import './App.css';
 
@@ -78,6 +84,13 @@ function App() {
           <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
           <Route path="/coverletter/editor/:id?" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
           <Route path="/coverletter/share/:shareid?" element={<PrivateRoute><ShareView /></PrivateRoute>} />
+
+          <Route path="/templates" element={<PrivateRoute><TemplateLibrary/></PrivateRoute>} />
+          <Route path="/templates/:id/edit" element={<TemplateEditor/>} />
+          <Route path="/resumes/new" element={<ResumeCreator/>} />
+          <Route path="/resumes/:id/edit" element={<PrivateRoute><ResumeDocEditor /></PrivateRoute>} />
+          <Route path="/resumes" element={<PrivateRoute><ResumeList/></PrivateRoute>} />
+          <Route path="/templates/:id/preview" element={<PrivateRoute><TemplatePreview /></PrivateRoute>} />
         </Routes>
       </div>
     </>

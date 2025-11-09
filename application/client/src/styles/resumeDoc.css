@@ -1,0 +1,203 @@
+/* ---------- Layout frame ---------- */
+.r-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f7f7f5;
+}
+
+.r-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.r-editing-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f2b38; /* brand-navy-ish */
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.r-editing-name {
+  color: #0f2b38;
+}
+
+.r-dirty {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-left: 8px;
+}
+
+.r-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.r-workspace {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+/* ---------- A4-ish page ---------- */
+.r-page {
+  width: 816px;          /* ~ US Letter at 96dpi */
+  min-height: 1056px;    /* tall enough to feel like a page */
+  background: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 56px 72px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
+  color: #0f172a;
+}
+
+.r-page.is-preview .editable {
+  outline: none !important;
+  cursor: default;
+}
+
+/* ---------- Head block ---------- */
+.r-title {
+  font-size: 2.25rem;
+  line-height: 1.2;
+  font-weight: 800;
+  margin: 4px 0 2px;
+  text-align: center;
+}
+
+.r-sub {
+  font-size: 0.95rem;
+  color: #475569;
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+/* ---------- Sections ---------- */
+.r-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.r-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.r-h {
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+  text-transform: lowercase;
+  color: #0f2b38;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 4px;
+}
+
+/* ---------- Editable text blocks ---------- */
+
+/* Ensure all editable regions type left-to-right and align left */
+.editable,
+.r-editable {
+  direction: ltr;           /* force LTR typing */
+  text-align: left;         /* left align text while editing */
+  unicode-bidi: plaintext;  /* safe mixed bidi handling */
+  outline: none;
+  min-height: 24px;
+}
+
+/* But allow the subtitle to remain centered visually */
+.r-sub { text-align: center; }
+
+/* Prevent nested tags from re-centering or flipping direction */
+.r-editable * {
+  text-align: inherit;
+  direction: inherit;
+}
+
+.editable.is-preview {
+  pointer-events: none;
+}
+
+.editable:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+}
+
+/* Some comfortable defaults inside sections */
+.r-editable p {
+  margin: 0.25rem 0;
+}
+.r-editable ul {
+  margin: 0.25rem 1.25rem;
+  list-style: disc;
+}
+.r-editable ol {
+  margin: 0.25rem 1.25rem;
+  list-style: decimal;
+}
+
+/* ---------- Toolbar ---------- */
+.r-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  margin-right: 8px;
+}
+
+.r-toolbar.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.r-toolbar button {
+  font: 600 13px/1 system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.r-toolbar button:hover {
+  background: #eef2f7;
+}
+
+.r-block-select {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.r-color {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.r-tool-sep {
+  width: 1px;
+  height: 24px;
+  background: #e5e7eb;
+  margin: 0 2px;
+}
