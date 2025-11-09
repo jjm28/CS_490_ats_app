@@ -100,8 +100,7 @@ export  const saveCoverletter = async (  coverletterinfo: Coverletter ): Promise
   return data as Promise<PostCoverletterResponse>;
 };
 
-export  const 
-updateCoverletter = async (  coverletterinfo: UpdateCoverletter ): Promise<PostCoverletterResponse> => {
+export  const  updateCoverletter = async (  coverletterinfo: UpdateCoverletter ): Promise<PostCoverletterResponse> => {
   const res = await fetch(API_URL + "update", {
     method: "PUT",
     headers: authHeaders() ,
@@ -116,5 +115,51 @@ updateCoverletter = async (  coverletterinfo: UpdateCoverletter ): Promise<PostC
 };
 
 
+export interface CreateSharedCoverletter {
+  userid: string;
+  coverletterid: string;
 
+}
+export interface PostSharedCoverletterResponse {
+  sharedid: string;
+  url: string;
+  owner: string;
+}
+export  const createdsharedcoverletter = async (  coverletterinfo: CreateSharedCoverletter ): Promise<PostSharedCoverletterResponse> => {
+  const res = await fetch(API_URL + "share", {
+    method: "POST",
+    headers: authHeaders() ,
+    body: JSON.stringify(coverletterinfo),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Unknown error occurred");
+  }
 
+  return data as Promise<PostSharedCoverletterResponse>;
+};
+
+export interface fetchSharedCoverletter {
+sharedid: string;
+
+}
+export interface GetSharedCoverletterResponse {
+  _id: string;
+  owner: string;
+  filename: string;
+  templateKey: Template["key"];
+  coverletterdata: CoverLetterData;
+  lastSaved: string;
+}
+export  const fetchSharedCoverletter = async (  coverletterinfo: fetchSharedCoverletter ): Promise<GetSharedCoverletterResponse> => {
+  const res = await fetch(API_URL+ `share?sharedid=${coverletterinfo.sharedid}` , {
+    headers: authHeaders() ,  });
+  console.log(API_URL+ `/share?sharedid=${coverletterinfo.sharedid}`)
+  const data = await res.json();
+  
+  if (!res.ok) {
+    throw new Error(data.error || "Unknown error occurred");
+  }
+
+  return data as Promise<GetSharedCoverletterResponse>;
+};

@@ -7,8 +7,9 @@ import type { SectionKey } from "./Coverletterstore";
 import { previewRegistry } from ".";
 import { pdfRegistry } from ".";
 import Button from "../StyledComponents/Button";
-import { saveCoverletter , updateCoverletter} from "../../api/coverletter";
+import { saveCoverletter , updateCoverletter,createdsharedcoverletter} from "../../api/coverletter";
 import type { GetCoverletterResponse } from "../../api/coverletter";
+import { Share } from "lucide-react";
 
 type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse};
 
@@ -84,7 +85,6 @@ export default function CoverletterEditor() {
         setCoverletterID(docid);
         setFilename(coverletterData.filename)
         setData(coverletterData.coverletterdata);
-        console.log(coverletterData)
       }
       }, [docid,coverletterData]);
 
@@ -98,9 +98,13 @@ export default function CoverletterEditor() {
 
     useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
-    if (location.pathname !== "/cover-letter-editor") {
-      sessionStorage.removeItem("CoverletterID");
+     if (location.pathname === "/coverletter/editor") {
+      // we are currently ON the editor page → don't clear yet
+     
+      return;
     }
+    // leaving the editor → clear
+    sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
 
   if (!template) return null;
@@ -362,7 +366,6 @@ export default function CoverletterEditor() {
       try {
       const user = JSON.parse(localStorage.getItem("authUser") ?? "")
        const ts = new Date().toLocaleTimeString();
-     
       const Coverletter = await updateCoverletter({coverletterid: CoverletterID,userid: user._id, filename: filename,  coverletterdata: data, lastSaved: ts});
       setLastSaved(ts);
       setCoverletterID(Coverletter._id)     
@@ -391,41 +394,77 @@ export default function CoverletterEditor() {
 
         URL.revokeObjectURL(url);
   }
+  
+    const handleShare = async () => {
+      try {
+      const user = JSON.parse(localStorage.getItem("authUser") ?? "")
+      const ts = new Date().toLocaleTimeString();
+      const Sharedcoverletter = await createdsharedcoverletter({userid: user._id,coverletterid: CoverletterID ?? ""});
+      navigator.clipboard.writeText(Sharedcoverletter.url)
+        .then(() => {
+          alert("Link copied to clipboard!");
+        })
+        .catch((err) => {
+          console.error("Failed to copy: ", err);
+        });
+        console.log(Sharedcoverletter)
+  }
+  catch (err: any) {
+      if (err instanceof Error) {
+        setErr(err.message);
+      } else {
+        setErr("Something went wrong. Please try again.");
+      }
+  }
 
 
+  }
+  
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10">
-    <div className="mb-4">
-      <h1 className="text-2xl font-semibold mb-2">Coverletter Editor Mode</h1>
+<div className="max-w-7xl mx-auto px-6 py-10">
+  <div className="mb-4">
+    <h1 className="text-2xl font-semibold mb-2">Coverletter Editor Mode</h1>
 
-      <div className="flex items-center justify-end gap-3">
-        {error ? (
+    {/* Toolbar */}
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* Left: Share */}
+      <Button onClick={handleShare}>Share</Button>
+
+      {/* Middle: filename */}
+      <label
+        htmlFor="filename"
+        className="text-sm font-medium text-gray-700 whitespace-nowrap"
+      >
+        File name:
+      </label>
+      <input
+        id="filename"
+        type="text"
+        className="flex-1 max-w-md rounded border px-3 py-2 text-sm"
+        placeholder="e.g., Acme Sales – Dec 2025"
+        value={filename}
+        onChange={(e) => setFilename(e.target.value)}
+      />
+
+      {/* Spacer pushes the rest to the right */}
+      <div className="flex-1" />
+
+      {/* Right: status + actions */}
+      {error ? (
         <span className="text-xs text-red-500">Error: {error}</span>
-        ) : (
-        lastSaved && (          <span className="text-xs text-gray-500">Saved {lastSaved}</span>     )
-        )}
-<div className="mb-3 flex items-center gap-3">
-  <label htmlFor="filename" className="text-sm font-medium text-gray-700">
-    File name:
-  </label>
-  <input
-    id="filename"
-    type="text"
-    className="flex-1 max-w-md rounded border px-3 py-2 text-sm"
-    placeholder="e.g., Acme Sales – Dec 2025"
-    value={filename}
-    onChange={(e) => setFilename(e.target.value)}
-  />
-</div>
-        <Button onClick={handleSave}>Save</Button>
-        <Button onClick={handleImport}>Import</Button>
-      </div>
+      ) : (
+        lastSaved && (
+          <span className="text-xs text-gray-500">Saved {lastSaved}</span>
+        )
+      )}
+      <Button onClick={handleSave}>Save</Button>
+      <Button onClick={handleImport}>Import</Button>
     </div>
+  </div>
 
-
-        <p className="text-gray-600 mb-6">
-        Loaded: <strong>{template.title}</strong> ({template.key})
-        </p>
+  <p className="text-gray-600 mb-6">
+    Loaded: <strong>{template.title}</strong> ({template.key})
+  </p>
 
 
 {/* Coverletter on Client Side*/}

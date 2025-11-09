@@ -1,5 +1,5 @@
 import express from 'express';
-import { createCoverletter, updateCoverletter, getCoverletter} from '../services/user.service.js';
+import { createCoverletter, updateCoverletter, getCoverletter, createSharedLink, fetchSharedCoverletter} from '../services/coverletter.service.js';
 import { verifyJWT } from '../middleware/auth.js'; 
 import 'dotenv/config';
 import jwt from "jsonwebtoken";
@@ -61,5 +61,41 @@ router.put('/update', async (req, res) => {
 });
 
 
+  // POST /api/coverletter/share
+router.post('/share', async (req, res) => {
+  try {
+    const { coverletterid, userid} = req.body || {};
+    if (!userid || !coverletterid) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    const coverletter = await createSharedLink({ userid,coverletterid});
+
   
+    return res.status(201).json(coverletter);
+  } catch (err) {
+    console.log(err)
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/share', async (req, res) => {
+  try {
+    const { sharedid } = req.query 
+    if (!sharedid ) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    const sharedcoverletter = await fetchSharedCoverletter({ sharedid});
+    if (sharedcoverletter == null){
+      return res.status(404).json({ error: "Share link invalid or expired" });
+
+    }
+  
+    return res.status(201).json(sharedcoverletter);
+  } catch (err) {
+    console.log(err)
+    return res.status(500).json({ error: "Share link invalid or expired" });
+  }
+});
+
+
 export default router;
