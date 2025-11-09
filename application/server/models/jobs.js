@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 const JobSchema = new Schema({
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    userId: { type: String, ref: 'User', required: true, index: true },
 
     jobTitle: { type: String, required: true, maxlength: 150 },
     company: { type: String, required: true, maxlength: 150 },
@@ -13,8 +13,8 @@ const JobSchema = new Schema({
     jobPostingUrl: { type: String, default: '' },
     applicationDeadline: { type: Date },
     description: { type: String, default: '', maxlength: 2000 },
-    industry: { type: String, required: true, index: true},
-    type: { type: String, required: true, index: true }
+    industry: { type: String, index: true},
+    type: { type: String, index: true }
 }, {timestamps: true})
 
 const Jobs =

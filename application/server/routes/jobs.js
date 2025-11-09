@@ -8,11 +8,22 @@ import {
     getJob, 
     updateJob, 
     deleteJob 
-} from "../services/jobs.js"; // or wherever these functions are
+} from "../services/jobs.service.js";
 
 const router = Router();
 
-router.use(verifyJWT);
+// router.use(verifyJWT);
+
+router.use((req, res, next) => {
+  if (req.headers['x-dev-user-id']) {
+    // fake user for dev
+    req.user = { _id: req.headers['x-dev-user-id'] };
+    return next();
+  }
+  // otherwise run real JWT
+  verifyJWT(req, res, next);
+});
+
 
 function getUserId(req) {
   // real logged-in user (preferred)

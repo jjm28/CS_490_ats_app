@@ -21,7 +21,7 @@ import jobRoutes from "./routes/jobs.js";
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORGIN = process.env.CORS_ORGIN || true;
-const DB = process.env.DB_NAME || 'appb'
+const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
 

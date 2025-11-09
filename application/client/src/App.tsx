@@ -21,6 +21,8 @@ import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
 import Projects from "./components/Projects/Projects";
 
+import JobsEntry from './components/Jobs/JobsEntry';
+
 import './App.css';
 
 function App() {
@@ -53,6 +55,7 @@ function App() {
           <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} /> {/* Protected Routes */}
           <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
+          <Route path="/JobsEntry" element={<PrivateRoute><JobsEntry /></PrivateRoute>} />
         </Routes>
       </div>
     </>
