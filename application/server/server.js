@@ -16,12 +16,12 @@ import employmentRouter from './routes/employment.js';
 import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
-
+import companyResearch from './routes/company-research.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORGIN = process.env.CORS_ORGIN || true;
-const DB = process.env.DB_NAME || 'appb'
+const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
 
@@ -38,6 +38,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(companyResearch);
 
 // Start after DB connects
 try {
