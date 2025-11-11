@@ -4,58 +4,13 @@ import PipelineColumn from "./PipelineColumn";
 import API_BASE from "../../utils/apiBase";
 import Button from "../StyledComponents/Button";
 import { useNavigate } from "react-router-dom";
-
-// Types
-interface Job {
-  _id: string;
-  jobTitle: string;
-  company: string;
-  status:
-    | "interested"
-    | "applied"
-    | "phone_screen"
-    | "interview"
-    | "offer"
-    | "rejected";
-  statusHistory?: Array<{ status: string; timestamp: string; note?: string }>;
-  location?: string;
-  salaryMin?: number;
-  salaryMax?: number;
-  jobPostingUrl?: string;
-  applicationDeadline?: string;
-  description?: string;
-  industry: string;
-  type: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const STATUS_ORDER = [
-  "interested",
-  "applied",
-  "phone_screen",
-  "interview",
-  "offer",
-  "rejected",
-] as const;
-
-const STATUS_LABELS: Record<(typeof STATUS_ORDER)[number], string> = {
-  interested: "Interested",
-  applied: "Applied",
-  phone_screen: "Phone Screen",
-  interview: "Interview",
-  offer: "Offer",
-  rejected: "Rejected",
-};
-
-const STATUS_COLORS: Record<(typeof STATUS_ORDER)[number], string> = {
-  interested: "bg-gray-100 text-gray-800",
-  applied: "bg-blue-100 text-blue-800",
-  phone_screen: "bg-purple-100 text-purple-800",
-  interview: "bg-yellow-100 text-yellow-800",
-  offer: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-};
+import {
+  type Job,
+  STATUS_ORDER,
+  STATUS_DISPLAY,
+  STATUS_COLORS,
+  type JobStatus,
+} from "../../types/jobs.types";
 
 const JobsPipeline: React.FC = () => {
   const token = useMemo(
@@ -68,12 +23,12 @@ const JobsPipeline: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
+  const navigate = useNavigate();
+
   // Fetch jobs
   useEffect(() => {
     fetchJobs();
   }, []);
-
-  const navigate = useNavigate();
 
   const fetchJobs = async () => {
     setLoading(true);
@@ -95,12 +50,12 @@ const JobsPipeline: React.FC = () => {
     }
   };
 
-  const groupedJobs: Record<string, Job[]> = STATUS_ORDER.reduce(
+  const groupedJobs: Record<JobStatus, Job[]> = STATUS_ORDER.reduce(
     (acc, status) => {
       acc[status] = jobs.filter((job) => job.status === status);
       return acc;
     },
-    {} as Record<string, Job[]>
+    {} as Record<JobStatus, Job[]>
   );
 
   const handleDragEnd = async (event: any) => {
@@ -109,7 +64,7 @@ const JobsPipeline: React.FC = () => {
     if (!over) return;
 
     const draggedJobId = active.id;
-    const targetStatus = over.id; // the status of the column you dropped into
+    const targetStatus = over.id as JobStatus;
 
     const job = jobs.find((j) => j._id === draggedJobId);
     if (!job || job.status === targetStatus) return;
@@ -154,14 +109,16 @@ const JobsPipeline: React.FC = () => {
             <PipelineColumn
               key={status}
               status={status}
-              title={STATUS_LABELS[status]}
+              title={STATUS_DISPLAY[status]}
               colorClass={STATUS_COLORS[status]}
               jobs={groupedJobs[status]}
             />
           ))}
         </DndContext>
       </div>
-      <Button className="mt-4" onClick={() => navigate("/Jobs")}>Back to Jobs</Button>
+      <Button className="mt-4" onClick={() => navigate("/Jobs")}>
+        Back to Jobs
+      </Button>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-// services/jobs.js
+// services/jobs.service.js
 import Jobs from "../models/jobs.js";
 import mongoose from "mongoose";
 
@@ -128,4 +128,61 @@ export async function getJobsByStatus({ userId, status }) {
 
   const jobs = await Jobs.find(filter).sort({ updatedAt: -1 }).lean();
   return jobs;
+}
+
+export async function addApplicationHistory({ userId, id, action }) {
+  try {
+    const job = await Jobs.findOne({ _id: id, userId });
+    if (!job) return null;
+    
+    job.applicationHistory.push({
+      action: action.trim(),
+      timestamp: new Date()
+    });
+    
+    await job.save();
+    return job;
+  } catch (err) {
+    console.error('Error in addApplicationHistory service:', err);
+    throw err;
+  }
+}
+
+export async function updateApplicationHistory({ userId, id, historyIndex, action }) {
+  try {
+    const job = await Jobs.findOne({ _id: id, userId });
+    if (!job) return null;
+    
+    if (historyIndex >= job.applicationHistory.length) {
+      return null;
+    }
+    
+    job.applicationHistory[historyIndex].action = action.trim();
+    // Keep original timestamp
+    
+    await job.save();
+    return job;
+  } catch (err) {
+    console.error('Error in updateApplicationHistory service:', err);
+    throw err;
+  }
+}
+
+export async function deleteApplicationHistory({ userId, id, historyIndex }) {
+  try {
+    const job = await Jobs.findOne({ _id: id, userId });
+    if (!job) return null;
+    
+    if (historyIndex >= job.applicationHistory.length) {
+      return null;
+    }
+    
+    job.applicationHistory.splice(historyIndex, 1);
+    
+    await job.save();
+    return job;
+  } catch (err) {
+    console.error('Error in deleteApplicationHistory service:', err);
+    throw err;
+  }
 }
