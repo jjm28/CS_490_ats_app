@@ -1,113 +1,153 @@
-import { v4 as uuidv4 } from "uuid";
-
-// Support either env name (same pattern as profiles.ts)
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_BASE ||
-  "http://localhost:5050";
-
-function getDevUserId(): string {
-  // Keep one per browser (aligns with your dev middleware)
-  let id = localStorage.getItem("devUserId");
-  if (!id) {
-    const ns = localStorage.getItem("devUserNs") || "dev";
-    id = `${ns}-${uuidv4().slice(0, 8)}`;
-    localStorage.setItem("devUserId", id);
-  }
-  return id;
-}
-
-function authHeaders() {
-  const token =
-    localStorage.getItem("authToken") || localStorage.getItem("token") || "";
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    "x-dev-user-id": getDevUserId(), // dev-only header so backend attaches user
-  };
-}
-
-// ----- Types -----
-export type TemplateType = "chronological" | "functional" | "hybrid" | "custom";
-
-export type Resume = {
-  _id: string;
+export type ResumeData = {
   name: string;
-  templateId: string;
-  ownerId?: string;
-  content: any; // free-form editor payload
-  archived?: boolean;
+  title?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  summary?: string;
+  experience?: Array<{ company: string; role: string; start: string; end: string; bullets?: string[] }>;
+  education?: Array<{ school: string; degree: string; years?: string }>;
+  skills?: string[];
+  projects?: Array<{ name: string; link?: string; summary?: string; bullets?: string[] }>;
+  meta?: { tags?: string; [k: string]: any };
+};
+
+export type ResumeDoc = {
+  _id: string;
+  userid: string;
+  filename: string;
+  templateKey: "chronological" | "functional" | "hybrid";
+  resumedata: ResumeData;
+  lastSaved?: string;
   createdAt?: string;
   updatedAt?: string;
 };
 
-export type ResumeCreatePayload = {
-  name: string;
-  templateId: string;
-  content?: any;
-};
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ""; // e.g., "http://localhost:5050"
+const json = (x: any) => ({ "Content-Type": "application/json", ...(x || {}) });
 
-export type ResumeUpdatePayload = Partial<Pick<Resume, "name" | "templateId" | "content" | "archived">>;
-
-// Base path
-const EP = "/api/resumes";
-
-// ----- API calls -----
-export async function listResumes(): Promise<Resume[]> {
-  const res = await fetch(API_BASE + EP, {
-    credentials: "include",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`List resumes failed: ${res.status} ${res.statusText}`);
+async function handle(res: Response) {
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      msg = body?.message || body?.error || msg;
+      const code = body?.code;
+      throw Object.assign(new Error(msg), { code, status: res.status, details: body });
+    } catch {
+      throw new Error(msg);
+    }
+  }
+  // No content
+  if (res.status === 204) return null;
   return res.json();
 }
 
-export async function getResume(id: string): Promise<Resume> {
-  const res = await fetch(`${API_BASE + EP}/${id}`, {
-    credentials: "include",
-    headers: authHeaders(),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || data?.message || `Get resume failed (${res.status})`);
-  return data;
+/** List all resumes for a user */
+export async function listResumes(params: { userid: string }): Promise<ResumeDoc[]> {
+  const url = new URL(`${API_BASE}/api/resumes`);
+  url.searchParams.set("userid", params.userid);
+  const res = await fetch(url.toString(), { method: "GET" });
+  return handle(res);
 }
 
-export async function createResume(payload: ResumeCreatePayload): Promise<Resume> {
-  const res = await fetch(API_BASE + EP, {
+/** Create a resume (usually from a selected template) */
+export async function saveResume(input: {
+  userid: string;
+  filename: string;
+  templateKey: ResumeDoc["templateKey"];
+  resumedata: ResumeData;
+  lastSaved?: string;
+}): Promise<{ _id: string }> {
+  const res = await fetch(`${API_BASE}/api/resumes`, {
     method: "POST",
-    credentials: "include",
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
+    headers: json(null),
+    body: JSON.stringify(input),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || data?.message || `Create resume failed (${res.status})`);
-  return data;
+  return handle(res);
 }
 
-export async function updateResume(id: string, payload: ResumeUpdatePayload): Promise<Resume> {
-  const res = await fetch(`${API_BASE + EP}/${id}`, {
+/** Get one resume with full data */
+export async function getFullResume(params: {
+  userid: string;
+  resumeid: string;
+}): Promise<ResumeDoc> {
+  const url = new URL(`${API_BASE}/api/resumes/${params.resumeid}`);
+  url.searchParams.set("userid", params.userid);
+  const res = await fetch(url.toString(), { method: "GET" });
+  return handle(res);
+}
+
+/** Update filename/data (and lastSaved timestamp) */
+export async function updateResume(input: {
+  resumeid: string;
+  userid: string;
+  filename?: string;
+  resumedata?: ResumeData;
+  templateKey?: ResumeDoc["templateKey"]; // if user switches layout
+  lastSaved?: string;
+}): Promise<{ ok: true }> {
+  const res = await fetch(`${API_BASE}/api/resumes/${input.resumeid}`, {
     method: "PUT",
-    credentials: "include",
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
+    headers: json(null),
+    body: JSON.stringify(input),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || data?.message || `Update resume failed (${res.status})`);
-  return data;
+  return handle(res);
 }
 
-export async function deleteResume(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE + EP}/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-    headers: authHeaders(),
+/** Delete a resume */
+export async function deleteResume(params: { resumeid: string; userid: string }): Promise<{ ok: true }> {
+  const url = new URL(`${API_BASE}/api/resumes/${params.resumeid}`);
+  url.searchParams.set("userid", params.userid);
+  const res = await fetch(url.toString(), { method: "DELETE" });
+  return handle(res);
+}
+
+/** Create a share link for a resume (read-only shared view) */
+export async function createSharedResume(input: {
+  userid: string;
+  resumeid: string;
+}): Promise<{ url: string; sharedid: string }> {
+  const res = await fetch(`${API_BASE}/api/resumes/${input.resumeid}/share`, {
+    method: "POST",
+    headers: json(null),
+    body: JSON.stringify(input),
   });
-  if (!res.ok) {
-    let msg = `Delete resume failed (${res.status})`;
-    try {
-      const data = await res.json();
-      msg = data?.error || data?.message || msg;
-    } catch {}
-    throw new Error(msg);
-  }
+  return handle(res);
+}
+
+/** Load a shared resume via shared id (no auth required) */
+export async function fetchSharedResume(params: {
+  sharedid: string;
+}): Promise<{
+  filename: string;
+  templateKey: ResumeDoc["templateKey"];
+  resumedata: ResumeData;
+  lastSaved?: string;
+}> {
+  const res = await fetch(`${API_BASE}/api/resumes/shared/${params.sharedid}`, { method: "GET" });
+  return handle(res);
+}
+
+/* ---------------- Optional template helpers (only if you keep templates.ts) ---------------- */
+
+/** Get available resume templates (from server) */
+export async function listResumeTemplates(): Promise<
+  Array<{ key: ResumeDoc["templateKey"]; title: string; blurb?: string; default?: boolean }>
+> {
+  const res = await fetch(`${API_BASE}/api/resume-templates`, { method: "GET" });
+  return handle(res);
+}
+
+/** Set default template for new resumes (per user/org) */
+export async function setDefaultResumeTemplate(input: {
+  userid: string;
+  templateKey: ResumeDoc["templateKey"];
+}): Promise<{ ok: true }> {
+  const res = await fetch(`${API_BASE}/api/resume-templates/default`, {
+    method: "POST",
+    headers: json(null),
+    body: JSON.stringify(input),
+  });
+  return handle(res);
 }

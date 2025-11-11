@@ -1,119 +1,89 @@
-// application/client/src/api/templates.ts
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_BASE ||
-  "http://localhost:5050";
+export type TemplateKey = "chronological" | "functional" | "hybrid";
 
-function authHeaders() {
-  const token = localStorage.getItem("authToken") || localStorage.getItem("token") || "";
-  const dev = localStorage.getItem("devUserId");
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(dev ? { "x-dev-user-id": dev } : {}),
-  };
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ""; // e.g., http://localhost:5050
+const json = (extra?: Record<string, string>) => ({
+  "Content-Type": "application/json",
+  ...(extra ?? {}),
+});
+
+async function handle(res: Response) {
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      msg = body?.message || body?.error || msg;
+      throw Object.assign(new Error(msg), { status: res.status, details: body });
+    } catch {
+      throw new Error(msg);
+    }
+  }
+  return res.status === 204 ? null : res.json();
 }
 
-export type TemplateType = "chronological" | "functional" | "hybrid" | "custom";
-export type Template = {
-  _id: string;
-  name: string;
-  type: TemplateType;
-  style?: { primary?: string; font?: string };
-  layout?: { columns?: 1 | 2; sections?: string[] };
-  isDefaultForOwner?: boolean;
-};
-
-export async function listTemplates(): Promise<Template[]> {
-  const r = await fetch(`${API_BASE}/api/templates`, { credentials: "include", headers: authHeaders() });
-  if (!r.ok) throw new Error("List templates failed");
-  return r.json();
-}
-
-export async function cloneTemplate(id: string) {
-  const r = await fetch(`${API_BASE}/api/templates/${id}/clone`, { method: "POST", credentials: "include", headers: authHeaders() });
-  if (!r.ok) throw new Error("Clone failed");
-  return r.json();
-}
-
-export async function getTemplate(id: string) {
-  const res = await fetch(`${API_BASE}/api/templates/${id}`, {
-    credentials: "include",
-    headers: authHeaders(),
+/** === Default Template === */
+export async function getDefaultResumeTemplate(params: {
+  userid: string;
+  token?: string;
+}): Promise<{ templateKey: TemplateKey | null }> {
+  const url = new URL(`${API_BASE}/api/resume-templates/default`);
+  url.searchParams.set("userid", params.userid);
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: params.token ? json({ Authorization: `Bearer ${params.token}` }) : json(),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || data?.message || `Get template failed (${res.status})`);
-  return data;
+  return handle(res);
 }
 
-export async function updateTemplate(id: string, body: Partial<Template>) {
-  const r = await fetch(`${API_BASE}/api/templates/${id}`, {
-    method: "PUT",
-    credentials: "include",
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error("Update template failed");
-  return r.json();
-}
-/*
-export async function importTemplateFromResume(resumeId: string, name: string) { // NEW
-  const r = await fetch(`${API_BASE}/api/templates/import-from-resume`, {
+export async function setDefaultResumeTemplate(input: {
+  userid: string;
+  templateKey: TemplateKey;
+  token?: string;
+}): Promise<{ ok: true }> {
+  const res = await fetch(`${API_BASE}/api/resume-templates/default`, {
     method: "POST",
-    credentials: "include",
-    headers: authHeaders(),
-    body: JSON.stringify({ resumeId, name }),
+    headers: input.token ? json({ Authorization: `Bearer ${input.token}` }) : json(),
+    body: JSON.stringify({ userid: input.userid, templateKey: input.templateKey }),
   });
-  if (!r.ok) throw new Error("Import template failed");
-  return r.json();
+  return handle(res);
 }
-*/
-export async function importTemplate(payload: {
-  name: string;
-  type?: "chronological" | "functional" | "hybrid" | "custom";
+
+export async function createResumeTemplate(input: {
+  userid: string;
+  title: string;
+  templateKey: TemplateKey;
   style?: any;
-  layout?: any;
-  previewHtml?: string | null;
-}) {
-  const res = await fetch(`${API_BASE}/api/templates/import`, { 
+  token?: string;
+}): Promise<{ templateId: string }> {
+  const res = await fetch(`${API_BASE}/api/resume-templates`, {
     method: "POST",
-    credentials: "include",
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
+    headers: input.token ? json({ Authorization: `Bearer ${input.token}` }) : json(),
+    body: JSON.stringify(input),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || data?.message || "Import failed");
-  return data;
+  return handle(res);
 }
 
-export async function getDefaultTemplate() {
-  const res = await fetch(`${API_BASE}/api/templates/default`, {
-    credentials: "include",
-    headers: authHeaders(),
+export async function listResumeTemplates(params: {
+  userid: string;
+  token?: string;
+}): Promise<Array<{ _id: string; title: string; templateKey: TemplateKey; owner: string; style?: any }>> {
+  const url = new URL(`${API_BASE}/api/resume-templates`);
+  url.searchParams.set("userid", params.userid);
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: params.token ? json({ Authorization: `Bearer ${params.token}` }) : json(),
   });
-  if (res.status === 204) return null;
-  if (!res.ok) throw new Error("Failed to get default");
-  return res.json();
+  return handle(res);
 }
 
-export async function setDefaultTemplate(id: string) {
-  const res = await fetch(`${API_BASE}/api/templates/${id}/default`, {
-    method: "POST",                   // <-- POST (not PUT)
-    credentials: "include",
-    headers: authHeaders(),
+export async function shareResumeTemplate(input: {
+  templateId: string;
+  visibility: "private" | "team" | "org";
+  token?: string;
+}): Promise<{ ok: true }> {
+  const res = await fetch(`${API_BASE}/api/resume-templates/${input.templateId}/share`, {
+    method: "POST",
+    headers: input.token ? json({ Authorization: `Bearer ${input.token}` }) : json(),
+    body: JSON.stringify({ visibility: input.visibility }),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || "Set default failed");
-  return data;                        // returns the updated template
-}
-
-export async function deleteTemplate(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/templates/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-    headers: authHeaders(),
-  });
-  if (res.status === 204) return;
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || data?.message || "Delete failed");
+  return handle(res);
 }

@@ -201,18 +201,19 @@ function Navbar() {
               </PopoverPanel>
             </Popover>
             <Popover className="relative"> 
-            <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium"> {/* NEW */}
+            <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
               Resumes 
             </PopoverButton> 
             <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg"> 
-              <NavLink to="/templates" className="block px-4 py-2 text-gray-700 hover:bg-gray-100"> 
-                Resume Templates 
-              </NavLink> 
-              <NavLink to="/resumes" className="block px-4 py-2 text-gray-700 hover:bg-gray-100"> 
-                Resumes 
-              </NavLink> 
+              {/* OLD: <NavLink to="/templates" ...>Resume Templates</NavLink> */}
+              <NavLink to="/resumes/new" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                Resume Templates
+              </NavLink>
+              <NavLink to="/resumes" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                Resumes
+              </NavLink>
             </PopoverPanel> 
-          </Popover> 
+          </Popover>
           </div>
 
           <div className="flex items-center space-x-4">

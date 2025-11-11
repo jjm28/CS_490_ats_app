@@ -1,147 +1,114 @@
 import express from "express";
-import Resume from "../models/resume.js";
-import ResumeTemplate from "../models/resumeTemplate.js";
-import { validate, createResumeZ, updateResumeZ } from "../validators/templates.js";
 import { verifyJWT } from "../middleware/auth.js";
+import {
+  createResume,
+  updateResume,
+  getResume,
+  deleteResume,
+  createSharedResume,
+  fetchSharedResume,
+} from "../services/resume.service.js";
 
-const r = express.Router();
+const router = express.Router();
+router.use(verifyJWT);
 
-function requireUserId(req, res) {
-    const id = req.user?._id?.toString?.();
-    if (!id) {
-      res.status(401).json({ error: "Unauthorized" });
-      return null;
-    }
-    return id;
-  }
-
-// List my resumes
-r.get("/", verifyJWT, async (req, res) => {
-  const me = req.user._id;
-  const list = await Resume.find({ ownerId: me, archived: false }).sort({ updatedAt: -1 });
-  res.json(list);
-});
-
-// Create from template
-r.post("/", verifyJWT, validate(createResumeZ), async (req, res) => {
-  const me = requireUserId(req, res); if (!me) return;
-
-  const rawName = (req.body.name || "").trim();
-  const safeContent = req.body.content || {};
-
-  // --- SCRATCH MODE: no templateId provided ---
-  if (!req.body.templateId) {
-    try {
-      const doc = await Resume.create({
-        name: rawName || "Untitled Resume",
-        templateId: null,        // <- important: explicitly null for scratch
-        ownerId: me,
-        content: safeContent,
-        tags: [],
-        groupId: null,
-        version: 1,
-      });
-      return res.status(201).json(doc);
-    } catch (e) {
-      console.error(e);
-      return res.status(500).json({ error: "CreateFailed" });
-    }
-  }
-
-  // --- TEMPLATE MODE (existing behavior) ---
-  const tpl = await ResumeTemplate.findById(req.body.templateId);
-  if (!tpl) return res.status(400).json({ error: "TemplateNotFound" });
-
-  const allowed =
-    tpl.origin === "system" ||
-    tpl.ownerId?.toString() === me ||
-    tpl.isShared ||
-    (tpl.sharedWith || []).some((u) => u?.toString() === me);
-
-  if (!allowed) return res.status(403).json({ error: "ForbiddenTemplate" });
-
-  const safeName =
-    rawName.length > 0 ? rawName : `${tpl.name} Resume`;
-
+// GET /api/resumes   or   /api/resumes?resumeid=...
+router.get("/", async (req, res) => {
   try {
-    const doc = await Resume.create({
-      name: safeName,
-      templateId: tpl._id.toString(),
-      ownerId: me,
-      content: safeContent,
-      tags: [],
-      groupId: null,
-      version: 1,
-    });
-    return res.status(201).json(doc);
+    const { userid, resumeid } = req.query;
+    if (!userid) return res.status(400).json({ error: "Missing user" });
+    const out = await getResume({ userid, resumeid });
+    return res.status(200).json(out);
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: "CreateFailed" });
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
-
-// Get one
-r.get("/:id", verifyJWT, async (req, res) => {
-  const doc = await Resume.findById(req.params.id);
-  if (!doc) return res.status(404).json({ error: "NotFound" });
-  if (doc.ownerId !== req.user._id.toString()) return res.status(403).json({ error: "Forbidden" });
-  res.json(doc);
-});
-
-// Update (rename/content/switch template)
-r.put("/:id", verifyJWT, validate(updateResumeZ), async (req, res) => {
-  const doc = await Resume.findById(req.params.id);
-  if (!doc) return res.status(404).json({ error: "NotFound" });
-  if (doc.ownerId !== req.user._id.toString()) return res.status(403).json({ error: "Forbidden" });
-
-  if (req.body.templateId) {
-    const tpl = await ResumeTemplate.findById(req.body.templateId);
-    if (!tpl) return res.status(400).json({ error: "TemplateNotFound" });
-
-    const me = requireUserId(req, res); if (!me) return;
-    const allowed =
-      tpl.origin === "system" ||
-      tpl.ownerId?.toString() === me ||
-      tpl.isShared ||
-      (tpl.sharedWith || []).some((u) => u?.toString() === me);
-    if (!allowed) return res.status(403).json({ error: "ForbiddenTemplate" });
-
-    doc.templateId = tpl._id.toString();
+// GET /api/resumes/:id  (full doc)
+router.get("/:id", async (req, res) => {
+  try {
+    const { userid } = req.query;
+    if (!userid) return res.status(400).json({ error: "Missing user" });
+    const out = await getResume({ userid, resumeid: req.params.id });
+    if (!out) return res.status(404).json({ error: "NotFound" });
+    return res.status(200).json(out);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Server error" });
   }
-
-  if (req.body.name !== undefined) doc.name = req.body.name;
-  if (req.body.content !== undefined) doc.content = req.body.content;
-  if (req.body.archived !== undefined) doc.archived = req.body.archived;
-
-  await doc.save();
-  res.json(doc);
 });
 
-r.post("/:id/duplicate", verifyJWT, async (req, res) => {    
-  const src = await Resume.findById(req.params.id);
-  if (!src) return res.status(404).json({ error: "NotFound" });
-  if (src.ownerId !== req.user._id.toString()) return res.status(403).json({ error: "Forbidden" });
+// POST /api/resumes  (create)
+router.post("/", async (req, res) => {
+  try {
+    const { userid, filename, templateKey, resumedata, lastSaved } = req.body || {};
+    if (!userid || !filename || !templateKey || !resumedata)
+      return res.status(400).json({ error: "Missing fields" });
 
-  const clone = await Resume.create({
-    name: `${src.name} (Copy)`,
-    templateId: src.templateId,
-    ownerId: src.ownerId,
-    content: src.content,
-    tags: src.tags || [],
-    groupId: src.groupId || src._id.toString(), 
-    version: (src.version || 1) + 1,
-  });
-  res.status(201).json(clone);
+    const out = await createResume({ userid, filename, templateKey, lastSaved }, resumedata);
+    return res.status(201).json(out);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
-// Delete (hard delete; swap to archive if you prefer)
-r.delete("/:id", verifyJWT, async (req, res) => {
-  const doc = await Resume.findById(req.params.id);
-  if (!doc) return res.status(404).json({ error: "NotFound" });
-  if (doc.ownerId !== req.user._id.toString()) return res.status(403).json({ error: "Forbidden" });
-  await doc.deleteOne();
-  res.status(204).end();
+// PUT /api/resumes/:id  (update)
+router.put("/:id", async (req, res) => {
+  try {
+    const { userid, filename, resumedata, lastSaved, templateKey, tags } = req.body || {};
+    if (!userid) return res.status(400).json({ error: "Missing user" });
+
+    const out = await updateResume(
+      { resumeid: req.params.id, userid, filename, lastSaved, templateKey, tags },
+      resumedata
+    );
+    if (out?.message) return res.status(404).json({ message: "Resume not found" });
+    return res.status(200).json(out);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
-export default r;
+// DELETE /api/resumes/:id
+router.delete("/:id", async (req, res) => {
+  try {
+    const { userid } = req.query;
+    if (!userid) return res.status(400).json({ error: "Missing user" });
+    const ok = await deleteResume({ resumeid: req.params.id, userid });
+    if (!ok) return res.status(404).json({ error: "NotFound" });
+    return res.sendStatus(204);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/resumes/:id/share
+router.post("/:id/share", async (req, res) => {
+  try {
+    const { userid, resumedata } = req.body || {};
+    if (!userid || !resumedata) return res.status(400).json({ error: "Missing fields" });
+    const out = await createSharedResume({ userid, resumeid: req.params.id, resumedata });
+    return res.status(201).json(out);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /api/resumes/shared/:sharedid
+router.get("/shared/:sharedid", async (req, res) => {
+  try {
+    const out = await fetchSharedResume({ sharedid: req.params.sharedid });
+    if (!out) return res.status(404).json({ error: "Share link invalid or expired" });
+    return res.status(200).json(out);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Share link invalid or expired" });
+  }
+});
+
+export default router;
