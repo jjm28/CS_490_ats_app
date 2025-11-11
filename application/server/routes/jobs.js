@@ -7,6 +7,7 @@ import {
   validateStatusUpdate,
   validateBulkStatusUpdate
 } from "../validators/jobs.js";
+import { validateLastSearch, validateSavedSearch } from "../validators/userpreferences.js";
 import { 
     createJob, 
     getAllJobs, 
@@ -20,6 +21,14 @@ import {
     updateApplicationHistory,
     deleteApplicationHistory
 } from "../services/jobs.service.js";
+import {
+    getUserPreferences,
+    saveLastSearch,
+    createSavedSearch,
+    updateSavedSearch,
+    deleteSavedSearch,
+    deleteUserPreferences
+} from "../services/userpreferences.service.js";
 
 const router = Router();
 
@@ -49,6 +58,149 @@ function getDevId(req) {
   const dev = req.headers["x-dev-user-id"];
   return dev ? dev.toString() : null;
 }
+
+// ============================================
+// USER PREFERENCES ROUTES
+// ============================================
+
+/**
+ * GET /api/jobs/preferences
+ * Get user's all preferences (includes savedSearches array and lastSearch)
+ */
+router.get("/preferences", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const preferences = await getUserPreferences({ userId });
+    
+    // Return empty object with empty arrays if no preferences saved
+    res.json(preferences || { savedSearches: [], lastSearch: null });
+  } catch (err) {
+    console.error('Error getting preferences:', err);
+    res.status(500).json({ error: err?.message || "Failed to get preferences" });
+  }
+});
+
+/**
+ * PUT /api/jobs/preferences/last
+ * Save user's last used search (auto-saved, no name)
+ */
+router.put("/preferences/last", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const r = await validateLastSearch(req.body);
+    if (!r.ok) return res.status(r.status).json(r.error);
+
+    const saved = await saveLastSearch({ userId, search: r.value });
+    res.json(saved);
+  } catch (err) {
+    console.error('Error saving last search:', err);
+    res.status(500).json({ error: err?.message || "Failed to save last search" });
+  }
+});
+
+/**
+ * POST /api/jobs/preferences/saved
+ * Create a new named saved search
+ */
+router.post("/preferences/saved", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const r = await validateSavedSearch(req.body);
+    if (!r.ok) return res.status(r.status).json(r.error);
+
+    const { name, ...search } = r.value;
+    const saved = await createSavedSearch({ userId, name, search });
+    
+    res.status(201).json(saved);
+  } catch (err) {
+    console.error('Error creating saved search:', err);
+    res.status(500).json({ error: err?.message || "Failed to create saved search" });
+  }
+});
+
+/**
+ * PUT /api/jobs/preferences/saved/:searchId
+ * Update an existing saved search
+ */
+router.put("/preferences/saved/:searchId", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const r = await validateSavedSearch(req.body);
+    if (!r.ok) return res.status(r.status).json(r.error);
+
+    const { name, ...search } = r.value;
+    const updated = await updateSavedSearch({ 
+      userId, 
+      searchId: req.params.searchId,
+      name,
+      search
+    });
+
+    if (!updated) return res.status(404).json({ error: "Saved search not found" });
+
+    res.json(updated);
+  } catch (err) {
+    console.error('Error updating saved search:', err);
+    res.status(500).json({ error: err?.message || "Failed to update saved search" });
+  }
+});
+
+/**
+ * DELETE /api/jobs/preferences/saved/:searchId
+ * Delete a saved search
+ */
+router.delete("/preferences/saved/:searchId", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const updated = await deleteSavedSearch({ 
+      userId, 
+      searchId: req.params.searchId 
+    });
+
+    if (!updated) return res.status(404).json({ error: "Saved search not found" });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting saved search:', err);
+    res.status(500).json({ error: err?.message || "Failed to delete saved search" });
+  }
+});
+
+/**
+ * DELETE /api/jobs/preferences
+ * Delete ALL user preferences (including all saved searches)
+ */
+router.delete("/preferences", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const deleted = await deleteUserPreferences({ userId });
+    
+    if (!deleted) {
+      return res.status(404).json({ error: "No preferences found" });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting preferences:', err);
+    res.status(500).json({ error: err?.message || "Failed to delete preferences" });
+  }
+});
+
+// ============================================
+// JOB ROUTES (EXISTING)
+// ============================================
 
 router.post("/", async (req, res) => {
   try {
@@ -249,8 +401,6 @@ router.patch('/bulk-status', async (req, res) => {
   }
 });
 
-export default router;
-
 /**
  * POST /api/jobs/:id/history
  * Add a new application history entry
@@ -385,3 +535,5 @@ router.delete('/:id/history/:historyIndex', async (req, res) => {
     res.status(500).json({ error: err?.message || 'Failed to delete history entry' });
   }
 });
+
+export default router;

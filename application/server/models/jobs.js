@@ -126,6 +126,59 @@ JobSchema.pre('save', function(next) {
     next();
 });
 
+// NEW: User Preferences Schema (separate collection)
+// Supports multiple named saved searches
+const SavedSearchSchema = new Schema({
+    name: { 
+        type: String, 
+        required: true,
+        maxlength: 100
+    },
+    searchQuery: { type: String, default: '' },
+    statusFilter: { type: String, default: 'All' },
+    industryFilter: { type: String, default: 'All' },
+    locationFilter: { type: String, default: '' },
+    salaryMinFilter: { type: String, default: '' },
+    salaryMaxFilter: { type: String, default: '' },
+    deadlineStartFilter: { type: String, default: '' },
+    deadlineEndFilter: { type: String, default: '' },
+    sortBy: { 
+        type: String, 
+        enum: ['dateAdded', 'deadline', 'salary', 'company'],
+        default: 'dateAdded' 
+    },
+    createdAt: { type: Date, default: Date.now }
+}, { _id: true });
+
+const UserPreferencesSchema = new Schema({
+    userId: { 
+        type: String, 
+        required: true, 
+        unique: true, 
+        index: true 
+    },
+    // Array of saved searches
+    savedSearches: [SavedSearchSchema],
+    // Last used search (auto-saved, no name)
+    lastSearch: {
+        searchQuery: { type: String, default: '' },
+        statusFilter: { type: String, default: 'All' },
+        industryFilter: { type: String, default: 'All' },
+        locationFilter: { type: String, default: '' },
+        salaryMinFilter: { type: String, default: '' },
+        salaryMaxFilter: { type: String, default: '' },
+        deadlineStartFilter: { type: String, default: '' },
+        deadlineEndFilter: { type: String, default: '' },
+        sortBy: { 
+            type: String, 
+            enum: ['dateAdded', 'deadline', 'salary', 'company'],
+            default: 'dateAdded' 
+        }
+    }
+}, { timestamps: true });
+
 const Jobs = mongoose.models.Jobs || mongoose.model('Jobs', JobSchema);
+const UserPreferences = mongoose.models.UserPreferences || mongoose.model('UserPreferences', UserPreferencesSchema);
 
 export default Jobs;
+export { UserPreferences };
