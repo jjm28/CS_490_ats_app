@@ -8,10 +8,12 @@ import { previewRegistry } from ".";
 import { pdfRegistry } from ".";
 import Button from "../StyledComponents/Button";
 import { saveCoverletter , updateCoverletter,createdsharedcoverletter,Getfullcoverletter} from "../../api/coverletter";
-import type { GetCoverletterResponse } from "../../api/coverletter";
-import { Share } from "lucide-react";
+import { type GetCoverletterResponse, GetAiGeneratedContent} from "../../api/coverletter";
 
-type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse, importcoverletterData?: GetCoverletterResponse};
+import { Share } from "lucide-react";
+import type { Job } from "./hooks/useJobs";
+
+type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse, importcoverletterData?: GetCoverletterResponse, UsersJobData?:Job, AImode?: boolean};
 
 // ---- simple modal ----
 function Modal({
@@ -47,7 +49,9 @@ export default function CoverletterEditor() {
   const template = state?.template;
   const docid = state?.Coverletterid;
   const coverletterData = state?.coverletterData
-    const importcoverletterData = state?.importcoverletterData
+  const importcoverletterData = state?.importcoverletterData
+  const UsersJobData = state?.UsersJobData
+  const AImode =  state?.AImode
   // redirect if no template
   useEffect(() => {
     if (!template) navigate("/coverletter", { replace: true });
@@ -77,32 +81,48 @@ export default function CoverletterEditor() {
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [CoverletterID, setCoverletterID] = useState<string | null>(    () => sessionStorage.getItem("CoverletterID")  );
   const [filename, setFilename] = useState<string>("Untitled");
-
   const [error, setErr] = useState<string | null>(null);
-
-
-      useEffect(() => {
+      
+  
+  
+  useEffect(() => {
       if (docid && coverletterData) {
         setCoverletterID(docid);
         setFilename(coverletterData.filename)
         setData(coverletterData.coverletterdata);
       }
       }, [docid,coverletterData]);
-
+// To load when generating with ai
+      useEffect(() => {
+      if (AImode ==true && UsersJobData) {
+            const user = JSON.parse(localStorage.getItem("authUser") ?? "")
+            GetAiGeneratedContent({userid: user._id, Jobdata: UsersJobData,})
+            .then((data) => {
+            // setFilename(data.filename)
+            // setData(data.coverletterdata)
+            // sessionStorage.setItem("CoverletterID", CoverletterID);
+          })
+            .catch((err) => setErr(err));
+      }
+      }, [AImode,UsersJobData]);
+// to load when importing coverleter
   useEffect(() => {
       if (importcoverletterData) {
         setFilename(importcoverletterData.filename)
         setData(importcoverletterData.coverletterdata);
       }
       }, [importcoverletterData]);
+//To load saved changes in the case of refresh
 useEffect(() => {
   if (!CoverletterID) return;
     const user = JSON.parse(localStorage.getItem("authUser") ?? "")
-    Getfullcoverletter({userid: user._id, coverletterid: CoverletterID}).then((data) => {
+    Getfullcoverletter({userid: user._id, coverletterid: CoverletterID})
+    .then((data) => {
     setFilename(data.filename)
     setData(data.coverletterdata)
     sessionStorage.setItem("CoverletterID", CoverletterID);
-  });
+  })
+    .catch((err) => setErr(err));
 }, [CoverletterID]);
 
 

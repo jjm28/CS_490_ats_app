@@ -1,5 +1,6 @@
 import type { CoverLetterData } from "../components/Coverletter/CoverLetterTemplates/Pdf/Formalpdf";
 import type { Template } from "../components/Coverletter/Coverletterstore";
+import type { Job } from "../components/Coverletter/hooks/useJobs";
 
 // Constants
 const API_URL = "http://localhost:5050/api/coverletter/";
@@ -169,6 +170,23 @@ export interface GetmostpopularCoverletterResponse {
 
 }
 export  const GetmostpopularCoverletter = async ( ): Promise<GetmostpopularCoverletterResponse> => {
+  const res = await fetch(API_URL+ "mostpop" , {
+    headers: authHeaders() ,  });
+  const data = await res.json() ?? {    "templateKey": "formal" };
+  console.log(data)
+  if (!res.ok) {
+    throw new Error(data.error || "Unknown error occurred");
+  }
+
+  return data as Promise<GetmostpopularCoverletterResponse>;
+};
+
+export interface AIcoverletterPromptSchema {
+userid: string, 
+Jobdata: Job
+
+}
+export  const GetAiGeneratedContent = async (  AIcoverletterPrompt: AIcoverletterPromptSchema): Promise<GetmostpopularCoverletterResponse> => {
   const res = await fetch(API_URL+ "mostpop" , {
     headers: authHeaders() ,  });
   const data = await res.json() ?? {    "templateKey": "formal" };
