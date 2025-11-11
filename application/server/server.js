@@ -20,7 +20,8 @@ import companyResearch from './routes/company-research.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const CORS_ORGIN = process.env.CORS_ORGIN || true;
+const rawOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173/';
+const CORS_ORIGIN = rawOrigin.replace(/\/$/, ''); // removes trailing slash
 const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
@@ -31,7 +32,7 @@ const __dirname = path.dirname(__filename);
 app.set('baseUrl', BASE);
 
 app.use(cors({
-  origin: CORS_ORGIN,
+  origin: CORS_ORIGIN,
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-dev-user-id'],
 }));

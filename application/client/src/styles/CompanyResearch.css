@@ -8,6 +8,7 @@
   max-width: 56rem;
   margin: 0 auto;
   padding: 4rem 1rem;
+  text-align: left;
 }
 
 /* Header Section */
@@ -294,4 +295,42 @@
   margin-top: 0.75rem;
   font-weight: 500;
   font-size: 0.95rem;
+}
+/* News Article Block */
+.news-article {
+  padding: 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.news-article:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Metadata Line */
+.news-meta {
+  font-size: 0.875rem;
+  color: #d1d5db;
+  margin-top: 0.25rem;
+}
+
+/* Summary Text */
+.news-summary {
+  font-size: 0.95rem;
+  color: #e5e7eb;
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+
+/* Key Points List */
+.news-keypoints {
+  margin-top: 0.5rem;
+  padding-left: 1rem;
+  color: #f3f4f6;
+  font-size: 0.875rem;
+}
+
+.news-keypoints li {
+  margin-bottom: 0.25rem;
 }
