@@ -1,12 +1,5 @@
-// pdf/CoverletterPdf.tsx
 import React from "react";
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  Font,
-} from "@react-pdf/renderer";
+import { Document, Page, Text, View, Font } from "@react-pdf/renderer";
 import { createTw } from "react-pdf-tailwind";
 
 Font.register({
@@ -28,16 +21,43 @@ export type CoverLetterData = {
   name: string;
   phonenumber: string;
   email: string;
-  address:string;
+  address: string;
   date: string;
   recipientLines: string[];
   greeting: string;
-  paragraphs: string[];
+  paragraphs: string[] | string; // allow either
   closing: string;
   signatureNote: string;
 };
 
+function sanitize(str?: string) {
+  return (str || "")
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "") // strip weird chars
+    .replace(/\r?\n/g, " ")
+    .trim();
+}
+
+function sanitizeParagraphs(input: string[] | string): string[] {
+  if (!input) return [];
+  const text = Array.isArray(input) ? input.join("\n") : input;
+  return text
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "")
+    .split(/\n{2,}|\n|\r/) // split by newlines or double newlines
+    .map(p => p.trim())
+    .filter(Boolean);
+}
+
 export default function FormalPDF(props: CoverLetterData) {
+  if (!props || typeof props !== "object") {
+    return (
+      <Document>
+        <Page size="A4" style={tw("p-12 bg-white")}>
+          <Text>Invalid or missing data.</Text>
+        </Page>
+      </Document>
+    );
+  }
+
   const {
     name,
     phonenumber,
@@ -51,34 +71,48 @@ export default function FormalPDF(props: CoverLetterData) {
     signatureNote,
   } = props;
 
+  const safeParagraphs = sanitizeParagraphs(paragraphs);
+
   return (
     <Document>
       <Page size="A4" style={tw("p-12 bg-white")}>
+        {/* Header */}
         <View style={tw("items-center mb-12")}>
-          <Text style={tw("text-xl font-semibold")}>{name}</Text>
+          <Text style={tw("text-xl font-semibold")}>{sanitize(name)}</Text>
           <Text style={tw("text-[9px] text-gray-500 mt-1 text-center")}>
-             {address +" · " + phonenumber+ " · "+ email}
+            {sanitize(address)} · {sanitize(phonenumber)} · {sanitize(email)}
           </Text>
         </View>
 
-        <Text style={tw("text-sm mb-6")}>{date}</Text>
+        <Text style={tw("text-sm mb-6")}>{sanitize(date)}</Text>
 
+        {/* Recipient block */}
         <View style={tw("mb-6")}>
           {recipientLines.map((line, i) => (
-            <Text key={i} style={tw("text-sm")}>{line}</Text>
+            <Text key={i} style={tw("text-sm")}>
+              {sanitize(line)}
+            </Text>
           ))}
         </View>
 
-        <Text style={tw("text-sm mb-6")}>{greeting}</Text>
+        <Text style={tw("text-sm mb-6")}>{sanitize(greeting)}</Text>
 
-        {paragraphs.map((p, i) => (
-          <Text key={i} style={tw("text-sm leading-relaxed mb-6")}>{p}</Text>
-        ))}
+        {/* Paragraphs */}
+        {safeParagraphs.length > 0 ? (
+          safeParagraphs.map((p, i) => (
+            <Text key={i} style={tw("text-sm leading-relaxed mb-4")}>
+              {p}
+            </Text>
+          ))
+        ) : (
+          <Text style={tw("text-sm italic text-gray-500 mb-6")}>
+            (No paragraph content)
+          </Text>
+        )}
 
-        <Text style={tw("text-sm mb-6")}>{closing}</Text>
-        <Text style={tw("text-sm italic mb-10")}>{signatureNote}</Text>
-
-        <Text style={tw("text-sm")}>{name}</Text>
+        <Text style={tw("text-sm mb-6")}>{sanitize(closing)}</Text>
+        <Text style={tw("text-sm italic mb-10")}>{sanitize(signatureNote)}</Text>
+        <Text style={tw("text-sm")}>{sanitize(name)}</Text>
       </Page>
     </Document>
   );
