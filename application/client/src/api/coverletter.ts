@@ -181,6 +181,51 @@ export  const GetmostpopularCoverletter = async ( ): Promise<GetmostpopularCover
   return data as Promise<GetmostpopularCoverletterResponse>;
 };
 
+export interface AIGenerateRequest {
+  job_title: string;
+  company_name: string;
+  company_summary?: string;
+  company_address?: string;
+  user_name?: string;
+  user_email?: string;
+  user_phone?: string;
+  user_address?: string;
+  user_skills?: string[] | string;
+  user_experience?: string | number;
+}
+
+export interface AIGenerateResponse {
+  success: boolean;
+  cover_letter: string;
+  company_research?: {
+    name: string;
+    mission?: string;
+    recent_news?: string[];
+    ai_summary?: string;
+  };
+  error?: string;
+}
+
+// === AI GENERATION API ===
+export const AIGenerateCoverletter = async (
+  payload: AIGenerateRequest
+): Promise<AIGenerateResponse> => {
+  const API = import.meta.env.VITE_API_URL || `http://${location.hostname}:8000`;
+
+
+  const res = await fetch(`${API}/coverletter/ai-generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "AI generation failed");
+  }
+
+  return data as AIGenerateResponse;
+};
 export interface AIcoverletterPromptSchema {
 userid: string, 
 Jobdata: Job

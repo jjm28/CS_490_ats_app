@@ -8,12 +8,17 @@ import { previewRegistry } from ".";
 import { pdfRegistry } from ".";
 import Button from "../StyledComponents/Button";
 import { saveCoverletter , updateCoverletter,createdsharedcoverletter,Getfullcoverletter} from "../../api/coverletter";
+import { AIGenerateCoverletter } from "../../api/coverletter";
+import type { GetCoverletterResponse } from "../../api/coverletter";
 import { type GetCoverletterResponse, GetAiGeneratedContent} from "../../api/coverletter";
 
 import { Share } from "lucide-react";
 import type { Job } from "./hooks/useJobs";
 
 type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse, importcoverletterData?: GetCoverletterResponse, UsersJobData?:Job, AImode?: boolean};
+
+const API = import.meta.env.VITE_API_URL || `http://${location.hostname}:5050/`;
+
 
 // ---- simple modal ----
 function Modal({
@@ -81,6 +86,8 @@ export default function CoverletterEditor() {
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [CoverletterID, setCoverletterID] = useState<string | null>(    () => sessionStorage.getItem("CoverletterID")  );
   const [filename, setFilename] = useState<string>("Untitled");
+  
+
   const [error, setErr] = useState<string | null>(null);
       
   
@@ -295,7 +302,12 @@ useEffect(() => {
     }
 
     if (editing === "paragraphs") {
-      const [text, setText] = useState(data.paragraphs.join("\n\n"));
+      const [text, setText] = useState(
+  Array.isArray(data.paragraphs)
+    ? data.paragraphs.join("\n\n")
+    : data.paragraphs || ""
+);
+
       return (
         <form
           onSubmit={(e) => {
@@ -412,6 +424,59 @@ useEffect(() => {
   }
   }
 
+const [jobTitle, setJobTitle] = useState("");
+const [companyName, setCompanyName] = useState("");
+const [loadingAI, setLoadingAI] = useState(false);
+
+ const handleAIGeneration = async () => {
+  if (!jobTitle || !companyName) {
+    alert("Please enter both job title and company name.");
+    return;
+  }
+
+  setLoadingAI(true);
+  try {
+    const user = JSON.parse(localStorage.getItem("authUser") ?? "{}");
+
+    interface CompanyInfo {
+      ai_summary?: string;
+      headquarters?: string;
+    }
+
+    const companyInfo = (await fetch(
+      `${API}/company/info?name=${encodeURIComponent(companyName)}`
+    ).then((r) => r.json()).catch(() => null)) as CompanyInfo | null;
+
+    const result = await AIGenerateCoverletter({
+      job_title: jobTitle,
+      company_name: companyName,
+      company_summary: companyInfo?.ai_summary ?? "",
+      company_address: companyInfo?.headquarters ?? "",
+      user_name: user.full_name,
+      user_email: user.email,
+      user_phone: user.phone ?? "",
+      user_address: user.address ?? "",
+      user_skills: Array.isArray(user.skills)
+        ? user.skills.join(", ")
+        : user.skills ?? "",
+      user_experience: user.years_experience ?? "",
+    });
+
+    console.log("AI Cover Letter:", result.cover_letter);
+
+    setData((prev) => ({
+      ...prev,
+      paragraphs: [result.cover_letter],
+    }));
+  } catch (err) {
+    console.error(err);
+    alert("AI generation failed. Check backend logs or API key.");
+  } finally {
+    setLoadingAI(false);
+  }
+};
+
+
     const handleExport = async () => {
       const tk = template?.key ??  "formal";
 
@@ -457,6 +522,49 @@ useEffect(() => {
 
   }
   
+
+  // === AI assistant: company info & generator ===
+const [company, setCompany] = useState("");
+const [companyInfo, setCompanyInfo] = useState<any>(null);
+const [aiLoading, setAiLoading] = useState(false);
+
+async function handleAIGenerate() {
+  if (!company || !jobTitle) {
+    alert("Please enter both job title and company name.");
+    return;
+  }
+
+  try {
+    setAiLoading(true);
+    // 1️⃣ Fetch researched company info
+    const info = await setCompanyInfo(company);
+    setCompanyInfo(info);
+
+    // 2️⃣ Ask backend to generate a tailored paragraph
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/coverletter/ai-generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        job_title: jobTitle,
+        company_summary: companyInfo?.ai_summary ?? "",
+        company_address: companyInfo?.headquarters ?? "",
+      }),
+    });
+    const data = await res.json();
+
+    // 3️⃣ Insert AI result into your editable paragraphs
+    setData((d) => ({
+      ...d,
+      paragraphs: [data.cover_letter ?? "AI generation failed."],
+    }));
+  } catch (err) {
+    console.error(err);
+    alert("AI generation failed. Check backend logs or API key.");
+  } finally {
+    setAiLoading(false);
+  }
+}
+
   return (
 <div className="max-w-7xl mx-auto px-6 py-10">
   <div className="mb-4">
@@ -502,6 +610,48 @@ useEffect(() => {
   <p className="text-gray-600 mb-6">
     Loaded: <strong>{template.title}</strong> ({template.key})
   </p>
+
+{/* === AI Company Research & Tailored Content === */}
+<div className="my-8 border border-gray-200 rounded-lg p-6 bg-gray-50">
+  <h2 className="text-lg font-semibold mb-3">AI Company Research</h2>
+
+<div className="flex items-center gap-3 mb-6">
+  <input
+    type="text"
+    value={jobTitle}
+    onChange={(e) => setJobTitle(e.target.value)}
+    placeholder="Job Title (e.g., Software Engineer)"
+    className="border rounded px-3 py-2 flex-1"
+  />
+  <input
+    type="text"
+    value={companyName}
+    onChange={(e) => setCompanyName(e.target.value)}
+    placeholder="Company Name (e.g., Amazon)"
+    className="border rounded px-3 py-2 flex-1"
+  />
+  <button
+    onClick={handleAIGeneration}
+    disabled={loadingAI}
+    className={`px-4 py-2 rounded text-white ${
+      loadingAI ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"
+    }`}
+  >
+    {loadingAI ? "Analyzing..." : "Generate AI Letter"}
+  </button>
+</div>
+
+  {companyInfo && (
+    <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded-md">
+      <h3 className="font-medium mb-2">
+        Company Insights: {companyInfo.company}
+      </h3>
+      <p className="text-gray-700 whitespace-pre-line text-sm">
+        {companyInfo.aiSummary}
+      </p>
+    </div>
+  )}
+</div>
 
 
 {/* Coverletter on Client Side*/}
