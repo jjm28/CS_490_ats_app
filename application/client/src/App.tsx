@@ -34,7 +34,7 @@ import './App.css';
 
 function App() {
   const location = useLocation();
-  const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password"];
+  const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
 
     useEffect(() => {

@@ -2,6 +2,44 @@
 
 const VALID_STATUSES = ['interested', 'applied', 'phone_screen', 'interview', 'offer', 'rejected'];
 
+function validateContact(contact, fieldName, errors) {
+  if (typeof contact !== 'object' || contact === null) {
+    errors[fieldName] = `${fieldName} must be an object`;
+    return;
+  }
+
+  const { name, email, phone, linkedIn, notes } = contact;
+
+  if (name && name.length > 150) {
+    errors[`${fieldName}.name`] = 'Name must be 150 characters or less';
+  }
+
+  if (email) {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+      errors[`${fieldName}.email`] = 'Invalid email format';
+    } else if (email.length > 150) {
+      errors[`${fieldName}.email`] = 'Email must be 150 characters or less';
+    }
+  }
+
+  if (phone && phone.length > 50) {
+    errors[`${fieldName}.phone`] = 'Phone must be 50 characters or less';
+  }
+
+  if (linkedIn) {
+    if (linkedIn.length > 500) {
+      errors[`${fieldName}.linkedIn`] = 'LinkedIn URL must be 500 characters or less';
+    } else if (!/^https?:\/\/|^linkedin\.com/.test(linkedIn)) {
+      errors[`${fieldName}.linkedIn`] = 'Invalid LinkedIn URL format';
+    }
+  }
+
+  if (notes && notes.length > 2000) {
+    errors[`${fieldName}.notes`] = 'Notes must be 2000 characters or less';
+  }
+}
+
 export async function validateJobCreate(input) {
   const errors = {};
 
@@ -26,7 +64,7 @@ export async function validateJobCreate(input) {
     errors.type = 'Job type is required';
   }
 
-  // Optional fields with validation
+  // Optional fields
   if (input.location && input.location.length > 150) {
     errors.location = 'Location must be 150 characters or less';
   }
@@ -47,7 +85,6 @@ export async function validateJobCreate(input) {
     }
   }
 
-  // Salary range validation
   if (input.salaryMin && input.salaryMax && input.salaryMin > input.salaryMax) {
     errors.salaryMin = 'Salary min cannot exceed salary max';
   }
@@ -68,23 +105,30 @@ export async function validateJobCreate(input) {
     }
   }
 
-  // NEW: Status validation (optional on create, defaults to 'interested')
-  if (input.status !== undefined && input.status !== null) {
-    if (!VALID_STATUSES.includes(input.status)) {
-      errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
-    }
+  // Status validation
+  if (input.status !== undefined && !VALID_STATUSES.includes(input.status)) {
+    errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
   }
 
-  // Return result
+  if (input.recruiter) validateContact(input.recruiter, 'recruiter', errors);
+  if (input.hiringManager) validateContact(input.hiringManager, 'hiringManager', errors);
+
+  // Notes
+  if (input.notes && input.notes.length > 2000) {
+    errors.notes = 'Notes must be 2000 characters or less';
+  }
+  if (input.salaryNotes && input.salaryNotes.length > 2000) {
+    errors.salaryNotes = 'Salary notes must be 2000 characters or less';
+  }
+  if (input.interviewNotes && input.interviewNotes.length > 2000) {
+    errors.interviewNotes = 'Interview notes must be 2000 characters or less';
+  }
+
   if (Object.keys(errors).length > 0) {
-    return { 
-      ok: false, 
-      status: 422, 
-      error: { code: 'VALIDATION_FAILED', fields: errors } 
-    };
+    return { ok: false, status: 422, error: { code: 'VALIDATION_FAILED', fields: errors } };
   }
 
-  // Clean and return validated data
+  // Cleaned return
   const value = {
     jobTitle: input.jobTitle.trim(),
     company: input.company.trim(),
@@ -93,22 +137,16 @@ export async function validateJobCreate(input) {
     location: input.location?.trim() || '',
     description: input.description?.trim() || '',
     jobPostingUrl: input.jobPostingUrl?.trim() || '',
+    salaryMin: input.salaryMin ?? null,
+    salaryMax: input.salaryMax ?? null,
+    applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null,
+    status: input.status || 'interested',
+    recruiter: input.recruiter || null,
+    hiringManager: input.hiringManager || null,
+    notes: input.notes?.trim() || '',
+    salaryNotes: input.salaryNotes?.trim() || '',
+    interviewNotes: input.interviewNotes?.trim() || '',
   };
-
-  if (input.salaryMin !== undefined && input.salaryMin !== null) {
-    value.salaryMin = input.salaryMin;
-  }
-  if (input.salaryMax !== undefined && input.salaryMax !== null) {
-    value.salaryMax = input.salaryMax;
-  }
-  if (input.applicationDeadline) {
-    value.applicationDeadline = new Date(input.applicationDeadline);
-  }
-
-  // NEW: Include status if provided (otherwise defaults to 'interested' in schema)
-  if (input.status) {
-    value.status = input.status;
-  }
 
   return { ok: true, value };
 }
@@ -116,21 +154,15 @@ export async function validateJobCreate(input) {
 export async function validateJobUpdate(input) {
   const errors = {};
 
-  // All fields are optional for updates, but validate if provided
+  // Simple field validations
   if (input.jobTitle !== undefined) {
-    if (input.jobTitle.trim() === '') {
-      errors.jobTitle = 'Job title cannot be empty';
-    } else if (input.jobTitle.length > 150) {
-      errors.jobTitle = 'Job title must be 150 characters or less';
-    }
+    if (input.jobTitle.trim() === '') errors.jobTitle = 'Job title cannot be empty';
+    else if (input.jobTitle.length > 150) errors.jobTitle = 'Job title must be 150 characters or less';
   }
 
   if (input.company !== undefined) {
-    if (input.company.trim() === '') {
-      errors.company = 'Company cannot be empty';
-    } else if (input.company.length > 150) {
-      errors.company = 'Company must be 150 characters or less';
-    }
+    if (input.company.trim() === '') errors.company = 'Company cannot be empty';
+    else if (input.company.length > 150) errors.company = 'Company must be 150 characters or less';
   }
 
   if (input.industry !== undefined && input.industry.trim() === '') {
@@ -149,16 +181,12 @@ export async function validateJobUpdate(input) {
     errors.description = 'Description must be 2000 characters or less';
   }
 
-  if (input.salaryMin !== undefined && input.salaryMin !== null) {
-    if (typeof input.salaryMin !== 'number' || input.salaryMin < 0) {
-      errors.salaryMin = 'Salary min must be a positive number';
-    }
+  if (input.salaryMin !== undefined && input.salaryMin < 0) {
+    errors.salaryMin = 'Salary min must be positive';
   }
 
-  if (input.salaryMax !== undefined && input.salaryMax !== null) {
-    if (typeof input.salaryMax !== 'number' || input.salaryMax < 0) {
-      errors.salaryMax = 'Salary max must be a positive number';
-    }
+  if (input.salaryMax !== undefined && input.salaryMax < 0) {
+    errors.salaryMax = 'Salary max must be positive';
   }
 
   if (input.salaryMin && input.salaryMax && input.salaryMin > input.salaryMax) {
@@ -176,46 +204,29 @@ export async function validateJobUpdate(input) {
 
   if (input.applicationDeadline !== undefined) {
     const date = new Date(input.applicationDeadline);
-    if (isNaN(date.getTime())) {
-      errors.applicationDeadline = 'Invalid date format';
-    }
+    if (isNaN(date.getTime())) errors.applicationDeadline = 'Invalid date format';
   }
 
-  // NEW: Status validation for updates
-  if (input.status !== undefined && input.status !== null) {
-    if (!VALID_STATUSES.includes(input.status)) {
-      errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
-    }
+  if (input.status !== undefined && !VALID_STATUSES.includes(input.status)) {
+    errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
   }
+
+  if (input.recruiter) validateContact(input.recruiter, 'recruiter', errors);
+  if (input.hiringManager) validateContact(input.hiringManager, 'hiringManager', errors);
+
+  // Notes
+  if (input.notes && input.notes.length > 2000) errors.notes = 'Notes must be 2000 characters or less';
+  if (input.salaryNotes && input.salaryNotes.length > 2000)
+    errors.salaryNotes = 'Salary notes must be 2000 characters or less';
+  if (input.interviewNotes && input.interviewNotes.length > 2000)
+    errors.interviewNotes = 'Interview notes must be 2000 characters or less';
 
   if (Object.keys(errors).length > 0) {
-    return { 
-      ok: false, 
-      status: 422, 
-      error: { code: 'VALIDATION_FAILED', fields: errors } 
-    };
+    return { ok: false, status: 422, error: { code: 'VALIDATION_FAILED', fields: errors } };
   }
 
-  // Clean the input
-  const value = {};
-  
-  if (input.jobTitle !== undefined) value.jobTitle = input.jobTitle.trim();
-  if (input.company !== undefined) value.company = input.company.trim();
-  if (input.industry !== undefined) value.industry = input.industry.trim();
-  if (input.type !== undefined) value.type = input.type.trim();
-  if (input.location !== undefined) value.location = input.location.trim();
-  if (input.description !== undefined) value.description = input.description.trim();
-  if (input.jobPostingUrl !== undefined) value.jobPostingUrl = input.jobPostingUrl.trim();
-  if (input.salaryMin !== undefined) value.salaryMin = input.salaryMin;
-  if (input.salaryMax !== undefined) value.salaryMax = input.salaryMax;
-  if (input.applicationDeadline !== undefined) {
-    value.applicationDeadline = new Date(input.applicationDeadline);
-  }
-
-  // NEW: Include status if provided
-  if (input.status !== undefined) {
-    value.status = input.status;
-  }
+  const value = { ...input };
+  if (input.applicationDeadline) value.applicationDeadline = new Date(input.applicationDeadline);
 
   return { ok: true, value };
 }
@@ -319,3 +330,4 @@ export async function validateBulkStatusUpdate(input) {
 
   return { ok: true, value };
 }
+
