@@ -44,6 +44,7 @@ function JobsEntry() {
   });
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("All");
 
   const token = useMemo(
     () =>
@@ -51,6 +52,11 @@ function JobsEntry() {
     []
   );
   const isLoggedIn = !!token;
+
+  const filteredJobs = useMemo(() => {
+    if (statusFilter === "All") return jobs;
+    return jobs.filter((job) => job.status === statusFilter);
+  }, [jobs, statusFilter]);
 
   // Show flash message
   useEffect(() => {
@@ -649,6 +655,25 @@ function JobsEntry() {
             </div>
           )}
 
+          {/* Filter Controls */}
+          <div className="flex items-center gap-3 mb-4">
+            <label className="text-gray-700 font-medium shrink-0">
+              Filter by Status:
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="form-input w-36"
+            >
+              <option value="All">All</option>
+              {Object.entries(STATUS_DISPLAY).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Jobs List */}
           {loading ? (
             <p className="text-sm text-gray-600">Loading…</p>
@@ -661,7 +686,7 @@ function JobsEntry() {
             </div>
           ) : (
             <ul className="space-y-3">
-              {jobs.map((job) => (
+              {filteredJobs.map((job) => (
                 <li key={job._id}>
                   <Card>
                     <div
