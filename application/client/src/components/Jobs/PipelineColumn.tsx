@@ -1,31 +1,21 @@
 import React from "react";
 import JobCard from "./JobCard";
 import { useDroppable } from "@dnd-kit/core";
+import type { PipelineColumnProps } from "../../types/jobs.types";
 
-// Types
-interface Job {
-  _id: string;
-  jobTitle: string;
-  company: string;
-  status: string;
-  location?: string;
-  salaryMin?: number;
-  salaryMax?: number;
-}
-
-interface PipelineColumnProps {
-  status: string;
-  title: string;
-  colorClass: string;
-  jobs: Job[];
-}
-
-const PipelineColumn: React.FC<PipelineColumnProps> = ({ status, title, colorClass, jobs }) => {
+const PipelineColumn: React.FC<PipelineColumnProps> = ({
+  status,
+  title,
+  colorClass,
+  jobs,
+}) => {
   const { isOver, setNodeRef } = useDroppable({ id: status });
 
   return (
     <div ref={setNodeRef} className="w-72 flex-shrink-0">
-      <div className={`rounded-t-lg p-2 font-semibold ${colorClass} flex justify-between`}>
+      <div
+        className={`rounded-t-lg p-2 font-semibold ${colorClass} flex justify-between`}
+      >
         <span>{title}</span>
         <span className="text-sm bg-white px-2 rounded-full">{jobs.length}</span>
       </div>
