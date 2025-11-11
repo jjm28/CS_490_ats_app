@@ -46,7 +46,7 @@ router.post('/api/company/research', async (req, res) => {
     const companyData = {
         name: companyName,
         basicInfo,
-        news: newsResults,
+        news: Array.isArray(newsResults) ? newsResults : [],
         leadership: leadershipInfo,
         socialMedia,
         competitors: competitorInfo,
@@ -100,13 +100,7 @@ async function searchCompanyBasicInfo(companyName) {
   "mission": "company mission statement (1-2 sentences) if commonly known. If unknown, return 'Not specified'",
   "values": "2-4 core company values, comma-separated if commonly known. If unknown, return 'Not specified'",
   "culture": "brief company culture description (1-2 sentences) if commonly known. If unknown, return 'Not specified'"
-}
-
-Important:
-- Use your general knowledge first. For well-known companies like Microsoft, Apple, Google, etc., you should know their headquarters, industry, and often their mission.
-- Return ONLY the JSON object, nothing else.
-- For website, include the full URL starting with https://
-- Do NOT return "Not specified" for headquarters, industry, or size for major, well-known public companies unless you are absolutely certain the information is not part of general knowledge.`;
+}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -185,18 +179,34 @@ Important:
     };
   }
 }
-
 function categorizeArticle(article) {
   const categories = {
-  funding: ['funding', 'investment', 'raised', 'venture', 'series a', 'series b'],
-  hiring: ['hiring', 'recruitment', 'job openings', 'expanding team'],
-  layoffs: ['layoffs', 'job cuts', 'downsizing', 'restructuring'],
-  financial: ['earnings', 'revenue', 'profit', 'loss', 'quarter', 'IPO', 'merger', 'acquisition'],
-  leadership: ['CEO', 'executive', 'founder', 'leadership change'],
-  strategy: ['expansion', 'new market', 'pivot', 'growth strategy']
-};
+    financial: [
+      'earnings', 'revenue', 'profit', 'loss', 'quarter', 'IPO', 'merger', 'acquisition', 
+      'stock', 'shares', 'market', 'trading', 'valuation', 'dividend', 'balance sheet'
+    ],
+    strategy: [
+      'expansion', 'new market', 'pivot', 'growth', 'partnership', 'launch', 'product',
+      'technology', 'innovation', 'digital transformation', 'AI'
+    ],
+    leadership: [
+      'CEO', 'executive', 'founder', 'leadership', 'board', 'director', 'management', 
+      'appointment', 'resignation', 'hire'
+    ],
+    funding: [
+      'funding', 'investment', 'raised', 'venture', 'capital', 'round', 'investor', 
+      'backing', 'seed'
+    ],
+    hiring: [
+      'hiring', 'recruitment', 'job openings', 'expanding team', 'talent', 'workforce'
+    ],
+    layoffs: [
+      'layoffs', 'job cuts', 'downsizing', 'restructuring', 'layoff'
+    ]
+  };
 
   const text = `${article.title} ${article.description}`.toLowerCase();
+
   for (const [type, keywords] of Object.entries(categories)) {
     if (keywords.some(k => text.includes(k))) return type;
   }
@@ -204,28 +214,73 @@ function categorizeArticle(article) {
 }
 
 function scoreRelevance(article, companyName) {
-  const text = `${article.title} ${article.description}`.toLowerCase();
+  const title = (article.title || '').toLowerCase();
+  const description = (article.description || '').toLowerCase();
+  const lowerCompany = companyName.toLowerCase();
+  
+  // Extract just the company name without legal suffixes for better matching
+  const cleanCompanyName = lowerCompany
+    .replace(/,?\s*(inc\.?|llc|corporation|corp\.?|ltd\.?|limited)/gi, '')
+    .trim();
+
   let score = 0;
-  if (text.includes(companyName.toLowerCase())) score += 2;
-  if (article.source.name) score += 1;
+
+  // Check if company name appears in title (highest priority)
+  if (title.includes(lowerCompany) || title.includes(cleanCompanyName)) {
+    score += 5;
+  }
+
+  // Check if company name appears in description
+  if (description.includes(lowerCompany) || description.includes(cleanCompanyName)) {
+    score += 3;
+  }
+
+  // Bonus for reputable source
+  const reputableSources = ['bloomberg', 'reuters', 'forbes', 'wsj', 'financial times', 'cnbc'];
+  const sourceName = (article.source?.name || '').toLowerCase();
+  if (reputableSources.some(s => sourceName.includes(s))) {
+    score += 2;
+  }
+
+  // Recency bonus
   if (article.publishedAt) {
     const daysOld = (Date.now() - new Date(article.publishedAt)) / (1000 * 60 * 60 * 24);
-    score += Math.max(0, 5 - Math.floor(daysOld)); // newer = higher score
+    if (daysOld <= 7) score += 2;
+    else if (daysOld <= 30) score += 1;
   }
+
   return score;
 }
 
 function extractSummary(article) {
-  const sentences = article.description?.split('. ') || [];
-  return sentences.slice(0, 2).join('. ') + (sentences.length > 2 ? '...' : '');
+  const description = article.description || '';
+  const sentences = description.split('. ');
+  return sentences.slice(0, 2).join('. ') + (sentences.length > 2 ? '.' : '');
 }
 
 function extractKeyPoints(article) {
   const points = [];
   const text = `${article.title} ${article.description}`.toLowerCase();
-  if (text.includes('funding')) points.push('Funding event');
-  if (text.includes('launch')) points.push('Product launch');
-  if (text.includes('hiring')) points.push('Hiring activity');
+  
+  if (text.includes('funding') || text.includes('raised') || text.includes('investment')) {
+    points.push('Funding event');
+  }
+  if (text.includes('launch') || text.includes('release') || text.includes('unveil')) {
+    points.push('Product launch');
+  }
+  if (text.includes('hiring') || text.includes('job') || text.includes('recruitment')) {
+    points.push('Hiring activity');
+  }
+  if (text.includes('layoff') || text.includes('job cuts') || text.includes('downsizing')) {
+    points.push('Job cuts');
+  }
+  if (text.includes('acquisition') || text.includes('merger') || text.includes('bought')) {
+    points.push('M&A activity');
+  }
+  if (text.includes('CEO') || text.includes('executive') || text.includes('leadership')) {
+    points.push('Leadership news');
+  }
+  
   return points;
 }
 
@@ -237,56 +292,60 @@ async function searchCompanyNews(companyName) {
   }
 
   try {
+    // Get more articles to have a better pool
     const response = await axios.get('https://newsapi.org/v2/everything', {
       params: {
-        q: `"${companyName}" AND (funding OR hiring OR layoffs OR revenue OR acquisition OR CEO OR leadership OR expansion OR job openings OR IPO OR merger OR restructuring OR earnings)`,
+        q: companyName, // Simple query without quotes for better results
         sortBy: 'publishedAt',
         language: 'en',
-        pageSize: 10,
-        domains: 'techcrunch.com,bloomberg.com,forbes.com,finance.yahoo.com,businessinsider.com',
+        pageSize: 50, // Increased from 10 to get more articles
         apiKey: NEWS_API_KEY
-    }
-
+      }
     });
 
-    const articles = response.data.articles || [];
+    console.log(`News API returned ${response.data.articles?.length || 0} articles for ${companyName}`);
 
-    const enriched = articles.map(article => ({
-    title: article.title,
-    snippet: article.description || '',
-    link: article.url,
-    source: article.source.name,
-    publishedAt: article.publishedAt,
-    category: categorizeArticle(article),
-    relevanceScore: scoreRelevance(article, companyName),
-    summary: extractSummary(article),
-    keyPoints: extractKeyPoints(article)
-    }));
+    if (!response.data || !response.data.articles) {
+      console.error('NewsAPI response missing articles:', response.data);
+      return [];
+    }
 
-    const allowedCategories = ['funding', 'hiring', 'leadership', 'financial', 'strategy'];
+    const articles = Array.isArray(response.data.articles) ? response.data.articles : [];
 
-    const filtered = enriched.filter(article =>
-    article.relevanceScore >= 3 &&
-    allowedCategories.includes(article.category)
-    );
-
-    return filtered.map(article => ({
-        title: article.title,
-        snippet: article.description || '',
+    // Enrich articles with metadata
+    const enriched = articles.map(article => {
+      const category = categorizeArticle(article);
+      const relevanceScore = scoreRelevance(article, companyName);
+      
+      return {
+        title: article.title || 'Untitled Article',
+        snippet: article.description || article.content || '',
         link: article.url,
-        source: article.source.name,
+        source: article.source?.name || 'Unknown Source',
         publishedAt: article.publishedAt,
-        category: categorizeArticle(article),
-        relevanceScore: scoreRelevance(article, companyName),
+        category,
+        relevanceScore,
         summary: extractSummary(article),
         keyPoints: extractKeyPoints(article)
-    }));
+      };
+    });
+
+    // Filter and sort by relevance
+    const filtered = enriched
+      .filter(article => article.relevanceScore >= 3) // Lower threshold for more results
+      .sort((a, b) => b.relevanceScore - a.relevanceScore) // Sort by relevance
+      .slice(0, 15); // Return top 15 most relevant
+
+    console.log(`Filtered to ${filtered.length} relevant articles (score >= 3)`);
+
+    return filtered;
 
   } catch (error) {
     console.error('News API error:', error.response?.data || error.message);
     return [];
   }
 }
+
 
 // Search leadership team
 async function searchLeadership(companyName) {
@@ -303,24 +362,29 @@ async function searchLeadership(companyName) {
 
 // Search social media
 async function searchSocialMedia(companyName) {
-  const query = [
-    `site:linkedin.com/company "${companyName}"`,
-    `site:twitter.com "${companyName}" OR site:x.com "${companyName}"`,
-    `site:facebook.com "${companyName}"`,
-    `site:instagram.com "${companyName}"`
-  ].join(' OR ');
-
-  const results = await googleSearch(query, 10);
-
   const socialMedia = {};
 
-  results.forEach(item => {
-    const url = item.link;
-    if (!url) return;
-    if (url.includes('linkedin.com/company')) socialMedia.linkedin = url;
-    else if (url.includes('twitter.com') || url.includes('x.com')) socialMedia.twitter = url;
-    else if (url.includes('facebook.com')) socialMedia.facebook = url;
-    else if (url.includes('instagram.com')) socialMedia.instagram = url;
+  // Search for each platform
+  const platforms = [
+    { name: 'linkedin', query: `${companyName} site:linkedin.com/company` },
+    { name: 'twitter', query: `${companyName} site:twitter.com OR site:x.com` },
+    { name: 'facebook', query: `${companyName} site:facebook.com` },
+    { name: 'instagram', query: `${companyName} site:instagram.com` }
+  ];
+
+  // Run social searches in parallel
+  const socialResults = await Promise.all(
+    platforms.map(async (platform) => {
+      const results = await googleSearch(platform.query, 1);
+      return { name: platform.name, url: results[0]?.link };
+    })
+  );
+
+  // Map results to socialMedia object
+  socialResults.forEach(result => {
+    if (result.url) {
+      socialMedia[result.name] = result.url;
+    }
   });
 
   return socialMedia;

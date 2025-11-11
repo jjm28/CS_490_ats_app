@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, Loader2, Building2, Newspaper, Users, Globe, TrendingUp } from 'lucide-react';
+import NewsColumn from './NewsSection';
 import '../../styles/CompanyResearch.css';
 
 interface NewsArticle {
@@ -176,210 +177,178 @@ function CompanyResearch() {
 
         {companyInfo && (
           <div className="results-wrapper">
-            {/* Basic Information */}
-            <div className="section-card">
-              <h2 className="section-title">About</h2>
-              <div className="section-content">
-                <p className="section-text">{companyInfo.basicInfo.description || 'No description available.'}</p>
+            {/* Use a grid container */}
+            <div className="results-grid">
+              {/* Left Column: All other info */}
+              <div className="info-column">
+                {/* Basic Information */}
+                <div className="section-card">
+                  <h2 className="section-title">About</h2>
+                  <div className="section-content">
+                    <p className="section-text">{companyInfo.basicInfo.description || 'No description available.'}</p>
 
-                <ul className="about-details">
-                  {companyInfo.basicInfo.size && companyInfo.basicInfo.size !== 'Not specified' && (
-                    <li><strong>Size:</strong> {companyInfo.basicInfo.size}</li>
-                  )}
-                  {companyInfo.basicInfo.industry && companyInfo.basicInfo.industry !== 'Not specified' && (
-                    <li><strong>Industry:</strong> {companyInfo.basicInfo.industry}</li>
-                  )}
-                  {companyInfo.basicInfo.headquarters && companyInfo.basicInfo.headquarters !== 'Not specified' && (
-                    <li><strong>Headquarters:</strong> {companyInfo.basicInfo.headquarters}</li>
-                  )}
-                  {companyInfo.basicInfo.mission && companyInfo.basicInfo.mission !== 'Not specified' && (
-                    <li><strong>Mission:</strong> {companyInfo.basicInfo.mission}</li>
-                  )}
-                  {companyInfo.basicInfo.values && companyInfo.basicInfo.values !== 'Not specified' && (
-                    <li><strong>Values:</strong> {companyInfo.basicInfo.values}</li>
-                  )}
-                  {companyInfo.basicInfo.culture && companyInfo.basicInfo.culture !== 'Not specified' && (
-                    <li><strong>Culture:</strong> {companyInfo.basicInfo.culture}</li>
-                  )}
-                </ul>
+                    <ul className="about-details">
+                      {companyInfo.basicInfo.size && companyInfo.basicInfo.size !== 'Not specified' && (
+                        <li><strong>Size:</strong> {companyInfo.basicInfo.size}</li>
+                      )}
+                      {companyInfo.basicInfo.industry && companyInfo.basicInfo.industry !== 'Not specified' && (
+                        <li><strong>Industry:</strong> {companyInfo.basicInfo.industry}</li>
+                      )}
+                      {companyInfo.basicInfo.headquarters && companyInfo.basicInfo.headquarters !== 'Not specified' && (
+                        <li><strong>Headquarters:</strong> {companyInfo.basicInfo.headquarters}</li>
+                      )}
+                      {companyInfo.basicInfo.mission && companyInfo.basicInfo.mission !== 'Not specified' && (
+                        <li><strong>Mission:</strong> {companyInfo.basicInfo.mission}</li>
+                      )}
+                      {companyInfo.basicInfo.values && companyInfo.basicInfo.values !== 'Not specified' && (
+                        <li><strong>Values:</strong> {companyInfo.basicInfo.values}</li>
+                      )}
+                      {companyInfo.basicInfo.culture && companyInfo.basicInfo.culture !== 'Not specified' && (
+                        <li><strong>Culture:</strong> {companyInfo.basicInfo.culture}</li>
+                      )}
+                    </ul>
 
-                {companyInfo.basicInfo.website && (
-                  <a
-                    href={companyInfo.basicInfo.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="section-link"
-                  >
-                    <span>→ Company Website</span>
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Leadership */}
-            {companyInfo.leadership.searchResults.length > 0 && (
-              <div className="section-card">
-                <h2 className="section-title">Leadership</h2>
-                <div className="section-content">
-                  {companyInfo.leadership.searchResults.slice(0, 5).map((result, index) => (
-                    <a
-                      key={index}
-                      href={result.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="section-link"
-                    >
-                      <span>→ {result.title || 'Leadership Profile'}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* News */}
-            {filteredNews.length > 0 && (
-              <div className="section-card">
-                <div className="section-header">
-                  <h2 className="section-title">News</h2>
-                  <button
-                    onClick={() => setShowRelevantOnly(prev => !prev)}
-                    className="filter-button"
-                  >
-                    {showRelevantOnly ? 'Show All News' : 'Show Career-Relevant Only'}
-                  </button>
-                </div>
-                <div className="section-content">
-                  {filteredNews.slice(0, 5).map((article, index) => (
-                    <div key={index} className="news-article">
+                    {companyInfo.basicInfo.website && (
                       <a
-                        href={article.link}
+                        href={companyInfo.basicInfo.website}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="section-link"
                       >
-                        <span>→ {article.title || 'Untitled Article'}</span>
+                        <span>→ Company Website</span>
                       </a>
-                      <p className="news-meta">
-                        {article.category && <strong>Category:</strong>} {article.category} |{' '}
-                        {article.source && <strong>Source:</strong>} {article.source} |{' '}
-                        {article.relevanceScore !== undefined && <strong>Relevance:</strong>} {article.relevanceScore}
-                      </p>
-                      {article.summary && (
-                        <p className="news-summary">
-                          <strong>Summary:</strong> {article.summary}
-                        </p>
-                      )}
-                      {article.keyPoints && article.keyPoints.length > 0 && (
-                        <ul className="news-keypoints">
-                          {article.keyPoints.map((point, i) => (
-                            <li key={i}>• {point}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Financial Health */}
-            {companyInfo.financialHealth && companyInfo.financialHealth.length > 0 && (
-              <div className="section-card">
-                <h2 className="section-title">Financial Health</h2>
-                <div className="section-content">
-                  {companyInfo.financialHealth.map((item, index) => (
-                    <a key={index} href={item.link} target="_blank" rel="noopener noreferrer" className="section-link">
-                      <span>→ {item.title}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Social Media */}
-            {Object.keys(companyInfo.socialMedia).length > 0 && (
-              <div className="section-card">
-                <h2 className="section-title">Social Media</h2>
-                <div className="section-content">
-                  {companyInfo.socialMedia.linkedin && (
-                    <a
-                      href={companyInfo.socialMedia.linkedin}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="section-link"
-                    >
-                      <span>→ LinkedIn</span>
-                    </a>
-                  )}
-                  {companyInfo.socialMedia.twitter && (
-                    <a
-                      href={companyInfo.socialMedia.twitter}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="section-link"
-                    >
-                      <span>→ Twitter / X</span>
-                    </a>
-                  )}
-                  {companyInfo.socialMedia.facebook && (
-                    <a
-                      href={companyInfo.socialMedia.facebook}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="section-link"
-                    >
-                      <span>→ Facebook</span>
-                    </a>
-                  )}
-                  {companyInfo.socialMedia.instagram && (
-                    <a
-                      href={companyInfo.socialMedia.instagram}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="section-link"
-                    >
-                      <span>→ Instagram</span>
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Competitors */}
-            {companyInfo.competitors.length > 0 && (
-              <div className="section-card">
-                <h2 className="section-title">Competitors</h2>
-                <div className="section-content">
-                  {companyInfo.competitors.slice(0, 5).map((competitor, index) => (
-                    <a
-                      key={index}
-                      href={competitor.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="section-link"
-                    >
-                      <span>→ {competitor.title || 'Competitor Profile'}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {!companyInfo.basicInfo.description &&
-              companyInfo.news.length === 0 &&
-              companyInfo.leadership.searchResults.length === 0 &&
-              Object.keys(companyInfo.socialMedia).length === 0 &&
-              companyInfo.competitors.length === 0 && (
-                <div className="section-card">
-                  <h2 className="section-title">No Results</h2>
-                  <div className="section-content">
-                    <p className="section-text">
-                      We couldn’t find detailed information about "{companyName}". Try a more specific or well-known company name.
-                    </p>
+                    )}
                   </div>
                 </div>
-              )}
+
+                {/* Leadership */}
+                {companyInfo.leadership.searchResults.length > 0 && (
+                  <div className="section-card">
+                    <h2 className="section-title">Leadership</h2>
+                    <div className="section-content">
+                      {companyInfo.leadership.searchResults.slice(0, 5).map((result, index) => (
+                        <a
+                          key={index}
+                          href={result.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="section-link"
+                        >
+                          <span>→ {result.title || 'Leadership Profile'}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Financial Health */}
+                {companyInfo.financialHealth && companyInfo.financialHealth.length > 0 && (
+                  <div className="section-card">
+                    <h2 className="section-title">Financial Health</h2>
+                    <div className="section-content">
+                      {companyInfo.financialHealth.map((item, index) => (
+                        <a key={index} href={item.link} target="_blank" rel="noopener noreferrer" className="section-link">
+                          <span>→ {item.title}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Social Media */}
+                {Object.keys(companyInfo.socialMedia).length > 0 && (
+                  <div className="section-card">
+                    <h2 className="section-title">Social Media</h2>
+                    <div className="section-content">
+                      {companyInfo.socialMedia.linkedin && (
+                        <a
+                          href={companyInfo.socialMedia.linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="section-link"
+                        >
+                          <span>→ LinkedIn</span>
+                        </a>
+                      )}
+                      {companyInfo.socialMedia.twitter && (
+                        <a
+                          href={companyInfo.socialMedia.twitter}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="section-link"
+                        >
+                          <span>→ Twitter / X</span>
+                        </a>
+                      )}
+                      {companyInfo.socialMedia.facebook && (
+                        <a
+                          href={companyInfo.socialMedia.facebook}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="section-link"
+                        >
+                          <span>→ Facebook</span>
+                        </a>
+                      )}
+                      {companyInfo.socialMedia.instagram && (
+                        <a
+                          href={companyInfo.socialMedia.instagram}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="section-link"
+                        >
+                          <span>→ Instagram</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Competitors */}
+                {companyInfo.competitors.length > 0 && (
+                  <div className="section-card">
+                    <h2 className="section-title">Competitors</h2>
+                    <div className="section-content">
+                      {companyInfo.competitors.slice(0, 5).map((competitor, index) => (
+                        <a
+                          key={index}
+                          href={competitor.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="section-link"
+                        >
+                          <span>→ {competitor.title || 'Competitor Profile'}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {/* Moved the empty state check here, within the left column if desired, or keep it outside the grid */}
+                {!companyInfo.basicInfo.description &&
+                  companyInfo.news.length === 0 &&
+                  companyInfo.leadership.searchResults.length === 0 &&
+                  Object.keys(companyInfo.socialMedia).length === 0 &&
+                  companyInfo.competitors.length === 0 && (
+                    <div className="section-card">
+                      <h2 className="section-title">No Results</h2>
+                      <div className="section-content">
+                        <p className="section-text">
+                          We couldn’t find detailed information about "{companyName}". Try a more specific or well-known company name.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+              </div> {/* End of .info-column */}
+
+              {/* Right Column: News Column Component */}
+              <NewsColumn
+                news={companyInfo.news}
+                showRelevantOnly={showRelevantOnly}
+                setShowRelevantOnly={setShowRelevantOnly}
+              />
+            </div> {/* End of .results-grid */}
           </div>
         )}
       </div>
