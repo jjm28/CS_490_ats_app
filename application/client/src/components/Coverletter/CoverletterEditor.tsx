@@ -9,7 +9,6 @@ import { pdfRegistry } from ".";
 import Button from "../StyledComponents/Button";
 import { saveCoverletter , updateCoverletter,createdsharedcoverletter,Getfullcoverletter} from "../../api/coverletter";
 import { AIGenerateCoverletter } from "../../api/coverletter";
-import type { GetCoverletterResponse } from "../../api/coverletter";
 import { type GetCoverletterResponse, GetAiGeneratedContent} from "../../api/coverletter";
 
 import { Share } from "lucide-react";
