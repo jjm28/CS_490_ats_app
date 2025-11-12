@@ -32,8 +32,9 @@ import {
 import { calculateJobMatch } from "../__tests__/services/matchAnalysis.service.js";
 import { getDb } from '../db/connection.js';
 import { ObjectId } from "mongodb";
-const router = Router();
+import { getSkillsByUser } from "./skills.js";
 
+const router = Router();
 const VALID_STATUSES = ['interested', 'applied', 'phone_screen', 'interview', 'offer', 'rejected'];
 
 router.use((req, res, next) => {
@@ -222,28 +223,45 @@ router.post("/", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
+    const db = getDb();
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    // Check if filtering by status
+    // Fetch jobs from DB
     const statusParam = req.query.status;
-    
+    let jobs;
+
     if (statusParam) {
-      // Validate status enum
-      if (!VALID_STATUSES.includes(statusParam)) {
-        return res.status(400).json({ 
-          error: "Invalid status value",
-          validStatuses: VALID_STATUSES
-        });
-      }
-      
-      const jobs = await getJobsByStatus({ userId, status: statusParam });
-      return res.json(jobs);
+      jobs = await db.collection("jobs").find({ userId, status: statusParam }).toArray();
+    } else {
+      jobs = await db.collection("jobs").find({ userId }).toArray();
     }
 
-    const jobs = await getAllJobs({ userId });
-    res.json(jobs);
+    // ✅ Fetch user skills
+    const userSkills = await getSkillsByUser(userId);
+    const skillNames = userSkills.map(s => s.name.toLowerCase());
+
+    // ✅ Enhance jobs with matching insights
+    const enhancedJobs = jobs.map(job => {
+      const jobSkills = job.requiredSkills?.map(s => s.toLowerCase()) || [];
+      const skillsMatched = jobSkills.filter(skill => skillNames.includes(skill));
+      const skillsMissing = jobSkills.filter(skill => !skillNames.includes(skill));
+
+      const matchScore = jobSkills.length
+        ? Math.round((skillsMatched.length / jobSkills.length) * 100)
+        : 0;
+
+      return {
+        ...job,
+        matchScore,
+        skillsMatched,
+        skillsMissing,
+      };
+    });
+
+    res.json(enhancedJobs);
   } catch (err) {
+    console.error("Error fetching jobs:", err);
     res.status(500).json({ error: err?.message || "Get all jobs failed" });
   }
 });

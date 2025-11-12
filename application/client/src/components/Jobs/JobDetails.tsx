@@ -53,52 +53,27 @@ export default function JobDetails({
   }, [jobId]);
 
   const fetchJob = async () => {
-  try {
-    const response = await fetch(`${JOBS_ENDPOINT}/${jobId}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch job");
-    }
-
-    const data = await response.json();
-    setJob(data);
-    setFormData(data);
-    setLoading(false);
-
-    // 🔥 STEP 1: Automatically analyze match after job loads
     try {
-      // Only run if matchScore isn’t already available
-      if (!data.matchScore) {
-        const matchRes = await fetch(`${JOBS_ENDPOINT}/${jobId}/analyze-match`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (matchRes.ok) {
-          const updatedJob = await matchRes.json();
-          setJob(updatedJob); // update state so UI shows match results
-          setFormData(updatedJob);
-        } else {
-          console.warn("Match analysis failed:", await matchRes.text());
-        }
+      const response = await fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch job");
       }
-    } catch (matchErr) {
-      console.error("Error during match analysis:", matchErr);
-    }
 
-  } catch (err) {
-    console.error(err);
-    setLoading(false);
-  }
-};
+      const data = await response.json();
+      setJob(data);
+      setFormData(data);
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
 
   const validateForm = () => {
     const errors: Record<string, string> = {};

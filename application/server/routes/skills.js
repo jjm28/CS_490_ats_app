@@ -40,7 +40,7 @@ router.post("/", async (req, res) => {
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const { name, category, proficiency } = req.body;
-    if (!name || !category || !proficiency) {
+    if (!name || !category || !proficiency) {``
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -107,5 +107,8 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: "Error deleting skill", error: err });
   }
 });
-
+export async function getSkillsByUser(userId) {
+  const db = getDb();
+  return await db.collection("skills").find({ userId }).toArray();
+}
 export default router;

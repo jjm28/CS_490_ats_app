@@ -9,6 +9,8 @@
     "express": "^5.1.0",
     "mongodb": "^7.0.0",
     "mongoose": "^8.19.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "react-pdf-tailwind": "^3.0.0",
     "react-router-dom": "^7.9.5"
   }
