@@ -61,7 +61,7 @@ try {
   app.use('/api/employment', attachDevUser, employmentRouter);
 
   // Job routes
-  app.use('/api/jobs', attachDevUser, jobRoutes);
+  app.use('/api/jobs', jobRoutes);
 
   // for picture uploads
   app.use(
@@ -73,7 +73,7 @@ try {
       setHeaders: (res) => res.set('Cache-Control', 'no-store'),
     })
   );
-  app.use('/api/coverletter',coverletter)
+  app.use('/api/coverletter', coverletter)
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

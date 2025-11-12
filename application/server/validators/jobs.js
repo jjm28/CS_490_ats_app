@@ -105,6 +105,15 @@ export async function validateJobCreate(input) {
     }
   }
 
+  // Auto-archive validation
+  if (input.autoArchiveDays !== undefined && input.autoArchiveDays !== null) {
+    const n = Number(input.autoArchiveDays);
+    if (isNaN(n) || n < 1) {
+      errors.autoArchiveDays = 'Auto-archive days must be a positive number';
+    }
+  }
+
+
   // Status validation
   if (input.status !== undefined && !VALID_STATUSES.includes(input.status)) {
     errors.status = `Status must be one of: ${VALID_STATUSES.join(', ')}`;
@@ -146,6 +155,16 @@ export async function validateJobCreate(input) {
     notes: input.notes?.trim() || '',
     salaryNotes: input.salaryNotes?.trim() || '',
     interviewNotes: input.interviewNotes?.trim() || '',
+    autoArchiveDays: input.autoArchiveDays
+      ? Number(input.autoArchiveDays)
+      : 60,
+    autoArchiveDate: input.createdAt
+      ? new Date(
+        new Date(input.createdAt).getTime() +
+        (input.autoArchiveDays || 60) * 24 * 60 * 60 * 1000
+      )
+      : undefined,
+
   };
 
   return { ok: true, value };

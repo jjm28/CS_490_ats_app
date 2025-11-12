@@ -27,6 +27,8 @@ export interface Job {
   description?: string;
   industry: string;
   type: string;
+  autoArchiveDays?: string;
+  autoArchiveDate?: string | Date;
   
   // Status tracking
   status: JobStatus;
@@ -48,6 +50,10 @@ export interface Job {
   // Timestamps
   createdAt?: string;
   updatedAt?: string;
+
+  archived?: boolean;
+  archiveReason?: string;
+  archivedAt?: string;
 }
 
 // Job status enum
@@ -132,6 +138,7 @@ export interface JobFormData {
   description: string;
   industry: string;
   type: string;
+  autoArchiveDays?: string;
 }
 
 // ============================================
