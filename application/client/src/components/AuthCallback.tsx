@@ -24,7 +24,16 @@ export default function AuthCallback() {
       return;
     }
 
-    const user = JSON.parse(base64UrlDecode(u));
+    const parseuser = JSON.parse(base64UrlDecode(u));
+    const user = {
+    "token": token,
+    "userId": parseuser._id,
+    "user": {
+        "_id": parseuser._id,
+        "email": parseuser.email,
+        "firstName": parseuser.firstName,
+        "lastName": parseuser.lastName
+    }}
 
     setAuth(token,user)
     // optional: clean up the URL (no token in history)

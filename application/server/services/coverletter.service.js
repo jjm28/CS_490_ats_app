@@ -317,7 +317,7 @@ const hardConstraints =
     `=== COMPANY NEWS (optional) ===\n${ctxNews}\n\n` +
     
     hardConstraints;
-
+try {
   const result = await model.generateContent({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: {
@@ -394,5 +394,17 @@ const hardConstraints =
   const data = parsedCandidates[0];
 
   return {data};
+}
+catch (err){
+      const msg = String((err && err.message) || err);
+    const status = err && (err.status || err.code || err.statusCode);
 
+    if (status === 429 || /rate|quota|exceed/i.test(msg)) {
+      return { error: "rate_limit", message: msg };
+    }
+    if (status === 401 || status === 403 || /api key|unauthorized|invalid key|forbidden/i.test(msg)) {
+      return { error: "auth", message: msg };
+    }
+    return { error: "generation_failed", message: msg };
+}
 }

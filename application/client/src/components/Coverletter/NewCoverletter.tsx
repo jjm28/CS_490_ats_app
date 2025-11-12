@@ -73,7 +73,7 @@ export default function NewCoverletter() {
     const raw = localStorage.getItem("authUser");
     if (!raw) throw new Error("Not signed in (authUser missing).");
     try {
-      const u = JSON.parse(raw);
+      const u = JSON.parse(raw).user;
       if (!u?._id) throw new Error("authUser is missing _id.");
       return u;
     } catch {
