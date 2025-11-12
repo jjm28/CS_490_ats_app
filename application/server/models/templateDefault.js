@@ -1,9 +1,19 @@
-import mongoose from "mongoose";
-const TemplateDefaultSchema = new mongoose.Schema(
+import mongoose from 'mongoose';
+
+const { Schema } = mongoose;
+
+const TemplateDefaultSchema = new Schema(
   {
-    userId: { type: String, unique: true },
+    // One default per user
+    userId: { type: String, required: true, unique: true, index: true },
+    // References a ResumeTemplate._id (stored as string in your other models)
     templateId: { type: String, required: true },
   },
   { timestamps: true }
 );
-export default mongoose.model("TemplateDefault", TemplateDefaultSchema);
+
+const TemplateDefault =
+  mongoose.models.TemplateDefault ||
+  mongoose.model('TemplateDefault', TemplateDefaultSchema);
+
+export default TemplateDefault;

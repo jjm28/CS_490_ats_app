@@ -1,98 +1,95 @@
+// routes/templates.js
 import express from "express";
-import { verifyJWT } from "../middleware/auth.js";
 import { getDb } from "../db/connection.js";
 
 const router = express.Router();
+
+
+import { verifyJWT } from "../middleware/auth.js";
 router.use(verifyJWT);
 
-// GET /api/resume-templates
-router.get("/resume-templates", async (req, res) => {
+/** List all resume templates visible to the user */
+router.get("/", async (req, res) => {
   try {
     const { userid } = req.query;
-    if (!userid) return res.status(400).json({ error: "Missing user" });
+    if (!userid) return res.status(400).json({ error: "Missing userid" });
+
     const db = getDb();
 
-    const list = await db
-      .collection("resumeTemplates")
-      .find({ $or: [{ owner: userid }, { origin: "system" }] })
-      .sort({ origin: -1, updatedAt: -1 })
-      .toArray();
+    // System + user templates; normalize to a single shape
+    const sys = await db.collection("resumetemplates").find({ origin: "system" }).toArray();
+    const user = await db.collection("resumetemplates").find({ owner: userid }).toArray();
 
-    res.json(
-      list.map((t) => ({
-        _id: t._id,
-        title: t.title,
-        templateKey: t.type,
-        owner: t.owner || "system",
-        style: t.style || {},
-      }))
-    );
+    const out = [...sys, ...user].map(t => ({
+      _id: String(t._id),
+      templateKey: t.type,            // chronological | functional | hybrid
+      title: t.title || t.type,
+      blurb: t.description || t.blurb || "",
+      img: t.image || t.img || null,
+    }));
+
+    return res.status(200).json(out);
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    console.error("list templates error:", e);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
-// POST /api/resume-templates
-router.post("/resume-templates", async (req, res) => {
-  try {
-    const { userid, title, templateKey, style } = req.body || {};
-    if (!userid || !title || !templateKey) return res.status(400).json({ error: "Missing fields" });
-    const db = getDb();
-    const ins = await db
-      .collection("resumeTemplates")
-      .insertOne({ owner: userid, origin: "user", title, type: templateKey, style: style || {} });
-    res.status(201).json({ templateId: ins.insertedId });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// POST /api/resume-templates/:id/share  (stub)
-router.post("/resume-templates/:id/share", async (_req, res) => res.json({ ok: true }));
-
-// GET /api/resume-templates/default
-router.get("/resume-templates/default", async (req, res) => {
+/** Get default template for a user */
+router.get("/default", async (req, res) => {
   try {
     const { userid } = req.query;
-    if (!userid) return res.status(400).json({ error: "Missing user" });
+    if (!userid) return res.status(400).json({ error: "Missing userid" });
+
     const db = getDb();
+    const def = await db.collection("resumeTemplateDefaults").findOne({ userId: userid });
 
-    const pref = await db.collection("resumeTemplateDefaults").findOne({ userId: userid });
-    if (!pref) return res.status(204).end();
-
-    const tpl = await db.collection("resumeTemplates").findOne({ _id: pref.templateId });
-    if (!tpl) return res.status(204).end();
-
-    res.json({ templateKey: tpl.type });
+    return res.status(200).json({ templateKey: def?.templateKey ?? null });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    console.error("get default error:", e);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
-// POST /api/resume-templates/default
-router.post("/resume-templates/default", async (req, res) => {
+/** Set default template for a user */
+router.post("/default", async (req, res) => {
   try {
     const { userid, templateKey } = req.body || {};
     if (!userid || !templateKey) return res.status(400).json({ error: "Missing fields" });
 
     const db = getDb();
-    const tpl = await db
-      .collection("resumeTemplates")
-      .findOne({ $or: [{ owner: userid }, { origin: "system" }], type: templateKey });
+    await db.collection("resumeTemplateDefaults").updateOne(
+      { userId: userid },
+      { $set: { userId: userid, templateKey } },
+      { upsert: true }
+    );
 
-    if (!tpl) return res.status(400).json({ error: "TemplateNotFound" });
-
-    await db
-      .collection("resumeTemplateDefaults")
-      .updateOne({ userId: userid }, { $set: { templateId: tpl._id } }, { upsert: true });
-
-    res.json({ ok: true });
+    return res.status(200).json({ ok: true });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Server error" });
+    console.error("set default error:", e);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/** (Optional) Create a user template */
+router.post("/", async (req, res) => {
+  try {
+    const { userid, title, templateKey, style } = req.body || {};
+    if (!userid || !title || !templateKey) return res.status(400).json({ error: "Missing fields" });
+
+    const db = getDb();
+    const ins = await db.collection("resumetemplates").insertOne({
+      owner: userid,
+      origin: "user",
+      title,
+      type: templateKey,
+      style: style || {},
+    });
+
+    return res.status(201).json({ _id: ins.insertedId });
+  } catch (e) {
+    console.error("create template error:", e);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 

@@ -66,8 +66,7 @@ try {
 
   // Job routes
   app.use('/api/jobs', attachDevUser, jobRoutes);
-  app.use("/api/resumes", resumesRoute);
-  app.use("/api", templatesRoute);
+  
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
   // for picture uploads
@@ -81,6 +80,12 @@ try {
     })
   );
   app.use('/api/coverletter',coverletter)
+
+  //resume routes
+  app.use("/api/resumes", resumesRoute);
+  app.use('/api/resume-templates', templatesRoute);
+
+  
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

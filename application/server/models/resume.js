@@ -1,13 +1,34 @@
-import mongoose from "mongoose";
-const ResumeSchema = new mongoose.Schema(
+import mongoose from 'mongoose';
+
+const { Schema } = mongoose;
+
+const ResumeSchema = new Schema(
   {
-    name: { type: String, default: "Untitled" },
-    ownerId: { type: String, required: true },
-    templateId: { type: String, default: null },
-    content: { type: Object, default: {} },
+    // Canonical owner field (match other models)
+    userId: { type: String, required: true, index: true },
+
+    // Core resume fields
+    filename: { type: String, required: true, maxlength: 200 },
+    templateKey: {
+      type: String,
+      enum: ['chronological', 'functional', 'hybrid'],
+      required: true,
+      index: true,
+    },
+    resumedata: { type: Schema.Types.Mixed, required: true }, // flexible JSON blob
+    lastSaved: { type: Date },
+
+    // Optional metadata
     tags: { type: [String], default: [] },
     archived: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
-export default mongoose.model("Resume", ResumeSchema);
+
+// Helpful listing/sorting index pattern (like your other models)
+ResumeSchema.index({ userId: 1, updatedAt: -1 });
+
+const Resume =
+  mongoose.models.Resume || mongoose.model('Resume', ResumeSchema);
+
+export default Resume;
