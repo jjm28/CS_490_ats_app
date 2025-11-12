@@ -27,6 +27,7 @@ import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
 import Projects from "./components/Projects/Projects";
 
+import CompanyResearch from './components/Job_Tools/CompanyResearch';
 import JobsEntry from './components/Jobs/JobsEntry';
 import JobsPipeline from './components/Jobs/JobsPipeline';
 
@@ -72,6 +73,7 @@ function App() {
           <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} /> {/* Protected Routes */}
           <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
+          <Route path="/company-research" element={<PrivateRoute><CompanyResearch /></PrivateRoute>} />
           <Route path="/Jobs" element={<PrivateRoute><JobsEntry /></PrivateRoute>} />
           <Route path="/Jobs/Pipeline" element={<PrivateRoute><JobsPipeline /></PrivateRoute>} />
           <Route path="/coverletter" element={<PrivateRoute><Coverletter /></PrivateRoute>} />

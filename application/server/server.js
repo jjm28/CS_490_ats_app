@@ -16,8 +16,7 @@ import employmentRouter from './routes/employment.js';
 import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
-import jobRoutes from "./routes/jobs.js";
-import coverletter from  "./routes/coverletter.js"
+import companyResearch from './routes/company-research.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -32,13 +31,14 @@ const __dirname = path.dirname(__filename);
 app.set('baseUrl', BASE);
 
 app.use(cors({
-  origin: CORS_ORGIN,
+  origin: CORS_ORIGIN,
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-dev-user-id'],
 }));
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(companyResearch);
 
 // Start after DB connects
 try {
