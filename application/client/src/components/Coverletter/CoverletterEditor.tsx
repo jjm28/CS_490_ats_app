@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState , Suspense} from "react";
-import { useLocation, useNavigate,useParams  } from "react-router-dom";
+import React, { useEffect, useMemo, useState, Suspense } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import type { CoverLetterData } from "./CoverLetterTemplates/Pdf/Formalpdf";
 import type { Template } from "./Coverletterstore";
@@ -7,18 +7,28 @@ import type { SectionKey } from "./Coverletterstore";
 import { previewRegistry } from ".";
 import { pdfRegistry } from ".";
 import Button from "../StyledComponents/Button";
-import { saveCoverletter , updateCoverletter,createdsharedcoverletter,Getfullcoverletter} from "../../api/coverletter";
+import {
+  saveCoverletter,
+  updateCoverletter,
+  createdsharedcoverletter,
+  Getfullcoverletter,
+} from "../../api/coverletter";
 import { AIGenerateCoverletter } from "../../api/coverletter";
 import type { GetCoverletterResponse } from "../../api/coverletter";
-import { type GetCoverletterResponse, GetAiGeneratedContent} from "../../api/coverletter";
-
-import { Share } from "lucide-react";
 import type { Job } from "./hooks/useJobs";
+import type { AIcoverletterPromptResponse } from "../../api/coverletter";
 
-type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse, importcoverletterData?: GetCoverletterResponse, UsersJobData?:Job, AImode?: boolean};
+type LocationState = {
+  template: Template;
+  Coverletterid?: string;
+  coverletterData?: GetCoverletterResponse;
+  importcoverletterData?: GetCoverletterResponse;
+  UsersJobData?: Job;
+  AImode?: boolean;
+  GeminiCoverletter?: AIcoverletterPromptResponse;
+};
 
 const API = import.meta.env.VITE_API_URL || `http://${location.hostname}:5050/`;
-
 
 // ---- simple modal ----
 function Modal({
@@ -39,7 +49,9 @@ function Modal({
       <div className="relative w-[92vw] max-w-lg bg-white rounded-2xl shadow-xl p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <button onClick={onClose} className="h-9 w-9 rounded-full hover:bg-gray-100">✕</button>
+          <button onClick={onClose} className="h-9 w-9 rounded-full hover:bg-gray-100">
+            ✕
+          </button>
         </div>
         {children}
       </div>
@@ -53,21 +65,19 @@ export default function CoverletterEditor() {
   const state = useLocation().state as LocationState | null;
   const template = state?.template;
   const docid = state?.Coverletterid;
-  const coverletterData = state?.coverletterData
-  const importcoverletterData = state?.importcoverletterData
-  const UsersJobData = state?.UsersJobData
-  const AImode =  state?.AImode
+  const coverletterData = state?.coverletterData;
+  const importcoverletterData = state?.importcoverletterData;
+  const AImode = state?.AImode;
+  const GeminiCoverletterData = state?.GeminiCoverletter;
+
   // redirect if no template
   useEffect(() => {
     if (!template) navigate("/coverletter", { replace: true });
   }, [template, navigate]);
 
-
-
-
-  // initial data (from your example)
-  const [data, setData] = useState<CoverLetterData>({
-    name:    template!.TemplateData.name,
+  // base data
+  const [data, setData] = useState<CoverLetterData>(() => ({
+    name: template!.TemplateData.name,
     phonenumber: template!.TemplateData.phonenumber,
     email: template!.TemplateData.email,
     address: template!.TemplateData.address,
@@ -76,88 +86,95 @@ export default function CoverletterEditor() {
     greeting: template!.TemplateData.greeting,
     paragraphs: template!.TemplateData.paragraphs,
     closing: template!.TemplateData.closing,
-    signatureNote: template!.TemplateData.signatureNote
+    signatureNote: template!.TemplateData.signatureNote,
+  }));
 
-  });
+  // AI variations UI state
+  const [variations, setVariations] = useState<CoverLetterData[] | null>(null);
+  const [selectedVarIdx, setSelectedVarIdx] = useState<number>(0);
+  const [choiceLocked, setChoiceLocked] = useState<boolean>(false);
 
   // which piece is being edited
-  type Section = SectionKey
+  type Section = SectionKey;
   const [editing, setEditing] = useState<Section | null>(null);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
-  const [CoverletterID, setCoverletterID] = useState<string | null>(    () => sessionStorage.getItem("CoverletterID")  );
+  const [CoverletterID, setCoverletterID] = useState<string | null>(() =>
+    sessionStorage.getItem("CoverletterID")
+  );
   const [filename, setFilename] = useState<string>("Untitled");
-  
-
   const [error, setErr] = useState<string | null>(null);
-      
-  
-  
-  useEffect(() => {
-      if (docid && coverletterData) {
-        setCoverletterID(docid);
-        setFilename(coverletterData.filename)
-        setData(coverletterData.coverletterdata);
-      }
-      }, [docid,coverletterData]);
-// To load when generating with ai
-      useEffect(() => {
-      if (AImode ==true && UsersJobData) {
-            const user = JSON.parse(localStorage.getItem("authUser") ?? "")
-            GetAiGeneratedContent({userid: user._id, Jobdata: UsersJobData,})
-            .then((data) => {
-            // setFilename(data.filename)
-            // setData(data.coverletterdata)
-            // sessionStorage.setItem("CoverletterID", CoverletterID);
-          })
-            .catch((err) => setErr(err));
-      }
-      }, [AImode,UsersJobData]);
-// to load when importing coverleter
-  useEffect(() => {
-      if (importcoverletterData) {
-        setFilename(importcoverletterData.filename)
-        setData(importcoverletterData.coverletterdata);
-      }
-      }, [importcoverletterData]);
-//To load saved changes in the case of refresh
-useEffect(() => {
-  if (!CoverletterID) return;
-    const user = JSON.parse(localStorage.getItem("authUser") ?? "")
-    Getfullcoverletter({userid: user._id, coverletterid: CoverletterID})
-    .then((data) => {
-    setFilename(data.filename)
-    setData(data.coverletterdata)
-    sessionStorage.setItem("CoverletterID", CoverletterID);
-  })
-    .catch((err) => setErr(err));
-}, [CoverletterID]);
 
+  // load from explicit cover letter id/data
+  useEffect(() => {
+    if (docid && coverletterData) {
+      setCoverletterID(docid);
+      setFilename(coverletterData.filename);
+      setData(coverletterData.coverletterdata);
+      setVariations(null);
+      setChoiceLocked(true); // existing doc → already locked to one version
+    }
+  }, [docid, coverletterData]);
+
+  // load when generating with AI: show variations picker
+  useEffect(() => {
+    if (AImode === true && GeminiCoverletterData?.parsedCandidates?.length) {
+      const arr = GeminiCoverletterData.parsedCandidates;
+      setVariations(arr);
+      setSelectedVarIdx(0);
+      setData(arr[0]);
+      setChoiceLocked(false); // not saved yet; allow choosing
+    }
+  }, [AImode, GeminiCoverletterData]);
+
+  // to load when importing cover letter (single)
+  useEffect(() => {
+    if (importcoverletterData) {
+      setFilename(importcoverletterData.filename);
+      setData(importcoverletterData.coverletterdata);
+      setVariations(null);
+      setChoiceLocked(true);
+    }
+  }, [importcoverletterData]);
+
+  // To load saved changes in the case of refresh
+  useEffect(() => {
+    if (!CoverletterID) return;
+    try {
+      const raw = localStorage.getItem("authUser");
+      if (!raw) throw new Error("Not signed in (authUser missing).");
+      const user = JSON.parse(raw);
+      Getfullcoverletter({ userid: user._id, coverletterid: CoverletterID })
+        .then((resp) => {
+          setFilename(resp.filename);
+          setData(resp.coverletterdata);
+          sessionStorage.setItem("CoverletterID", CoverletterID);
+          setVariations(null);
+          setChoiceLocked(true);
+        })
+        .catch((err) => setErr(err?.message ?? String(err)));
+    } catch (e: any) {
+      setErr(e?.message ?? String(e));
+    }
+  }, [CoverletterID]);
 
   const location = useLocation();
-
-    useEffect(() => {
-    // Adjust condition to only clear if leaving *this* page
-     if (location.pathname === "/coverletter/editor") {
-      // we are currently ON the editor page → don't clear yet
-     
-      return;
-    }
-    // leaving the editor → clear
+  useEffect(() => {
+    if (location.pathname === "/coverletter/editor") return;
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
 
   if (!template) return null;
 
-    const PreviewComponent = useMemo(() => {
+  const PreviewComponent = useMemo(() => {
     return previewRegistry[template.key] ?? previewRegistry["formal"];
   }, [template.key]);
 
-    const PdfComponent = useMemo(() => {
+  const PdfComponent = useMemo(() => {
     return pdfRegistry[template.key] ?? pdfRegistry["formal"];
   }, [template.key]);
 
-    // pdf doc (same data)
   const pdfDoc = useMemo(() => <PdfComponent {...data} />, [PdfComponent, data]);
+
   // ---- small editors for each section ----
   const EditorForm = () => {
     if (!editing) return null;
@@ -171,7 +188,13 @@ useEffect(() => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            setData((d) => ({ ...d, name, phonenumber: phonenumber, email: email, address: address}));
+            setData((d) => ({
+              ...d,
+              name,
+              phonenumber: phonenumber,
+              email: email,
+              address: address,
+            }));
             setEditing(null);
           }}
           className="space-y-3"
@@ -192,7 +215,7 @@ useEffect(() => {
               onChange={(e) => setphonenumber(e.target.value)}
             />
           </label>
-            <label className="block">
+          <label className="block">
             <span className="text-sm font-medium">Email</span>
             <input
               className="mt-1 w-full rounded border px-3 py-2"
@@ -200,7 +223,7 @@ useEffect(() => {
               onChange={(e) => setemail(e.target.value)}
             />
           </label>
-                    <label className="block">
+          <label className="block">
             <span className="text-sm font-medium">Address</span>
             <input
               className="mt-1 w-full rounded border px-3 py-2"
@@ -240,8 +263,12 @@ useEffect(() => {
             />
           </label>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">Save</button>
+            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">
+              Cancel
+            </button>
+            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">
+              Save
+            </button>
           </div>
         </form>
       );
@@ -253,7 +280,10 @@ useEffect(() => {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            setData((d) => ({ ...d, recipientLines: lines.split("\n").filter(Boolean) }));
+            setData((d) => ({
+              ...d,
+              recipientLines: lines.split("\n").filter(Boolean),
+            }));
             setEditing(null);
           }}
           className="space-y-3"
@@ -267,8 +297,12 @@ useEffect(() => {
             />
           </label>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">Save</button>
+            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">
+              Cancel
+            </button>
+            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">
+              Save
+            </button>
           </div>
         </form>
       );
@@ -294,8 +328,12 @@ useEffect(() => {
             />
           </label>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">Save</button>
+            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">
+              Cancel
+            </button>
+            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">
+              Save
+            </button>
           </div>
         </form>
       );
@@ -303,16 +341,16 @@ useEffect(() => {
 
     if (editing === "paragraphs") {
       const [text, setText] = useState(
-  Array.isArray(data.paragraphs)
-    ? data.paragraphs.join("\n\n")
-    : data.paragraphs || ""
-);
-
+        Array.isArray(data.paragraphs) ? data.paragraphs.join("\n\n") : data.paragraphs || ""
+      );
       return (
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            setData((d) => ({ ...d, paragraphs: text.split(/\n\s*\n/).filter(Boolean) }));
+            setData((d) => ({
+              ...d,
+              paragraphs: text.split(/\n\s*\n/).filter(Boolean),
+            }));
             setEditing(null);
           }}
           className="space-y-3"
@@ -326,35 +364,12 @@ useEffect(() => {
             />
           </label>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">Save</button>
-          </div>
-        </form>
-      );
-    }
-
-    if (editing === "closing") {
-      const [closing, setClosing] = useState(data.closing);
-      return (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setData((d) => ({ ...d, closing }));
-            setEditing(null);
-          }}
-          className="space-y-3"
-        >
-          <label className="block">
-            <span className="text-sm font-medium">Closing</span>
-            <input
-              className="mt-1 w-full rounded border px-3 py-2"
-              value={closing}
-              onChange={(e) => setClosing(e.target.value)}
-            />
-          </label>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">Save</button>
+            <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">
+              Cancel
+            </button>
+            <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">
+              Save
+            </button>
           </div>
         </form>
       );
@@ -380,285 +395,339 @@ useEffect(() => {
           />
         </label>
         <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-          <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">Save</button>
+          <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded bg-gray-100">
+            Cancel
+          </button>
+          <button type="submit" className="px-4 py-2 rounded bg-emerald-600 text-white">
+            Save
+          </button>
         </div>
       </form>
     );
   };
 
   const handleSave = async () => {
-    if (!CoverletterID){
-  try {
-      const user = JSON.parse(localStorage.getItem("authUser") ?? "")
-  
-       const ts = new Date().toLocaleTimeString();
-
-      const Coverletter = await saveCoverletter({userid: user._id, filename: filename, templateKey: template.key, coverletterdata: data, lastSaved: ts});
-      setLastSaved(ts);
-      setCoverletterID(Coverletter._id)     
-  }
-  catch (err: any) {
-      if (err instanceof Error) {
-        setErr(err.message);
-      } else {
-        setErr("Something went wrong. Please try again.");
-      }
-  }
-    }
-  else {
+    if (!CoverletterID) {
       try {
-      const user = JSON.parse(localStorage.getItem("authUser") ?? "")
-       const ts = new Date().toLocaleTimeString();
-      const Coverletter = await updateCoverletter({coverletterid: CoverletterID,userid: user._id, filename: filename,  coverletterdata: data, lastSaved: ts});
-      setLastSaved(ts);
-      setCoverletterID(Coverletter._id)     
-  }
-  catch (err: any) {
-      if (err instanceof Error) {
-        setErr(err.message);
-      } else {
-        setErr("Something went wrong. Please try again.");
+        const raw = localStorage.getItem("authUser");
+        if (!raw) throw new Error("Not signed in (authUser missing).");
+        const user = JSON.parse(raw);
+
+        const ts = new Date().toLocaleTimeString();
+        const Coverletter = await saveCoverletter({
+          userid: user._id,
+          filename: filename,
+          templateKey: template.key,
+          coverletterdata: data,
+          lastSaved: ts,
+        });
+        setLastSaved(ts);
+        setCoverletterID(Coverletter._id);
+
+        // 🔒 lock the chosen variation after first save
+        setChoiceLocked(true);
+        setVariations(null);
+      } catch (err: any) {
+        setErr(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       }
-  }
-  }
-  }
+    } else {
+      try {
+        const raw = localStorage.getItem("authUser");
+        if (!raw) throw new Error("Not signed in (authUser missing).");
+        const user = JSON.parse(raw);
 
-const [jobTitle, setJobTitle] = useState("");
-const [companyName, setCompanyName] = useState("");
-const [loadingAI, setLoadingAI] = useState(false);
+        const ts = new Date().toLocaleTimeString();
+        const Coverletter = await updateCoverletter({
+          coverletterid: CoverletterID,
+          userid: user._id,
+          filename: filename,
+          coverletterdata: data,
+          lastSaved: ts,
+        });
+        setLastSaved(ts);
+        setCoverletterID(Coverletter._id);
 
- const handleAIGeneration = async () => {
-  if (!jobTitle || !companyName) {
-    alert("Please enter both job title and company name.");
-    return;
-  }
+        // ensure locked (already should be)
+        setChoiceLocked(true);
+        setVariations(null);
+      } catch (err: any) {
+        setErr(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      }
+    }
+  };
 
-  setLoadingAI(true);
-  try {
-    const user = JSON.parse(localStorage.getItem("authUser") ?? "{}");
+  const [jobTitle, setJobTitle] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [loadingAI, setLoadingAI] = useState(false);
 
-    interface CompanyInfo {
-      ai_summary?: string;
-      headquarters?: string;
+  const handleAIGeneration = async () => {
+    if (!jobTitle || !companyName) {
+      alert("Please enter both job title and company name.");
+      return;
     }
 
-    const companyInfo = (await fetch(
-      `${API}/company/info?name=${encodeURIComponent(companyName)}`
-    ).then((r) => r.json()).catch(() => null)) as CompanyInfo | null;
+    setLoadingAI(true);
+    try {
+      const user = JSON.parse(localStorage.getItem("authUser") ?? "{}");
 
-    const result = await AIGenerateCoverletter({
-      job_title: jobTitle,
-      company_name: companyName,
-      company_summary: companyInfo?.ai_summary ?? "",
-      company_address: companyInfo?.headquarters ?? "",
-      user_name: user.full_name,
-      user_email: user.email,
-      user_phone: user.phone ?? "",
-      user_address: user.address ?? "",
-      user_skills: Array.isArray(user.skills)
-        ? user.skills.join(", ")
-        : user.skills ?? "",
-      user_experience: user.years_experience ?? "",
-    });
+      interface CompanyInfo {
+        ai_summary?: string;
+        headquarters?: string;
+      }
 
-    console.log("AI Cover Letter:", result.cover_letter);
+      const companyInfo = (await fetch(
+        `${API}/company/info?name=${encodeURIComponent(companyName)}`
+      )
+        .then((r) => r.json())
+        .catch(() => null)) as CompanyInfo | null;
 
-    setData((prev) => ({
-      ...prev,
-      paragraphs: [result.cover_letter],
-    }));
-  } catch (err) {
-    console.error(err);
-    alert("AI generation failed. Check backend logs or API key.");
-  } finally {
-    setLoadingAI(false);
-  }
-};
+      const result = await AIGenerateCoverletter({
+        job_title: jobTitle,
+        company_name: companyName,
+        company_summary: companyInfo?.ai_summary ?? "",
+        company_address: companyInfo?.headquarters ?? "",
+        user_name: user.full_name,
+        user_email: user.email,
+        user_phone: user.phone ?? "",
+        user_address: user.address ?? "",
+        user_skills: Array.isArray(user.skills) ? user.skills.join(", ") : user.skills ?? "",
+        user_experience: user.years_experience ?? "",
+      });
 
+      setData((prev) => ({
+        ...prev,
+        paragraphs: [result.cover_letter],
+      }));
+      // This path generates a single paragraph, so we clear any variations UI
+      setVariations(null);
+      setChoiceLocked(true);
+    } catch (err) {
+      console.error(err);
+      alert("AI generation failed. Check backend logs or API key.");
+    } finally {
+      setLoadingAI(false);
+    }
+  };
 
-    const handleExport = async () => {
-      const tk = template?.key ??  "formal";
+  const handleExport = async () => {
+    const tk = template?.key ?? "formal";
+    const jsondata = {
+      userid: "",
+      filename: filename,
+      templateKey: tk,
+      coverletterdata: { ...data },
+      lastSaved: lastSaved,
+    };
 
-        const jsondata =  { userid:"", filename: filename,templateKey: tk,coverletterdata: {...data},lastSaved: lastSaved }
+    const jsonStr = JSON.stringify(jsondata, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
 
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename || "coverletter.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
-        const jsonStr = JSON.stringify(jsondata, null, 2)
-        const blob = new Blob([jsonStr], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
+    URL.revokeObjectURL(url);
+  };
 
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+  const handleShare = async () => {
+    try {
+      const raw = localStorage.getItem("authUser");
+      if (!raw) throw new Error("Not signed in (authUser missing).");
+      const user = JSON.parse(raw);
 
-        URL.revokeObjectURL(url);
-  }
-  
-    const handleShare = async () => {
-      try {
-      const user = JSON.parse(localStorage.getItem("authUser") ?? "")
-      const ts = new Date().toLocaleTimeString();
-      const Sharedcoverletter = await createdsharedcoverletter({userid: user._id,coverletterid: CoverletterID ?? "", coverletterdata: data});
-      navigator.clipboard.writeText(Sharedcoverletter.url)
+      const Sharedcoverletter = await createdsharedcoverletter({
+        userid: user._id,
+        coverletterid: CoverletterID ?? "",
+        coverletterdata: data,
+      });
+      navigator.clipboard
+        .writeText(Sharedcoverletter.url)
         .then(() => {
           alert("Link copied to clipboard!");
         })
         .catch((err) => {
           console.error("Failed to copy: ", err);
         });
-        console.log(Sharedcoverletter)
+    } catch (err: any) {
+      setErr(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    }
+  };
+
+  // === AI assistant (unused UI kept as in your file) ===
+  const [company, setCompany] = useState("");
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  async function handleAIGenerate() {
+    if (!company || !jobTitle) {
+      alert("Please enter both job title and company name.");
+      return;
+    }
+
+    try {
+      setAiLoading(true);
+      const info = await setCompanyInfo(company);
+      setCompanyInfo(info);
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/coverletter/ai-generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_title: jobTitle,
+          company_summary: companyInfo?.ai_summary ?? "",
+          company_address: companyInfo?.headquarters ?? "",
+        }),
+      });
+      const d = await res.json();
+
+      setData((prev) => ({
+        ...prev,
+        paragraphs: [d.cover_letter ?? "AI generation failed."],
+      }));
+      setVariations(null);
+      setChoiceLocked(true);
+    } catch (err) {
+      console.error(err);
+      alert("AI generation failed. Check backend logs or API key.");
+    } finally {
+      setAiLoading(false);
+    }
   }
-  catch (err: any) {
-      if (err instanceof Error) {
-        setErr(err.message);
-      } else {
-        setErr("Something went wrong. Please try again.");
-      }
-  }
 
-
-  }
-  
-
-  // === AI assistant: company info & generator ===
-const [company, setCompany] = useState("");
-const [companyInfo, setCompanyInfo] = useState<any>(null);
-const [aiLoading, setAiLoading] = useState(false);
-
-async function handleAIGenerate() {
-  if (!company || !jobTitle) {
-    alert("Please enter both job title and company name.");
-    return;
-  }
-
-  try {
-    setAiLoading(true);
-    // 1️⃣ Fetch researched company info
-    const info = await setCompanyInfo(company);
-    setCompanyInfo(info);
-
-    // 2️⃣ Ask backend to generate a tailored paragraph
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/coverletter/ai-generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        job_title: jobTitle,
-        company_summary: companyInfo?.ai_summary ?? "",
-        company_address: companyInfo?.headquarters ?? "",
-      }),
-    });
-    const data = await res.json();
-
-    // 3️⃣ Insert AI result into your editable paragraphs
-    setData((d) => ({
-      ...d,
-      paragraphs: [data.cover_letter ?? "AI generation failed."],
-    }));
-  } catch (err) {
-    console.error(err);
-    alert("AI generation failed. Check backend logs or API key.");
-  } finally {
-    setAiLoading(false);
-  }
-}
+  // UI helpers for variations
+  const showVariationsPicker = Boolean(variations?.length && !choiceLocked);
 
   return (
-<div className="max-w-7xl mx-auto px-6 py-10">
-  <div className="mb-4">
-    <h1 className="text-2xl font-semibold mb-2">Coverletter Editor Mode</h1>
+    <div className="max-w-7xl mx-auto px-6 py-10">
+      <div className="mb-4">
+        <h1 className="text-2xl font-semibold mb-2">Coverletter Editor Mode</h1>
 
-    {/* Toolbar */}
-    <div className="flex items-center gap-3 flex-wrap">
-      {/* Left: Share */}
-      <Button onClick={handleShare}>Share</Button>
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Left: Share */}
+          <Button onClick={handleShare}>Share</Button>
 
-      {/* Middle: filename */}
-      <label
-        htmlFor="filename"
-        className="text-sm font-medium text-gray-700 whitespace-nowrap"
-      >
-        File name:
-      </label>
-      <input
-        id="filename"
-        type="text"
-        className="flex-1 max-w-md rounded border px-3 py-2 text-sm"
-        placeholder="e.g., Acme Sales – Dec 2025"
-        value={filename}
-        onChange={(e) => setFilename(e.target.value)}
-      />
+          {/* Middle: filename */}
+          <label htmlFor="filename" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+            File name:
+          </label>
+          <input
+            id="filename"
+            type="text"
+            className="flex-1 max-w-md rounded border px-3 py-2 text-sm"
+            placeholder="e.g., Acme Sales – Dec 2025"
+            value={filename}
+            onChange={(e) => setFilename(e.target.value)}
+          />
 
-      {/* Spacer pushes the rest to the right */}
-      <div className="flex-1" />
+          {/* Spacer */}
+          <div className="flex-1" />
 
-      {/* Right: status + actions */}
-      {error ? (
-        <span className="text-xs text-red-500">Error: {error}</span>
-      ) : (
-        lastSaved && (
-          <span className="text-xs text-gray-500">Saved {lastSaved}</span>
-        )
-      )}
-      <Button onClick={handleSave}>Save</Button>
-      <Button onClick={handleExport}>Export</Button>
-    </div>
-  </div>
+          {/* Right: status + actions */}
+          {error ? (
+            <span className="text-xs text-red-500">Error: {error}</span>
+          ) : (
+            lastSaved && <span className="text-xs text-gray-500">Saved {lastSaved}</span>
+          )}
+          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={handleExport}>Export</Button>
+        </div>
+      </div>
 
-  <p className="text-gray-600 mb-6">
-    Loaded: <strong>{template.title}</strong> ({template.key})
-  </p>
-
-{/* === AI Company Research & Tailored Content === */}
-<div className="my-8 border border-gray-200 rounded-lg p-6 bg-gray-50">
-  <h2 className="text-lg font-semibold mb-3">AI Company Research</h2>
-
-<div className="flex items-center gap-3 mb-6">
-  <input
-    type="text"
-    value={jobTitle}
-    onChange={(e) => setJobTitle(e.target.value)}
-    placeholder="Job Title (e.g., Software Engineer)"
-    className="border rounded px-3 py-2 flex-1"
-  />
-  <input
-    type="text"
-    value={companyName}
-    onChange={(e) => setCompanyName(e.target.value)}
-    placeholder="Company Name (e.g., Amazon)"
-    className="border rounded px-3 py-2 flex-1"
-  />
-  <button
-    onClick={handleAIGeneration}
-    disabled={loadingAI}
-    className={`px-4 py-2 rounded text-white ${
-      loadingAI ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"
-    }`}
-  >
-    {loadingAI ? "Analyzing..." : "Generate AI Letter"}
-  </button>
-</div>
-
-  {companyInfo && (
-    <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded-md">
-      <h3 className="font-medium mb-2">
-        Company Insights: {companyInfo.company}
-      </h3>
-      <p className="text-gray-700 whitespace-pre-line text-sm">
-        {companyInfo.aiSummary}
+      <p className="text-gray-600 mb-6">
+        Loaded: <strong>{template.title}</strong> ({template.key})
       </p>
-    </div>
-  )}
-</div>
 
+      {/* === Variations Picker (only before first save) === */}
+      {showVariationsPicker && (
+        <div className="mb-8 border border-emerald-200 rounded-lg p-5 bg-emerald-50">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">AI generated {variations!.length} variations</h2>
+            <span className="text-xs text-gray-600">
+              Select a version. <strong>Saving</strong> will lock this choice.
+            </span>
+          </div>
 
-{/* Coverletter on Client Side*/}
-   <Suspense fallback={<div className="bg-white shadow rounded p-10 text-sm text-gray-500">Loading preview…</div>}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {variations!.map((v, idx) => {
+              const firstPara = Array.isArray(v.paragraphs) ? v.paragraphs[0] : v.paragraphs;
+              const isSelected = idx === selectedVarIdx;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setSelectedVarIdx(idx);
+                    setData(v);
+                  }}
+                  className={`text-left rounded-lg border p-4 hover:bg-white transition ${
+                    isSelected ? "border-emerald-600 bg-white shadow" : "border-gray-200 bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium">Version {idx + 1}</div>
+                    <div
+                      className={`text-xs px-2 py-0.5 rounded ${
+                        isSelected ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {isSelected ? "Selected" : "Select"}
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-700 line-clamp-6 whitespace-pre-line">
+                    <div className="font-semibold mb-1">{v.greeting}</div>
+                    {firstPara || "—"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* === AI Company Research & Tailored Content (kept from your file) === */}
+      <div className="my-8 border border-gray-200 rounded-lg p-6 bg-gray-50">
+        <h2 className="text-lg font-semibold mb-3">AI Company Research</h2>
+
+        <div className="flex items-center gap-3 mb-6">
+          <input
+            type="text"
+            value={jobTitle}
+            onChange={(e) => setJobTitle(e.target.value)}
+            placeholder="Job Title (e.g., Software Engineer)"
+            className="border rounded px-3 py-2 flex-1"
+          />
+          <input
+            type="text"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="Company Name (e.g., Amazon)"
+            className="border rounded px-3 py-2 flex-1"
+          />
+          <button
+            onClick={handleAIGeneration}
+            disabled={loadingAI}
+            className={`px-4 py-2 rounded text-white ${loadingAI ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"}`}
+          >
+            {loadingAI ? "Analyzing..." : "Generate AI Letter"}
+          </button>
+        </div>
+
+        {companyInfo && (
+          <div className="mt-4 bg-blue-50 border border-blue-200 p-4 rounded-md">
+            <h3 className="font-medium mb-2">Company Insights: {companyInfo.company}</h3>
+            <p className="text-gray-700 whitespace-pre-line text-sm">{companyInfo.aiSummary}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Coverletter preview */}
+      <Suspense fallback={<div className="bg-white shadow rounded p-10 text-sm text-gray-500">Loading preview…</div>}>
         <PreviewComponent data={data} onEdit={setEditing} />
       </Suspense>
-
 
       {/* actions */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -675,27 +744,17 @@ async function handleAIGenerate() {
         </details>
 
         <Suspense fallback={<button className="px-4 py-2 bg-gray-300 text-white rounded">Preparing…</button>}>
-          <PDFDownloadLink
-            document={pdfDoc}
-            fileName="coverletter.pdf"
-            className="inline-block px-4 py-2 bg-black text-white rounded"
-          >
+          <PDFDownloadLink document={pdfDoc} fileName="coverletter.pdf" className="inline-block px-4 py-2 bg-black text-white rounded">
             {({ loading }) => (loading ? "Preparing…" : "Download PDF")}
           </PDFDownloadLink>
         </Suspense>
-        
-
       </div>
 
       {/* modal */}
       <Modal
         open={editing !== null}
         onClose={() => setEditing(null)}
-        title={
-          editing
-            ? `Edit ${editing[0].toUpperCase() + editing.slice(1)}`
-            : "Edit"
-        }
+        title={editing ? `Edit ${editing[0].toUpperCase() + editing.slice(1)}` : "Edit"}
       >
         <EditorForm />
       </Modal>
