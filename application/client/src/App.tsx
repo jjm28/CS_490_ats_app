@@ -14,24 +14,22 @@ import Education from './components/Education/Education';
 import AuthCallback from './components/AuthCallback';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-
 import EmploymentPage from "./components/Employment/EmploymentPage";
 import EmploymentForm from "./components/Employment/EmploymentForm";
-
 import NewCoverletter from './components/Coverletter/NewCoverletter';
 import CoverletterEditor from './components/Coverletter/CoverletterEditor';
 import Coverletter from './components/Coverletter/Coverletters';
 import ShareView from './components/Coverletter/ShareView';
-
 import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
 import Projects from "./components/Projects/Projects";
-
 import CompanyResearch from './components/Job_Tools/CompanyResearch';
 import JobsEntry from './components/Jobs/JobsEntry';
 import JobsPipeline from './components/Jobs/JobsPipeline';
 import DeadlineCalendar from './components/Jobs/DeadlineCalendar';
-
+import JobDetails from "./components/Jobs/JobDetails";
+import JobStatsDashboard from "./components/Jobs/JobStatsDashboard";
+import ArchivedJobs from "./components/Jobs/ArchivedJobs";
 import './App.css';
 
 function App() {
@@ -39,16 +37,11 @@ function App() {
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
 
-    useEffect(() => {
-    // Adjust condition to only clear if leaving *this* page
-     if (location.pathname === "/coverletter/editor") {
-      // we are currently ON the editor page → don't clear yet
-      return;
-    }
-     console.log("working")
-    // leaving the editor → clear
+  useEffect(() => {
+    if (location.pathname === "/coverletter/editor") return;
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
+
   return (
     <>
       {showNavbar && <Nav />}
@@ -57,22 +50,21 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/Registration" element={<Registration />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/Dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} /> {/* Protected Routes */}
-          <Route path="/Skills" element={<PrivateRoute><Skills /></PrivateRoute>} />{/* Protected Routes */}
+          <Route path="/Dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/Skills" element={<PrivateRoute><Skills /></PrivateRoute>} />
           <Route path="/Login" element={<LoginPage />} />
-          <Route path="/ProfileDashboard" element={<PrivateRoute><ProfileDashboard /></PrivateRoute>} />{/* Protected Routes */}
-          <Route path="/ProfilePage" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />{/* Protected Routes */}
-          <Route path="/ProfileForm" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />{/* Protected Routes */}
+          <Route path="/ProfileDashboard" element={<PrivateRoute><ProfileDashboard /></PrivateRoute>} />
+          <Route path="/ProfilePage" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+          <Route path="/ProfileForm" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />
           <Route path="/ProfileForm/:id" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />
-          <Route path="/EmploymentPage" element={<PrivateRoute><EmploymentPage/></PrivateRoute>} />
+          <Route path="/EmploymentPage" element={<PrivateRoute><EmploymentPage /></PrivateRoute>} />
           <Route path="/EmploymentForm" element={<PrivateRoute><EmploymentForm /></PrivateRoute>} />
           <Route path="/EmploymentForm/:id" element={<PrivateRoute><EmploymentForm /></PrivateRoute>} />
           <Route path="/Logout" element={<Logout />} />
-          <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
+          <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
-          <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} /> {/* Protected Routes */}
+          <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} />
           <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
           <Route path="/company-research" element={<PrivateRoute><CompanyResearch /></PrivateRoute>} />
           <Route path="/Jobs" element={<PrivateRoute><JobsEntry /></PrivateRoute>} />
@@ -82,6 +74,9 @@ function App() {
           <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
           <Route path="/coverletter/editor/:id?" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
           <Route path="/coverletter/share/:shareid?" element={<PrivateRoute><ShareView /></PrivateRoute>} />
+          <Route path="/jobs/:id" element={<JobDetails />} />
+          <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
+          <Route path="/Jobs/Archived" element={<ArchivedJobs />} />
         </Routes>
       </div>
     </>

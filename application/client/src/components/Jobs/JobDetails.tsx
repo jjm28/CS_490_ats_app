@@ -1,40 +1,48 @@
 import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import "../../App.css";
 import "../../styles/StyledComponents/FormInput.css";
 import Button from "../StyledComponents/Button";
 import Card from "../StyledComponents/Card";
 import API_BASE from "../../utils/apiBase";
+import { getCompanyInfo } from "../../api/company";
 import {
   type Job,
-  type JobDetailProps,
   STATUS_DISPLAY,
   STATUS_VALUE,
-  type JobStatus,
-  type Contact,
 } from "../../types/jobs.types";
+
+// ✅ Add this new interface
+export interface JobDetailProps {
+  jobId?: string;
+  onClose?: () => void;
+}
 
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
 export default function JobDetails({
-  jobId,
+  jobId: propJobId,
   onClose,
   onUpdate,
 }: JobDetailProps & { onUpdate?: () => void }) {
+
+  const { id: routeJobId } = useParams<{ id: string }>();
+  const jobId = propJobId || routeJobId;
+  const navigate = useNavigate();
+
   const [job, setJob] = useState<Job | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Job>>({});
   const [loading, setLoading] = useState(true);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [companyLoading, setCompanyLoading] = useState(true);
 
-  // New state for adding application history
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);
-
-  // New state for editing application history
   const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(
     null
   );
   const [editingHistoryText, setEditingHistoryText] = useState("");
-
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const token = useMemo(
@@ -44,7 +52,7 @@ export default function JobDetails({
   );
 
   useEffect(() => {
-    fetchJob();
+    if (jobId) fetchJob();
   }, [jobId]);
 
   const fetchJob = async () => {
@@ -56,10 +64,7 @@ export default function JobDetails({
         },
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch job");
-      }
-
+      if (!response.ok) throw new Error("Failed to fetch job");
       const data = await response.json();
       setJob(data);
       setFormData(data);
@@ -70,51 +75,40 @@ export default function JobDetails({
     }
   };
 
+  // Fetch company info once job is loaded
+  useEffect(() => {
+    const fetchCompany = async () => {
+      if (!job) return;
+      setCompanyLoading(true);
+      try {
+        const query = job.jobPostingUrl || job.company;
+        const info = await getCompanyInfo(query);
+        setCompanyInfo(info);
+      } catch (err) {
+        console.error("Error fetching company info:", err);
+      } finally {
+        setCompanyLoading(false);
+      }
+    };
+    if (job) fetchCompany();
+  }, [job]);
+
+  // ------------------------------
+  // Validation + Save
+  // ------------------------------
   const validateForm = () => {
     const errors: Record<string, string> = {};
-
-    // Example required fields
     if (!formData.company?.trim()) errors.company = "Company is required";
     if (!formData.jobTitle?.trim()) errors.jobTitle = "Job title is required";
-
-    // Optional but structured validation
-    if (
-      formData.recruiter?.email &&
-      !/\S+@\S+\.\S+/.test(formData.recruiter.email)
-    ) {
-      errors.recruiter_email = "Invalid email format for recruiter";
-    }
-
-    if (
-      formData.hiringManager?.email &&
-      !/\S+@\S+\.\S+/.test(formData.hiringManager.email)
-    ) {
-      errors.hiringManager_email = "Invalid email format for hiring manager";
-    }
-
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleSave = async () => {
     try {
-      const isValid = validateForm();
-      if (!isValid) {
-        console.warn("Validation failed — see errors on screen.");
-        return;
-      }
-      console.log("Saving job with data:", formData);
+      if (!validateForm()) return;
 
-      // Helper function to convert Decimal128 to number
-      const getDecimalValue = (decimal: any): number | undefined => {
-        if (!decimal) return undefined;
-        if (typeof decimal === "number") return decimal;
-        if (decimal.$numberDecimal) return parseFloat(decimal.$numberDecimal);
-        return undefined;
-      };
-
-      // Only send the fields that can be updated
-      const updatePayload: any = {
+      const updatePayload = {
         company: formData.company,
         jobTitle: formData.jobTitle,
         location: formData.location,
@@ -126,31 +120,10 @@ export default function JobDetails({
         industry: formData.industry,
         type: formData.type,
         jobPostingUrl: formData.jobPostingUrl,
+        recruiter: formData.recruiter || {},
+        hiringManager: formData.hiringManager || {},
+        applicationDeadline: formData.applicationDeadline,
       };
-
-      // Helper to ensure contact fields are objects
-      const normalizeContact = (contact: any) => {
-        if (!contact || typeof contact !== "object") {
-          return { name: "", email: "", phone: "", linkedIn: "", notes: "" };
-        }
-        return contact;
-      };
-
-      updatePayload.recruiter = normalizeContact(formData.recruiter);
-      updatePayload.hiringManager = normalizeContact(formData.hiringManager);
-
-      // Handle Decimal128 fields properly
-      const salaryMin = getDecimalValue(formData.salaryMin);
-      const salaryMax = getDecimalValue(formData.salaryMax);
-      if (salaryMin !== undefined) updatePayload.salaryMin = salaryMin;
-      if (salaryMax !== undefined) updatePayload.salaryMax = salaryMax;
-
-      // Handle applicationDeadline if it exists
-      if (formData.applicationDeadline) {
-        updatePayload.applicationDeadline = formData.applicationDeadline;
-      }
-
-      console.log("Sending update payload:", updatePayload);
 
       const response = await fetch(`${JOBS_ENDPOINT}/${job?._id}`, {
         method: "PUT",
@@ -161,39 +134,25 @@ export default function JobDetails({
         body: JSON.stringify(updatePayload),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Server error:", errorData);
-        throw new Error("Failed to save job");
-      }
-
+      if (!response.ok) throw new Error("Failed to save job");
       const data = await response.json();
       setJob(data);
       setIsEditing(false);
-
-      // Call the onUpdate callback to refresh the parent component
-      if (onUpdate) {
-        onUpdate();
-      }
+      if (onUpdate) onUpdate();
     } catch (err) {
       console.error("Error saving job:", err);
-      alert("Failed to save changes. Please try again.");
+      alert("Failed to save changes.");
     }
   };
 
+  // ------------------------------
+  // Application history handlers
+  // ------------------------------
   const handleAddHistoryEntry = async () => {
-    if (!newHistoryEntry.trim()) {
-      alert("Please enter a history entry.");
-      return;
-    }
-
-    if (newHistoryEntry.length > 200) {
-      alert("History entry must be 200 characters or less.");
-      return;
-    }
+    if (!newHistoryEntry.trim()) return alert("Please enter a history entry.");
 
     try {
-      const response = await fetch(`${JOBS_ENDPOINT}/${job?._id}/history`, {
+      const res = await fetch(`${JOBS_ENDPOINT}/${job?._id}/history`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -201,106 +160,67 @@ export default function JobDetails({
         },
         body: JSON.stringify({ action: newHistoryEntry }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to add history entry");
-      }
-
-      const data = await response.json();
+      if (!res.ok) throw new Error("Failed to add history entry");
+      const data = await res.json();
       setJob(data);
       setNewHistoryEntry("");
       setIsAddingHistory(false);
-
-      // Refresh parent component
-      if (onUpdate) {
-        onUpdate();
-      }
+      if (onUpdate) onUpdate();
     } catch (err) {
-      console.error("Error adding history entry:", err);
-      alert("Failed to add history entry. Please try again.");
+      console.error(err);
+      alert("Failed to add history entry.");
     }
   };
 
   const handleEditHistoryEntry = async (index: number) => {
-    if (!editingHistoryText.trim()) {
-      alert("Please enter a history entry.");
-      return;
-    }
-
-    if (editingHistoryText.length > 200) {
-      alert("History entry must be 200 characters or less.");
-      return;
-    }
-
+    if (!editingHistoryText.trim()) return alert("Please enter text.");
     try {
-      const response = await fetch(
-        `${JOBS_ENDPOINT}/${job?._id}/history/${index}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ action: editingHistoryText }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to update history entry");
-      }
-
-      const data = await response.json();
+      const res = await fetch(`${JOBS_ENDPOINT}/${job?._id}/history/${index}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: editingHistoryText }),
+      });
+      if (!res.ok) throw new Error("Failed to update history entry");
+      const data = await res.json();
       setJob(data);
       setEditingHistoryIndex(null);
       setEditingHistoryText("");
-
-      // Refresh parent component
-      if (onUpdate) {
-        onUpdate();
-      }
+      if (onUpdate) onUpdate();
     } catch (err) {
-      console.error("Error updating history entry:", err);
-      alert("Failed to update history entry. Please try again.");
+      console.error(err);
+      alert("Failed to update history entry.");
     }
   };
 
   const handleDeleteHistoryEntry = async (index: number) => {
-    if (!confirm("Are you sure you want to delete this history entry?")) {
-      return;
-    }
-
+    if (!confirm("Delete this history entry?")) return;
     try {
-      const response = await fetch(
-        `${JOBS_ENDPOINT}/${job?._id}/history/${index}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete history entry");
-      }
-
-      const data = await response.json();
+      const res = await fetch(`${JOBS_ENDPOINT}/${job?._id}/history/${index}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to delete history entry");
+      const data = await res.json();
       setJob(data);
-
-      // Refresh parent component
-      if (onUpdate) {
-        onUpdate();
-      }
+      if (onUpdate) onUpdate();
     } catch (err) {
-      console.error("Error deleting history entry:", err);
-      alert("Failed to delete history entry. Please try again.");
+      console.error(err);
+      alert("Failed to delete history entry.");
     }
   };
 
   if (loading) return <div className="p-6">Loading...</div>;
   if (!job) return <div className="p-6">Job not found</div>;
 
+  // ------------------------------
+  // RENDER
+  // ------------------------------
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
       <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -315,7 +235,10 @@ export default function JobDetails({
                 <Button variant="primary" onClick={() => setIsEditing(true)}>
                   Edit
                 </Button>
-                <Button variant="secondary" onClick={onClose}>
+                <Button
+                  variant="secondary"
+                  onClick={() => (onClose ? onClose() : navigate("/Jobs"))}
+                >
                   Close
                 </Button>
               </>
@@ -338,7 +261,6 @@ export default function JobDetails({
           </div>
         </div>
 
-        {/* Content */}
         <div className="p-6 space-y-6">
           {/* Basic Info */}
           <section>
@@ -363,108 +285,64 @@ export default function JobDetails({
                 value={formData.location}
                 isEditing={isEditing}
                 onChange={(val) => setFormData({ ...formData, location: val })}
-                error={formErrors.location}
               />
               <Field
                 label="Status"
                 value={formData.status ? STATUS_DISPLAY[formData.status] : ""}
                 isEditing={isEditing}
                 type="select"
-                options={[
-                  "Interested",
-                  "Applied",
-                  "Phone Screen",
-                  "Interview",
-                  "Offer",
-                  "Rejected",
-                ]}
+                options={Object.values(STATUS_DISPLAY)}
                 onChange={(val) =>
                   setFormData({ ...formData, status: STATUS_VALUE[val] })
                 }
-                error={formErrors.status}
               />
             </div>
           </section>
 
-          {/* Contacts */}
+          {/* Company Info Section */}
           <section>
-            <h3 className="font-semibold text-lg mb-3">Contact Information</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <ContactFields
-                label="Recruiter"
-                contact={formData.recruiter || {}}
-                isEditing={isEditing}
-                onChange={(contact) =>
-                  setFormData({ ...formData, recruiter: contact })
-                }
-                formErrors={formErrors}
-              />
-              <ContactFields
-                label="Hiring Manager"
-                contact={formData.hiringManager || {}}
-                isEditing={isEditing}
-                onChange={(contact) =>
-                  setFormData({ ...formData, hiringManager: contact })
-                }
-                formErrors={formErrors}
-              />
-            </div>
-          </section>
-
-          {/* Notes Sections */}
-          <TextArea
-            label="Personal Notes"
-            value={formData.notes}
-            isEditing={isEditing}
-            onChange={(val) => setFormData({ ...formData, notes: val })}
-          />
-
-          <TextArea
-            label="Salary Negotiation Notes"
-            value={formData.salaryNotes}
-            isEditing={isEditing}
-            onChange={(val) => setFormData({ ...formData, salaryNotes: val })}
-          />
-
-          <TextArea
-            label="Interview Notes & Feedback"
-            value={formData.interviewNotes}
-            isEditing={isEditing}
-            onChange={(val) =>
-              setFormData({ ...formData, interviewNotes: val })
-            }
-          />
-
-          {/* Status History */}
-          <section>
-            <h3 className="font-semibold text-lg mb-3">Status History</h3>
-            <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
-              {job.statusHistory && job.statusHistory.length > 0 ? (
-                [...job.statusHistory].reverse().map((entry, i) => (
-                  <div key={i} className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                        {STATUS_DISPLAY[entry.status]}
-                      </span>
-                      {entry.note && (
-                        <span className="text-gray-600">{entry.note}</span>
-                      )}
-                    </div>
-                    <span className="text-gray-500">
-                      {new Date(entry.timestamp).toLocaleString()}
-                    </span>
+            <h3 className="font-semibold text-lg mb-3">Company Info</h3>
+            {companyLoading ? (
+              <p className="text-gray-500 text-sm">Loading company details...</p>
+            ) : companyInfo ? (
+              <Card className="bg-gray-50">
+                <div className="flex items-center gap-3 mb-2">
+                  <img
+                    src={companyInfo.logo || "/images/default-company.png"}
+                    alt={`${companyInfo.name} logo`}
+                    className="w-12 h-12 rounded"
+                  />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {companyInfo.name}
+                    </h3>
+                    {companyInfo.domain && (
+                      <a
+                        href={`https://${companyInfo.domain}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 text-sm hover:underline"
+                      >
+                        {companyInfo.domain}
+                      </a>
+                    )}
                   </div>
-                ))
-              ) : (
-                <p className="text-gray-500">No status changes yet</p>
-              )}
-            </div>
+                </div>
+                <p className="text-gray-700 text-sm mt-2">
+                  {companyInfo.description?.trim()
+                    ? companyInfo.description
+                    : "No company description found."}
+                </p>
+              </Card>
+            ) : (
+              <p className="text-gray-500 text-sm">No company details found.</p>
+            )}
           </section>
 
           {/* Application History */}
           <section>
+            <h3 className="font-semibold text-lg mb-3">Application History</h3>
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-semibold text-lg">Application History</h3>
               {!isAddingHistory && (
                 <Button
                   variant="secondary"
@@ -475,10 +353,8 @@ export default function JobDetails({
               )}
             </div>
 
-            {/* Add new entry form */}
             {isAddingHistory && (
               <div className="mb-4 p-4 bg-blue-50 rounded border border-blue-200">
-                <label className="form-label">New History Entry</label>
                 <input
                   type="text"
                   value={newHistoryEntry}
@@ -498,7 +374,7 @@ export default function JobDetails({
                     Cancel
                   </Button>
                   <Button variant="primary" onClick={handleAddHistoryEntry}>
-                    Add Entry
+                    Add
                   </Button>
                 </div>
               </div>
@@ -508,22 +384,20 @@ export default function JobDetails({
               {job.applicationHistory && job.applicationHistory.length > 0 ? (
                 [...job.applicationHistory].reverse().map((entry, i) => {
                   const actualIndex = job.applicationHistory!.length - 1 - i;
-                  const isEditing = editingHistoryIndex === actualIndex;
-
+                  const isEditingRow = editingHistoryIndex === actualIndex;
                   return (
                     <div
                       key={i}
                       className="flex justify-between items-start gap-2"
                     >
                       <div className="flex-1">
-                        {isEditing ? (
+                        {isEditingRow ? (
                           <input
                             type="text"
                             value={editingHistoryText}
                             onChange={(e) =>
                               setEditingHistoryText(e.target.value)
                             }
-                            maxLength={200}
                             className="w-full form-input text-sm"
                           />
                         ) : (
@@ -533,14 +407,14 @@ export default function JobDetails({
                           {new Date(entry.timestamp).toLocaleString()}
                         </div>
                       </div>
-                      <div className="flex gap-1 flex-shrink-0">
-                        {isEditing ? (
+                      <div className="flex gap-1">
+                        {isEditingRow ? (
                           <>
                             <button
                               onClick={() =>
                                 handleEditHistoryEntry(actualIndex)
                               }
-                              className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                              className="text-xs px-2 py-1 bg-blue-600 text-white rounded"
                             >
                               Save
                             </button>
@@ -549,7 +423,7 @@ export default function JobDetails({
                                 setEditingHistoryIndex(null);
                                 setEditingHistoryText("");
                               }}
-                              className="text-xs px-2 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                              className="text-xs px-2 py-1 bg-gray-300 rounded"
                             >
                               Cancel
                             </button>
@@ -561,7 +435,7 @@ export default function JobDetails({
                                 setEditingHistoryIndex(actualIndex);
                                 setEditingHistoryText(entry.action);
                               }}
-                              className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                              className="text-xs px-2 py-1 bg-gray-200 rounded"
                             >
                               Edit
                             </button>
@@ -569,7 +443,7 @@ export default function JobDetails({
                               onClick={() =>
                                 handleDeleteHistoryEntry(actualIndex)
                               }
-                              className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                              className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded"
                             >
                               Delete
                             </button>
@@ -590,17 +464,9 @@ export default function JobDetails({
   );
 }
 
-// Helper components remain the same...
-interface FieldProps {
-  label: string;
-  value?: string;
-  isEditing: boolean;
-  onChange: (val: string) => void;
-  type?: "text" | "select";
-  options?: string[];
-  error?: string;
-}
-
+// ================================
+// Helper Components
+// ================================
 function Field({
   label,
   value,
@@ -609,7 +475,15 @@ function Field({
   type = "text",
   options = [],
   error,
-}: FieldProps) {
+}: {
+  label: string;
+  value?: string;
+  isEditing: boolean;
+  onChange: (val: string) => void;
+  type?: "text" | "select";
+  options?: string[];
+  error?: string;
+}) {
   return (
     <div>
       <label className="form-label">{label}</label>
@@ -638,208 +512,6 @@ function Field({
         <p className="text-gray-900">{value || "-"}</p>
       )}
       {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
-    </div>
-  );
-}
-
-interface TextAreaProps {
-  label: string;
-  value?: string;
-  isEditing: boolean;
-  onChange: (val: string) => void;
-}
-
-function TextArea({ label, value, isEditing, onChange }: TextAreaProps) {
-  return (
-    <section>
-      <h3 className="font-semibold text-lg mb-3">{label}</h3>
-      {isEditing ? (
-        <textarea
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          rows={4}
-          className="w-full form-input"
-        />
-      ) : (
-        <div className="bg-gray-50 p-4 rounded whitespace-pre-wrap">
-          {value || <span className="text-gray-500">No notes yet</span>}
-        </div>
-      )}
-    </section>
-  );
-}
-
-// ContactFields Component
-interface ContactFieldsProps {
-  label: string;
-  contact?: Contact;
-  isEditing: boolean;
-  onChange: (contact: Contact) => void;
-  formErrors?: Record<string, string>;
-}
-
-function ContactFields({
-  label,
-  contact = {},
-  isEditing,
-  onChange,
-  formErrors = {},
-}: ContactFieldsProps) {
-  const handleFieldChange = (field: keyof Contact, value: string) => {
-    onChange({
-      ...contact,
-      [field]: value,
-    });
-  };
-
-  const prefix = label.toLowerCase().replace(" ", "");
-  const emailError = formErrors[`${prefix}_email`];
-  const phoneError = formErrors[`${prefix}_phone`];
-
-  if (
-    !isEditing &&
-    !contact?.name &&
-    !contact?.email &&
-    !contact?.phone &&
-    !contact?.linkedIn &&
-    !contact?.notes
-  ) {
-    return (
-      <div className="space-y-4">
-        <h4 className="font-medium text-md text-gray-700">{label}</h4>
-        <p className="text-gray-500 italic">No contact info</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <h4 className="font-medium text-md text-gray-700">{label}</h4>
-      <div className="space-y-3">
-        <div>
-          <label className="form-label text-sm">Name</label>
-          {isEditing ? (
-            <input
-              type="text"
-              value={contact?.name || ""}
-              onChange={(e) => handleFieldChange("name", e.target.value)}
-              className="w-full form-input"
-              placeholder="John Doe"
-            />
-          ) : (
-            <p className="text-gray-900">{contact?.name || "-"}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="form-label text-sm">Email</label>
-          {isEditing ? (
-            <input
-              type="email"
-              value={contact?.email || ""}
-              onChange={(e) => handleFieldChange("email", e.target.value)}
-              className={`w-full form-input ${
-                emailError ? "border-red-500" : ""
-              }`}
-              placeholder="john@company.com"
-            />
-          ) : (
-            <p className="text-gray-900">
-              {contact?.email ? (
-                <a
-                  href={`mailto:${contact.email}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  {contact.email}
-                </a>
-              ) : (
-                "-"
-              )}
-            </p>
-          )}
-          {emailError && (
-            <p className="text-red-600 text-xs mt-1">{emailError}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="form-label text-sm">Phone</label>
-          {isEditing ? (
-            <input
-              type="tel"
-              value={contact?.phone || ""}
-              onChange={(e) => handleFieldChange("phone", e.target.value)}
-              className="w-full form-input"
-              placeholder="+1 (555) 123-4567"
-            />
-          ) : (
-            <p className="text-gray-900">
-              {contact?.phone ? (
-                <a
-                  href={`tel:${contact.phone}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  {contact.phone}
-                </a>
-              ) : (
-                "-"
-              )}
-            </p>
-          )}
-          {phoneError && (
-            <p className="text-red-600 text-xs mt-1">{phoneError}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="form-label text-sm">LinkedIn</label>
-          {isEditing ? (
-            <input
-              type="url"
-              value={contact?.linkedIn || ""}
-              onChange={(e) => handleFieldChange("linkedIn", e.target.value)}
-              className="w-full form-input"
-              placeholder="linkedin.com/in/johndoe"
-            />
-          ) : (
-            <p className="text-gray-900">
-              {contact?.linkedIn ? (
-                <a
-                  href={
-                    contact.linkedIn.startsWith("http")
-                      ? contact.linkedIn
-                      : `https://${contact.linkedIn}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  View Profile
-                </a>
-              ) : (
-                "-"
-              )}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label className="form-label text-sm">Notes</label>
-          {isEditing ? (
-            <textarea
-              value={contact?.notes || ""}
-              onChange={(e) => handleFieldChange("notes", e.target.value)}
-              className="w-full form-input"
-              rows={2}
-              placeholder="Additional notes about this contact..."
-            />
-          ) : (
-            <p className="text-gray-900 whitespace-pre-wrap">
-              {contact?.notes || "-"}
-            </p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
