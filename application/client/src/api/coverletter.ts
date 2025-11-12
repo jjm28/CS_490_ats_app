@@ -231,14 +231,26 @@ userid: string,
 Jobdata: Job
 
 }
-export  const GetAiGeneratedContent = async (  AIcoverletterPrompt: AIcoverletterPromptSchema): Promise<GetmostpopularCoverletterResponse> => {
-  const res = await fetch(API_URL+ "mostpop" , {
-    headers: authHeaders() ,  });
-  const data = await res.json() ?? {    "templateKey": "formal" };
-  console.log(data)
+
+
+export interface AIcoverletterPromptResponse {
+parsedCandidates: CoverLetterData[]
+}
+
+export  const GetAiGeneratedContent = async (  AIcoverletterPrompt: AIcoverletterPromptSchema): Promise<AIcoverletterPromptResponse> => {
+    console.log("Getting Data", API_URL+ "generate-coverletterai")
+
+  const res = await fetch(API_URL+ "generate-coverletterai" , {
+        method: "POST",
+    headers: authHeaders() ,    
+    body: JSON.stringify(AIcoverletterPrompt)}
+  );
+  const data = await res.json();
+  console.log("got Data",data)
   if (!res.ok) {
+   
     throw new Error(data.error || "Unknown error occurred");
   }
 
-  return data as Promise<GetmostpopularCoverletterResponse>;
+  return data as Promise<AIcoverletterPromptResponse>;
 };

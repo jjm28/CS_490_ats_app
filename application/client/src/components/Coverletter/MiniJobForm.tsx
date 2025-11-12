@@ -12,6 +12,9 @@ export type JobDraft = {
   jobPostingUrl?: string;
   applicationDeadline?: string; // YYYY-MM-DD
   description?: string;
+   _id: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type ValidationErrors = Partial<Record<keyof JobDraft, string>>;
@@ -43,6 +46,9 @@ export default function MiniJobForm({
     applicationDeadline: "",
     description: "",
     ...initial,
+    _id: "Buogus",
+  createdAt: "Buogus",
+  updatedAt: "Buogus"
   });
 
   const [errors, setErrors] = useState<ValidationErrors>({});

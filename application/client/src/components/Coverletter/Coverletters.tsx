@@ -29,7 +29,7 @@ export default function Coverletter() {
 
         // safe parse of authUser
         const raw = localStorage.getItem("authUser");
-        const user = raw ? JSON.parse(raw) : null;
+        const user = raw ? JSON.parse(raw).user : null;
         if (!user?._id) throw new Error("Missing user session");
 
         const res = await listCoverletters({ userid: user._id }); // returns array
@@ -82,7 +82,6 @@ const handleImport = async () => {
       try {
         const text = await file.text();
         const json = JSON.parse(text);
-           console.log(json)
 
         // Validate that it's shaped like your CoverLetterData
         if (
@@ -114,10 +113,9 @@ const handleImport = async () => {
 const handleOpen = async (doc: CoverletterSummary) => {
   try {
     // Example: fetch the full cover letter before opening editor
-    const user = JSON.parse(localStorage.getItem("authUser") ?? "")
+    const user = JSON.parse(localStorage.getItem("authUser") ?? "").user
 
     const item = await Getfullcoverletter({userid:user._id,coverletterid: doc._id})
-    console.log(item)
     // After successfully fetching, navigate to editor
     navigate(`/coverletter/editor`, {
       state: {

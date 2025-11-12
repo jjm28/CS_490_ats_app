@@ -16,8 +16,9 @@ import employmentRouter from './routes/employment.js';
 import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
-import jobRoutes from "./routes/jobs.js";
-import coverletter from  "./routes/coverletter.js"
+import companyResearch from './routes/company-research.js';
+import coverletter from './routes/coverletter.js'
+import jobRoutes from './routes/jobs.js'
 
 import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";               
@@ -26,7 +27,7 @@ import { ensureSystemTemplates } from './services/templates.service.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const CORS_ORGIN = process.env.CORS_ORGIN || true;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
 const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
@@ -37,13 +38,14 @@ const __dirname = path.dirname(__filename);
 app.set('baseUrl', BASE);
 
 app.use(cors({
-  origin: CORS_ORGIN,
+  origin: CORS_ORIGIN,
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-dev-user-id'],
 }));
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(companyResearch);
 
 // Start after DB connects
 try {

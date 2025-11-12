@@ -27,12 +27,14 @@ import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
 import Projects from "./components/Projects/Projects";
 
+import CompanyResearch from './components/Job_Tools/CompanyResearch';
 import JobsEntry from './components/Jobs/JobsEntry';
 import JobsPipeline from './components/Jobs/JobsPipeline';
 import NewResume from './components/Resume/NewResume';
 import ResumeEditor from './components/Resume/ResumeEditor';
 import Resumes from './components/Resume/Resumes';
 import ResumeShareView from './components/Resume/ResumeShareView';
+import DeadlineCalendar from './components/Jobs/DeadlineCalendar';
 
 import './App.css';
 
@@ -76,8 +78,10 @@ function App() {
           <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} /> {/* Protected Routes */}
           <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
+          <Route path="/company-research" element={<PrivateRoute><CompanyResearch /></PrivateRoute>} />
           <Route path="/Jobs" element={<PrivateRoute><JobsEntry /></PrivateRoute>} />
           <Route path="/Jobs/Pipeline" element={<PrivateRoute><JobsPipeline /></PrivateRoute>} />
+          <Route path="/Jobs/Calendar" element={<PrivateRoute><DeadlineCalendar /></PrivateRoute>} />
           <Route path="/coverletter" element={<PrivateRoute><Coverletter /></PrivateRoute>} />
           <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
           <Route path="/coverletter/editor/:id?" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
