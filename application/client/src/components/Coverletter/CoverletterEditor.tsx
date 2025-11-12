@@ -142,7 +142,7 @@ export default function CoverletterEditor() {
     try {
       const raw = localStorage.getItem("authUser");
       if (!raw) throw new Error("Not signed in (authUser missing).");
-      const user = JSON.parse(raw);
+      const user = JSON.parse(raw).user;
       Getfullcoverletter({ userid: user._id, coverletterid: CoverletterID })
         .then((resp) => {
           setFilename(resp.filename);
@@ -411,7 +411,7 @@ export default function CoverletterEditor() {
       try {
         const raw = localStorage.getItem("authUser");
         if (!raw) throw new Error("Not signed in (authUser missing).");
-        const user = JSON.parse(raw);
+        const user = JSON.parse(raw).user;
 
         const ts = new Date().toLocaleTimeString();
         const Coverletter = await saveCoverletter({
@@ -434,7 +434,7 @@ export default function CoverletterEditor() {
       try {
         const raw = localStorage.getItem("authUser");
         if (!raw) throw new Error("Not signed in (authUser missing).");
-        const user = JSON.parse(raw);
+        const user = JSON.parse(raw).user;
 
         const ts = new Date().toLocaleTimeString();
         const Coverletter = await updateCoverletter({
@@ -468,7 +468,7 @@ export default function CoverletterEditor() {
 
     setLoadingAI(true);
     try {
-      const user = JSON.parse(localStorage.getItem("authUser") ?? "{}");
+      const user = JSON.parse(localStorage.getItem("authUser") ?? "{}").user;
 
       interface CompanyInfo {
         ai_summary?: string;
@@ -537,7 +537,7 @@ export default function CoverletterEditor() {
     try {
       const raw = localStorage.getItem("authUser");
       if (!raw) throw new Error("Not signed in (authUser missing).");
-      const user = JSON.parse(raw);
+      const user = JSON.parse(raw).user;
 
       const Sharedcoverletter = await createdsharedcoverletter({
         userid: user._id,

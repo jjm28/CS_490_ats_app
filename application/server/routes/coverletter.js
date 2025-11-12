@@ -8,7 +8,7 @@ import { jobs } from 'googleapis/build/src/apis/jobs/index.js';
 
 const router = express.Router();
 
-// router.use(verifyJWT);
+router.use(verifyJWT);
 
 // GET /api/coverletter/
 router.get("/", async (req, res) => {
