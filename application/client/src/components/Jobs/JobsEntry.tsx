@@ -16,15 +16,26 @@ import {
   extractDecimal,
   STATUS_DISPLAY,
 } from "../../types/jobs.types";
+import DeadlineIndicator from "./DeadlineIndicator";
+import { getDeadlineInfo } from "../../utils/deadlines";
+import ExtendDeadlineModal from "./ExtendDeadlineModal";
+import BulkDeadlineManager from "./BulkDeadlineManager";
 
 // Configuration
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
 // Sort options
-type SortOption = "dateAdded" | "deadline" | "salary" | "company";
+type SortOption =
+  | "dateAdded"
+  | "deadline"
+  | "deadlineUrgency"
+  | "salary"
+  | "company";
+
 const SORT_OPTIONS: Record<SortOption, string> = {
   dateAdded: "Date Added",
   deadline: "Application Deadline",
+  deadlineUrgency: "Deadline Urgency", // NEW
   salary: "Salary (High to Low)",
   company: "Company Name",
 };
@@ -96,6 +107,9 @@ function JobsEntry() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
   const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
+
+  const [extendingJob, setExtendingJob] = useState<Job | null>(null);
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
 
   const token = useMemo(
     () =>
@@ -218,6 +232,28 @@ function JobsEntry() {
         case "company":
           return a.company.localeCompare(b.company);
 
+        case "deadlineUrgency":
+          const urgencyOrder: Record<string, number> = {
+            overdue: 0,
+            critical: 1,
+            warning: 2,
+            normal: 3,
+            plenty: 4,
+            none: 5, // ADD THIS
+          };
+
+          const aInfo = getDeadlineInfo(a.applicationDeadline);
+          const bInfo = getDeadlineInfo(b.applicationDeadline);
+
+          if (!a.applicationDeadline) return 1;
+          if (!b.applicationDeadline) return -1;
+
+          const urgencyDiff =
+            urgencyOrder[aInfo.urgency] - urgencyOrder[bInfo.urgency];
+          if (urgencyDiff !== 0) return urgencyDiff;
+
+          return aInfo.daysRemaining - bInfo.daysRemaining;
+
         default:
           return 0;
       }
@@ -314,11 +350,17 @@ function JobsEntry() {
       if (response.ok) {
         const data = await response.json();
         setSavedSearches(data.savedSearches || []);
-        
-        // Auto-apply last search if exists
-        if (data.lastSearch && Object.keys(data.lastSearch).length > 0) {
+
+        // Only auto-apply last search if this is the first page visit in this session
+        const hasVisitedThisSession = sessionStorage.getItem("jobsPageVisited");
+        if (
+          !hasVisitedThisSession &&
+          data.lastSearch &&
+          Object.keys(data.lastSearch).length > 0
+        ) {
           applySearch(data.lastSearch);
         }
+        sessionStorage.setItem("jobsPageVisited", "true");
       }
     } catch (error) {
       console.error("Error loading saved searches:", error);
@@ -340,7 +382,7 @@ function JobsEntry() {
       const url = editingSearchId
         ? `${JOBS_ENDPOINT}/preferences/saved/${editingSearchId}`
         : `${JOBS_ENDPOINT}/preferences/saved`;
-      
+
       const method = editingSearchId ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -406,6 +448,156 @@ function JobsEntry() {
       });
     } catch (error) {
       console.error("Error saving last search:", error);
+    }
+  };
+
+  // ========================================
+  // BULK SELECTION HANDLERS
+  // ========================================
+
+  const handleToggleSelect = (jobId: string) => {
+    setSelectedJobIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(jobId)) {
+        newSet.delete(jobId);
+      } else {
+        newSet.add(jobId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedJobIds.size === filteredAndSortedJobs.length) {
+      setSelectedJobIds(new Set());
+    } else {
+      setSelectedJobIds(new Set(filteredAndSortedJobs.map((job) => job._id)));
+    }
+  };
+
+  // ========================================
+  // DEADLINE EXTENSION HANDLER
+  // ========================================
+
+  const handleExtendDeadline = async (
+    jobId: string,
+    newDeadline: string,
+    reason?: string
+  ) => {
+    try {
+      const response = await fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          applicationDeadline: newDeadline,
+          extensionReason: reason,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to extend deadline");
+      }
+
+      await fetchJobs();
+      setFlash("Deadline extended successfully!");
+      setTimeout(() => setFlash(null), 3000);
+    } catch (error) {
+      console.error("Error extending deadline:", error);
+      throw error;
+    }
+  };
+
+  // ========================================
+  // BULK DEADLINE HANDLERS
+  // ========================================
+
+  const handleBulkExtend = async (jobIds: string[], days: number) => {
+    try {
+      const promises = jobIds.map((jobId) => {
+        const job = jobs.find((j) => j._id === jobId);
+        if (!job) return Promise.resolve();
+
+        const currentDeadline = job.applicationDeadline
+          ? new Date(job.applicationDeadline)
+          : new Date();
+        const newDeadline = new Date(currentDeadline);
+        newDeadline.setDate(newDeadline.getDate() + days);
+
+        return fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            applicationDeadline: newDeadline.toISOString(),
+          }),
+        });
+      });
+
+      await Promise.all(promises);
+      await fetchJobs();
+      setSelectedJobIds(new Set());
+      setFlash(`Extended ${jobIds.length} deadline(s) by ${days} days!`);
+      setTimeout(() => setFlash(null), 3000);
+    } catch (error) {
+      console.error("Error extending deadlines:", error);
+      throw error;
+    }
+  };
+
+  const handleBulkSetDeadline = async (jobIds: string[], deadline: string) => {
+    try {
+      const promises = jobIds.map((jobId) =>
+        fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            applicationDeadline: deadline,
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+      await fetchJobs();
+      setSelectedJobIds(new Set());
+      setFlash(`Set deadline for ${jobIds.length} job(s)!`);
+      setTimeout(() => setFlash(null), 3000);
+    } catch (error) {
+      console.error("Error setting deadlines:", error);
+      throw error;
+    }
+  };
+
+  const handleBulkRemoveDeadline = async (jobIds: string[]) => {
+    try {
+      const promises = jobIds.map((jobId) =>
+        fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            applicationDeadline: null,
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+      await fetchJobs();
+      setSelectedJobIds(new Set());
+      setFlash(`Removed deadline from ${jobIds.length} job(s)!`);
+      setTimeout(() => setFlash(null), 3000);
+    } catch (error) {
+      console.error("Error removing deadlines:", error);
+      throw error;
     }
   };
 
@@ -804,6 +996,63 @@ function JobsEntry() {
       {flash && <p className="mb-4 text-sm text-green-700">{flash}</p>}
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
 
+      {/* Deadline Warnings Banner */}
+      {(() => {
+        const overdueJobs = jobs.filter((job) => {
+          const info = getDeadlineInfo(job.applicationDeadline);
+          return info.urgency === "overdue";
+        });
+
+        const urgentJobs = jobs.filter((job) => {
+          const info = getDeadlineInfo(job.applicationDeadline);
+          return info.urgency === "critical" && info.daysRemaining >= 0;
+        });
+
+        if (overdueJobs.length === 0 && urgentJobs.length === 0) return null;
+
+        return (
+          <div className="mb-6">
+            <Card>
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">⚠️</div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    Deadline Alerts
+                  </h3>
+                  <div className="space-y-2">
+                    {overdueJobs.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full font-semibold text-sm">
+                          {overdueJobs.length} Overdue
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          {overdueJobs
+                            .map((j) => j.company)
+                            .slice(0, 3)
+                            .join(", ")}
+                          {overdueJobs.length > 3 &&
+                            ` +${overdueJobs.length - 3} more`}
+                        </span>
+                      </div>
+                    )}
+                    {urgentJobs.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full font-semibold text-sm">
+                          {urgentJobs.length} Due Soon
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          Applications due within 3 days
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
+
       {!isLoggedIn && (
         <Card>
           <Button disabled>Log in to continue</Button>
@@ -815,11 +1064,11 @@ function JobsEntry() {
 
       {isLoggedIn && (
         <>
-          {/* Add/Edit Form */}
+          {/* Add/Edit Form Modal */}
           {showForm && (
-            <div className="mb-6">
-              <Card>
-                <h2 className="text-xl font-semibold mb-4 text-gray-900">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+              <Card className="bg-white rounded-lg p-6 max-w-3xl w-full my-8 max-h-[90vh] overflow-y-auto">
+                <h2 className="text-2xl font-semibold mb-4 text-gray-900">
                   {editingJob ? "Edit Job Opportunity" : "Add Job Opportunity"}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -1232,9 +1481,7 @@ function JobsEntry() {
                       <input
                         type="date"
                         value={deadlineStartFilter}
-                        onChange={(e) =>
-                          setDeadlineStartFilter(e.target.value)
-                        }
+                        onChange={(e) => setDeadlineStartFilter(e.target.value)}
                         className="form-input"
                       />
                     </div>
@@ -1393,6 +1640,17 @@ function JobsEntry() {
             {jobs.length !== 1 ? "s" : ""}
           </div>
 
+          {/* Bulk Deadline Manager */}
+          <BulkDeadlineManager
+            jobs={filteredAndSortedJobs}
+            selectedJobIds={selectedJobIds}
+            onToggleSelect={handleToggleSelect}
+            onToggleSelectAll={handleToggleSelectAll}
+            onBulkExtend={handleBulkExtend}
+            onBulkSetDeadline={handleBulkSetDeadline}
+            onBulkRemoveDeadline={handleBulkRemoveDeadline}
+          />
+
           {/* Jobs List */}
           {loading ? (
             <p className="text-sm text-gray-600">Loading…</p>
@@ -1414,60 +1672,106 @@ function JobsEntry() {
             <ul className="space-y-3">
               {filteredAndSortedJobs.map((job) => (
                 <li key={job._id}>
-                  <Card>
+                  <Card
+                    className={`${
+                      job.applicationDeadline
+                        ? (() => {
+                            const info = getDeadlineInfo(
+                              job.applicationDeadline
+                            );
+                            if (info.urgency === "overdue")
+                              return "border-l-4 border-l-red-500";
+                            if (info.urgency === "critical")
+                              return "border-l-4 border-l-orange-500";
+                            if (info.urgency === "warning")
+                              return "border-l-4 border-l-yellow-500";
+                            return "";
+                          })()
+                        : ""
+                    }`}
+                  >
                     <div
                       className="flex items-start justify-between gap-4 cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => setSelectedJobId(job._id)}
                     >
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900 text-lg">
-                          {highlightText(job.jobTitle, searchQuery)}
-                        </div>
-                        <div className="text-sm text-gray-700 font-medium mt-1">
-                          {highlightText(job.company, searchQuery)}
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                            {job.type}
-                          </span>
-                          <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
-                            {job.industry}
-                          </span>
-                          <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
-                            {STATUS_DISPLAY[job.status]}
-                          </span>
-                        </div>
-                        <div className="mt-2 space-y-1 text-sm text-gray-600">
-                          {job.location && <div>📍 {job.location}</div>}
-                          <div>
-                            💰 {formatSalary(job.salaryMin, job.salaryMax)}
+                      <div className="flex items-start gap-3 flex-1">
+                        {/* Selection Checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={selectedJobIds.has(job._id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleToggleSelect(job._id);
+                          }}
+                          className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+
+                        {/* Existing job card content */}
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900 text-lg">
+                            {highlightText(job.jobTitle, searchQuery)}
                           </div>
-                          {job.applicationDeadline && (
+                          <div className="text-sm text-gray-700 font-medium mt-1">
+                            {highlightText(job.company, searchQuery)}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                              {job.type}
+                            </span>
+                            <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                              {job.industry}
+                            </span>
+                            <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                              {STATUS_DISPLAY[job.status]}
+                            </span>
+                          </div>
+                          <div className="mt-2 space-y-1 text-sm text-gray-600">
+                            {job.location && <div>📍 {job.location}</div>}
                             <div>
-                              📅 Deadline: {formatDate(job.applicationDeadline)}
+                              💰 {formatSalary(job.salaryMin, job.salaryMax)}
                             </div>
+                            <div className="mt-2">
+                              <DeadlineIndicator
+                                applicationDeadline={job.applicationDeadline}
+                                showFullDate={true}
+                                size="sm"
+                              />
+                            </div>
+                          </div>
+                          {job.description && (
+                            <p className="mt-2 text-sm text-gray-600 line-clamp-2">
+                              {searchQuery
+                                ? highlightText(job.description, searchQuery)
+                                : job.description}
+                            </p>
+                          )}
+                          {job.jobPostingUrl && (
+                            <a
+                              href={job.jobPostingUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              View posting →
+                            </a>
                           )}
                         </div>
-                        {job.description && (
-                          <p className="mt-2 text-sm text-gray-600 line-clamp-2">
-                            {searchQuery
-                              ? highlightText(job.description, searchQuery)
-                              : job.description}
-                          </p>
-                        )}
-                        {job.jobPostingUrl && (
-                          <a
-                            href={job.jobPostingUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            View posting →
-                          </a>
-                        )}
                       </div>
+
+                      {/* Action buttons */}
                       <div className="flex gap-2">
+                        {job.applicationDeadline && (
+                          <Button
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                              setExtendingJob(job);
+                            }}
+                            variant="secondary"
+                          >
+                            📅 Extend
+                          </Button>
+                        )}
                         <Button
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
@@ -1497,9 +1801,14 @@ function JobsEntry() {
             <Button onClick={() => setShowForm(!showForm)}>
               {showForm ? "Cancel" : "Add new opportunity"}
             </Button>
-            <Button onClick={() => navigate("/Jobs/Pipeline")}>
-              View Pipeline
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => navigate("/Jobs/Calendar")}>
+                📅 View Calendar
+              </Button>
+              <Button onClick={() => navigate("/Jobs/Pipeline")}>
+                View Pipeline
+              </Button>
+            </div>
           </div>
         </>
       )}
@@ -1508,6 +1817,14 @@ function JobsEntry() {
           jobId={selectedJobId}
           onClose={() => setSelectedJobId(null)}
           onUpdate={fetchJobs}
+        />
+      )}
+      {/* Extend Deadline Modal */}
+      {extendingJob && (
+        <ExtendDeadlineModal
+          job={extendingJob}
+          onClose={() => setExtendingJob(null)}
+          onExtend={handleExtendDeadline}
         />
       )}
     </div>
