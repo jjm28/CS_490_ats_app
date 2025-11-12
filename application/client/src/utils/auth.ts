@@ -1,4 +1,6 @@
 export function setAuth(token: string, user?: any) {
+      console.log(token,user)
+
   localStorage.setItem("authToken", token);
   localStorage.setItem("token", token);
   if (user) localStorage.setItem("authUser", JSON.stringify(user));

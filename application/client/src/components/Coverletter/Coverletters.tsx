@@ -29,7 +29,7 @@ export default function Coverletter() {
 
         // safe parse of authUser
         const raw = localStorage.getItem("authUser");
-        const user = raw ? JSON.parse(raw) : null;
+        const user = raw ? JSON.parse(raw).user : null;
         if (!user?._id) throw new Error("Missing user session");
 
         const res = await listCoverletters({ userid: user._id }); // returns array
@@ -113,7 +113,7 @@ const handleImport = async () => {
 const handleOpen = async (doc: CoverletterSummary) => {
   try {
     // Example: fetch the full cover letter before opening editor
-    const user = JSON.parse(localStorage.getItem("authUser") ?? "")
+    const user = JSON.parse(localStorage.getItem("authUser") ?? "").user
 
     const item = await Getfullcoverletter({userid:user._id,coverletterid: doc._id})
     // After successfully fetching, navigate to editor
