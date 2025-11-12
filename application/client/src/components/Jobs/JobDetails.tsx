@@ -12,10 +12,11 @@ import {
   STATUS_VALUE,
 } from "../../types/jobs.types";
 
-// ✅ Add this new interface
+// ✅ Props interface
 export interface JobDetailProps {
   jobId?: string;
   onClose?: () => void;
+  onUpdate?: () => void;
 }
 
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
@@ -24,8 +25,7 @@ export default function JobDetails({
   jobId: propJobId,
   onClose,
   onUpdate,
-}: JobDetailProps & { onUpdate?: () => void }) {
-
+}: JobDetailProps) {
   const { id: routeJobId } = useParams<{ id: string }>();
   const jobId = propJobId || routeJobId;
   const navigate = useNavigate();
@@ -36,7 +36,6 @@ export default function JobDetails({
   const [loading, setLoading] = useState(true);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [companyLoading, setCompanyLoading] = useState(true);
-
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);
   const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(
@@ -51,6 +50,7 @@ export default function JobDetails({
     []
   );
 
+  // Fetch job details
   useEffect(() => {
     if (jobId) fetchJob();
   }, [jobId]);
@@ -63,7 +63,6 @@ export default function JobDetails({
           Authorization: `Bearer ${token}`,
         },
       });
-
       if (!response.ok) throw new Error("Failed to fetch job");
       const data = await response.json();
       setJob(data);
@@ -107,7 +106,6 @@ export default function JobDetails({
   const handleSave = async () => {
     try {
       if (!validateForm()) return;
-
       const updatePayload = {
         company: formData.company,
         jobTitle: formData.jobTitle,

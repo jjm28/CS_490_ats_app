@@ -15,6 +15,8 @@ export interface Contact {
 export interface Job {
   _id: string;
   userId?: string;
+  autoArchiveDays?: number;
+
   
   // Basic job info
   jobTitle: string;

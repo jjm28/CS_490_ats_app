@@ -19,7 +19,7 @@ const JobStatsDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const load = async () => {
+    async function loadStats() {
       try {
         const data = await getJobStats();
         setStats(data);
@@ -28,14 +28,17 @@ const JobStatsDashboard: React.FC = () => {
       } finally {
         setLoading(false);
       }
-    };
-    load();
+    }
+
+    loadStats();
+
+    window.addEventListener("jobDataChanged", loadStats);
+    return () => window.removeEventListener("jobDataChanged", loadStats);
   }, []);
 
   if (loading) return <p className="p-6">Loading statistics...</p>;
   if (!stats) return <p className="p-6 text-red-600">Failed to load statistics.</p>;
 
-  // 🧠 Transform monthlyCounts into chart-friendly format
   const monthlyData = Object.entries(stats.monthlyCounts || {}).map(
     ([month, count]) => ({
       month,
@@ -43,7 +46,6 @@ const JobStatsDashboard: React.FC = () => {
     })
   );
 
-  // Sort months by date
   monthlyData.sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
   return (
@@ -54,8 +56,6 @@ const JobStatsDashboard: React.FC = () => {
 
       <Card>
         <h1 className="text-2xl font-bold mb-4">Job Statistics & Analytics</h1>
-
-        {/* Summary cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div>
             <p className="text-xs text-gray-500">Total Active Jobs</p>
@@ -90,6 +90,27 @@ const JobStatsDashboard: React.FC = () => {
             </li>
           ))}
         </ul>
+        {/* Average Time in Each Stage */}
+        <h2 className="font-semibold mt-6 mb-3 flex items-center gap-2">
+          <span role="img" aria-label="clock">⏱️</span> Average Time in Each Stage
+        </h2>
+
+        {Object.keys(stats.avgStageDurations || {}).length > 0 ? (
+          <ul className="list-disc ml-5 text-sm text-gray-700 mb-4">
+            {(Object.entries(stats.avgStageDurations || {}) as [string, number][]).map(
+              ([stage, days]) => (
+                <li key={stage}>
+                  {stage.replace("_", " ")}:{" "}
+                  <span className="font-medium text-gray-900">{days}</span> days
+                </li>
+              )
+            )}
+          </ul>
+        ) : (
+          <p className="text-sm text-gray-500 ml-1 mb-4">
+            No stage duration data available yet.
+          </p>
+        )}
 
         {/* Monthly Applications Section */}
         <h2 className="font-semibold mt-6 mb-3">📅 Monthly Applications</h2>

@@ -2,10 +2,12 @@ import React, { useEffect, useState } from "react";
 import { getArchivedJobs, toggleArchiveJob, deleteJob } from "../../api/jobs";
 import Button from "../StyledComponents/Button";
 import Card from "../StyledComponents/Card";
+import { useNavigate } from "react-router-dom";
 
 const ArchivedJobs: React.FC = () => {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadArchived();
@@ -37,6 +39,9 @@ const ArchivedJobs: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto py-10">
+      <Button onClick={() => navigate("/Jobs")} className="mb-3">
+        ← Back to Jobs
+      </Button>
       <h1 className="text-2xl font-bold mb-4">📦 Archived Jobs</h1>
 
       {jobs.length === 0 ? (
@@ -46,6 +51,13 @@ const ArchivedJobs: React.FC = () => {
           <Card key={job._id} className="mb-4">
             <h2 className="text-lg font-semibold">{job.jobTitle}</h2>
             <p className="text-sm text-gray-600">{job.company}</p>
+
+            {job.archiveReason && (
+              <p className="text-xs text-gray-500 mt-2 italic">
+                📝 Archive Reason: {job.archiveReason}
+              </p>
+            )}
+
 
             <div className="flex gap-2 mt-3">
               <Button

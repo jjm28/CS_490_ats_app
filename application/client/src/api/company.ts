@@ -1,7 +1,5 @@
-const API_URL = "http://localhost:5050/api/company";
-
-export const getCompanyInfo = async (name: string) => {
-  const res = await fetch(`${API_URL}/${encodeURIComponent(name)}`);
-  if (!res.ok) throw new Error("Company not found");
+export async function getCompanyInfo(query: string) {
+  const res = await fetch(`/api/company/search?query=${encodeURIComponent(query)}`);
+  if (!res.ok) throw new Error("Failed to fetch company info");
   return res.json();
-};
+}

@@ -35,7 +35,6 @@ export async function toggleArchiveJob(id: string, archive: boolean, reason?: st
   return res.json();
 }
 
-// ✅ Added below
 export async function deleteJob(id: string) {
   const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
     method: "DELETE",
