@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import "../../App.css";
 import "../../styles/Projects.css";
 import "../../styles/StyledComponents/FormInput.css";
@@ -29,7 +29,20 @@ export interface Project {
   mediaUrl?: string;
 }
 
-export default function Projects() {
+interface ProjectsProps {
+  onUpdate?: () => void;
+}
+
+//keeps projects without dates consistent in sorting
+function safeTime(d?: string) { // NEW
+  if (!d) return NaN; // NEW
+  const t = new Date(d).getTime(); // NEW
+  return Number.isNaN(t) ? NaN : t; // NEW
+}
+
+export default function Projects({ onUpdate }: ProjectsProps) { 
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -40,9 +53,9 @@ export default function Projects() {
   const [view, setView] = useState<"list" | "grid">("list");
   const [techFilter, setTechFilter] = useState(""); // for "Filter by technology"
   const [industryFilter, setIndustryFilter] = useState(""); // for "Filter by industry"
-  
 
-  const fetchProjects = async () => {
+
+  const fetchProjects = async () => { 
     try {
       //added in UC032
       const hasFilters =
@@ -75,21 +88,87 @@ export default function Projects() {
     }
   };
 
-  useEffect(() => {
+  /*useEffect(() => {
     fetchProjects();
+  }, []);*/
+
+  // changed the initial fetch
+  useEffect(() => { 
+    (async () => { 
+      try {
+        const data = await getProjects(); 
+        setAllProjects(Array.isArray(data) ? data : []); 
+      } catch (err) {
+        console.error("Error fetching projects:", err);
+      }
+    })();
   }, []);
 
-  //added in UC032
+  // helper to avoid trying to search on every key a user enters
+  const [debouncedSearch, setDebouncedSearch] = useState(search); 
+  useEffect(() => { 
+    const id = setTimeout(() => setDebouncedSearch(search), 200); 
+    return () => clearTimeout(id); 
+  }, [search]);
+
+  /*added in UC032
   useEffect(() => {
     fetchProjects();
-  }, [search, sort, techFilter, industryFilter]);
+  }, [search, sort, techFilter, industryFilter]); */
+
+  //fixing filtered sorting
+  useEffect(() => { 
+    const s = debouncedSearch.trim().toLowerCase(); 
+    const tf = techFilter.trim().toLowerCase(); 
+    const inf = industryFilter.trim().toLowerCase(); 
+
+    // NEW: filter across multiple fields locally
+    const filtered = allProjects.filter((p) => { 
+      const hay = ( 
+        [
+          p.name,
+          p.description,
+          p.role,
+          p.technologies,
+          p.industry,
+          p.status,
+        ]
+          .filter(Boolean)
+          .join(" ") || ""
+      ).toLowerCase();
+
+      const matchesSearch = s ? hay.includes(s) : true; 
+      const matchesTech = tf ? (p.technologies || "").toLowerCase().includes(tf) : true; 
+      const matchesIndustry = inf ? (p.industry || "").toLowerCase().includes(inf) : true; 
+      return matchesSearch && matchesTech && matchesIndustry; 
+    });
+
+    
+    filtered.sort((a, b) => { 
+      const aT = safeTime(a.startDate); 
+      const bT = safeTime(b.startDate); 
+
+      const aValid = Number.isFinite(aT); 
+      const bValid = Number.isFinite(bT); 
+
+      if (!aValid && !bValid) return 0; 
+      if (!aValid) return sort === "date_desc" ? 1 : -1; 
+      if (!bValid) return sort === "date_desc" ? -1 : 1; 
+
+      return sort === "date_desc" ? bT - aT : aT - bT; 
+    });
+
+    setProjects(filtered); 
+  }, [allProjects, debouncedSearch, techFilter, industryFilter, sort]);
 
   const addProject = async (newProj: Project) => {
     try {
       const created = await addProjectApi(newProj);
-      setProjects([...projects, created]);
-      setShowForm(false);//
+      setAllProjects((prev) => [...prev, created]); //changed for filter fix
+      setShowForm(false);
       //await addProject(newProj);
+      setShowForm(false);
+      onUpdate?.();
     } catch (err) {
       console.error("Error adding project:", err);
     }
@@ -98,9 +177,10 @@ export default function Projects() {
   const editProject = async (id: string, updatedProj: Project) => {
     try {
       const updated = await updateProjectApi(id, updatedProj);
-      setProjects((prev) =>
-        prev.map((proj) => (proj._id === id ? updated : proj))
-      );
+      setAllProjects((prev) => 
+        prev.map((p) => 
+          (p._id === id ? updated : p)));
+      onUpdate?.();
     } catch (err) {
       console.error("Error updating project:", err);
     }
@@ -110,8 +190,11 @@ export default function Projects() {
     if (!window.confirm("Are you sure you want to delete this project?")) return;
     try {
       await deleteProjectApi(id);
-      setProjects((prev) => prev.filter((proj) => proj._id !== id));
+      setAllProjects((prev) => 
+        prev.filter((p) => 
+          p._id !== id));
       alert("Project deleted successfully!");
+      onUpdate?.();
     } catch (err) {
       console.error("Error deleting project:", err);
       alert("Failed to delete project. Please try again.");
@@ -121,6 +204,7 @@ export default function Projects() {
   const formatDate = (dateString?: string) => {
     if (!dateString) return "";
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
     return date.toLocaleString("default", { month: "short", year: "numeric" });
   };
 
@@ -162,11 +246,11 @@ export default function Projects() {
           onSubmit={async (data) => {
             if (editingProject) {
               await editProject(editingProject._id!, data);
-              await fetchProjects();
+              //await fetchProjects();
               setEditingProject(null);
             } else {
               await addProject(data);
-              await fetchProjects();
+              //await fetchProjects();
             }
             setShowForm(false);
           }}

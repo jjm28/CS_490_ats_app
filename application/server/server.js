@@ -16,13 +16,14 @@ import employmentRouter from './routes/employment.js';
 import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
-import companyResearch from './routes/company-research.js';
+import jobRoutes from "./routes/jobs.js";
+import coverletter from  "./routes/coverletter.js"
+import companyResearch from './routes/company-research.js'; 
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const rawOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173/';
-const CORS_ORIGIN = rawOrigin.replace(/\/$/, ''); // removes trailing slash
-const DB = process.env.DB_NAME || 'appdb'
+const CORS_ORIGIN = process.env.CORS_ORIGIN ||  'http://localhost:5173/';
+const DB = process.env.DB_NAME || 'appb'
 
 const app = express();
 
@@ -59,6 +60,9 @@ try {
   app.use('/api/profile', attachDevUser, profilePhoto);
   app.use('/api/employment', attachDevUser, employmentRouter);
 
+  // Job routes
+  app.use('/api/jobs', attachDevUser, jobRoutes);
+
   // for picture uploads
   app.use(
     '/uploads',
@@ -69,6 +73,7 @@ try {
       setHeaders: (res) => res.set('Cache-Control', 'no-store'),
     })
   );
+  app.use('/api/coverletter',coverletter)
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

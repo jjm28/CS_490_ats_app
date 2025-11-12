@@ -49,7 +49,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Return new userId so client can use it for subsequent profile calls
-    const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "10m"});
+    const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "2h"});
     return res.status(201).json({token, userId: String(user._id), user });
   } catch (err) {
     if (err.statusCode === 400) {
@@ -98,7 +98,7 @@ try {
     
       user = await createUser({email: payload.email,password:null,firstName: payload?.given_name ?? null,lastName: payload?.family_name ?? null});
       const email = payload.email
-      token= jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "10m"});
+      token= jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "2h"});
 
 
     }
@@ -108,7 +108,7 @@ try {
     const user = await verifyUser({ email: payload.email,password:null},true);
     // Return new userId so client can use it for subsequent profile calls
     const email = payload.email
-    token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "10m"});
+    token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "2h"});
     }
     const userB64 = Buffer.from(JSON.stringify(user)).toString("base64url");
 
@@ -157,7 +157,7 @@ try {
     
       user = await createUser({email: payload.mail,password:null,firstName: payload?.givenName ?? null,lastName: payload?.surname ?? null});
       const email = payload.mail
-      token= jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "10m"});
+      token= jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "2h"});
 
 
     }
@@ -167,7 +167,7 @@ try {
     const user = await verifyUser({ email: payload.mail,password:null},true);
     // Return new userId so client can use it for subsequent profile calls
     const email = payload.mail
-    token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "10m"});
+    token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "2h"});
     }
     const userB64 = Buffer.from(JSON.stringify(user)).toString("base64url");
 
