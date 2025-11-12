@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import "../../App.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../StyledComponents/Card";
 import Button from "../StyledComponents/Button";
@@ -7,20 +8,22 @@ import type { Education } from "../Education/Education";
 import { getEducation } from "../../api/education";
 import type { Skill } from "../Skills/Skills";
 import type { Certification } from "../Certifications/Certifications";
-import  type {Employment} from "../../api/employment" 
+import type { Employment } from "../../api/employment";
 import { getSkills } from "../../api/skills";
 import { categories as SKILL_CATEGORIES } from "../../constants/skills";
 import { getCertifications } from "../../api/certifications";
 import { listEmployment } from "../../api/employment";
-import { getProjects} from "../../api/projects";
+import { getProjects } from "../../api/projects";
 import type { Project } from "../Projects/Projects";
-
+import type { Job } from "../../types/jobs.types";
+import DeadlinesDashboardWidget from "../Jobs/DeadlineDashboardWidget.tsx";
 import API_BASE from "../../utils/apiBase";
 
 // ---- Routes ----
 const EDUCATION_ADD_ROUTE = "/education";
 const SKILLS_ROUTE = "/skills";
 const CERTIFICATIONS_ROUTE = "/certifications";
+const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
 // ---------- helpers ----------
 function formatLocation(loc?: Profile["location"]) {
@@ -29,37 +32,53 @@ function formatLocation(loc?: Profile["location"]) {
   if (city && state) return `${city}, ${state}`;
   return city || state || "—";
 }
+
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((p) => p[0]?.toUpperCase() || "").join("");
 }
+
 function pickLatest(profiles: Profile[]): Profile | null {
   if (!profiles?.length) return null;
   const ts = (d?: string) => (d ? Date.parse(d) || 0 : 0);
   return [...profiles].sort((a, b) => {
     const bu = ts(b.updatedAt) || ts(b.createdAt);
     const au = ts(a.updatedAt) || ts(a.createdAt);
-    return bu - au; // newest → oldest
+    return bu - au;
   })[0];
 }
+
 function formatMonthYear(dateString?: string) {
   if (!dateString) return "";
   const t = Date.parse(dateString);
   if (Number.isNaN(t)) return "";
-  return new Date(t).toLocaleString("default", { month: "long", year: "numeric" });
+  return new Date(t).toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
 }
+
 const PROF_COLORS: Record<NonNullable<Skill["proficiency"]>, string> = {
-  Beginner: "bg-gray-100 text-gray-700 ring-gray-200",
-  Intermediate: "bg-blue-50 text-blue-700 ring-blue-200",
-  Advanced: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  Expert: "bg-purple-50 text-purple-700 ring-purple-200",
+  Beginner: "bg-stone-100 text-stone-700 ring-stone-300",
+  Intermediate: "bg-teal-50 text-teal-800 ring-teal-300",
+  Advanced: "bg-emerald-50 text-emerald-800 ring-emerald-300",
+  Expert: "bg-[#0E3B43] text-white ring-[#357266]",
 };
-function SkillChip({ name, proficiency }: { name: string; proficiency: Skill["proficiency"] }) {
+
+function SkillChip({
+  name,
+  proficiency,
+}: {
+  name: string;
+  proficiency: Skill["proficiency"];
+}) {
   const color = PROF_COLORS[proficiency || "Beginner"];
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-800 bg-white shadow-sm">
+    <span className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-3 py-1 text-sm text-stone-800 bg-white shadow-sm">
       <span className="font-medium">{name}</span>
-      <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${color}`}>{proficiency}</span>
+      <span className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${color}`}>
+        {proficiency}
+      </span>
     </span>
   );
 }
@@ -68,7 +87,10 @@ function formatYMD(date?: string) {
   if (!date) return "";
   const t = Date.parse(date);
   if (Number.isNaN(t)) return "";
-  return new Date(t).toLocaleString("default", { month: "short", year: "numeric" });
+  return new Date(t).toLocaleString("default", {
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function roleDates(e: Employment) {
@@ -76,20 +98,22 @@ function roleDates(e: Employment) {
   const end = e.currentPosition ? "Present" : formatYMD(e.endDate ?? undefined);
   return start && end ? `${start} – ${end}` : start || end || "";
 }
+
 function formatMonYear(date?: string | null) {
   if (!date) return "";
   const t = Date.parse(date);
   if (Number.isNaN(t)) return "";
-  return new Date(t).toLocaleString("default", { month: "short", year: "numeric" });
+  return new Date(t).toLocaleString("default", {
+    month: "short",
+    year: "numeric",
+  });
 }
 
-// status badge styles
 const STATUS_STYLES: Record<Project["status"], string> = {
-  Completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  Ongoing: "bg-blue-50 text-blue-700 ring-blue-200",
-  Planned: "bg-gray-100 text-gray-700 ring-gray-200",
+  Completed: "bg-emerald-50 text-emerald-800 ring-emerald-300",
+  Ongoing: "bg-teal-50 text-teal-800 ring-teal-300",
+  Planned: "bg-stone-100 text-stone-700 ring-stone-300",
 };
-
 
 // ---------- component ----------
 const ProfileDashboard: React.FC = () => {
@@ -120,10 +144,21 @@ const ProfileDashboard: React.FC = () => {
   const [employment, setEmployment] = useState<Employment[]>([]);
   const [empLoading, setEmpLoading] = useState(true);
   const [empErr, setEmpErr] = useState<string | null>(null);
+
   // Projects
   const [projects, setProjects] = useState<Project[]>([]);
   const [projLoading, setProjLoading] = useState(true);
   const [projErr, setProjErr] = useState<string | null>(null);
+
+  // Jobs (for deadline widget)
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+
+  const token = useMemo(
+    () =>
+      localStorage.getItem("authToken") || localStorage.getItem("token") || "",
+    []
+  );
 
   // Fetch profiles
   useEffect(() => {
@@ -149,8 +184,12 @@ const ProfileDashboard: React.FC = () => {
       try {
         const data = await getEducation();
         data.sort((a, b) => {
-          const da = a.graduationDate ? new Date(a.graduationDate).getTime() : 0;
-          const db = b.graduationDate ? new Date(b.graduationDate).getTime() : 0;
+          const da = a.graduationDate
+            ? new Date(a.graduationDate).getTime()
+            : 0;
+          const db = b.graduationDate
+            ? new Date(b.graduationDate).getTime()
+            : 0;
           return db - da;
         });
         setEducationList(data);
@@ -173,7 +212,10 @@ const ProfileDashboard: React.FC = () => {
           if (a.category === b.category) {
             return (a.order || 0) - (b.order || 0);
           }
-          return SKILL_CATEGORIES.indexOf(a.category) - SKILL_CATEGORIES.indexOf(b.category);
+          return (
+            SKILL_CATEGORIES.indexOf(a.category) -
+            SKILL_CATEGORIES.indexOf(b.category)
+          );
         });
         setSkills(data);
       } catch (e: any) {
@@ -194,7 +236,7 @@ const ProfileDashboard: React.FC = () => {
         data.sort((a, b) => {
           const da = a.dateEarned ? new Date(a.dateEarned).getTime() : 0;
           const db = b.dateEarned ? new Date(b.dateEarned).getTime() : 0;
-          return db - da; // newest first
+          return db - da;
         });
         setCerts(data);
       } catch (e: any) {
@@ -205,56 +247,81 @@ const ProfileDashboard: React.FC = () => {
     })();
   }, []);
 
-// Fetch employment
-useEffect(() => {
-  (async () => {
-    setEmpLoading(true);
-    setEmpErr(null);
-    try {
-      const data = await listEmployment();
-      // Sort: current roles first, then by endDate desc (or startDate if no end)
-      data.sort((a, b) => {
-        if (a.currentPosition !== b.currentPosition) {
-          return a.currentPosition ? -1 : 1; // current first
-        }
-        const ta = a.endDate ? Date.parse(a.endDate) : Date.parse(a.startDate || "") || 0;
-        const tb = b.endDate ? Date.parse(b.endDate) : Date.parse(b.startDate || "") || 0;
-        return tb - ta; // newest first
-      });
-      setEmployment(data);
-    } catch (e: any) {
-      setEmpErr(e?.message || "Failed to load employment.");
-    } finally {
-      setEmpLoading(false);
-    }
-  })();
-}, []);
+  // Fetch employment
+  useEffect(() => {
+    (async () => {
+      setEmpLoading(true);
+      setEmpErr(null);
+      try {
+        const data = await listEmployment();
+        data.sort((a, b) => {
+          if (a.currentPosition !== b.currentPosition) {
+            return a.currentPosition ? -1 : 1;
+          }
+          const ta = a.endDate
+            ? Date.parse(a.endDate)
+            : Date.parse(a.startDate || "") || 0;
+          const tb = b.endDate
+            ? Date.parse(b.endDate)
+            : Date.parse(b.startDate || "") || 0;
+          return tb - ta;
+        });
+        setEmployment(data);
+      } catch (e: any) {
+        setEmpErr(e?.message || "Failed to load employment.");
+      } finally {
+        setEmpLoading(false);
+      }
+    })();
+  }, []);
 
-// Fetch projects
-useEffect(() => {
-  (async () => {
-    setProjLoading(true);
-    setProjErr(null);
-    try {
-      const data = await getProjects();
-      // Sort by startDate desc
-      data.sort((a, b) => {
-        const ta = a.startDate ? Date.parse(a.startDate) : 0;
-        const tb = b.startDate ? Date.parse(b.startDate) : 0;
-        return tb - ta;
-      });
-      setProjects(data);
-    } catch (e: any) {
-      setProjErr(e?.message || "Failed to load projects.");
-    } finally {
-      setProjLoading(false);
-    }
-  })();
-}, []);
+  // Fetch projects
+  useEffect(() => {
+    (async () => {
+      setProjLoading(true);
+      setProjErr(null);
+      try {
+        const data = await getProjects();
+        data.sort((a, b) => {
+          const ta = a.startDate ? Date.parse(a.startDate) : 0;
+          const tb = b.startDate ? Date.parse(b.startDate) : 0;
+          return tb - ta;
+        });
+        setProjects(data);
+      } catch (e: any) {
+        setProjErr(e?.message || "Failed to load projects.");
+      } finally {
+        setProjLoading(false);
+      }
+    })();
+  }, []);
+
+  // Fetch jobs for deadline widget
+  useEffect(() => {
+    (async () => {
+      if (!token) return;
+      setJobsLoading(true);
+      try {
+        const response = await fetch(JOBS_ENDPOINT, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setJobs(data);
+        }
+      } catch (e) {
+        console.error("Failed to load jobs:", e);
+      } finally {
+        setJobsLoading(false);
+      }
+    })();
+  }, [token]);
 
   const latest = useMemo(() => pickLatest(profiles || []), [profiles]);
 
-  // Group skills by category
   const groupedSkills: Record<string, Skill[]> = useMemo(() => {
     return SKILL_CATEGORIES.reduce((acc, cat) => {
       acc[cat] = skills.filter((s) => s.category === cat);
@@ -262,488 +329,566 @@ useEffect(() => {
     }, {} as Record<string, Skill[]>);
   }, [skills]);
 
+  // Calculate quick stats
+  const stats = useMemo(
+    () => ({
+      education: educationList.length,
+      skills: skills.length,
+      certifications: certs.length,
+      employment: employment.length,
+      projects: projects.length,
+      activeCerts: certs.filter((c) => {
+        if (c.doesNotExpire) return true;
+        if (!c.expirationDate) return false;
+        return new Date(c.expirationDate) > new Date();
+      }).length,
+    }),
+    [educationList, skills, certs, employment, projects]
+  );
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="!text-left text-2xl font-bold text-gray-900">Profile Dashboard</h1>
-        {location?.state?.flash && (
-          <div className="mt-3 rounded-md bg-green-50 p-3 text-sm text-green-800 ring-1 ring-green-100">
-            {location.state.flash}
-          </div>
-        )}
-      </div>
+    <div className="min-h-screen mx-6">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-[#0E3B43]">
+            Profile Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-stone-600">
+            Your complete professional profile at a glance
+          </p>
+          {location?.state?.flash && (
+            <div className="mt-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
+              {location.state.flash}
+            </div>
+          )}
+        </div>
 
-      {/* Profile */}
-      {loading && <p className="text-gray-600">Loading profile…</p>}
-      {err && <p className="text-sm text-red-600">{err}</p>}
-      {!loading && !err && !latest && (
-        <Card>
-          <p className="text-gray-700">No profiles found yet.</p>
-        </Card>
-      )}
-      {!loading && !err && latest && (
-        <Card className="overflow-hidden">
-          <div className="h-20 w-full bg-gradient-to-r from-slate-50 to-slate-100"></div>
-          <div className="-mt-10 flex items-center gap-5 px-6">
-            {latest.photoUrl ? (
-              <img
-                src={
-                  latest.photoUrl?.startsWith("http")
-                    ? latest.photoUrl
-                    : `${API_BASE || ""}${latest.photoUrl || ""}`
-                }
-                alt={`${latest.fullName} profile`}
-                className="h-24 w-24 rounded-full object-cover ring-2 ring-white shadow-sm"
-              />
-            ) : (
-              <div className="h-24 w-24 rounded-full bg-gray-200 ring-2 ring-white shadow-sm flex items-center justify-center text-xl font-semibold text-gray-700">
-                {getInitials(latest.fullName || "U N")}
-              </div>
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Main Content (2/3 width) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Profile Card */}
+            {loading && (
+              <Card>
+                <p className="text-stone-600">Loading profile…</p>
+              </Card>
             )}
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold text-gray-900">{latest.fullName || "—"}</h2>
-              <p className="text-gray-600">{latest.headline?.trim() || "No headline provided"}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {latest.industry && (
-                  <span className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700">
-                    {latest.industry}
-                  </span>
-                )}
-                {latest.experienceLevel && (
-                  <span className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700">
-                    {latest.experienceLevel}
-                  </span>
-                )}
-                <span className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700">
-                  {formatLocation(latest.location)}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="mt-6 grid grid-cols-1 gap-4 border-t border-gray-100 px-6 pt-6 sm:grid-cols-2">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-gray-500">Email</div>
-              <div className="text-gray-900 break-all">
-                {latest.email ? (
-                  <a className="underline-offset-2 hover:underline" href={`mailto:${latest.email}`}>
-                    {latest.email}
-                  </a>
-                ) : (
-                  "—"
-                )}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wide text-gray-500">Phone</div>
-              <div className="text-gray-900">
-                {latest.phone ? (
-                  <a className="underline-offset-2 hover:underline" href={`tel:${latest.phone}`}>
-                    {latest.phone}
-                  </a>
-                ) : (
-                  "—"
-                )}
-              </div>
-            </div>
-            <div className="sm:col-span-2">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Bio</div>
-              <div className="text-gray-900 whitespace-pre-wrap">
-                {latest.bio?.trim() || "No bio yet."}
-              </div>
-            </div>
-          </div>
-          <div className="mt-6 border-t border-gray-100 px-6 pt-4 text-xs text-gray-500">
-            <div>Updated: {latest.updatedAt ? new Date(latest.updatedAt).toLocaleString() : "—"}</div>
-            <div>Created: {latest.createdAt ? new Date(latest.createdAt).toLocaleString() : "—"}</div>
-          </div>
-        </Card>
-      )}
-      {!loading && profiles && profiles.length > 1 && (
-        <p className="mt-3 text-sm text-gray-500">
-          Showing your most recent profile. ({profiles.length} total)
-        </p>
-      )}
-
-      {/* Education */}
-      <div className="mt-10">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Education</h2>
-          <Button
-            variant="primary"
-            aria-label="Add education"
-            title="Add education"
-            onClick={() => navigate(EDUCATION_ADD_ROUTE)}
-          >
-            +
-          </Button>
-        </div>
-        {eduLoading && <p className="text-gray-600">Loading education…</p>}
-        {eduErr && <p className="text-sm text-red-600">{eduErr}</p>}
-        {!eduLoading && !eduErr && educationList.length === 0 && (
-          <Card>
-            <p className="text-gray-700">No education entries yet.</p>
-          </Card>
-        )}
-        {!eduLoading && !eduErr && educationList.length > 0 && (
-          <div className="relative ml-4 pl-6">
-            <div className="absolute left-0 top-0 h-full w-px bg-gray-200" aria-hidden />
-            <div className="space-y-4">
-              {educationList.map((edu) => (
-                <div key={edu._id} className="relative">
-                  <span className="absolute -left-[9px] top-3 inline-block h-4 w-4 rounded-full border-2 border-white bg-gray-300 ring-2 ring-gray-300" />
-                  <Card>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="font-semibold text-gray-900 break-words">
-                          {edu.institution} — {edu.degree}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {formatMonthYear(edu.graduationDate)}
-                          {edu.currentlyEnrolled && " • Currently Enrolled"}
-                        </p>
+            {err && (
+              <Card>
+                <p className="text-sm text-red-700">{err}</p>
+              </Card>
+            )}
+            {!loading && !err && !latest && (
+              <Card>
+                <p className="text-stone-700">No profiles found yet.</p>
+              </Card>
+            )}
+            {!loading && !err && latest && (
+              <Card className="overflow-hidden">
+                <div className="h-24 w-full bg-gradient-to-r from-[#0E3B43] via-[#357266] to-[#6DA598]"></div>
+                <div className="-mt-12 px-6 pb-6">
+                  <div className="flex flex-col sm:flex-row items-start gap-4 pb-6">
+                    {latest.photoUrl ? (
+                      <img
+                        src={
+                          latest.photoUrl?.startsWith("http")
+                            ? latest.photoUrl
+                            : `${API_BASE || ""}${latest.photoUrl || ""}`
+                        }
+                        alt={`${latest.fullName} profile`}
+                        className="h-24 w-24 rounded-full object-cover ring-4 ring-white shadow-lg shrink-0"
+                      />
+                    ) : (
+                      <div className="h-24 w-24 rounded-full bg-gradient-to-br from-[#357266] to-[#6DA598] ring-4 ring-white shadow-lg flex items-center justify-center text-2xl font-bold text-white shrink-0">
+                        {getInitials(latest.fullName || "U N")}
                       </div>
-                      <p className="text-gray-700">
-                        {edu.educationLevel ? `${edu.educationLevel} in ` : ""}
-                        {edu.fieldOfStudy}
+                    )}
+                    <div className="flex-1 sm:pt-14">
+                      <h2 className="text-2xl font-bold text-[#0E3B43]">
+                        {latest.fullName || "—"}
+                      </h2>
+                      <p className="text-stone-600 mt-1">
+                        {latest.headline?.trim() || "No headline provided"}
                       </p>
-                      <div className="mt-1 flex flex-wrap gap-3 text-sm text-gray-700">
-                        {edu.gpa && !edu.isPrivateGpa && <span>GPA: {edu.gpa}</span>}
-                        {edu.achievements && <span>Achievements: {edu.achievements}</span>}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {latest.industry && (
+                          <span className="inline-flex items-center rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-[#357266] ring-1 ring-teal-200">
+                            {latest.industry}
+                          </span>
+                        )}
+                        {latest.experienceLevel && (
+                          <span className="inline-flex items-center rounded-full bg-[#A3BBAD]/20 px-3 py-1 text-xs font-medium text-[#357266] ring-1 ring-[#A3BBAD]">
+                            {latest.experienceLevel}
+                          </span>
+                        )}
+                        <span className="inline-flex items-center rounded-full bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700 ring-1 ring-stone-200">
+                          📍 {formatLocation(latest.location)}
+                        </span>
                       </div>
                     </div>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+                  </div>
 
-      {/* Skills (read-only) */}
-      <div className="mt-10">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Skills</h2>
-          <Button
-            variant="primary"
-            aria-label="Manage skills"
-            title="Manage skills"
-            onClick={() => navigate(SKILLS_ROUTE)}
-          >
-            +
-          </Button>
-        </div>
-        {skillsLoading && <p className="text-gray-600">Loading skills…</p>}
-        {skillsErr && <p className="text-sm text-red-600">{skillsErr}</p>}
-        {!skillsLoading && !skillsErr && skills.length === 0 && (
-          <Card>
-            <p className="text-gray-700">No skills added yet.</p>
-          </Card>
-        )}
-        {!skillsLoading && !skillsErr && skills.length > 0 && (
-          <div className="space-y-6">
-            {SKILL_CATEGORIES.map((cat) => {
-              const items = groupedSkills[cat] || [];
-              if (items.length === 0) return null;
-              const VISIBLE = 8;
-              const shown = items.slice(0, VISIBLE);
-              const remaining = items.length - shown.length;
-              return (
-                <Card key={cat}>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-semibold text-gray-900">{cat}</h3>
-                      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700 ring-1 ring-gray-200">
-                        {items.length}
-                      </span>
+                  {/* Contact Info - Now directly below without extra spacing */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-stone-100 pt-4">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        Email
+                      </div>
+                      <div className="mt-1 text-[#0E3B43] break-all">
+                        {latest.email ? (
+                          <a
+                            className="text-[#357266] hover:text-[#6DA598] hover:underline"
+                            href={`mailto:${latest.email}`}
+                          >
+                            {latest.email}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </div>
                     </div>
-                    {remaining > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => navigate(SKILLS_ROUTE)}
-                        className="text-sm text-blue-700 hover:underline underline-offset-2"
-                      >
-                        +{remaining} more
-                      </button>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        Phone
+                      </div>
+                      <div className="mt-1 text-[#0E3B43]">
+                        {latest.phone ? (
+                          <a
+                            className="text-[#357266] hover:text-[#6DA598] hover:underline"
+                            href={`tel:${latest.phone}`}
+                          >
+                            {latest.phone}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </div>
+                    </div>
+                    {latest.bio?.trim() && (
+                      <div className="sm:col-span-2">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                          Bio
+                        </div>
+                        <div className="mt-1 text-stone-700 whitespace-pre-wrap leading-relaxed">
+                          {latest.bio}
+                        </div>
+                      </div>
                     )}
                   </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Employment Section */}
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#0E3B43]">
+                  💼 Employment
+                </h2>
+                <Button
+                  size="sm"
+                  onClick={() => navigate("/EmploymentPage")}
+                  aria-label="Manage employment"
+                >
+                  Manage
+                </Button>
+              </div>
+
+              {empLoading && (
+                <Card>
+                  <p className="text-stone-600">Loading…</p>
+                </Card>
+              )}
+              {empErr && (
+                <Card>
+                  <p className="text-sm text-red-700">{empErr}</p>
+                </Card>
+              )}
+
+              {!empLoading && !empErr && employment.length === 0 && (
+                <Card>
+                  <p className="text-stone-600 text-center py-4">
+                    No employment entries yet
+                  </p>
+                  <Button
+                    className="w-full"
+                    onClick={() => navigate("/EmploymentPage")}
+                  >
+                    Add Employment
+                  </Button>
+                </Card>
+              )}
+
+              {!empLoading && !empErr && employment.length > 0 && (
+                <div className="space-y-3">
+                  {employment.slice(0, 3).map((e) => (
+                    <Card
+                      key={e._id}
+                      className="hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex gap-3">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-[#357266] to-[#6DA598] flex items-center justify-center text-white font-bold text-lg">
+                          {e.company?.charAt(0)?.toUpperCase() || "?"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-[#0E3B43] truncate">
+                            {e.jobTitle || "—"}
+                          </h3>
+                          <p className="text-sm text-stone-600">
+                            {e.company || "—"}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-stone-500">
+                            <span>{roleDates(e)}</span>
+                            {e.location && <span>• {e.location}</span>}
+                            {e.currentPosition && (
+                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800 ring-1 ring-emerald-200">
+                                Current
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                  {employment.length > 3 && (
+                    <button
+                      onClick={() => navigate("/EmploymentPage")}
+                      className="w-full text-center py-2 text-sm text-[#357266] hover:text-[#6DA598] font-medium"
+                    >
+                      View all {employment.length} positions →
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* Education Section */}
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#0E3B43]">
+                  🎓 Education
+                </h2>
+                <Button
+                  size="sm"
+                  onClick={() => navigate(EDUCATION_ADD_ROUTE)}
+                  aria-label="Add education"
+                >
+                  Add
+                </Button>
+              </div>
+
+              {eduLoading && (
+                <Card>
+                  <p className="text-stone-600">Loading…</p>
+                </Card>
+              )}
+              {eduErr && (
+                <Card>
+                  <p className="text-sm text-red-700">{eduErr}</p>
+                </Card>
+              )}
+
+              {!eduLoading && !eduErr && educationList.length === 0 && (
+                <Card>
+                  <p className="text-stone-600 text-center py-4">
+                    No education entries yet
+                  </p>
+                </Card>
+              )}
+
+              {!eduLoading && !eduErr && educationList.length > 0 && (
+                <div className="space-y-3">
+                  {educationList.map((edu) => (
+                    <Card
+                      key={edu._id}
+                      className="hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex gap-3">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-[#98AB72] to-[#A3BBAD] flex items-center justify-center text-white font-bold text-lg">
+                          🎓
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-[#0E3B43]">
+                            {edu.degree}
+                          </h3>
+                          <p className="text-sm text-stone-600">
+                            {edu.institution}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-stone-500">
+                            <span>{edu.fieldOfStudy}</span>
+                            {edu.graduationDate && (
+                              <span>
+                                • {formatMonthYear(edu.graduationDate)}
+                              </span>
+                            )}
+                            {edu.currentlyEnrolled && (
+                              <span className="inline-flex items-center rounded-full bg-teal-50 px-2 py-0.5 text-[#357266] ring-1 ring-teal-200">
+                                Enrolled
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Projects Section */}
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#0E3B43]">
+                  🚀 Projects
+                </h2>
+                <Button
+                  size="sm"
+                  onClick={() => navigate("/projects")}
+                  aria-label="Manage projects"
+                >
+                  Manage
+                </Button>
+              </div>
+
+              {projLoading && (
+                <Card>
+                  <p className="text-stone-600">Loading…</p>
+                </Card>
+              )}
+              {projErr && (
+                <Card>
+                  <p className="text-sm text-red-700">{projErr}</p>
+                </Card>
+              )}
+
+              {!projLoading && !projErr && projects.length === 0 && (
+                <Card>
+                  <p className="text-stone-600 text-center py-4">
+                    No projects yet
+                  </p>
+                </Card>
+              )}
+
+              {!projLoading && !projErr && projects.length > 0 && (
+                <div className="space-y-3">
+                  {projects.slice(0, 2).map((p) => {
+                    const statusStyle = STATUS_STYLES[p.status];
+                    return (
+                      <Card
+                        key={p._id}
+                        className="hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-[#0E3B43]">
+                                {p.name}
+                              </h3>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-xs ring-1 ${statusStyle}`}
+                              >
+                                {p.status}
+                              </span>
+                            </div>
+                            <p className="text-sm text-stone-600">{p.role}</p>
+                            {p.description && (
+                              <p className="mt-2 text-sm text-stone-700 line-clamp-2">
+                                {p.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                  {projects.length > 2 && (
+                    <button
+                      onClick={() => navigate("/projects")}
+                      className="w-full text-center py-2 text-sm text-[#357266] hover:text-[#6DA598] font-medium"
+                    >
+                      View all {projects.length} projects →
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
+
+          {/* Right Column - Sidebar (1/3 width) */}
+          <div className="space-y-6">
+            {/* Quick Stats */}
+            <Card>
+              <h3 className="text-lg font-semibold text-[#0E3B43] mb-4">
+                📊 Quick Stats
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-[#357266]">
+                    {stats.employment}
+                  </div>
+                  <div className="text-xs text-stone-600">Jobs</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-[#98AB72]">
+                    {stats.education}
+                  </div>
+                  <div className="text-xs text-stone-600">Degrees</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-[#6DA598]">
+                    {stats.skills}
+                  </div>
+                  <div className="text-xs text-stone-600">Skills</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-[#BE6400]">
+                    {stats.activeCerts}
+                  </div>
+                  <div className="text-xs text-stone-600">Certs</div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Deadline Widget */}
+            {!jobsLoading && jobs.length > 0 && (
+              <DeadlinesDashboardWidget jobs={jobs} maxDisplay={5} />
+            )}
+
+            {/* Skills Preview */}
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-[#0E3B43]">
+                  🛠️ Skills
+                </h3>
+                <Button
+                  size="sm"
+                  onClick={() => navigate(SKILLS_ROUTE)}
+                  aria-label="Manage skills"
+                >
+                  Manage
+                </Button>
+              </div>
+
+              {skillsLoading && (
+                <Card>
+                  <p className="text-stone-600">Loading…</p>
+                </Card>
+              )}
+              {skillsErr && (
+                <Card>
+                  <p className="text-sm text-red-700">{skillsErr}</p>
+                </Card>
+              )}
+
+              {!skillsLoading && !skillsErr && skills.length === 0 && (
+                <Card>
+                  <p className="text-stone-600 text-center py-4">
+                    No skills yet
+                  </p>
+                </Card>
+              )}
+
+              {!skillsLoading && !skillsErr && skills.length > 0 && (
+                <Card>
                   <div className="flex flex-wrap gap-2">
-                    {shown.map((s) => (
-                      <SkillChip key={s._id || `${cat}-${s.name}`} name={s.name} proficiency={s.proficiency} />
+                    {skills.slice(0, 6).map((s) => (
+                      <SkillChip
+                        key={s._id}
+                        name={s.name}
+                        proficiency={s.proficiency}
+                      />
                     ))}
                   </div>
+                  {skills.length > 6 && (
+                    <button
+                      onClick={() => navigate(SKILLS_ROUTE)}
+                      className="mt-3 w-full text-center text-sm text-[#357266] hover:text-[#6DA598] font-medium"
+                    >
+                      +{skills.length - 6} more skills →
+                    </button>
+                  )}
                 </Card>
-              );
-            })}
+              )}
+            </section>
+
+            {/* Certifications Preview */}
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-[#0E3B43]">
+                  🏆 Certifications
+                </h3>
+                <Button
+                  size="sm"
+                  onClick={() => navigate(CERTIFICATIONS_ROUTE)}
+                  aria-label="Manage certifications"
+                >
+                  Manage
+                </Button>
+              </div>
+
+              {certsLoading && (
+                <Card>
+                  <p className="text-stone-600">Loading…</p>
+                </Card>
+              )}
+              {certsErr && (
+                <Card>
+                  <p className="text-sm text-red-700">{certsErr}</p>
+                </Card>
+              )}
+
+              {!certsLoading && !certsErr && certs.length === 0 && (
+                <Card>
+                  <p className="text-stone-600 text-center py-4">
+                    No certifications yet
+                  </p>
+                </Card>
+              )}
+
+              {!certsLoading && !certsErr && certs.length > 0 && (
+                <Card>
+                  <div className="space-y-3">
+                    {certs.slice(0, 3).map((cert) => {
+                      const isExpired = cert.expirationDate
+                        ? new Date(cert.expirationDate) <= new Date()
+                        : false;
+                      return (
+                        <div key={cert._id} className="flex items-start gap-2">
+                          <div className="text-lg">
+                            {cert.verified ? "✅" : "📜"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium text-[#0E3B43] truncate">
+                              {cert.name}
+                            </h4>
+                            <p className="text-xs text-stone-600">
+                              {cert.organization}
+                            </p>
+                            {isExpired && (
+                              <span className="text-xs text-red-700 font-medium">
+                                ⚠️ Expired
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {certs.length > 3 && (
+                    <button
+                      onClick={() => navigate(CERTIFICATIONS_ROUTE)}
+                      className="mt-3 w-full text-center text-sm text-[#357266] hover:text-[#6DA598] font-medium"
+                    >
+                      View all {certs.length} →
+                    </button>
+                  )}
+                </Card>
+              )}
+            </section>
           </div>
-        )}
+        </div>
       </div>
-
-      {/* Certifications (read-only) */}
-<div className="mt-8">
-  <div className="mb-3 flex items-center justify-between">
-    <h2 className="text-xl font-bold text-gray-900">Certifications</h2>
-    <Button
-      variant="primary"
-      aria-label="Manage certifications"
-      title="Manage certifications"
-      onClick={() => navigate(CERTIFICATIONS_ROUTE)}
-    >
-      +
-    </Button>
-  </div>
-
-  {certsLoading && <p className="text-gray-600">Loading certifications…</p>}
-  {certsErr && <p className="text-sm text-red-600">{certsErr}</p>}
-
-  {!certsLoading && !certsErr && certs.length === 0 && (
-    <Card className="p-4 sm:p-5">
-      <p className="text-gray-700">No certifications added yet.</p>
-    </Card>
-  )}
-
-  {!certsLoading && !certsErr && certs.length > 0 && (
-    <div className="space-y-3">
-      {certs.map((cert) => {
-        const isExpired =
-          cert.expirationDate ? new Date(cert.expirationDate) <= new Date() : false;
-        return (
-          <Card key={cert._id} className="p-4 sm:p-5">
-            <div className="flex flex-col gap-1">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="text-base font-semibold text-gray-900 break-words">
-                  {cert.name}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Earned: {formatMonthYear(cert.dateEarned)}
-                </p>
-              </div>
-
-              <p className="text-gray-700">
-                <span className="font-medium">Organization:</span> {cert.organization}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
-                {cert.doesNotExpire ? (
-                  <span>Does not expire</span>
-                ) : (
-                  <span>
-                    Expires: {formatMonthYear(cert.expirationDate)}
-                    {isExpired && (
-                      <span className="ml-2 text-red-600 font-medium">⚠️ Expired</span>
-                    )}
-                  </span>
-                )}
-                {cert.certificationId && <span>ID: {cert.certificationId}</span>}
-                {cert.category && (
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 ring-1 ring-gray-200">
-                    {cert.category}
-                  </span>
-                )}
-                {cert.verified !== undefined && (
-                  <span
-                    className={
-                      cert.verified
-                        ? "text-emerald-700 font-medium"
-                        : "text-gray-500 font-medium"
-                    }
-                  >
-                    {cert.verified ? "Verified" : "Not Verified"}
-                  </span>
-                )}
-              </div>
-            </div>
-          </Card>
-        );
-      })}
-    </div>
-  )}
-</div>
-{/* Employment (read-only) */}
-<div className="mt-10">
-  <div className="mb-5 flex items-center justify-between">
-    <h2 className="text-xl font-bold text-gray-900">Employment</h2>
-    <Button
-      variant="primary"
-      aria-label="Manage employment"
-      title="Manage employment"
-      onClick={() => navigate("/EmploymentPage")}
-    >
-      +
-    </Button>
-  </div>
-
-  {empLoading && <p className="text-gray-600">Loading employment…</p>}
-  {empErr && <p className="text-sm text-red-600">{empErr}</p>}
-
-  {!empLoading && !empErr && employment.length === 0 && (
-    <Card className="p-4 sm:p-5">
-      <p className="text-gray-700">No employment entries yet.</p>
-    </Card>
-  )}
-
-  {!empLoading && !empErr && employment.length > 0 && (
-    <div className="space-y-3">
-      {employment.map((e) => (
-        <Card key={e._id} className="p-4 sm:p-5">
-          <div className="flex flex-col gap-1">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-base font-semibold text-gray-900 break-words">
-                {e.jobTitle || "—"}
-              </h3>
-              <p className="text-sm text-gray-600">{roleDates(e)}</p>
-            </div>
-
-            <p className="text-gray-700">
-              <span className="font-medium">{e.company || "—"}</span>
-              {e.location ? <span className="text-gray-600">{` — ${e.location}`}</span> : null}
-            </p>
-
-            {e.description && (
-              <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
-                {e.description}
-              </p>
-            )}
-          </div>
-        </Card>
-      ))}
-    </div>
-  )}
-</div>
-{/* Projects (read-only) */}
-<div className="mt-10">
-  <div className="mb-5 flex items-center justify-between">
-    <h2 className="text-xl font-bold text-gray-900">Projects</h2>
-    <Button
-      variant="primary"
-      aria-label="Manage projects"
-      title="Manage projects"
-      onClick={() => navigate("/projects")}
-    >
-      +
-    </Button>
-  </div>
-
-  {projLoading && <p className="text-gray-600">Loading projects…</p>}
-  {projErr && <p className="text-sm text-red-600">{projErr}</p>}
-
-  {!projLoading && !projErr && projects.length === 0 && (
-    <Card className="p-4 sm:p-5">
-      <p className="text-gray-700">No projects added yet.</p>
-    </Card>
-  )}
-
-  {!projLoading && !projErr && projects.length > 0 && (
-    <div className="flex flex-col gap-3">
-      {projects.map((p) => {
-        const statusStyle = STATUS_STYLES[p.status];
-        const techs =
-          p.technologies
-            ?.split(/[,\n]/)
-            .map((t) => t.trim())
-            .filter(Boolean)
-          || [];
-
-        return (
-          <Card key={p._id} className="p-4 sm:p-5">
-            <div className="flex flex-col gap-1">
-              {/* Title row */}
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="text-base font-semibold text-gray-900 break-words">
-                  {p.name}
-                </h3>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs ring-1 ${statusStyle}`}>
-                  {p.status}
-                </span>
-              </div>
-
-              {/* Meta */}
-              <p className="text-gray-700">
-                <span className="font-medium">{p.role}</span>
-                {(p.startDate || p.endDate) && (
-                  <span className="text-gray-600">{` • ${formatMonYear(p.startDate)} – ${p.endDate ? formatMonYear(p.endDate) : "Present"}`}</span>
-                )}
-                {p.industry && <span className="text-gray-600">{` • ${p.industry}`}</span>}
-                {p.teamSize ? <span className="text-gray-600">{` • Team: ${p.teamSize}`}</span> : null}
-              </p>
-
-              {/* Description */}
-              {p.description && (
-                <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
-                  {p.description}
-                </p>
-              )}
-
-              {/* Technologies */}
-              {techs.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {techs.slice(0, 12).map((t, i) => (
-                    <span
-                      key={`${p._id || p.name}-${t}-${i}`}
-                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-800 shadow-sm"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                  {techs.length > 12 && (
-                    <span className="text-xs text-blue-700">
-                      +{techs.length - 12} more
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Links / Media */}
-              {(p.url || p.mediaUrl) && (
-                <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                  {p.url && (
-                    <a
-                      href={p.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-700 underline-offset-2 hover:underline break-all"
-                    >
-                      Project link
-                    </a>
-                  )}
-                  {p.mediaUrl && (
-                    <a
-                      href={p.mediaUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-700 underline-offset-2 hover:underline break-all"
-                    >
-                      Media
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {/* Outcomes / Collaboration */}
-              {(p.outcomes || p.collaborationDetails) && (
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {p.outcomes && (
-                    <div>
-                      <div className="text-xs uppercase tracking-wide text-gray-500">Outcomes</div>
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{p.outcomes}</p>
-                    </div>
-                  )}
-                  {p.collaborationDetails && (
-                    <div>
-                      <div className="text-xs uppercase tracking-wide text-gray-500">Collaboration</div>
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{p.collaborationDetails}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
-        );
-      })}
-    </div>
-  )}
-</div>
-
-
     </div>
   );
 };

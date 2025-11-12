@@ -212,3 +212,13 @@ export const extractDecimal = (value: any): string => {
   }
   return value.toString();
 };
+
+// DeadlineInfo interface for deadline utilities
+export interface DeadlineInfo {
+  daysRemaining: number;
+  urgency: 'overdue' | 'critical' | 'warning' | 'normal' | 'none' | 'plenty';
+  label: string;
+  color: string;
+  bgColor: string;
+  icon: string;
+}
