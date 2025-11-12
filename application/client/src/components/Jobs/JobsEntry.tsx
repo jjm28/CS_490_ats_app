@@ -1455,6 +1455,29 @@ function JobsEntry() {
                               : job.description}
                           </p>
                         )}
+                        {job.matchScore != null && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <p className="text-sm">
+                            <span className="font-medium">Match Score:</span>{" "}
+                            <span
+                              className={
+                                job.matchScore >= 80
+                                  ? "text-green-700 font-bold"
+                                  : job.matchScore >= 60
+                                  ? "text-yellow-600 font-bold"
+                                  : "text-red-600 font-bold"
+                              }
+                            >
+                              {job.matchScore}%
+                            </span>
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Skills {job.matchBreakdown?.skills ?? 0}% | Exp{" "}
+                            {job.matchBreakdown?.experience ?? 0}% | Edu{" "}
+                            {job.matchBreakdown?.education ?? 0}%
+                          </p>
+                        </div>
+                      )}
                         {job.jobPostingUrl && (
                           <a
                             href={job.jobPostingUrl}

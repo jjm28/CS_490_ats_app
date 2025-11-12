@@ -24,6 +24,9 @@ export default function JobDetails({
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Job>>({});
   const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [matchAnalysis, setMatchAnalysis] = useState<any | null>(null);
+  const [analysisError, setAnalysisError] = useState("");
 
   // New state for adding application history
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
@@ -37,6 +40,8 @@ export default function JobDetails({
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+
+
   const token = useMemo(
     () =>
       localStorage.getItem("authToken") || localStorage.getItem("token") || "",
@@ -48,27 +53,52 @@ export default function JobDetails({
   }, [jobId]);
 
   const fetchJob = async () => {
-    try {
-      const response = await fetch(`${JOBS_ENDPOINT}/${jobId}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  try {
+    const response = await fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch job");
-      }
-
-      const data = await response.json();
-      setJob(data);
-      setFormData(data);
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error("Failed to fetch job");
     }
-  };
+
+    const data = await response.json();
+    setJob(data);
+    setFormData(data);
+    setLoading(false);
+
+    // 🔥 STEP 1: Automatically analyze match after job loads
+    try {
+      // Only run if matchScore isn’t already available
+      if (!data.matchScore) {
+        const matchRes = await fetch(`${JOBS_ENDPOINT}/${jobId}/analyze-match`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (matchRes.ok) {
+          const updatedJob = await matchRes.json();
+          setJob(updatedJob); // update state so UI shows match results
+          setFormData(updatedJob);
+        } else {
+          console.warn("Match analysis failed:", await matchRes.text());
+        }
+      }
+    } catch (matchErr) {
+      console.error("Error during match analysis:", matchErr);
+    }
+
+  } catch (err) {
+    console.error(err);
+    setLoading(false);
+  }
+};
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -297,6 +327,34 @@ export default function JobDetails({
       alert("Failed to delete history entry. Please try again.");
     }
   };
+  const handleAnalyzeMatch = async () => {
+    if (!job?._id) return;
+    try {
+      setAnalyzing(true);
+      setAnalysisError("");
+
+      const response = await fetch(`${JOBS_ENDPOINT}/${job._id}/analyze-match`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze job match");
+      }
+
+      const data = await response.json();
+      setMatchAnalysis(data);
+    } catch (err: any) {
+      console.error(err);
+      setAnalysisError(err.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
 
   if (loading) return <div className="p-6">Loading...</div>;
   if (!job) return <div className="p-6">Job not found</div>;
@@ -474,7 +532,106 @@ export default function JobDetails({
                 </Button>
               )}
             </div>
+              {/* Match Analysis Section */}
+             <section>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-lg">Match Analysis</h3>
+                  <Button
+                    variant="primary"
+                    onClick={handleAnalyzeMatch}
+                    disabled={analyzing}
+                  >
+                    {analyzing ? "Analyzing..." : "Analyze Match"}
+                  </Button>
+                </div>
 
+                {analysisError && (
+                  <p className="text-red-600 text-sm">{analysisError}</p>
+                )}
+
+                {matchAnalysis && (
+                  <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
+                    {/* Overall Score with color */}
+                    <p className="font-semibold">
+                      Overall Match Score:{" "}
+                      <span
+                        className={
+                          matchAnalysis.matchScore >= 90
+                            ? "text-green-700"
+                            : matchAnalysis.matchScore >= 70
+                            ? "text-yellow-600"
+                            : "text-red-600"
+                        }
+                      >
+                        {matchAnalysis.matchScore || 0}%
+                      </span>
+                    </p>
+
+                    {/* Category Breakdown with Highlights */}
+                    <ul className="list-disc pl-6 space-y-1">
+                      <li
+                        className={
+                          matchAnalysis.matchBreakdown?.skills < 70
+                            ? "text-red-600"
+                            : matchAnalysis.matchBreakdown?.skills < 90
+                            ? "text-yellow-600"
+                            : "text-green-700"
+                        }
+                      >
+                        Skills: {matchAnalysis.matchBreakdown?.skills ?? 0}%
+                      </li>
+                      <li
+                        className={
+                          matchAnalysis.matchBreakdown?.experience < 70
+                            ? "text-red-600"
+                            : matchAnalysis.matchBreakdown?.experience < 90
+                            ? "text-yellow-600"
+                            : "text-green-700"
+                        }
+                      >
+                        Experience: {matchAnalysis.matchBreakdown?.experience ?? 0}%
+                      </li>
+                      <li
+                        className={
+                          matchAnalysis.matchBreakdown?.education < 70
+                            ? "text-red-600"
+                            : matchAnalysis.matchBreakdown?.education < 90
+                            ? "text-yellow-600"
+                            : "text-green-700"
+                        }
+                      >
+                        Education: {matchAnalysis.matchBreakdown?.education ?? 0}%
+                      </li>
+                    </ul>
+
+                    {/* Strengths / Gaps Feedback */}
+                    <div className="mt-3 text-gray-700 text-sm">
+                      {matchAnalysis.matchScore >= 90 && (
+                        <p>💪 Excellent match — your profile fits this job very well!</p>
+                      )}
+                      {matchAnalysis.matchScore >= 70 && matchAnalysis.matchScore < 90 && (
+                        <p>👍 Good match — a few small improvements could make it perfect.</p>
+                      )}
+                      {matchAnalysis.matchScore < 70 && (
+                        <p>⚠️ Some areas need improvement — focus on red or yellow sections above.</p>
+                      )}
+                    </div>
+
+                    {/* Suggestions */}
+                    {matchAnalysis.suggestions?.length > 0 && (
+                      <>
+                        <h4 className="font-semibold mt-3">Suggestions for Improvement:</h4>
+                        <ul className="list-disc pl-6 text-gray-700">
+                          {matchAnalysis.suggestions.map((s: string, i: number) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+
+                  </div>
+                )}
+              </section>
             {/* Add new entry form */}
             {isAddingHistory && (
               <div className="mb-4 p-4 bg-blue-50 rounded border border-blue-200">

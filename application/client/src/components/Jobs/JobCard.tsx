@@ -18,7 +18,7 @@ const JobCard: React.FC<JobCardProps> = ({ job }) => {
     const diff = new Date().getTime() - new Date(latest.timestamp).getTime();
     return Math.floor(diff / (1000 * 60 * 60 * 24));
   };
-
+  console.log("Job data:", job);
   return (
     <>
       <div
@@ -38,6 +38,7 @@ const JobCard: React.FC<JobCardProps> = ({ job }) => {
           🕒 {getDaysInStage()} {getDaysInStage() === 1 ? "day" : "days"} in
           stage
         </div>
+
       </div>
     </>
   );
