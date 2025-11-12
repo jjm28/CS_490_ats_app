@@ -9,13 +9,13 @@ function baseHeaders() {
     };
 }
 
-export async function getJobStats() {
-    const res = await fetch(`${API_BASE}/api/jobs/stats`, {
-        headers: baseHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to fetch job stats");
-    return res.json();
-}
+export const getJobStats = async () => {
+  const res = await fetch(`${API_BASE}/api/jobs/stats`, {
+    headers: baseHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch job statistics");
+  return res.json();
+};
 
 export async function getArchivedJobs() {
     const res = await fetch(`${API_BASE}/api/jobs/archived`, {

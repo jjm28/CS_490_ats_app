@@ -134,19 +134,18 @@ function Navbar() {
               </PopoverPanel>
             </Popover>
 
-            <Popover className="relative">
-              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
-                Jobs
-              </PopoverButton>
-              <PopoverPanel className="absolute left-0 mt-2 w-52 rounded-md bg-white shadow-lg">
-                <NavLink
-                  to="/Jobs"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  Jobs
-                </NavLink>
-              </PopoverPanel>
-            </Popover>
+            <NavLink
+              to="/Jobs"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Jobs
+            </NavLink>
+
 
           </div>
 
