@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import API_BASE from "../../utils/apiBase";
 import Button from "../StyledComponents/Button";
@@ -11,36 +11,48 @@ import ExtendDeadlineModal from "./ExtendDeadlineModal";
 import { toggleArchiveJob } from "../../api/jobs";
 import { useToast } from "../../hooks/useToast";
 import { type Job, formatSalary } from "../../types/jobs.types";
+import JobForm from "./JobForm";
 
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
+
+type ExtendedJob = Job & {
+  autoArchiveDays?: number;
+  createdAt?: string;
+  industry?: string;
+  type?: string;
+  jobPostingUrl?: string;
+  applicationDeadline?: string;
+};
+
+const STATUS_FILTERS = [
+  { label: "All", value: "All" },
+  { label: "Interested", value: "interested" },
+  { label: "Applied", value: "applied" },
+  { label: "Phone screen", value: "phone_screen" },
+  { label: "Interview", value: "interview" },
+  { label: "Offer", value: "offer" },
+  { label: "Rejected", value: "rejected" },
+];
 
 function JobsEntry() {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast, Toast } = useToast();
 
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<ExtendedJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [flash, setFlash] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [extendingJob, setExtendingJob] = useState<Job | null>(null);
+  const [extendingJob, setExtendingJob] = useState<ExtendedJob | null>(null);
+
   const [showForm, setShowForm] = useState(false);
-  const [editingJob, setEditingJob] = useState<Job | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formData, setFormData] = useState({
-    jobTitle: "",
-    company: "",
-    industry: "",
-    type: "",
-    location: "",
-    salaryMin: "",
-    salaryMax: "",
-    jobPostingUrl: "",
-    applicationDeadline: "",
-    description: "",
-    autoArchiveDays: "60",
-  });
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [editingJob, setEditingJob] = useState<ExtendedJob | null>(null);
+
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("All");
 
   const token = useMemo(
     () =>
@@ -58,7 +70,12 @@ function JobsEntry() {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch(JOBS_ENDPOINT, {
+      const url =
+        statusFilter !== "All"
+          ? `${JOBS_ENDPOINT}?status=${encodeURIComponent(statusFilter)}`
+          : JOBS_ENDPOINT;
+
+      const res = await fetch(url, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -85,9 +102,7 @@ function JobsEntry() {
     }
   };
 
-  // ===============================
-  // EFFECTS
-  // ===============================
+  // Effects
   useEffect(() => {
     const f = (location.state as any)?.flash;
     if (f) setFlash(f);
@@ -103,14 +118,15 @@ function JobsEntry() {
 
   useEffect(() => {
     if (isLoggedIn) fetchJobs();
-  }, [isLoggedIn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, statusFilter]);
 
   // ===============================
   // UTILITIES
   // ===============================
-  const getDaysRemaining = (job: Job) => {
+  const getDaysRemaining = (job: ExtendedJob) => {
     if (!job.createdAt) return 0;
-    const days = job.autoArchiveDays || 60;
+    const days = job.autoArchiveDays ?? 60;
     const created = new Date(job.createdAt);
     const now = new Date();
     const elapsed = Math.floor(
@@ -120,138 +136,22 @@ function JobsEntry() {
   };
 
   // ===============================
-  // FORM HANDLERS
+  // ACTIONS
   // ===============================
-  const validateField = (
-    name: string,
-    value: string,
-    otherSalaryValue?: string
-  ) => {
-    let error = "";
-    switch (name) {
-      case "jobTitle":
-        if (!value.trim()) error = "Job title is required";
-        break;
-      case "company":
-        if (!value.trim()) error = "Company name is required";
-        break;
-      case "salaryMin":
-      case "salaryMax":
-        if (value && parseFloat(value) < 0)
-          error = "Salary must be a positive number";
-        break;
-    }
-    return error;
-  };
-
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    const error = validateField(
-      name,
-      value,
-      name === "salaryMin" ? formData.salaryMax : formData.salaryMin
-    );
-    setErrors((prev) => {
-      const newErrors = { ...prev };
-      if (error) newErrors[name] = error;
-      else delete newErrors[name];
-      return newErrors;
-    });
-  };
-
-  const resetForm = () => {
-    setFormData({
-      jobTitle: "",
-      company: "",
-      industry: "",
-      type: "",
-      location: "",
-      salaryMin: "",
-      salaryMax: "",
-      jobPostingUrl: "",
-      applicationDeadline: "",
-      description: "",
-      autoArchiveDays: "60",
-    });
-    setErrors({});
+  const openCreate = () => {
+    setFormMode("create");
     setEditingJob(null);
-    setShowForm(false);
+    setShowForm(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-    const payload: any = {
-      jobTitle: formData.jobTitle,
-      company: formData.company,
-      industry: formData.industry,
-      type: formData.type,
-      location: formData.location,
-      salaryMin: formData.salaryMin ? parseFloat(formData.salaryMin) : null,
-      salaryMax: formData.salaryMax ? parseFloat(formData.salaryMax) : null,
-      jobPostingUrl: formData.jobPostingUrl,
-      description: formData.description,
-      autoArchiveDays: parseInt(formData.autoArchiveDays) || 60,
-    };
-    if (formData.applicationDeadline)
-      payload.applicationDeadline = new Date(formData.applicationDeadline).toISOString();
-
-    try {
-      const url = editingJob
-        ? `${JOBS_ENDPOINT}/${editingJob._id}`
-        : JOBS_ENDPOINT;
-      const method = editingJob ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        await fetchJobs();
-        setFlash(editingJob ? "Job updated!" : "Job added!");
-        resetForm();
-      } else {
-        setErr(data.message || "Error saving job.");
-      }
-    } catch (error) {
-      console.error("Save error:", error);
-      setErr("Failed to save job.");
-    }
-  };
-
-  const handleEdit = (job: Job) => {
+  const openEdit = (job: ExtendedJob) => {
+    setFormMode("edit");
     setEditingJob(job);
-    setFormData({
-      jobTitle: job.jobTitle,
-      company: job.company || "",
-      industry: job.industry,
-      type: job.type,
-      location: job.location || "",
-      salaryMin: job.salaryMin ? job.salaryMin.toString() : "",
-      salaryMax: job.salaryMax ? job.salaryMax.toString() : "",
-      jobPostingUrl: job.jobPostingUrl || "",
-      applicationDeadline: job.applicationDeadline
-        ? new Date(job.applicationDeadline).toISOString().split("T")[0]
-        : "",
-      description: job.description || "",
-      autoArchiveDays: job.autoArchiveDays
-        ? String(job.autoArchiveDays)
-        : "60",
-    });
     setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this job?")) return;
+    if (!confirm("Delete this job?")) return;
     try {
       const res = await fetch(`${JOBS_ENDPOINT}/${id}`, {
         method: "DELETE",
@@ -262,12 +162,24 @@ function JobsEntry() {
       });
       if (res.ok) {
         await fetchJobs();
-        setFlash("Job deleted successfully!");
+        setFlash("Job deleted.");
       } else setErr("Failed to delete job");
     } catch (err) {
       console.error("Delete error:", err);
       setErr("Failed to delete job");
     }
+  };
+
+  const bulkArchive = async () => {
+    if (selectedJobs.length === 0) return;
+    if (!confirm(`Archive ${selectedJobs.length} selected job(s)?`)) return;
+
+    await Promise.all(
+      selectedJobs.map((id) => toggleArchiveJob(id, true, "Bulk archive"))
+    );
+    setSelectedJobs([]);
+    await fetchJobs();
+    showToast("Selected jobs archived.");
   };
 
   // ===============================
@@ -277,130 +189,138 @@ function JobsEntry() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Job Opportunities</h1>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h1 className="text-2xl font-bold text-gray-900">Job Opportunities</h1>
+
+        {/* Add Job button only (wider, single line) */}
+        <Button className="!px-5 !py-2 whitespace-nowrap" onClick={openCreate}>
+          + Add Job
+        </Button>
+      </div>
+
+
       {flash && <p className="mb-4 text-sm text-green-700">{flash}</p>}
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
 
-      {showForm && (
-        <Card className="mb-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                name="jobTitle"
-                value={formData.jobTitle}
-                onChange={handleInputChange}
-                placeholder="Job Title"
-                className="form-input"
-              />
-              <input
-                name="company"
-                value={formData.company}
-                onChange={handleInputChange}
-                placeholder="Company"
-                className="form-input"
-              />
-              <input
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="Location"
-                className="form-input"
-              />
-              <input
-                name="salaryMin"
-                value={formData.salaryMin}
-                onChange={handleInputChange}
-                placeholder="Salary Min"
-                className="form-input"
-              />
-              <input
-                name="salaryMax"
-                value={formData.salaryMax}
-                onChange={handleInputChange}
-                placeholder="Salary Max"
-                className="form-input"
-              />
-            </div>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Description"
-              className="form-input"
-            />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={resetForm}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingJob ? "Update" : "Save"} Job
-              </Button>
-            </div>
-          </form>
-        </Card>
-      )}
-
       {jobs.length === 0 ? (
-        <Card>No jobs available.</Card>
+        <Card>No jobs found for this filter.</Card>
       ) : (
         <ul className="space-y-3">
           {jobs.map((job) => (
             <li key={job._id}>
-              <Card className="cursor-pointer hover:opacity-90 transition-opacity">
-                <div className="flex justify-between items-start gap-4">
-                  <div>
-                    <div className="font-semibold text-gray-900 text-lg">
-                      {job.jobTitle}
-                    </div>
-                    <div className="text-sm text-gray-700 mt-1">
-                      {job.company}
-                    </div>
-                    <div className="mt-2 text-sm text-gray-600 space-y-1">
-                      {job.location && <div>📍 {job.location}</div>}
-                      <div>💰 {formatSalary(job.salaryMin, job.salaryMax)}</div>
-                      <DeadlineIndicator
-                        applicationDeadline={job.applicationDeadline}
-                        showFullDate={true}
-                        size="sm"
+              <Card className="transition-all">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={selectedJobs.includes(job._id)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSelectedJobs((prev) =>
+                            checked
+                              ? [...prev, job._id]
+                              : prev.filter((id) => id !== job._id)
+                          );
+                        }}
                       />
-                      <div
-                        className={`text-sm ${getDaysRemaining(job) <= 10
-                          ? "text-red-600"
-                          : getDaysRemaining(job) <= 30
-                            ? "text-orange-500"
-                            : "text-green-600"
-                          }`}
-                      >
-                        ⏳ Auto-archives in {getDaysRemaining(job)} days
+                      <div>
+                        <div className="font-semibold text-gray-900 text-lg">
+                          {job.jobTitle}
+                        </div>
+                        {job.company && (
+                          <div className="text-sm text-gray-700 mt-0.5">
+                            {job.company}
+                          </div>
+                        )}
+
+                        {/* Badges */}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {job.type && (
+                            <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                              {job.type}
+                            </span>
+                          )}
+                          {job.industry && (
+                            <span className="inline-block px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                              {job.industry}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Meta */}
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          {job.location && <div>📍 {job.location}</div>}
+                          <div>
+                            💰 {formatSalary((job as any).salaryMin, (job as any).salaryMax)}
+                          </div>
+
+                          {/* Deadline + urgency */}
+                          <DeadlineIndicator
+                            applicationDeadline={job.applicationDeadline}
+                            showFullDate={true}
+                            size="sm"
+                          />
+
+                          {/* Auto-archive countdown */}
+                          <span
+                            className={`text-sm ${getDaysRemaining(job) <= 10
+                              ? "text-red-600"
+                              : getDaysRemaining(job) <= 30
+                                ? "text-orange-500"
+                                : "text-green-600"
+                              }`}
+                          >
+                            ⏳ Auto-archives in {getDaysRemaining(job)} days
+                          </span>
+                        </div>
+
+                        {/* Posting link */}
+                        {job.jobPostingUrl && (
+                          <a
+                            href={job.jobPostingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            View posting →
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
+
                   <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => openEdit(job)}>Edit</Button>
+
                     <Button
                       variant="secondary"
-                      onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
-                        e.stopPropagation();
-                        const reason = prompt(
-                          "Enter reason for archiving this job:"
-                        );
-                        await toggleArchiveJob(
-                          job._id,
-                          true,
-                          reason || "Manual archive"
-                        );
+                      onClick={() => setSelectedJobId(job._id)}
+                    >
+                      View Details
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      onClick={async () => {
+                        const reason = prompt("Archive reason?");
+                        await toggleArchiveJob(job._id, true, reason || "Manual archive");
                         setJobs((prev) => prev.filter((j) => j._id !== job._id));
-                        showToast("Job archived");
+
+                        showToast("Job archived", {
+                          actionLabel: "Undo",
+                          onAction: async () => {
+                            await toggleArchiveJob(job._id, false, "Undo archive");
+                            await fetchJobs();
+                          },
+                        });
+
                       }}
                     >
                       Archive
                     </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => navigate(`/jobs/${job._id}`)}
-                    >
-                      View Details
-                    </Button>
-                    <Button onClick={() => handleEdit(job)}>Edit</Button>
+
                     <Button
                       variant="secondary"
                       onClick={() => handleDelete(job._id)}
@@ -415,20 +335,34 @@ function JobsEntry() {
         </ul>
       )}
 
-      <div className="flex gap-2 mt-6 justify-between">
-        <Button onClick={() => navigate("/Jobs/Archived")}>
-          View Archived Jobs
-        </Button>
+      {/* Footer actions */}
+      <div className="flex flex-wrap gap-2 mt-6 justify-between">
+        {/* Left group: Archived + Bulk Archive */}
         <div className="flex gap-2">
-          <Button onClick={() => navigate("/Jobs/Pipeline")}>
-            View Pipeline
+          <Button onClick={() => navigate("/Jobs/Archived")}>
+            View Archived Jobs
           </Button>
-          <Button onClick={() => navigate("/Jobs/Stats")}>
-            View Statistics
+          <Button
+            variant="secondary"
+            className="!px-5 !py-2 whitespace-nowrap"
+            disabled={selectedJobs.length === 0}
+            onClick={bulkArchive}
+            title="Archive selected"
+          >
+            Bulk Archive
+            {selectedJobs.length > 0 && ` (${selectedJobs.length})`}
           </Button>
+        </div>
+
+        {/* Right group: Pipeline + Stats */}
+        <div className="flex gap-2">
+          <Button onClick={() => navigate("/Jobs/Pipeline")}>View Pipeline</Button>
+          <Button onClick={() => navigate("/Jobs/Stats")}>View Statistics</Button>
         </div>
       </div>
 
+
+      {/* Details Drawer/Modal */}
       {selectedJobId && (
         <JobDetails
           jobId={selectedJobId}
@@ -437,15 +371,32 @@ function JobsEntry() {
         />
       )}
 
+      {/* Extend Deadline Modal (unchanged usage) */}
       {extendingJob && (
         <ExtendDeadlineModal
-          job={extendingJob}
+          job={extendingJob as any}
           onClose={() => setExtendingJob(null)}
           onExtend={async () => {
             await fetchJobs();
           }}
         />
       )}
+
+      {/* Create / Edit Modal */}
+      {showForm && (
+        <JobForm
+          mode={formMode}
+          token={token}
+          onClose={() => setShowForm(false)}
+          onSaved={async () => {
+            setShowForm(false);
+            setEditingJob(null);
+            await fetchJobs();
+          }}
+          initial={editingJob ?? undefined}
+        />
+      )}
+
       <Toast />
     </div>
   );

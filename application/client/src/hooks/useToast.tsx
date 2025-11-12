@@ -1,10 +1,24 @@
 import { useState } from "react";
 
-export function useToast(duration = 4000) {
-  const [toast, setToast] = useState<{ message: string; action?: () => void } | null>(null);
+interface ToastState {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
 
-  const showToast = (message: string, action?: () => void) => {
-    setToast({ message, action });
+export function useToast(duration = 4000) {
+  const [toast, setToast] = useState<ToastState | null>(null);
+
+  const showToast = (
+    message: string,
+    options?: { actionLabel?: string; onAction?: () => void }
+  ) => {
+    setToast({
+      message,
+      actionLabel: options?.actionLabel,
+      onAction: options?.onAction,
+    });
+
     setTimeout(() => setToast(null), duration);
   };
 
@@ -12,12 +26,15 @@ export function useToast(duration = 4000) {
     toast ? (
       <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-fade-in">
         <span>{toast.message}</span>
-        {toast.action && (
+        {toast.onAction && (
           <button
-            onClick={toast.action}
-          className="text-blue-300 underline text-sm ml-2"
+            onClick={() => {
+              toast.onAction?.();
+              setToast(null);
+            }}
+            className="text-blue-300 underline text-sm ml-2"
           >
-            Undo
+            {toast.actionLabel || "Undo"}
           </button>
         )}
       </div>
