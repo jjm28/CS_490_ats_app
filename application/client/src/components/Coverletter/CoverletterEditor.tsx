@@ -9,12 +9,12 @@ import { pdfRegistry } from ".";
 import Button from "../StyledComponents/Button";
 import { saveCoverletter , updateCoverletter,createdsharedcoverletter,Getfullcoverletter} from "../../api/coverletter";
 import { AIGenerateCoverletter } from "../../api/coverletter";
-import { type GetCoverletterResponse, GetAiGeneratedContent} from "../../api/coverletter";
-
+import type { GetCoverletterResponse } from "../../api/coverletter";
 import { Share } from "lucide-react";
 import type { Job } from "./hooks/useJobs";
+import type { AIcoverletterPromptResponse } from "../../api/coverletter";
 
-type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse, importcoverletterData?: GetCoverletterResponse, UsersJobData?:Job, AImode?: boolean};
+type LocationState = { template: Template, Coverletterid? : string, coverletterData?: GetCoverletterResponse, importcoverletterData?: GetCoverletterResponse, UsersJobData?:Job, AImode?: boolean, GeminiCoverletter?: AIcoverletterPromptResponse};
 
 const API = import.meta.env.VITE_API_URL || `http://${location.hostname}:5050/`;
 
@@ -56,6 +56,7 @@ export default function CoverletterEditor() {
   const importcoverletterData = state?.importcoverletterData
   const UsersJobData = state?.UsersJobData
   const AImode =  state?.AImode
+  const GeminiCoverletterData =  state?.GeminiCoverletter
   // redirect if no template
   useEffect(() => {
     if (!template) navigate("/coverletter", { replace: true });
@@ -85,7 +86,9 @@ export default function CoverletterEditor() {
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [CoverletterID, setCoverletterID] = useState<string | null>(    () => sessionStorage.getItem("CoverletterID")  );
   const [filename, setFilename] = useState<string>("Untitled");
-  
+  const [counter, setCount] = useState<number>(1);
+  const lastKeyRef = React.useRef<string | null>(null);
+  const inFlightRef = React.useRef(false);
 
   const [error, setErr] = useState<string | null>(null);
       
@@ -100,17 +103,13 @@ export default function CoverletterEditor() {
       }, [docid,coverletterData]);
 // To load when generating with ai
       useEffect(() => {
-      if (AImode ==true && UsersJobData) {
-            const user = JSON.parse(localStorage.getItem("authUser") ?? "")
-            GetAiGeneratedContent({userid: user._id, Jobdata: UsersJobData,})
-            .then((data) => {
-            // setFilename(data.filename)
-            // setData(data.coverletterdata)
-            // sessionStorage.setItem("CoverletterID", CoverletterID);
-          })
-            .catch((err) => setErr(err));
+        console.log("Editor mode")
+      if (AImode ==true  && GeminiCoverletterData) {
+        setData(GeminiCoverletterData.parsedCandidates[0])
+      
+
       }
-      }, [AImode,UsersJobData]);
+      }, [AImode]);
 // to load when importing coverleter
   useEffect(() => {
       if (importcoverletterData) {

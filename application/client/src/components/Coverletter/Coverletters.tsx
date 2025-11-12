@@ -82,7 +82,6 @@ const handleImport = async () => {
       try {
         const text = await file.text();
         const json = JSON.parse(text);
-           console.log(json)
 
         // Validate that it's shaped like your CoverLetterData
         if (
@@ -117,7 +116,6 @@ const handleOpen = async (doc: CoverletterSummary) => {
     const user = JSON.parse(localStorage.getItem("authUser") ?? "")
 
     const item = await Getfullcoverletter({userid:user._id,coverletterid: doc._id})
-    console.log(item)
     // After successfully fetching, navigate to editor
     navigate(`/coverletter/editor`, {
       state: {
