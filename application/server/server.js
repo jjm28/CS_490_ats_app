@@ -17,10 +17,12 @@ import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
 import companyResearch from './routes/company-research.js';
+import jobRoutes from './routes/jobs.js';
+import coverletter from './routes/coverletter.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const CORS_ORGIN = process.env.CORS_ORGIN || true;
+const CORS_ORIGIN = process.env.CORS_ORGIN || true;
 const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
