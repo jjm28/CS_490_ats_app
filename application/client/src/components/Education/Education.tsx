@@ -19,7 +19,11 @@ export interface Education {
   achievements?: string;
 }
 
-export default function Education() {
+interface EducationProps {
+  onUpdate?: () => void;
+}
+
+export default function Education({ onUpdate }: EducationProps) {
   const [educationList, setEducationList] = useState<Education[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingEdu, setEditingEdu] = useState<Education | null>(null);
@@ -47,6 +51,7 @@ export default function Education() {
       const created = await addEducationApi(newEdu);
       setEducationList([...educationList, created]);
       setShowForm(false);
+      onUpdate?.();
     } catch (err) {
       console.error("Error adding education:", err);
     }
@@ -58,6 +63,7 @@ export default function Education() {
       setEducationList((prev) =>
         prev.map((edu) => (edu._id === id ? updated : edu))
       );
+      onUpdate?.();
     } catch (err) {
       console.error("Error updating education:", err);
     }
@@ -69,6 +75,7 @@ export default function Education() {
       await deleteEducationApi(id);
       setEducationList((prev) => prev.filter((edu) => edu._id !== id));
       alert("Education entry deleted successfully!");
+      onUpdate?.();
     } catch (err) {
       console.error("Error deleting education:", err);
       alert("Failed to delete education entry. Please try again.");

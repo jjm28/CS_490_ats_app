@@ -20,8 +20,7 @@ import companyResearch from './routes/company-research.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const rawOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173/';
-const CORS_ORIGIN = rawOrigin.replace(/\/$/, ''); // removes trailing slash
+const CORS_ORGIN = process.env.CORS_ORGIN || true;
 const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
@@ -59,6 +58,9 @@ try {
   app.use('/api/profile', attachDevUser, profilePhoto);
   app.use('/api/employment', attachDevUser, employmentRouter);
 
+  // Job routes
+  app.use('/api/jobs', attachDevUser, jobRoutes);
+
   // for picture uploads
   app.use(
     '/uploads',
@@ -69,6 +71,7 @@ try {
       setHeaders: (res) => res.set('Cache-Control', 'no-store'),
     })
   );
+  app.use('/api/coverletter',coverletter)
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
