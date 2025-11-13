@@ -1863,201 +1863,216 @@ export default function ResumeEditor() {
 
       {/* Compare & Merge Modal */}
       {showCompareModal && diff && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl border p-6 max-h-[85vh] overflow-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Compare Versions</h3>
-              <button
-                className="text-gray-500 hover:text-gray-700"
-                onClick={() => setShowCompareModal(false)}
-              >
-                ✕
-              </button>
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl border p-6 max-h-[85vh] overflow-auto">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold">
+            Compare versions side-by-side
+          </h3>
+          {/* optional: show which versions are left/right if backend sends meta */}
+          {diff.meta && (diff.meta.left || diff.meta.right) && (
+            <p className="mt-1 text-xs text-gray-600">
+              Left:{" "}
+              <strong>{diff.meta.left?.name || diff.meta.left?._id || "Left"}</strong>
+              {"  •  "}
+              Right:{" "}
+              <strong>{diff.meta.right?.name || diff.meta.right?._id || "Right"}</strong>
+            </p>
+          )}
+        </div>
+        <button
+          className="text-gray-500 hover:text-gray-700"
+          onClick={() => setShowCompareModal(false)}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Summary diff */}
+      {"summary" in (diff.fields || {}) && (
+        <div className="mb-4">
+          <div className="font-medium mb-1">Summary</div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="p-3 rounded border bg-gray-50">
+              <div className="text-xs text-gray-500 mb-1">Left version</div>
+              <div>{diff.fields.summary.left || <em>—</em>}</div>
             </div>
-
-            {/* Summary diff */}
-            {"summary" in (diff.fields || {}) && (
-              <div className="mb-4">
-                <div className="font-medium mb-1">Summary</div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="p-3 rounded border bg-gray-50">
-                    <div className="text-xs text-gray-500 mb-1">Base (left)</div>
-                    <div>{diff.fields.summary.left || <em>—</em>}</div>
-                  </div>
-                  <div className="p-3 rounded border bg-gray-50">
-                    <div className="text-xs text-gray-500 mb-1">Incoming (right)</div>
-                    <div>{diff.fields.summary.right || <em>—</em>}</div>
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center gap-3 text-xs">
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="radio"
-                      name="mergeSummary"
-                      checked={mergeChoiceSummary === "right"}
-                      onChange={() => setMergeChoiceSummary("right")}
-                    />
-                    Use incoming
-                  </label>
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="radio"
-                      name="mergeSummary"
-                      checked={mergeChoiceSummary === "base"}
-                      onChange={() => setMergeChoiceSummary("base")}
-                    />
-                    Keep base
-                  </label>
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="radio"
-                      name="mergeSummary"
-                      checked={mergeChoiceSummary === "custom"}
-                      onChange={() => setMergeChoiceSummary("custom")}
-                    />
-                    Custom
-                  </label>
-                </div>
-                {mergeChoiceSummary === "custom" && (
-                  <textarea
-                    className="mt-2 w-full rounded border px-3 py-2 text-sm"
-                    placeholder="Custom summary"
-                    value={mergeCustomSummary}
-                    onChange={(e) => setMergeCustomSummary(e.target.value)}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Skills diff */}
-            {"skills" in (diff.fields || {}) && (
-              <div className="mb-4">
-                <div className="font-medium mb-1">Skills</div>
-                <div className="text-xs text-gray-600 mb-2">
-                  Added (incoming): {diff.fields.skills.added?.join(", ") || "—"}
-                  {" • "}
-                  Removed (base): {diff.fields.skills.removed?.join(", ") || "—"}
-                </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="radio"
-                      name="mergeSkills"
-                      checked={mergeChoiceSkills === "union"}
-                      onChange={() => setMergeChoiceSkills("union")}
-                    />
-                    Union
-                  </label>
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="radio"
-                      name="mergeSkills"
-                      checked={mergeChoiceSkills === "base"}
-                      onChange={() => setMergeChoiceSkills("base")}
-                    />
-                    Keep base
-                  </label>
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="radio"
-                      name="mergeSkills"
-                      checked={mergeChoiceSkills === "right"}
-                      onChange={() => setMergeChoiceSkills("right")}
-                    />
-                    Use incoming
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* Experience bullets diff */}
-            {(diff.fields?.experience || []).length > 0 && (
-              <div className="mb-4">
-                <div className="font-medium mb-1">Experience bullets</div>
-                <div className="space-y-3">
-                  {diff.fields.experience.map((e: any) => {
-                    const key = `experience[${e.index}].bullets`;
-                    const choice = mergeChoiceExp[key] || "right";
-                    return (
-                      <div key={key} className="border rounded p-3 text-sm">
-                        <div className="font-medium mb-1">Entry #{e.index}</div>
-                        <div className="text-xs text-gray-600 mb-2">
-                          Added (incoming): {e.bullets.added?.join("; ") || "—"}
-                          {" • "}
-                          Removed (base): {e.bullets.removed?.join("; ") || "—"}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <label className="flex items-center gap-1">
-                            <input
-                              type="radio"
-                              name={key}
-                              checked={choice === "right"}
-                              onChange={() =>
-                                setMergeChoiceExp((d) => ({ ...d, [key]: "right" }))
-                              }
-                            />
-                            Use incoming
-                          </label>
-                          <label className="flex items-center gap-1">
-                            <input
-                              type="radio"
-                              name={key}
-                              checked={choice === "base"}
-                              onChange={() =>
-                                setMergeChoiceExp((d) => ({ ...d, [key]: "base" }))
-                              }
-                            />
-                            Keep base
-                          </label>
-                          <label className="flex items-center gap-1">
-                            <input
-                              type="radio"
-                              name={key}
-                              checked={choice === "custom"}
-                              onChange={() =>
-                                setMergeChoiceExp((d) => ({ ...d, [key]: "custom" }))
-                              }
-                            />
-                            Custom
-                          </label>
-                        </div>
-                        {choice === "custom" && (
-                          <textarea
-                            className="mt-2 w-full rounded border px-3 py-2 text-xs"
-                            placeholder="One bullet per line"
-                            value={mergeCustomExp[key] || ""}
-                            onChange={(e) =>
-                              setMergeCustomExp((d) => ({
-                                ...d,
-                                [key]: e.target.value,
-                              }))
-                            }
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 flex items-center justify-end gap-2">
-              <button
-                className="px-4 py-2 rounded bg-gray-100"
-                onClick={() => setShowCompareModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-4 py-2 rounded bg-emerald-600 text-white"
-                onClick={doMerge}
-              >
-                Merge → New Version
-              </button>
+            <div className="p-3 rounded border bg-gray-50">
+              <div className="text-xs text-gray-500 mb-1">Right version</div>
+              <div>{diff.fields.summary.right || <em>—</em>}</div>
             </div>
+          </div>
+          <div className="mt-2 flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSummary"
+                checked={mergeChoiceSummary === "right"}
+                onChange={() => setMergeChoiceSummary("right")}
+              />
+              Use right summary
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSummary"
+                checked={mergeChoiceSummary === "base"}
+                onChange={() => setMergeChoiceSummary("base")}
+              />
+              Keep left summary
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSummary"
+                checked={mergeChoiceSummary === "custom"}
+                onChange={() => setMergeChoiceSummary("custom")}
+              />
+              Custom summary
+            </label>
+          </div>
+          {mergeChoiceSummary === "custom" && (
+            <textarea
+              className="mt-2 w-full rounded border px-3 py-2 text-sm"
+              placeholder="Custom summary"
+              value={mergeCustomSummary}
+              onChange={(e) => setMergeCustomSummary(e.target.value)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Skills diff */}
+      {"skills" in (diff.fields || {}) && (
+        <div className="mb-4">
+          <div className="font-medium mb-1">Skills</div>
+          <div className="text-xs text-gray-600 mb-2">
+            Added in right: {diff.fields.skills.added?.join(", ") || "—"}
+            {" • "}
+            Removed from left: {diff.fields.skills.removed?.join(", ") || "—"}
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSkills"
+                checked={mergeChoiceSkills === "union"}
+                onChange={() => setMergeChoiceSkills("union")}
+              />
+              Union of both
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSkills"
+                checked={mergeChoiceSkills === "base"}
+                onChange={() => setMergeChoiceSkills("base")}
+              />
+              Keep left
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSkills"
+                checked={mergeChoiceSkills === "right"}
+                onChange={() => setMergeChoiceSkills("right")}
+              />
+              Use right
+            </label>
           </div>
         </div>
       )}
+
+      {/* Experience bullets diff */}
+      {(diff.fields?.experience || []).length > 0 && (
+        <div className="mb-4">
+          <div className="font-medium mb-1">Experience bullets</div>
+          <div className="space-y-3">
+            {diff.fields.experience.map((e: any) => {
+              const key = `experience[${e.index}].bullets`;
+              const choice = mergeChoiceExp[key] || "right";
+              return (
+                <div key={key} className="border rounded p-3 text-sm">
+                  <div className="font-medium mb-1">Entry #{e.index}</div>
+                  <div className="text-xs text-gray-600 mb-2">
+                    Added in right: {e.bullets.added?.join("; ") || "—"}
+                    {" • "}
+                    Removed from left: {e.bullets.removed?.join("; ") || "—"}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        name={key}
+                        checked={choice === "right"}
+                        onChange={() =>
+                          setMergeChoiceExp((d) => ({ ...d, [key]: "right" }))
+                        }
+                      />
+                      Use right bullets
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        name={key}
+                        checked={choice === "base"}
+                        onChange={() =>
+                          setMergeChoiceExp((d) => ({ ...d, [key]: "base" }))
+                        }
+                      />
+                      Keep left bullets
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        name={key}
+                        checked={choice === "custom"}
+                        onChange={() =>
+                          setMergeChoiceExp((d) => ({ ...d, [key]: "custom" }))
+                        }
+                      />
+                      Custom bullets
+                    </label>
+                  </div>
+                  {choice === "custom" && (
+                    <textarea
+                      className="mt-2 w-full rounded border px-3 py-2 text-xs"
+                      placeholder="One bullet per line"
+                      value={mergeCustomExp[key] || ""}
+                      onChange={(e) =>
+                        setMergeCustomExp((d) => ({
+                          ...d,
+                          [key]: e.target.value,
+                        }))
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex items-center justify-end gap-2">
+        <button
+          className="px-4 py-2 rounded bg-gray-100"
+          onClick={() => setShowCompareModal(false)}
+        >
+          Cancel
+        </button>
+        <button
+          className="px-4 py-2 rounded bg-emerald-600 text-white"
+          onClick={doMerge}
+        >
+          Merge → New Version
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* AI re-gen modals */}
       <JobPickerSheet

@@ -458,3 +458,25 @@ export async function updateResumeVersionContent({
   if (!res.ok) throw new Error("Failed to update version");
   return res.json();
 }
+
+export async function compareResumeVersionsAPI(params: {
+  userid: string;
+  leftVersionId: string;
+  rightVersionId: string;
+}) {
+  const { userid, leftVersionId, rightVersionId } = params;
+
+  const res = await fetch(`${API}/resume-versions/compare`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userid, leftVersionId, rightVersionId }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Compare failed");
+  }
+
+  // will look like: { meta: { left, right }, fields: { summary, skills, experience } }
+  return res.json();
+}
