@@ -27,6 +27,155 @@ export async function deleteJob({ userId, id }) {
   return Jobs.findOneAndDelete({ _id: id, userId });
 }
 
+export async function getArchivedJobs({ userId }) {
+  return Jobs.find({ userId, archived: true }).sort({ updatedAt: -1 }).lean();
+}
+
+export async function setArchive({ userId, id, archive, reason }) {
+  const payload = archive
+    ? { archived: true, archiveReason: reason || "User action", archivedAt: new Date() }
+    : { archived: false, archiveReason: null, archivedAt: null };
+  return Jobs.findOneAndUpdate({ _id: id, userId }, payload, { new: true });
+}
+
+export async function getJobStats(userId) {
+  console.log("[getJobStats] starting for user:", userId);
+
+  try {
+    const all = await Jobs.find({ userId, archived: false }).lean();
+    console.log("[getJobStats] found", all?.length, "jobs");
+
+    // Handle case of no jobs
+    if (!all || all.length === 0) {
+      console.log("[getJobStats] no jobs found, returning defaults");
+      return {
+        total: 0,
+        byStatus: {},
+        responseRate: 0,
+        avgOfferTime: 0,
+        deadlineAdherence: 100,
+        monthlyCounts: {},
+        avgStageDurations: {},
+      };
+    }
+
+    // === Jobs by status ===
+    const byStatus = all.reduce((acc, j) => {
+      const s = j.status || "unknown";
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    }, {});
+
+    // === Response rate ===
+    const total = all.length;
+    const responded = all.filter(
+      (j) =>
+        j.responseReceived ||
+        ["phone_screen", "interview", "offer", "rejected"].includes(j.status)
+    ).length;
+    const responseRate = total ? Math.round((responded / total) * 100) : 0;
+
+    // === Average time from applied → offer ===
+    const offers = all.filter((j) => j.offerDate);
+    const avgOfferTime =
+      offers.length > 0
+        ? Math.round(
+            offers.reduce((sum, j) => {
+              const appliedAt = (j.statusHistory || []).find(
+                (h) => h.status === "applied"
+              )?.changedAt;
+              if (!appliedAt) return sum;
+              const days =
+                (new Date(j.offerDate) - new Date(appliedAt)) / 86400000;
+              return sum + Math.max(0, days);
+            }, 0) / offers.length
+          )
+        : 0;
+
+    // === Monthly application counts ===
+    const monthlyCounts = all.reduce((acc, j) => {
+      const appliedAt =
+        (j.statusHistory || []).find((h) => h.status === "applied")
+          ?.timestamp || j.createdAt;
+      if (!appliedAt) return acc;
+
+      const date = new Date(appliedAt);
+      const key = date.toLocaleString("default", {
+        month: "short",
+        year: "numeric",
+      });
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    // === Average stage durations ===
+    const avgStageDurations = {};
+    const stageTimes = {};
+
+    all.forEach((j) => {
+      if (!j.statusHistory || j.statusHistory.length < 2) return;
+
+      for (let i = 1; i < j.statusHistory.length; i++) {
+        const prev = j.statusHistory[i - 1];
+        const curr = j.statusHistory[i];
+        const diffDays =
+          (new Date(curr.timestamp) - new Date(prev.timestamp)) / 86400000;
+
+        if (!stageTimes[prev.status]) stageTimes[prev.status] = [];
+        stageTimes[prev.status].push(Math.max(0, diffDays));
+      }
+    });
+
+    for (const [status, times] of Object.entries(stageTimes)) {
+      avgStageDurations[status] = Math.round(
+        times.reduce((a, b) => a + b, 0) / times.length
+      );
+    }
+
+    // === Deadline adherence ===
+    let deadlineAdherence = 100; // default
+    const jobsWithDeadlines = all.filter((j) => j.applicationDeadline);
+
+    if (jobsWithDeadlines.length > 0) {
+      const onTimeCount = jobsWithDeadlines.filter((j) => {
+        const deadline = new Date(j.applicationDeadline);
+        const now = new Date();
+
+        // 1️⃣ if job still active and deadline hasn’t passed → on time
+        if (!["offer", "rejected"].includes(j.status) && deadline > now) {
+          return true;
+        }
+
+        // 2️⃣ otherwise, see if user acted before the deadline
+        const history = j.statusHistory || [];
+        const appliedEvent = history.find((h) => h.status === "applied");
+        const actionDate = appliedEvent?.timestamp || j.createdAt;
+
+        return new Date(actionDate) <= deadline;
+      }).length;
+
+      deadlineAdherence = Math.round(
+        (onTimeCount / jobsWithDeadlines.length) * 100
+      );
+    }
+
+    console.log("[getJobStats] returning computed stats");
+
+    return {
+      total,
+      byStatus,
+      responseRate,
+      avgOfferTime,
+      deadlineAdherence,
+      monthlyCounts,
+      avgStageDurations,
+    };
+  } catch (err) {
+    console.error("[getJobStats] ERROR:", err);
+    throw err;
+  }
+}
+
 /**
  * Update job status and add entry to statusHistory
  * @param {Object} params
@@ -134,12 +283,10 @@ export async function addApplicationHistory({ userId, id, action }) {
   try {
     const job = await Jobs.findOne({ _id: id, userId });
     if (!job) return null;
-    
     job.applicationHistory.push({
       action: action.trim(),
       timestamp: new Date()
     });
-    
     await job.save();
     return job;
   } catch (err) {
@@ -152,14 +299,14 @@ export async function updateApplicationHistory({ userId, id, historyIndex, actio
   try {
     const job = await Jobs.findOne({ _id: id, userId });
     if (!job) return null;
-    
+
     if (historyIndex >= job.applicationHistory.length) {
       return null;
     }
-    
+
     job.applicationHistory[historyIndex].action = action.trim();
     // Keep original timestamp
-    
+
     await job.save();
     return job;
   } catch (err) {
@@ -172,13 +319,13 @@ export async function deleteApplicationHistory({ userId, id, historyIndex }) {
   try {
     const job = await Jobs.findOne({ _id: id, userId });
     if (!job) return null;
-    
+
     if (historyIndex >= job.applicationHistory.length) {
       return null;
     }
-    
+
     job.applicationHistory.splice(historyIndex, 1);
-    
+
     await job.save();
     return job;
   } catch (err) {

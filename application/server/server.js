@@ -16,15 +16,19 @@ import employmentRouter from './routes/employment.js';
 import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
-import jobRoutes from "./routes/jobs.js";
-import coverletter from  "./routes/coverletter.js"
-import companyResearch from './routes/company-research.js'; 
-import learnRouter from "./routes/learn.js";
+import companyResearch from './routes/company-research.js';
+import coverletter from './routes/coverletter.js'
+import jobRoutes from './routes/jobs.js'
+
+import resumesRoute from "./routes/resume.js";
+import templatesRoute from "./routes/templates.js";               
+import { ensureSystemTemplates } from './services/templates.service.js';
+
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const CORS_ORIGIN = process.env.CORS_ORIGIN ||  'http://localhost:5173/';
-const DB = process.env.DB_NAME || 'appb'
+const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
+const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
 
@@ -46,6 +50,7 @@ app.use(companyResearch);
 // Start after DB connects
 try {
   await connectDB();
+  await ensureSystemTemplates();
   // Routes
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/record', records);
@@ -61,9 +66,9 @@ try {
   app.use('/api/profile', attachDevUser, profilePhoto);
   app.use('/api/employment', attachDevUser, employmentRouter);
 
-  // Job routes
-  app.use('/api/jobs', attachDevUser, jobRoutes);
-  app.use("/api/learn", learnRouter);
+  // Job routes  
+  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+  app.use('/api/jobs', jobRoutes);
 
   // for picture uploads
   app.use(
@@ -75,7 +80,13 @@ try {
       setHeaders: (res) => res.set('Cache-Control', 'no-store'),
     })
   );
-  app.use('/api/coverletter',coverletter)
+  app.use('/api/coverletter', coverletter)
+
+  //resume routes
+  app.use("/api/resumes", attachDevUser, resumesRoute);
+  app.use('/api/resume-templates', attachDevUser, templatesRoute);
+
+  
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

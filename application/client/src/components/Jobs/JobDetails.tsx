@@ -40,8 +40,6 @@ export default function JobDetails({
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-
-
   const token = useMemo(
     () =>
       localStorage.getItem("authToken") || localStorage.getItem("token") || "",
@@ -60,7 +58,6 @@ export default function JobDetails({
           Authorization: `Bearer ${token}`,
         },
       });
-      
       if (!response.ok) {
         throw new Error("Failed to fetch job");
       }

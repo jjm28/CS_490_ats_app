@@ -6,25 +6,39 @@ import Card from "../StyledComponents/Card";
 import "../../App.css";
 import "../../styles/StyledComponents/FormInput.css";
 import JobDetails from "./JobDetails";
+import { useToast } from "../../hooks/useToast";
+
 import {
   type Job,
   type JobStatus,
   type ValidationErrors,
   type JobFormData,
   formatSalary,
-  formatDate,
   extractDecimal,
   STATUS_DISPLAY,
 } from "../../types/jobs.types";
+import DeadlineIndicator from "./DeadlineIndicator";
+import { getDeadlineInfo } from "../../utils/deadlines";
+import ExtendDeadlineModal from "./ExtendDeadlineModal";
+import BulkDeadlineManager from "./BulkDeadlineManager";
+import { toggleArchiveJob } from "../../api/jobs";
+import JobUrlImporter from "./JobUrlImporter";
 
 // Configuration
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
 // Sort options
-type SortOption = "dateAdded" | "deadline" | "salary" | "company";
+type SortOption =
+  | "dateAdded"
+  | "deadline"
+  | "deadlineUrgency"
+  | "salary"
+  | "company";
+
 const SORT_OPTIONS: Record<SortOption, string> = {
   dateAdded: "Date Added",
   deadline: "Application Deadline",
+  deadlineUrgency: "Deadline Urgency", // NEW
   salary: "Salary (High to Low)",
   company: "Company Name",
 };
@@ -70,7 +84,9 @@ function JobsEntry() {
     description: "",
     industry: "",
     type: "",
+    autoArchiveDays: "60",
   });
+  const { showToast, Toast } = useToast();
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
@@ -96,6 +112,10 @@ function JobsEntry() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
   const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
+
+  const [extendingJob, setExtendingJob] = useState<Job | null>(null);
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+  const [archivingJob, setArchivingJob] = useState<Job | null>(null);
 
   const token = useMemo(
     () =>
@@ -218,6 +238,28 @@ function JobsEntry() {
         case "company":
           return a.company.localeCompare(b.company);
 
+        case "deadlineUrgency":
+          const urgencyOrder: Record<string, number> = {
+            overdue: 0,
+            critical: 1,
+            warning: 2,
+            normal: 3,
+            plenty: 4,
+            none: 5, // ADD THIS
+          };
+
+          const aInfo = getDeadlineInfo(a.applicationDeadline);
+          const bInfo = getDeadlineInfo(b.applicationDeadline);
+
+          if (!a.applicationDeadline) return 1;
+          if (!b.applicationDeadline) return -1;
+
+          const urgencyDiff =
+            urgencyOrder[aInfo.urgency] - urgencyOrder[bInfo.urgency];
+          if (urgencyDiff !== 0) return urgencyDiff;
+
+          return aInfo.daysRemaining - bInfo.daysRemaining;
+
         default:
           return 0;
       }
@@ -314,11 +356,17 @@ function JobsEntry() {
       if (response.ok) {
         const data = await response.json();
         setSavedSearches(data.savedSearches || []);
-        
-        // Auto-apply last search if exists
-        if (data.lastSearch && Object.keys(data.lastSearch).length > 0) {
+
+        // Only auto-apply last search if this is the first page visit in this session
+        const hasVisitedThisSession = sessionStorage.getItem("jobsPageVisited");
+        if (
+          !hasVisitedThisSession &&
+          data.lastSearch &&
+          Object.keys(data.lastSearch).length > 0
+        ) {
           applySearch(data.lastSearch);
         }
+        sessionStorage.setItem("jobsPageVisited", "true");
       }
     } catch (error) {
       console.error("Error loading saved searches:", error);
@@ -340,7 +388,7 @@ function JobsEntry() {
       const url = editingSearchId
         ? `${JOBS_ENDPOINT}/preferences/saved/${editingSearchId}`
         : `${JOBS_ENDPOINT}/preferences/saved`;
-      
+
       const method = editingSearchId ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -407,6 +455,184 @@ function JobsEntry() {
     } catch (error) {
       console.error("Error saving last search:", error);
     }
+  };
+
+  // ========================================
+  // BULK SELECTION HANDLERS
+  // ========================================
+
+  const handleToggleSelect = (jobId: string) => {
+    setSelectedJobIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(jobId)) {
+        newSet.delete(jobId);
+      } else {
+        newSet.add(jobId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedJobIds.size === filteredAndSortedJobs.length) {
+      setSelectedJobIds(new Set());
+    } else {
+      setSelectedJobIds(new Set(filteredAndSortedJobs.map((job) => job._id)));
+    }
+  };
+
+  // ========================================
+  // DEADLINE EXTENSION HANDLER
+  // ========================================
+
+  const handleExtendDeadline = async (
+    jobId: string,
+    newDeadline: string,
+    reason?: string
+  ) => {
+    try {
+      const response = await fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          applicationDeadline: newDeadline,
+          extensionReason: reason,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to extend deadline");
+      }
+
+      await fetchJobs();
+      setFlash("Deadline extended successfully!");
+      setTimeout(() => setFlash(null), 3000);
+    } catch (error) {
+      console.error("Error extending deadline:", error);
+      throw error;
+    }
+  };
+
+  // ========================================
+  // BULK DEADLINE HANDLERS
+  // ========================================
+
+  const handleBulkExtend = async (jobIds: string[], days: number) => {
+    try {
+      const promises = jobIds.map((jobId) => {
+        const job = jobs.find((j) => j._id === jobId);
+        if (!job) return Promise.resolve();
+
+        const currentDeadline = job.applicationDeadline
+          ? new Date(job.applicationDeadline)
+          : new Date();
+        const newDeadline = new Date(currentDeadline);
+        newDeadline.setDate(newDeadline.getDate() + days);
+
+        return fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            applicationDeadline: newDeadline.toISOString(),
+          }),
+        });
+      });
+
+      await Promise.all(promises);
+      await fetchJobs();
+      setSelectedJobIds(new Set());
+      setFlash(`Extended ${jobIds.length} deadline(s) by ${days} days!`);
+      setTimeout(() => setFlash(null), 3000);
+    } catch (error) {
+      console.error("Error extending deadlines:", error);
+      throw error;
+    }
+  };
+
+  const handleBulkSetDeadline = async (jobIds: string[], deadline: string) => {
+    try {
+      const promises = jobIds.map((jobId) =>
+        fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            applicationDeadline: deadline,
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+      await fetchJobs();
+      setSelectedJobIds(new Set());
+      setFlash(`Set deadline for ${jobIds.length} job(s)!`);
+      setTimeout(() => setFlash(null), 3000);
+    } catch (error) {
+      console.error("Error setting deadlines:", error);
+      throw error;
+    }
+  };
+
+  const handleBulkRemoveDeadline = async (jobIds: string[]) => {
+    try {
+      const promises = jobIds.map((jobId) =>
+        fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            applicationDeadline: null,
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+      await fetchJobs();
+      setSelectedJobIds(new Set());
+      setFlash(`Removed deadline from ${jobIds.length} job(s)!`);
+      setTimeout(() => setFlash(null), 3000);
+    } catch (error) {
+      console.error("Error removing deadlines:", error);
+      throw error;
+    }
+  };
+
+  const handleImportSuccess = (importedData: any) => {
+    // Merge imported data with existing form data
+    setFormData((prev) => ({
+      ...prev,
+      jobTitle: importedData.jobTitle || prev.jobTitle,
+      company: importedData.company || prev.company,
+      location: importedData.location || prev.location,
+      description: importedData.description || prev.description,
+      jobPostingUrl: importedData.jobPostingUrl || prev.jobPostingUrl,
+    }));
+
+    // Clear any previous errors for imported fields
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      if (importedData.jobTitle) delete newErrors.jobTitle;
+      if (importedData.company) delete newErrors.company;
+      return newErrors;
+    });
+
+    setFlash("Job data imported! Please review and complete the form.");
+    setTimeout(() => setFlash(null), 5000);
+  };
+
+  const handleImportError = (error: string) => {
+    setErr(error);
+    setTimeout(() => setErr(null), 5000);
   };
 
   // Auto-save last search when filters change
@@ -659,6 +885,9 @@ function JobsEntry() {
       payload.applicationDeadline = formData.applicationDeadline;
     if (formData.salaryMin) payload.salaryMin = parseFloat(formData.salaryMin);
     if (formData.salaryMax) payload.salaryMax = parseFloat(formData.salaryMax);
+    payload.autoArchiveDays = formData.autoArchiveDays
+      ? parseInt(formData.autoArchiveDays)
+      : 60;
 
     try {
       const url = editingJob
@@ -733,6 +962,7 @@ function JobsEntry() {
       description: job.description || "",
       industry: job.industry,
       type: job.type,
+      autoArchiveDays: job.autoArchiveDays?.toString() || "60",
     });
     setShowForm(true);
   };
@@ -771,6 +1001,54 @@ function JobsEntry() {
     }
   };
 
+  const handleArchive = async (jobId: string, reason?: string) => {
+    const token =
+      localStorage.getItem("authToken") || localStorage.getItem("token") || "";
+
+    try {
+      // 🔹 Archive the job
+      await toggleArchiveJob(jobId, true, reason);
+
+      // Find the job so we can restore it easily on undo
+      const archivedJob = jobs.find((j) => j._id === jobId);
+
+      // 🔹 Instantly remove from the UI
+      setJobs((prevJobs) => prevJobs.filter((j) => j._id !== jobId));
+
+      // 🔹 Show toast with Undo option
+      showToast("Job archived", {
+        actionLabel: "Undo",
+        onAction: async () => {
+          // Un-archive job on undo
+          const res = await fetch(`${API_BASE}/api/jobs/${jobId}/archive`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ archive: false }),
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            console.error("Undo failed:", text);
+            return showToast("Undo failed. Please refresh.");
+          }
+
+          // Restore the job back into the list immediately
+          if (archivedJob) {
+            setJobs((prev) => [archivedJob, ...prev]);
+          }
+
+          showToast("Undo successful!");
+        },
+      });
+    } catch (err) {
+      console.error("Error archiving job:", err);
+      showToast("Failed to archive job.");
+    }
+  };
+
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text;
     const parts = text.split(new RegExp(`(${query})`, "gi"));
@@ -790,6 +1068,12 @@ function JobsEntry() {
   };
 
   if (loading) return <p className="p-6">Loading...</p>;
+  const remainingDays = (autoArchiveDate: string | Date) => {
+    const target = new Date(autoArchiveDate);
+    const now = new Date();
+    const diffMs = target.getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -804,6 +1088,70 @@ function JobsEntry() {
       {flash && <p className="mb-4 text-sm text-green-700">{flash}</p>}
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
 
+      {/* Deadline Warnings Banner */}
+      {(() => {
+        const overdueJobs = jobs.filter((job) => {
+          const info = getDeadlineInfo(job.applicationDeadline);
+          return info.urgency === "overdue";
+        });
+
+        const urgentJobs = jobs.filter((job) => {
+          const info = getDeadlineInfo(job.applicationDeadline);
+          return info.urgency === "critical" && info.daysRemaining >= 0;
+        });
+
+        if (overdueJobs.length === 0 && urgentJobs.length === 0) return null;
+
+        const remainingDays = (autoArchiveDate: string | Date) => {
+          const target = new Date(autoArchiveDate);
+          const now = new Date();
+          const diffMs = target.getTime() - now.getTime();
+          return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        };
+
+        return (
+          <div className="mb-6">
+            <Card>
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">⚠️</div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    Deadline Alerts
+                  </h3>
+                  <div className="space-y-2">
+                    {overdueJobs.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full font-semibold text-sm">
+                          {overdueJobs.length} Overdue
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          {overdueJobs
+                            .map((j) => j.company)
+                            .slice(0, 3)
+                            .join(", ")}
+                          {overdueJobs.length > 3 &&
+                            ` +${overdueJobs.length - 3} more`}
+                        </span>
+                      </div>
+                    )}
+                    {urgentJobs.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full font-semibold text-sm">
+                          {urgentJobs.length} Due Soon
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          Applications due within 3 days
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
+
       {!isLoggedIn && (
         <Card>
           <Button disabled>Log in to continue</Button>
@@ -815,14 +1163,20 @@ function JobsEntry() {
 
       {isLoggedIn && (
         <>
-          {/* Add/Edit Form */}
+          {/* Add/Edit Form Modal */}
           {showForm && (
-            <div className="mb-6">
-              <Card>
-                <h2 className="text-xl font-semibold mb-4 text-gray-900">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+              <Card className="bg-white rounded-lg p-6 max-w-3xl w-full my-8 max-h-[90vh] overflow-y-auto">
+                <h2 className="text-2xl font-semibold mb-4 text-gray-900">
                   {editingJob ? "Edit Job Opportunity" : "Add Job Opportunity"}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {!editingJob && (
+                    <JobUrlImporter
+                      onImportSuccess={handleImportSuccess}
+                      onImportError={handleImportError}
+                    />
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="form-label">Job Title *</label>
@@ -968,7 +1322,14 @@ function JobsEntry() {
                     </div>
 
                     <div>
-                      <label className="form-label">Job Posting URL</label>
+                      <label className="form-label">
+                        Job Posting URL
+                        {formData.jobPostingUrl && (
+                          <span className="text-xs text-green-600 ml-2">
+                            ✓ Auto-filled
+                          </span>
+                        )}
+                      </label>
                       <input
                         type="url"
                         name="jobPostingUrl"
@@ -976,6 +1337,10 @@ function JobsEntry() {
                         onChange={handleInputChange}
                         className={`form-input ${
                           errors.jobPostingUrl ? "!border-red-500" : ""
+                        } ${
+                          formData.jobPostingUrl && !errors.jobPostingUrl
+                            ? "bg-green-50"
+                            : ""
                         }`}
                         placeholder="https://example.com/job/123"
                       />
@@ -996,6 +1361,25 @@ function JobsEntry() {
                         className="form-input"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="form-label">
+                      Auto-Archive After (Days)
+                    </label>
+                    <input
+                      type="number"
+                      name="autoArchiveDays"
+                      value={formData.autoArchiveDays}
+                      onChange={handleInputChange}
+                      className="form-input"
+                      placeholder="Default: 60"
+                      min="1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Jobs will automatically archive after this many days
+                      (default: 60).
+                    </p>
                   </div>
 
                   <div>
@@ -1035,8 +1419,8 @@ function JobsEntry() {
           )}
 
           {/* ========================================
-              SEARCH AND FILTER UI
-              ======================================== */}
+                          SEARCH AND FILTER UI
+                          ======================================== */}
           <div className="mb-6">
             <Card>
               {/* Search Bar & Saved Searches Toggle */}
@@ -1232,9 +1616,7 @@ function JobsEntry() {
                       <input
                         type="date"
                         value={deadlineStartFilter}
-                        onChange={(e) =>
-                          setDeadlineStartFilter(e.target.value)
-                        }
+                        onChange={(e) => setDeadlineStartFilter(e.target.value)}
                         className="form-input"
                       />
                     </div>
@@ -1393,6 +1775,22 @@ function JobsEntry() {
             {jobs.length !== 1 ? "s" : ""}
           </div>
 
+          {/* Bulk Deadline Manager */}
+          <BulkDeadlineManager
+            jobs={filteredAndSortedJobs}
+            selectedJobIds={selectedJobIds}
+            onToggleSelect={handleToggleSelect}
+            onToggleSelectAll={handleToggleSelectAll}
+            onBulkExtend={handleBulkExtend}
+            onBulkSetDeadline={handleBulkSetDeadline}
+            onBulkRemoveDeadline={handleBulkRemoveDeadline}
+            onJobsArchived={(archivedIds) =>
+              setJobs((prev) =>
+                prev.filter((job) => !archivedIds.includes(job._id))
+              )
+            }
+          />
+
           {/* Jobs List */}
           {loading ? (
             <p className="text-sm text-gray-600">Loading…</p>
@@ -1414,88 +1812,123 @@ function JobsEntry() {
             <ul className="space-y-3">
               {filteredAndSortedJobs.map((job) => (
                 <li key={job._id}>
-                  <Card>
+                  <Card
+                    className={`${
+                      job.applicationDeadline
+                        ? (() => {
+                            const info = getDeadlineInfo(
+                              job.applicationDeadline
+                            );
+                            if (info.urgency === "overdue")
+                              return "border-l-4 border-l-red-500";
+                            if (info.urgency === "critical")
+                              return "border-l-4 border-l-orange-500";
+                            if (info.urgency === "warning")
+                              return "border-l-4 border-l-yellow-500";
+                            return "";
+                          })()
+                        : ""
+                    }`}
+                  >
                     <div
                       className="flex items-start justify-between gap-4 cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => setSelectedJobId(job._id)}
                     >
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900 text-lg">
-                          {highlightText(job.jobTitle, searchQuery)}
-                        </div>
-                        <div className="text-sm text-gray-700 font-medium mt-1">
-                          {highlightText(job.company, searchQuery)}
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                            {job.type}
-                          </span>
-                          <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
-                            {job.industry}
-                          </span>
-                          <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
-                            {STATUS_DISPLAY[job.status]}
-                          </span>
-                        </div>
-                        <div className="mt-2 space-y-1 text-sm text-gray-600">
-                          {job.location && <div>📍 {job.location}</div>}
-                          <div>
-                            💰 {formatSalary(job.salaryMin, job.salaryMax)}
+                      <div className="flex items-start gap-3 flex-1">
+                        {/* Selection Checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={selectedJobIds.has(job._id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleToggleSelect(job._id);
+                          }}
+                          className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        />
+
+                        {/* Existing job card content */}
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900 text-lg">
+                            {highlightText(job.jobTitle, searchQuery)}
                           </div>
-                          {job.applicationDeadline && (
+                          <div className="text-sm text-gray-700 font-medium mt-1">
+                            {highlightText(job.company, searchQuery)}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                              {job.type}
+                            </span>
+                            <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                              {job.industry}
+                            </span>
+                            <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                              {STATUS_DISPLAY[job.status]}
+                            </span>
+                          </div>
+                          <div className="mt-2 space-y-1 text-sm text-gray-600">
+                            {job.location && <div>📍 {job.location}</div>}
                             <div>
-                              📅 Deadline: {formatDate(job.applicationDeadline)}
+                              💰 {formatSalary(job.salaryMin, job.salaryMax)}
                             </div>
+                            <div className="mt-2">
+                              <DeadlineIndicator
+                                applicationDeadline={job.applicationDeadline}
+                                showFullDate={true}
+                                size="sm"
+                              />
+                            </div>
+                          </div>
+                          {job.autoArchiveDate && (
+                            <p className="mt-1 text-sm text-gray-600">
+                              <span className="font-medium text-gray-700">
+                                Days Until Auto Archive:
+                              </span>{" "}
+                              <span
+                                className={
+                                  remainingDays(job.autoArchiveDate) <= 7
+                                    ? "text-red-600 font-semibold"
+                                    : "text-gray-800"
+                                }
+                              >
+                                {remainingDays(job.autoArchiveDate)}
+                              </span>
+                            </p>
+                          )}
+
+                          {job.description && (
+                            <p className="mt-2 text-sm text-gray-600 line-clamp-2">
+                              {searchQuery
+                                ? highlightText(job.description, searchQuery)
+                                : job.description}
+                            </p>
+                          )}
+                          {job.jobPostingUrl && (
+                            <a
+                              href={job.jobPostingUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              View posting →
+                            </a>
                           )}
                         </div>
-                        {job.description && (
-                          <p className="mt-2 text-sm text-gray-600 line-clamp-2">
-                            {searchQuery
-                              ? highlightText(job.description, searchQuery)
-                              : job.description}
-                          </p>
-                        )}
-                        {job.matchScore != null && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <p className="text-sm">
-                            <span className="font-medium">Match Score:</span>{" "}
-                            <span
-                              className={
-                                job.matchScore >= 80
-                                  ? "text-green-700 font-bold"
-                                  : job.matchScore >= 60
-                                  ? "text-yellow-600 font-bold"
-                                  : "text-red-600 font-bold"
-                              }
-                            >
-                             {Math.round(
-                              ((job.matchBreakdown?.skills ?? 0) +
-                                (job.matchBreakdown?.experience ?? 0) +
-                                (job.matchBreakdown?.education ?? 0)) / 3
-                            )}
-                            %
-                            </span>
-                          </p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            Skills {job.matchBreakdown?.skills ?? 0}% | Exp{" "}
-                            {job.matchBreakdown?.experience ?? 0}% | Edu{" "}
-                            {job.matchBreakdown?.education ?? 0}%
-                          </p>
-                        </div>
-                      )}
-                        {job.jobPostingUrl && (
-                          <a
-                            href={job.jobPostingUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            View posting →
-                          </a>
-                        )}
                       </div>
+
+                      {/* Action buttons */}
                       <div className="flex gap-2">
+                        {job.applicationDeadline && (
+                          <Button
+                            onClick={(e: React.MouseEvent) => {
+                              e.stopPropagation();
+                              setExtendingJob(job);
+                            }}
+                            variant="secondary"
+                          >
+                            📅 Extend
+                          </Button>
+                        )}
                         <Button
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
@@ -1514,6 +1947,15 @@ function JobsEntry() {
                           Delete
                         </Button>
                       </div>
+                      <Button
+                        variant="secondary"
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          setArchivingJob(job); // you'll add this state next
+                        }}
+                      >
+                        📦 Archive
+                      </Button>
                     </div>
                   </Card>
                 </li>
@@ -1525,9 +1967,27 @@ function JobsEntry() {
             <Button onClick={() => setShowForm(!showForm)}>
               {showForm ? "Cancel" : "Add new opportunity"}
             </Button>
-            <Button onClick={() => navigate("/Jobs/Pipeline")}>
-              View Pipeline
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => navigate("/Jobs/Calendar")}>
+                📅 View Calendar
+              </Button>
+              <Button onClick={() => navigate("/Jobs/Pipeline")}>
+                View Pipeline
+              </Button>
+              <Button
+                onClick={() => navigate("/Jobs/Archived")}
+                className="bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                📦 View Archived Jobs
+              </Button>
+
+              <Button
+                onClick={() => navigate("/Jobs/Stats")}
+                className="bg-teal-600 hover:bg-teal-700 text-white"
+              >
+                📈 View Job Stats
+              </Button>
+            </div>
           </div>
         </>
       )}
@@ -1538,6 +1998,50 @@ function JobsEntry() {
           onUpdate={fetchJobs}
         />
       )}
+      {/* Extend Deadline Modal */}
+      {extendingJob && (
+        <ExtendDeadlineModal
+          job={extendingJob}
+          onClose={() => setExtendingJob(null)}
+          onExtend={handleExtendDeadline}
+        />
+      )}
+      {archivingJob && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <Card className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-semibold mb-3">Archive Job</h2>
+            <p className="text-gray-700 mb-3">
+              Are you sure you want to archive <b>{archivingJob.jobTitle}</b> at{" "}
+              <b>{archivingJob.company}</b>?
+            </p>
+            <textarea
+              className="form-input w-full mb-3"
+              placeholder="Optional reason for archiving..."
+              value={archivingJob.archiveReason || ""}
+              onChange={(e) =>
+                setArchivingJob({
+                  ...archivingJob,
+                  archiveReason: e.target.value,
+                })
+              }
+            />
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setArchivingJob(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  handleArchive(archivingJob._id!, archivingJob.archiveReason);
+                  setArchivingJob(null);
+                }}
+              >
+                Confirm Archive
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+      <Toast />
     </div>
   );
 }

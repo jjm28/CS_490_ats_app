@@ -55,6 +55,7 @@ const StatusHistorySchema = new Schema({
         type: Date,
         default: Date.now
     },
+    changedAt: { type: Date, default: Date.now },
     note: {
         type: String,
         maxlength: 500
@@ -113,14 +114,35 @@ const JobSchema = new Schema({
     },
     skillGaps: { type: [String], default: [] },
     // Application history tracking
-    applicationHistory: [ApplicationHistorySchema]
+    applicationHistory: [ApplicationHistorySchema],
+
+    archived: { type: Boolean, default: false },
+    archiveReason: { type: String, default: null },
+    archivedAt: { type: Date, default: null },
+
+    // optional auto-archive horizon (used by your service if you enable it)
+    autoArchiveDays: {
+        type: Number,
+        min: 1,
+        default: 60,
+        set: (v) => (v !== undefined && v !== null && v !== "" ? Number(v) : 60),
+    },
+    autoArchiveDate: {
+        type: Date,
+    },
+
+
+    // analytics helpers
+    responseReceived: { type: Boolean, default: false },
+    offerDate: { type: Date, default: null },
+    stageDurations: { type: Map, of: Number, default: {} },
 }, { timestamps: true });
 
 // Compound index for efficient status queries
 JobSchema.index({ userId: 1, status: 1 });
 
 // Middleware to automatically add to statusHistory when status changes
-JobSchema.pre('save', function(next) {
+JobSchema.pre('save', function (next) {
     if (this.isModified('status')) {
         const lastHistory = this.statusHistory[this.statusHistory.length - 1];
         if (!lastHistory || lastHistory.status !== this.status) {
@@ -133,11 +155,21 @@ JobSchema.pre('save', function(next) {
     next();
 });
 
+// Automatically calculate autoArchiveDate if missing
+JobSchema.pre('save', function (next) {
+    if (!this.autoArchiveDate && this.createdAt && this.autoArchiveDays) {
+        this.autoArchiveDate = new Date(
+            new Date(this.createdAt).getTime() + this.autoArchiveDays * 24 * 60 * 60 * 1000
+        );
+    }
+    next();
+});
+
 // NEW: User Preferences Schema (separate collection)
 // Supports multiple named saved searches
 const SavedSearchSchema = new Schema({
-    name: { 
-        type: String, 
+    name: {
+        type: String,
         required: true,
         maxlength: 100
     },
@@ -149,20 +181,20 @@ const SavedSearchSchema = new Schema({
     salaryMaxFilter: { type: String, default: '' },
     deadlineStartFilter: { type: String, default: '' },
     deadlineEndFilter: { type: String, default: '' },
-    sortBy: { 
-        type: String, 
+    sortBy: {
+        type: String,
         enum: ['dateAdded', 'deadline', 'salary', 'company'],
-        default: 'dateAdded' 
+        default: 'dateAdded'
     },
     createdAt: { type: Date, default: Date.now }
 }, { _id: true });
 
 const UserPreferencesSchema = new Schema({
-    userId: { 
-        type: String, 
-        required: true, 
-        unique: true, 
-        index: true 
+    userId: {
+        type: String,
+        required: true,
+        unique: true,
+        index: true
     },
     // Array of saved searches
     savedSearches: [SavedSearchSchema],
@@ -176,10 +208,10 @@ const UserPreferencesSchema = new Schema({
         salaryMaxFilter: { type: String, default: '' },
         deadlineStartFilter: { type: String, default: '' },
         deadlineEndFilter: { type: String, default: '' },
-        sortBy: { 
-            type: String, 
+        sortBy: {
+            type: String,
             enum: ['dateAdded', 'deadline', 'salary', 'company'],
-            default: 'dateAdded' 
+            default: 'dateAdded'
         }
     }
 }, { timestamps: true });

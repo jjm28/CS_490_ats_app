@@ -29,6 +29,7 @@
     "react-dom": "^19.2.0",
     "react-pdf-tailwind": "^3.0.0",
     "react-router-dom": "^7.9.4",
+    "recharts": "^3.4.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

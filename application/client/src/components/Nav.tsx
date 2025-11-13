@@ -58,10 +58,9 @@ function Navbar() {
             <NavLink
               to="/ProfileDashboard"
               className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
                 }`
               }
             >
@@ -70,10 +69,9 @@ function Navbar() {
             <NavLink
               to="/coverletter"
               className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
                 }`
               }
             >
@@ -82,79 +80,14 @@ function Navbar() {
             <NavLink
               to="/ProfilePage"
               className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
                 }`
               }
             >
               Profile
             </NavLink>
-
-            {/* <NavLink
-              to="/Skills"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Skills
-            </NavLink>
-
-            <NavLink
-              to="/Education"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Education
-            </NavLink>
-
-            <NavLink
-              to="/Certifications"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Certifications
-            </NavLink> */}
-            {/* <NavLink
-              to="/Projects"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Projects
-            </NavLink>
-
-            <NavLink
-              to="/EmploymentPage"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${
-                  isActive
-                    ? "bg-(--brand-sage) text-(--brand-navy)"
-                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Employment
-            </NavLink> */}
 
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
@@ -200,19 +133,33 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
-            <Popover className="relative">
+            <Popover className="relative"> 
             <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
-              Job Tools
-            </PopoverButton>
-            <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg">
-              <NavLink
-                to="/company-research"
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-              >
-                Company Research
+              Resumes 
+            </PopoverButton> 
+            <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg"> 
+              {/* OLD: <NavLink to="/templates" ...>Resume Templates</NavLink> */}
+              <NavLink to="/resumes/new" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                Resume Templates
               </NavLink>
-            </PopoverPanel>
+              <NavLink to="/resumes" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                Resumes
+              </NavLink>
+            </PopoverPanel> 
           </Popover>
+
+            <NavLink
+              to="/Jobs"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Jobs
+            </NavLink>
+
 
           </div>
 
@@ -312,7 +259,12 @@ function Navbar() {
                     >
                       Employment
                     </NavLink>
-                    
+                    <NavLink
+                      to="/Jobs"
+                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    >
+                      Jobs
+                    </NavLink>
                   </Disclosure.Panel>
                 </>
               )}

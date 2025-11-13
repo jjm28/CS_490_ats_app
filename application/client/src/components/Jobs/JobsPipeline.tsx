@@ -113,7 +113,7 @@ const JobsPipeline: React.FC = () => {
   if (err) return <p className="p-6 text-red-600">{err}</p>;
 
   return (
-    <div className="mx-auto max-w-full px-4 py-6">
+    <div className="mx-auto max-w-full px-8 py-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-4">
         Job Application Pipeline
       </h1>
