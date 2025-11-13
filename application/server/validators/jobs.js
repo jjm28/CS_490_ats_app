@@ -93,9 +93,9 @@ export async function validateJobCreate(input) {
     const urlPattern = /^https?:\/\/.+/;
     if (!urlPattern.test(input.jobPostingUrl)) {
       errors.jobPostingUrl = 'Invalid URL format';
-    } else if (input.jobPostingUrl.length > 500) {
-      errors.jobPostingUrl = 'URL must be 500 characters or less';
-    }
+    } // else if (input.jobPostingUrl.length > 500) {
+    //   errors.jobPostingUrl = 'URL must be 500 characters or less';
+    // }
   }
 
   if (input.applicationDeadline) {
@@ -216,9 +216,9 @@ export async function validateJobUpdate(input) {
     const urlPattern = /^https?:\/\/.+/;
     if (!urlPattern.test(input.jobPostingUrl)) {
       errors.jobPostingUrl = 'Invalid URL format';
-    } else if (input.jobPostingUrl.length > 500) {
-      errors.jobPostingUrl = 'URL must be 500 characters or less';
-    }
+    } // else if (input.jobPostingUrl.length > 500) {
+    //   errors.jobPostingUrl = 'URL must be 500 characters or less';
+    // }
   }
 
   if (input.applicationDeadline !== undefined) {
