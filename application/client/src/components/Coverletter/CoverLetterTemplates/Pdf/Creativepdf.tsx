@@ -17,14 +17,22 @@ Font.register({
   family: "Inter",
   fonts: [
     { src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf" },
-    { src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf", fontStyle: "italic" },
-    { src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf", fontWeight: 700 },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf",
+      fontStyle: "italic",
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf",
+      fontWeight: 700,
+    },
   ],
 });
 
 const tw = createTw({
   theme: {
-    fontFamily: { sans: ["Inter", "Helvetica", "Arial", "sans-serif"] },
+    fontFamily: {
+      sans: ["Inter", "Helvetica", "Arial", "sans-serif"],
+    },
   },
 });
 
@@ -37,6 +45,7 @@ const PhoneIcon = () => (
     />
   </Svg>
 );
+
 const MailIcon = () => (
   <Svg width={10} height={10} viewBox="0 0 24 24">
     <Path
@@ -45,6 +54,7 @@ const MailIcon = () => (
     />
   </Svg>
 );
+
 const PinIcon = () => (
   <Svg width={10} height={10} viewBox="0 0 24 24">
     <Path
@@ -72,24 +82,39 @@ export default function CreativePDF(props: CoverLetterData) {
     <Document>
       <Page size="A4" style={tw("p-12 bg-white")}>
 
-
         {/* header row: [sage block] [name centered] [sage block] */}
         <View style={tw("flex-row items-center mb-6")}>
           <View
             style={[
               tw("bg-white rounded"),
-              { backgroundColor: "#D9E5DB", opacity: 0.7, width: 170, height: 60, borderRadius: 4 },
+              {
+                backgroundColor: "#D9E5DB",
+                opacity: 0.7,
+                width: 170,
+                height: 60,
+                borderRadius: 4,
+              },
             ]}
           />
           <View style={tw("flex-1")}>
-            <Text style={tw("text-center text-[20px] font-bold tracking-widest uppercase text-[#0E3B43]")}>
+            <Text
+              style={tw(
+                "text-center text-[20px] font-bold tracking-widest uppercase text-[#0E3B43]"
+              )}
+            >
               {name}
             </Text>
           </View>
           <View
             style={[
               tw("bg-white rounded"),
-              { backgroundColor: "#D9E5DB", opacity: 0.7, width: 170, height: 60, borderRadius: 4 },
+              {
+                backgroundColor: "#D9E5DB",
+                opacity: 0.7,
+                width: 170,
+                height: 60,
+                borderRadius: 4,
+              },
             ]}
           />
         </View>
@@ -97,27 +122,34 @@ export default function CreativePDF(props: CoverLetterData) {
         {/* contact row with icons */}
         <View style={tw("items-center mb-12")}>
           <View style={tw("flex-row items-center")}>
+
             {/* phone */}
             <View style={tw("flex-row items-center mr-16")}>
               <PhoneIcon />
-              <Text style={tw("ml-2 text-[9px] text-gray-600 text-[#0E3B43]")}>{phonenumber}</Text>
+              <Text style={tw("ml-2 text-[9px] text-gray-600 text-[#0E3B43]")}>
+                {phonenumber}
+              </Text>
             </View>
 
             {/* email */}
             <View style={tw("flex-row items-center mr-16")}>
               <MailIcon />
-              <Text style={tw("ml-2 text-[9px] text-gray-600 text-[#0E3B43]")}>{email}</Text>
+              <Text style={tw("ml-2 text-[9px] text-gray-600 text-[#0E3B43]")}>
+                {email}
+              </Text>
             </View>
 
             {/* address */}
             <View style={tw("flex-row items-center")}>
               <PinIcon />
-              <Text style={tw("ml-2 text-[9px] text-gray-600 text-[#0E3B43]")}>{address}</Text>
+              <Text style={tw("ml-2 text-[9px] text-gray-600 text-[#0E3B43]")}>
+                {address}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* body (left-aligned) */}
+        {/* body */}
         <Text style={tw("text-sm mb-6")}>{date}</Text>
 
         <View style={tw("mb-6")}>
@@ -130,15 +162,50 @@ export default function CreativePDF(props: CoverLetterData) {
 
         <Text style={tw("text-sm mb-6 text-gray-900")}>{greeting}</Text>
 
-        {paragraphs.map((p, i) => (
-          <Text key={i} style={tw("text-sm leading-relaxed mb-6 text-gray-900")}>
-            {p}
+        {/* paragraphs / bullets */}
+        {Array.isArray(paragraphs) && paragraphs.length ? (
+          paragraphs.map((p: string, i: number) => {
+            const isBullet = p.trim().startsWith("-");
+
+            if (isBullet) {
+              return (
+                <View key={i} style={tw("mb-2 ml-4")}>
+                  {p
+                    .split(/(?=- )/)
+                    .filter(Boolean)
+                    .map((line: string, idx: number) => (
+                      <Text
+                        key={`${i}-${idx}`}
+                        style={tw(
+                          "text-sm leading-relaxed mb-1 text-[#0E3B43]"
+                        )}
+                      >
+                        {line.replace(/^-/, "•").trim()}
+                      </Text>
+                    ))}
+                </View>
+              );
+            }
+
+            return (
+              <Text
+                key={i}
+                style={tw("text-sm leading-relaxed mb-4 text-[#0E3B43]")}
+              >
+                {p.trim()}
+              </Text>
+            );
+          })
+        ) : (
+          <Text style={tw("text-sm italic text-gray-500 mb-6")}>
+            (No paragraph content)
           </Text>
-        ))}
+        )}
 
         <Text style={tw("text-sm mb-6 text-gray-900")}>{closing}</Text>
-        <Text style={tw("text-sm italic mb-10 text-gray-900")}>{signatureNote}</Text>
-
+        <Text style={tw("text-sm italic mb-10 text-gray-900")}>
+          {signatureNote}
+        </Text>
         <Text style={tw("text-sm font-semibold text-gray-900")}>{name}</Text>
       </Page>
     </Document>
