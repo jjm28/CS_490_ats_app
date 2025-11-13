@@ -159,8 +159,17 @@ function Navbar() {
             >
               Jobs
             </NavLink>
-
-
+            <NavLink
+              to="/Applications"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Applications
+            </NavLink>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -265,6 +274,13 @@ function Navbar() {
                     >
                       Jobs
                     </NavLink>
+                    <NavLink
+                      to="/Jobs"
+                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    >
+                      Applications
+                    </NavLink>
+
                   </Disclosure.Panel>
                 </>
               )}
