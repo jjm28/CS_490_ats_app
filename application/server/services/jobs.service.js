@@ -3,9 +3,13 @@ import Jobs from "../models/jobs.js";
 import mongoose from "mongoose";
 
 export async function createJob({ userId, payload }) {
-  const job = await Jobs.create({ ...payload, userId });
-  return job;
+  // Prevent empty package
+  if (payload.applicationPackage) delete payload.applicationPackage;
+
+  return Jobs.create({ ...payload, userId });
 }
+
+
 
 export async function getAllJobs({ userId }) {
   return Jobs.find({ userId }).sort({ createdAt: -1 }).lean();
@@ -80,16 +84,16 @@ export async function getJobStats(userId) {
     const avgOfferTime =
       offers.length > 0
         ? Math.round(
-            offers.reduce((sum, j) => {
-              const appliedAt = (j.statusHistory || []).find(
-                (h) => h.status === "applied"
-              )?.changedAt;
-              if (!appliedAt) return sum;
-              const days =
-                (new Date(j.offerDate) - new Date(appliedAt)) / 86400000;
-              return sum + Math.max(0, days);
-            }, 0) / offers.length
-          )
+          offers.reduce((sum, j) => {
+            const appliedAt = (j.statusHistory || []).find(
+              (h) => h.status === "applied"
+            )?.changedAt;
+            if (!appliedAt) return sum;
+            const days =
+              (new Date(j.offerDate) - new Date(appliedAt)) / 86400000;
+            return sum + Math.max(0, days);
+          }, 0) / offers.length
+        )
         : 0;
 
     // === Monthly application counts ===

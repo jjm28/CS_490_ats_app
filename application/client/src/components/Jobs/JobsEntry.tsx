@@ -683,6 +683,7 @@ function JobsEntry() {
   }, [isLoggedIn]);
 
   const fetchJobs = async () => {
+    console.log("Output");
     setLoading(true);
     setErr(null);
     try {
@@ -692,7 +693,6 @@ function JobsEntry() {
           Authorization: `Bearer ${token}`,
         },
       });
-
       if (response.status === 401) {
         localStorage.removeItem("token");
         localStorage.removeItem("authToken");
@@ -1873,10 +1873,9 @@ function JobsEntry() {
                         : ""
                     }`}
                   >
-                    <div
+                    <div 
                       className="flex items-start justify-between gap-4 cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => setSelectedJobId(job._id)}
-                    >
+                      onClick={() => setSelectedJobId(job._id)}                    >
                       <div className="flex items-start gap-3 flex-1">
                         {/* Selection Checkbox */}
                         <input
@@ -1886,6 +1885,9 @@ function JobsEntry() {
                             e.stopPropagation();
                             handleToggleSelect(job._id);
                           }}
+                            onClick={(e) => {
+                              e.stopPropagation(); // ← Add this
+                            }}
                           className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                         />
 
@@ -1994,45 +1996,66 @@ function JobsEntry() {
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex gap-2">
-                        {job.applicationDeadline && (
-                          <Button
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              setExtendingJob(job);
-                            }}
-                            variant="secondary"
-                          >
-                            📅 Extend
-                          </Button>
+                      <Popover className="relative">
+                        {({ close }) => (
+                          <>
+                            <PopoverButton 
+                              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              className="p-2 hover:bg-gray-100 rounded-md"
+                            >
+                              <Icon name="menu" size={20} />
+                            </PopoverButton>
+                            <PopoverPanel className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50 border border-gray-200">
+                              {job.applicationDeadline && (
+                                <button
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setExtendingJob(job);
+                                    close();
+                                  }}
+                                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Icon name="clock" size={16} />
+                                  <span>Extend</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  handleEdit(job);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                              >
+                                <Icon name="edit" size={16} />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  setArchivingJob(job);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                              >
+                                <Icon name="archive" size={16} />
+                                <span>Archive</span>
+                              </button>
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  handleDelete(job._id);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 border-t border-gray-200"
+                              >
+                                <Icon name="delete" size={16} />
+                                <span>Delete</span>
+                              </button>
+                            </PopoverPanel>
+                          </>
                         )}
-                        <Button
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            handleEdit(job);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            handleDelete(job._id);
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                      <Button
-                        variant="secondary"
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          setArchivingJob(job); // you'll add this state next
-                        }}
-                      >
-                        📦 Archive
-                      </Button>
+                      </Popover>
                     </div>
                   </Card>
                 </li>

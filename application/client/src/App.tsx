@@ -31,8 +31,6 @@ import Certifications from './components/Certifications/Certifications';
 import Projects from "./components/Projects/Projects";
 
 import JobsEntry from './components/Jobs/JobsEntry';
-import JobsPipeline from './components/Jobs/JobsPipeline';
-
 import NewResume from './components/Resume/NewResume';
 import ResumeEditor from './components/Resume/ResumeEditor';
 import Resumes from './components/Resume/Resumes';
@@ -41,8 +39,14 @@ import DeadlineCalendar from './components/Jobs/DeadlineCalendar';
 import ApplicationsPage from './components/Applications/ApplicationsPage';
 import JobDetailsPage from './components/Jobs/JobDetailsPage';
 import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
+import NotificationSettings from './components/Settings/NotificationSettings';
+import InAppNotifications from './components/Jobs/InAppNotifications';
+
 import './App.css';
 import CompanyResearch from './components/Job_Tools/CompanyResearch';
+import AutomationRules from "./components/AutomationRules/AutomationRules";
+import RuleForm from "./components/AutomationRules/RuleForm";
+
 import SalaryResearch from './components/Job_Tools/SalaryResearchPage';
 
 function App() {
@@ -63,6 +67,7 @@ function App() {
   return (
     <>
       {showNavbar && <Nav />}
+      {showNavbar && <InAppNotifications />}
       <div className="main-content">
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -99,13 +104,33 @@ function App() {
           <Route path="/resumes/share" element={<PrivateRoute><ResumeShareView /></PrivateRoute>} />
           <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
           <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
-          <Route path="/Applications" element={<PrivateRoute><ApplicationsPage /></PrivateRoute>} />
+          <Route
+            path="/Applications"
+            element={<PrivateRoute><ApplicationsPage /></PrivateRoute>}
+          />
           <Route path="/Jobs/:id" element={<PrivateRoute><JobDetailsPage /></PrivateRoute>} />
           <Route path="/SalaryResearch" element={<PrivateRoute><SalaryResearch /></PrivateRoute>} />
           <Route
             path="/Applications/Analytics"
             element={<PrivateRoute><ApplicationAnalytics /></PrivateRoute>}
           />
+          <Route
+            path="/automation"
+            element={<PrivateRoute><AutomationRules /></PrivateRoute>}
+          />
+
+          <Route
+            path="/automation/new"
+            element={<PrivateRoute><RuleForm /></PrivateRoute>}
+          />
+
+          <Route
+            path="/automation/:id/edit"
+            element={<PrivateRoute><RuleForm /></PrivateRoute>}
+          />
+
+
+          <Route path="/Notifications" element={<PrivateRoute><NotificationSettings /></PrivateRoute>} />
         </Routes>
       </div>
     </>

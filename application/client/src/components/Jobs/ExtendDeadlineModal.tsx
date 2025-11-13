@@ -19,9 +19,7 @@ function ExtendDeadlineModal({
   onExtend,
 }: ExtendDeadlineModalProps) {
   const [newDeadline, setNewDeadline] = useState(
-    job.applicationDeadline
-      ? new Date(job.applicationDeadline).toISOString().split("T")[0]
-      : ""
+    job.applicationDeadline?.slice(0, 10) || ""
   );
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,10 +28,15 @@ function ExtendDeadlineModal({
   // Quick extend options
   const quickExtendDays = [3, 7, 14, 30];
 
+  function parseLocalDate(dateStr: string): Date {
+    const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+
   const handleQuickExtend = (days: number) => {
     const currentDeadline = job.applicationDeadline
-      ? new Date(job.applicationDeadline)
-      : new Date();
+    ? parseLocalDate(job.applicationDeadline)
+    : parseLocalDate(new Date().toISOString().slice(0, 10));
     const extendedDate = new Date(currentDeadline);
     extendedDate.setDate(extendedDate.getDate() + days);
     setNewDeadline(extendedDate.toISOString().split("T")[0]);
@@ -105,7 +108,7 @@ function ExtendDeadlineModal({
             </label>
             <div className="p-3 bg-gray-50 rounded border">
               {job.applicationDeadline
-                ? new Date(job.applicationDeadline).toLocaleDateString(
+                ? parseLocalDate(job.applicationDeadline).toLocaleDateString(
                     "en-US",
                     {
                       weekday: "long",
@@ -152,12 +155,12 @@ function ExtendDeadlineModal({
               disabled={loading}
               min={
                 job.applicationDeadline
-                  ? new Date(
-                      new Date(job.applicationDeadline).getTime() + 86400000
-                    )
-                      .toISOString()
-                      .split("T")[0]
-                  : new Date().toISOString().split("T")[0]
+                ? (() => {
+                    const d = parseLocalDate(job.applicationDeadline);
+                    d.setDate(d.getDate() + 1);
+                    return d.toISOString().slice(0, 10);
+                  })()
+                : new Date().toISOString().slice(0, 10)
               }
             />
           </div>
@@ -187,7 +190,7 @@ function ExtendDeadlineModal({
               <p className="text-sm text-blue-800">
                 The new deadline will be:{" "}
                 <strong>
-                  {new Date(newDeadline).toLocaleDateString("en-US", {
+                  {parseLocalDate(newDeadline).toLocaleDateString("en-US", {
                     weekday: "long",
                     year: "numeric",
                     month: "long",
@@ -199,8 +202,8 @@ function ExtendDeadlineModal({
                 <p className="text-xs text-blue-700 mt-1">
                   Extension of{" "}
                   {Math.ceil(
-                    (new Date(newDeadline).getTime() -
-                      new Date(job.applicationDeadline).getTime()) /
+                    (parseLocalDate(newDeadline).getTime() -
+                      parseLocalDate(job.applicationDeadline).getTime()) /
                       (1000 * 60 * 60 * 24)
                   )}{" "}
                   days from the current deadline

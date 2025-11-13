@@ -4,7 +4,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { type JobCardProps as BaseJobCardProps, formatSalary } from "../../types/jobs.types";
 import { useNavigate } from "react-router-dom";
 
-// ✅ Rename local interface to extend imported type
 interface ExtendedJobCardProps extends BaseJobCardProps {
   selectedJobs: string[];
   toggleJobSelection: (jobId: string, selected: boolean) => void;
@@ -40,12 +39,23 @@ const JobCard: React.FC<ExtendedJobCardProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white p-3 rounded shadow hover:shadow-md transition-all cursor-pointer border ${isSelected ? "border-blue-500" : "border-transparent"
-        }`}
-        onClick={() => navigate(`/Jobs/${job._id}`, { state: { fromPipeline: true } })}
+      className={`bg-white p-3 rounded shadow hover:shadow-md transition-all cursor-pointer border ${
+        isSelected ? "border-blue-500" : "border-transparent"
+      }`}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+
+        // ❌ Don’t navigate when clicking checkbox
+        if (target.tagName === "INPUT") return;
+
+        // ❌ Don’t navigate when dragging
+        if (target.closest(".drag-handle")) return;
+
+        // ✅ Navigate to job details
+        navigate(`/Jobs/${job._id}`, { state: { fromPipeline: true } });
+      }}
     >
       <div className="flex items-center justify-between">
-        {/* ✅ Checkbox for bulk selection */}
         <input
           type="checkbox"
           checked={isSelected}
@@ -54,15 +64,13 @@ const JobCard: React.FC<ExtendedJobCardProps> = ({
           className="mr-2 accent-blue-500 cursor-pointer"
         />
 
-        {/* Drag handle */}
         <div
           {...attributes}
           {...listeners}
-          className="text-gray-400 text-xs mb-1 cursor-grab active:cursor-grabbing select-none"
+          className="drag-handle text-gray-400 text-xs mb-1 cursor-grab active:cursor-grabbing select-none"
         >
           ☰
         </div>
-
       </div>
 
       <div className="font-semibold text-gray-900">{job.jobTitle}</div>

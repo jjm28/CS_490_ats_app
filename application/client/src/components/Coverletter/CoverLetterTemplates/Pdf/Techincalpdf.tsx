@@ -24,7 +24,9 @@ Font.register({
 
 const tw = createTw({
   theme: {
-    fontFamily: { sans: ["Inter", "Helvetica", "Arial", "sans-serif"] },
+    fontFamily: {
+      sans: ["Inter", "Helvetica", "Arial", "sans-serif"],
+    },
   },
 });
 
@@ -48,6 +50,7 @@ const PhoneIcon = () => (
     />
   </Svg>
 );
+
 const MailIcon = () => (
   <Svg width={10} height={10} viewBox="0 0 24 24">
     <Path
@@ -57,6 +60,7 @@ const MailIcon = () => (
     />
   </Svg>
 );
+
 const PinIcon = () => (
   <Svg width={10} height={10} viewBox="0 0 24 24">
     <Path
@@ -85,6 +89,7 @@ export default function TechnicalPDF(props: CoverLetterData) {
   return (
     <Document>
       <Page size="A4" style={[tw("p-12"), { backgroundColor: "#ffffff" }]}>
+
         {/* HEADER ROW */}
         <View style={[tw("flex-row items-start mb-6")]}>
           {/* left column (≈1.4fr) */}
@@ -122,11 +127,16 @@ export default function TechnicalPDF(props: CoverLetterData) {
                     <Text
                       style={[
                         tw("font-semibold"),
-                        { fontSize: 10, color: "#1f2937", marginBottom: 2 },
+                        {
+                          fontSize: 10,
+                          color: "#1f2937",
+                          marginBottom: 2,
+                        },
                       ]}
                     >
                       {recipientLines[0] || "Company Details"}
                     </Text>
+
                     {recipientLines.slice(1).map((l, i) => (
                       <Text key={i} style={{ fontSize: 10, color: "#4b5563" }}>
                         {l}
@@ -159,7 +169,6 @@ export default function TechnicalPDF(props: CoverLetterData) {
                 borderRadius: 12,
                 padding: 14,
                 color: "#ffffff",
-                // subtle drop shadow look (react-pdf doesn't render CSS shadows, so emulate with border)
                 borderColor: "#0e1a2a",
                 borderWidth: 0.2,
               }}
@@ -220,9 +229,7 @@ export default function TechnicalPDF(props: CoverLetterData) {
                     >
                       <PinIcon />
                     </View>
-                    <Text
-                      style={[tw("ml-6"), { fontSize: 10, color: "#ffffff" }]}
-                    >
+                    <Text style={[tw("ml-6"), { fontSize: 10, color: "#ffffff" }]}>
                       {address}
                     </Text>
                   </View>
@@ -261,14 +268,52 @@ export default function TechnicalPDF(props: CoverLetterData) {
             </Text>
           ) : null}
 
-          {paragraphs?.map((p, i) => (
-            <Text
-              key={i}
-              style={[tw("mb-3"), { fontSize: 12, color: COLORS.text, lineHeight: 1.6 }]}
-            >
-              {p}
+          {Array.isArray(paragraphs) && paragraphs.length ? (
+            paragraphs.map((p: string, i: number) => {
+              const isBullet = p.trim().startsWith("-");
+
+              if (isBullet) {
+                return (
+                  <View key={i} style={{ marginLeft: 8, marginBottom: 4 }}>
+                    {p
+                      .split(/(?=- )/)
+                      .filter(Boolean)
+                      .map((line: string, idx: number) => (
+                        <Text
+                          key={`${i}-${idx}`}
+                          style={{
+                            fontSize: 12,
+                            color: COLORS.text,
+                            marginBottom: 3,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {line.replace(/^-/, "•").trim()}
+                        </Text>
+                      ))}
+                  </View>
+                );
+              }
+
+              return (
+                <Text
+                  key={i}
+                  style={{
+                    fontSize: 12,
+                    color: COLORS.text,
+                    marginBottom: 8,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {p.trim()}
+                </Text>
+              );
+            })
+          ) : (
+            <Text style={{ fontSize: 12, fontStyle: "italic", color: COLORS.muted }}>
+              (No paragraph content)
             </Text>
-          ))}
+          )}
         </View>
 
         {/* CLOSING + short gray rail */}
@@ -280,7 +325,9 @@ export default function TechnicalPDF(props: CoverLetterData) {
           }}
         >
           {closing ? (
-            <Text style={[tw("mb-2"), { fontSize: 12, color: COLORS.text }]}>{closing}</Text>
+            <Text style={[tw("mb-2"), { fontSize: 12, color: COLORS.text }]}>
+              {closing}
+            </Text>
           ) : null}
 
           {signatureNote ? (

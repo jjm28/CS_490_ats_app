@@ -14,8 +14,8 @@ export interface Contact {
 // Main Job interface with updated contact fields
 export interface Job {
   _id: string;
-  userId?: string;
-  
+  userId: string;
+
   // Basic job info
   jobTitle: string;
   company: string;
@@ -29,24 +29,24 @@ export interface Job {
   type: string;
   autoArchiveDays?: string;
   autoArchiveDate?: string | Date;
-  
+
   // Status tracking
   status: JobStatus;
   statusHistory?: StatusHistoryEntry[];
-  
+
   // UPDATED: Structured contact information
   recruiter?: Contact;
   hiringManager?: Contact;
   additionalContacts?: Contact[];
-  
+
   // Notes fields
   notes?: string;
   salaryNotes?: string;
   interviewNotes?: string;
-  
+
   // Application history
   applicationHistory?: ApplicationHistoryEntry[];
-  
+
   matchScore?: number | null;
   matchBreakdown?: {
     skills: number | null;
@@ -61,6 +61,8 @@ export interface Job {
   archived?: boolean;
   archiveReason?: string;
   archivedAt?: string;
+
+  applicationPackage?: ApplicationPackage | null;
 }
 
 // Job status enum
@@ -83,6 +85,18 @@ export interface StatusHistoryEntry {
 export interface ApplicationHistoryEntry {
   action: string;
   timestamp: string;
+}
+
+export interface ApplicationPackage {
+  resumeId: string | null;
+  coverLetterId: string | null;
+
+  // Support both single old format + new array format
+  portfolioUrl?: string | null;
+  portfolioUrls?: string[];
+
+  generatedAt: string | null;
+  generatedByRuleId?: string | null;
 }
 
 // Status display mapping - for showing human-readable status
@@ -193,13 +207,13 @@ export const formatSalary = (
   const minNum = min && typeof min === "object" && "$numberDecimal" in min
     ? parseFloat(min.$numberDecimal!)
     : min
-    ? Number(min)
-    : null;
+      ? Number(min)
+      : null;
   const maxNum = max && typeof max === "object" && "$numberDecimal" in max
     ? parseFloat(max.$numberDecimal!)
     : max
-    ? Number(max)
-    : null;
+      ? Number(max)
+      : null;
 
   if (minNum && maxNum)
     return `$${minNum.toLocaleString()} - $${maxNum.toLocaleString()}`;

@@ -1,5 +1,6 @@
 import { getDb } from "../db/connection.js";
 import { ObjectId } from "mongodb";
+import { findUserByEmail } from "./user.service.js";
 
 // Create
 export async function createResume({ userid, filename, templateKey, lastSaved }, resumedata) {
@@ -55,13 +56,14 @@ export async function deleteResume({ resumeid, userid }) {
 }
 
 // Share create/update
-export async function createSharedResume({ userid, resumeid, resumedata }) {
+export async function createSharedResume({ userid, resumeid, resumedata, visibility = "unlisted", 
+  allowComments = true, }) {
   const db = getDb();
   const coll = db.collection("sharedresumes");
 
   const result = await coll.updateOne(
     { resumeid, owner: userid },
-    { $set: { expiresAt: new Date(), resumedata } }
+    { $set: { expiresAt: new Date(), resumedata, visibility,  allowComments: !!allowComments, } }
   );
 
   if (result.matchedCount === 1) {
@@ -83,18 +85,154 @@ export async function createSharedResume({ userid, resumeid, resumedata }) {
     resumedata,
     lastSaved: new Date().toISOString(),
     expiresAt: new Date(),
+    visibility,
+    allowComments: !!allowComments,
   };
 
   const ins = await coll.insertOne(payload);
   return {
     sharedid: ins.insertedId,
     url: `${process.env.FRONTEND_ORIGIN}/resumes/share?sharedid=${ins.insertedId}`,
-    owner: userid,
+    owner: userid,   
+    visibility: doc.visibility,
+    allowComments: doc.allowComments,
   };
 }
 
 // Share fetch
-export async function fetchSharedResume({ sharedid }) {
+export async function fetchSharedResume({ sharedid, viewerid = null }) {
   const db = getDb();
-  return db.collection("sharedresumes").findOne({ _id: new ObjectId(sharedid) });
+  const coll = db.collection("sharedresumes");
+
+  const doc = await coll.findOne({ _id: new ObjectId(sharedid) });
+  if (!doc) return null;
+
+  const isOwner = viewerid && String(viewerid) === String(doc.owner);
+
+  // Simple visibility rules:
+  // - "public" / "unlisted": anyone with link can view
+  // - "restricted": only owner or explicitly allowed viewers (if you add that later)
+  if (doc.visibility === "restricted" && !isOwner) {
+    // if you later add allowedViewers, check it here
+    // for now, just block non-owners
+    return null;
+  }
+
+  const allowComments = doc.allowComments !== false;
+  const canComment =
+    allowComments &&
+    // must be logged in
+    (doc.visibility === "public" ||
+      doc.visibility === "unlisted" ||
+      isOwner);
+      console.log(allowComments)
+  return {
+    filename: doc.filename,
+    templateKey: doc.templateKey,
+    resumedata: doc.resumedata,
+    lastSaved: doc.lastSaved,
+    sharing: {
+      ownerName: doc.ownerName || null,   // optional, you can populate later
+      ownerEmail: doc.ownerEmail || null, // optional
+      visibility: doc.visibility || "unlisted",
+      allowComments,
+      canComment,
+      isOwner,
+    },
+    comments: doc.comments || [],
+  };
+}
+
+
+export async function addSharedResumeComment({
+  sharedid,
+  viewerid,
+  message,
+}) {
+  const db = getDb();
+  const coll = db.collection("sharedresumes");
+
+  const doc = await coll.findOne({ _id: new ObjectId(sharedid) });
+  if (!doc) return null;
+
+  const isOwner = String(doc.owner) === String(viewerid);
+
+  if (doc.visibility === "restricted" && !isOwner) {
+    // if you later add `allowedViewers`, check it here
+    return { error: "forbidden" };
+  }
+
+  if (doc.allowComments === false) {
+    return { error: "comments_disabled" };
+  }
+
+  const nowIso = new Date().toISOString();
+
+  const comment = {
+    _id: new ObjectId(),        // comment id
+    authorId: viewerid,
+    authorName: null,           // you can fill from users collection if you want
+    authorEmail: null,
+    message,
+    createdAt: nowIso,
+    resolved: false,
+    resolvedAt: null,
+    resolvedBy: null,
+    resolvedByName: null,
+  };
+
+  await coll.updateOne(
+    { _id: doc._id },
+    { $push: { comments: comment } }
+  );
+
+  const updated = await coll.findOne(
+    { _id: doc._id },
+    { projection: { comments: 1 } }
+  );
+
+  return { comments: updated?.comments || [] };
+}
+
+/**
+ * Resolve / reopen a comment.
+ * - Only the owner of the resume can change `resolved`
+ */
+export async function updateSharedResumeComment({
+  sharedid,
+  commentId,
+  viewerid,
+  resolved,
+}) {
+  const db = getDb();
+  const coll = db.collection("sharedresumes");
+
+  const doc = await coll.findOne({ _id: new ObjectId(sharedid) });
+  if (!doc) return null;
+
+  const isOwner = String(doc.owner) === String(viewerid);
+  if (!isOwner) {
+    return { error: "forbidden" };
+  }
+
+  const nowIso = new Date().toISOString();
+  const commentObjectId = new ObjectId(commentId);
+
+  await coll.updateOne(
+    { _id: doc._id, "comments._id": commentObjectId },
+    {
+      $set: {
+        "comments.$.resolved": resolved,
+        "comments.$.resolvedAt": resolved ? nowIso : null,
+        "comments.$.resolvedBy": viewerid,
+      },
+    }
+  );
+
+  const updated = await coll.findOne(
+    { _id: doc._id },
+    { projection: { comments: 1 } }
+  );
+
+  return { comments: updated?.comments || [] };
 }

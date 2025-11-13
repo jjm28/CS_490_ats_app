@@ -7,10 +7,21 @@ const ChronologicalPreview = React.lazy(() => import("./ClientSide/Chronological
 const FunctionalPreview    = React.lazy(() => import("./ClientSide/FunctionalPreview"));
 const HybridPreview        = React.lazy(() => import("./ClientSide/HybridPreview"));
 
+export type SectionId =
+  | "header"
+  | "contact"
+  | "summary"
+  | "skills"
+  | "experience"
+  | "education"
+  | "projects";
+
 export type ResumePreviewProps = {
   data: ResumeData;
-  onEdit: (section: string) => void;
+  onEdit: (section: SectionId | string) => void;
   className?: string;
+  visibleSections?: SectionId[];
+  sectionOrder?: SectionId[];
 };
 
 export const resumePreviewRegistry: Record<
@@ -27,7 +38,7 @@ const ChronologicalPdf = React.lazy(() => import("./Pdf/ChronologicalPdf"));
 const FunctionalPdf    = React.lazy(() => import("./Pdf/FunctionalPdf"));
 const HybridPdf        = React.lazy(() => import("./Pdf/HybridPdf"));
 
-export type ResumeDocProps = { data: ResumeData };
+export type ResumeDocProps = { data: ResumeData, visibleSections?: SectionId;  };
 
 export const resumePdfRegistry: Record<
   TemplateKey,

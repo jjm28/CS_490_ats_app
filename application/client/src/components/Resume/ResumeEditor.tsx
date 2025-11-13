@@ -2,19 +2,30 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Button from "../StyledComponents/Button";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
+import { PDFDownloadLink, PDFViewer, pdf } from "@react-pdf/renderer";
+import { Document, Packer, Paragraph, TextRun } from "docx";
 
 import {
   resumePreviewRegistry,
   resumePdfRegistry,
 } from "../../components/Resume";
-import type { ResumeData, TemplateKey } from "../../api/resumes";
+import type { ResumeData, TemplateKey, ContactInfo } from "../../api/resumes";
 import {
   saveResume,
   updateResume,
   getFullResume,
   createSharedResume,
   GetAiResumeContent,
+  fetchResumeVersions,
+  fetchResumeVersion,
+  createResumeVersionNew,
+  updateResumeVersionContent, // save version content / rename (PATCH :id)
+  // NEW API helpers you should expose in ../../api/resumes (simple fetch wrappers to your existing endpoints):
+  setDefaultResumeVersion,       // POST /api/resume-versions/:id/set-default
+  patchResumeVersionMeta,        // PATCH /api/resume-versions/:id  (status, description, linkJobIds, etc.)
+  deleteResumeVersionById,       // DELETE /api/resume-versions/:id
+  compareResumeVersions,         // POST /api/resume-versions/compare
+  mergeResumeVersions,           // POST /api/resume-versions/merge
 } from "../../api/resumes";
 
 import JobPickerSheet from "../Resume/JobPickerSheet";
@@ -44,7 +55,6 @@ type LocationState = {
     resumedata: ResumeData;
     lastSaved: string | null;
   };
-  // ai handling
   AImode?: boolean;
   AiResume?: {
     parsedCandidates?: AiResumeCandidate[];
@@ -54,6 +64,7 @@ type LocationState = {
 
 type SectionKey =
   | "header"
+  | "contact" 
   | "summary"
   | "skills:add"
   | "experience:add"
@@ -64,6 +75,527 @@ type SectionKey =
   | "project:edit";
 
 type AnyIndex = { idx: number } | null;
+
+type ResumeVersionLite = {
+  _id: string;
+  name: string;
+  createdAt?: string;
+  isDefault?: boolean;
+};
+
+
+type SectionId = "header" | "contact" | "summary" | "skills" | "experience" | "education" | "projects";
+
+type SectionConfig = {
+  id: SectionId;
+  label: string;
+  enabled: boolean;
+};
+
+const DEFAULT_SECTIONS: SectionConfig[] = [
+  { id: "header", label: "Header", enabled: true },
+  { id: "contact" , label : "Contact", enabled :true},
+  { id: "summary", label: "Summary", enabled: true },
+  { id: "skills", label: "Skills", enabled: true },
+  { id: "experience", label: "Experience", enabled: true },
+  { id: "education", label: "Education", enabled: true },
+  { id: "projects", label: "Projects", enabled: true },
+];
+// ---------- Validation Types & Helpers ----------
+
+type ValidationIssueType =
+  | "missing-info"
+  | "length"
+  | "format"
+  | "contact"
+  | "tone"
+  | "spell-grammar";
+
+type ValidationSeverity = "info" | "warning" | "error";
+
+type ValidationIssue = {
+  type: ValidationIssueType;
+  severity: ValidationSeverity;
+  message: string;
+  field?: string;
+};
+
+type ValidationSummary = {
+  issues: ValidationIssue[];
+  wordCount: number;
+  estimatedPages: number;
+  tone: "professional" | "mixed" | "informal";
+  contactOk: boolean;
+  hasMissingInfo: boolean;
+};
+
+function collectTextFromResume(data: ResumeData): string {
+  const chunks: string[] = [];
+
+  if (data.name) chunks.push(String(data.name));
+  if (data.summary) chunks.push(String(data.summary));
+
+  (data.experience || []).forEach((exp: any) => {
+    if (exp.company) chunks.push(String(exp.company));
+    if (exp.jobTitle) chunks.push(String(exp.jobTitle));
+    if (exp.location) chunks.push(String(exp.location));
+    if (Array.isArray(exp.highlights)) {
+      chunks.push(exp.highlights.join(" "));
+    }
+  });
+
+  (data.education || []).forEach((ed: any) => {
+    if (ed.institution) chunks.push(String(ed.institution));
+    if (ed.degree) chunks.push(String(ed.degree));
+    if (ed.fieldOfStudy) chunks.push(String(ed.fieldOfStudy));
+  });
+
+  (data.projects || []).forEach((p: any) => {
+    if (p.name) chunks.push(String(p.name));
+    if (p.technologies) chunks.push(String(p.technologies));
+    if (p.outcomes) chunks.push(String(p.outcomes));
+  });
+
+  (data.skills || []).forEach((s: any) => {
+    const name = typeof s === "string" ? s : s?.name;
+    if (name) chunks.push(String(name));
+  });
+
+  return chunks.filter(Boolean).join(" ");
+}
+
+type ExportFormat = "json" | "pdf" | "docx" | "txt" | "html";
+
+const BRANDING_WATERMARK = "Generated with ATS Resume Builder";
+
+/** Safe slug for filenames */
+function slugify(input: string) {
+  return (input || "resume")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "resume";
+}
+
+function buildBaseFilename(
+  resumeName: string | undefined,
+  templateKey: TemplateKey
+) {
+  const namePart = slugify(resumeName || "resume");
+  const templatePart = slugify(templateKey);
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${namePart}_${templatePart}_${ts}`;
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Very simple plain-text resume for web forms / ATS */
+function buildPlainTextResume(data: ResumeData): string {
+  const contact: any = (data as any).contact || {};
+  const parts: string[] = [];
+
+  parts.push(data.name || "Your Name");
+  if (contact.email || contact.phone || contact.location) {
+    const line = [
+      contact.email,
+      contact.phone,
+      contact.location,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    if (line) parts.push(line);
+  }
+  parts.push("");
+
+  if (data.summary) {
+    parts.push("SUMMARY");
+    parts.push(String(data.summary), "");
+  }
+
+  if (Array.isArray(data.skills) && data.skills.length) {
+    const skills = data.skills
+      .map((s: any) => (typeof s === "string" ? s : s?.name))
+      .filter(Boolean)
+      .join(", ");
+    if (skills) {
+      parts.push("SKILLS");
+      parts.push(skills, "");
+    }
+  }
+
+  if (Array.isArray(data.experience) && data.experience.length) {
+    parts.push("EXPERIENCE");
+    for (const e of data.experience as any[]) {
+      const header = [
+        e.jobTitle,
+        e.company,
+        [e.startDate, e.endDate || "Present"].filter(Boolean).join(" – "),
+        e.location,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+      if (header) parts.push(header);
+      if (Array.isArray(e.highlights)) {
+        for (const h of e.highlights) {
+          parts.push(`• ${String(h)}`);
+        }
+      }
+      parts.push("");
+    }
+  }
+
+  if (Array.isArray(data.education) && data.education.length) {
+    parts.push("EDUCATION");
+    for (const ed of data.education as any[]) {
+      const line1 = [ed.degree, ed.fieldOfStudy].filter(Boolean).join(", ");
+      const line2 = [ed.institution, ed.graduationDate]
+        .filter(Boolean)
+        .join(" • ");
+      if (line1) parts.push(line1);
+      if (line2) parts.push(line2);
+      parts.push("");
+    }
+  }
+
+  if (Array.isArray(data.projects) && data.projects.length) {
+    parts.push("PROJECTS");
+    for (const p of data.projects as any[]) {
+      const header = [p.name, p.technologies].filter(Boolean).join(" — ");
+      if (header) parts.push(header);
+      if (p.outcomes) parts.push(String(p.outcomes));
+      parts.push("");
+    }
+  }
+
+  parts.push(`\n${BRANDING_WATERMARK}`);
+  return parts.join("\n");
+}
+
+/** Simple HTML version with inline styles + watermark/footer */
+function buildHtmlResume(
+  data: ResumeData,
+  templateKey: TemplateKey,
+  theme: "standard" | "minimal" = "standard"
+): string {
+  const plain = buildPlainTextResume(data); // quick way to reuse content
+  const bodyHtml = plain
+    .split("\n")
+    .map((line) => {
+      if (!line.trim()) return "<br/>";
+      if (/^(SUMMARY|SKILLS|EXPERIENCE|EDUCATION|PROJECTS)$/.test(line.trim()))
+        return `<h2>${line.trim()}</h2>`;
+      if (line.startsWith("•")) return `<li>${line.slice(1).trim()}</li>`;
+      return `<p>${line}</p>`;
+    })
+    .join("\n");
+
+  const fontFamily = theme === "minimal" ? "system-ui, -apple-system" : "Segoe UI, sans-serif";
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${data.name || "Resume"} — ${templateKey}</title>
+</head>
+<body style="font-family:${fontFamily}; line-height:1.4; max-width:800px; margin:40px auto; padding:0 24px;">
+  ${bodyHtml}
+  <hr style="margin-top:32px; border:none; border-top:1px solid #ddd;" />
+  <div style="font-size:11px; color:#888; text-align:right;">
+    ${BRANDING_WATERMARK}
+  </div>
+</body>
+</html>`;
+}
+
+/** Build a very basic .docx document */
+async function exportDocxResume(
+  data: ResumeData,
+  templateKey: TemplateKey,
+  filenameBase: string
+) {
+  const contact: any = (data as any).contact || {};
+  const doc = new Document({
+    sections: [
+      {
+        properties: {},
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: data.name || "Your Name",
+                bold: true,
+                size: 32,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text:
+                  [
+                    contact.email,
+                    contact.phone,
+                    contact.location,
+                  ]
+                    .filter(Boolean)
+                    .join(" | ") || "",
+                size: 20,
+              }),
+            ],
+          }),
+          new Paragraph({ text: "" }),
+
+          data.summary
+            ? new Paragraph({
+                children: [
+                  new TextRun({ text: "Summary", bold: true, break: 1 }),
+                  new TextRun({ text: `\n${String(data.summary)}` }),
+                ],
+              })
+            : new Paragraph({ text: "" }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: "\n\n" + BRANDING_WATERMARK, size: 16 }),
+            ],
+          }),
+        ],
+      },
+    ],
+  });
+
+  const blob = await Packer.toBlob(doc);
+  triggerDownload(blob, `${filenameBase}.docx`);
+}
+
+function runResumeValidation(data: ResumeData): ValidationSummary {
+  const issues: ValidationIssue[] = [];
+  const text = collectTextFromResume(data);
+  const trimmed = text.trim();
+  const wordCount = trimmed ? trimmed.split(/\s+/).length : 0;
+  const estimatedPages = Math.max(1, Math.round(wordCount / 500)); // ~500 words/page
+
+  // ----- Length optimization -----
+  if (estimatedPages > 2) {
+    issues.push({
+      type: "length",
+      severity: "warning",
+      message:
+        "Resume may be too long. Aim for 1–2 pages by tightening bullets and removing older or less relevant roles.",
+    });
+  } else if (wordCount < 200) {
+    issues.push({
+      type: "length",
+      severity: "info",
+      message:
+        "Resume looks very short. Consider adding more detail on impact, metrics, and relevant experience.",
+    });
+  }
+
+  // ----- Missing info -----
+  if (!data.summary || !String(data.summary).trim()) {
+    issues.push({
+      type: "missing-info",
+      severity: "warning",
+      field: "summary",
+      message:
+        "Summary is empty. Add a 2–3 sentence summary emphasizing your role, focus, and key strengths.",
+    });
+  }
+
+  if (!data.experience || data.experience.length === 0) {
+    issues.push({
+      type: "missing-info",
+      severity: "warning",
+      field: "experience",
+      message: "No experience entries. Add internships, projects, or roles to show your impact.",
+    });
+  } else {
+    (data.experience || []).forEach((exp: any, idx: number) => {
+      if (!exp.company || !exp.jobTitle || !exp.startDate) {
+        issues.push({
+          type: "missing-info",
+          severity: "warning",
+          field: `experience[${idx}]`,
+          message:
+            "Each experience should have a company, job title, and start date. Some entries are incomplete.",
+        });
+      }
+      if (!exp.highlights || exp.highlights.length === 0) {
+        issues.push({
+          type: "missing-info",
+          severity: "info",
+          field: `experience[${idx}].highlights`,
+          message: "Add 2–5 bullet points for each experience to describe your impact.",
+        });
+      }
+    });
+  }
+
+  if (!data.education || data.education.length === 0) {
+    issues.push({
+      type: "missing-info",
+      severity: "warning",
+      field: "education",
+      message: "No education entries. Add your degree, institution, and expected graduation date.",
+    });
+  }
+
+  if (!data.skills || data.skills.length === 0) {
+    issues.push({
+      type: "missing-info",
+      severity: "warning",
+      field: "skills",
+      message: "No skills listed. Add your core technical and relevant tools (e.g., React, Node, SQL).",
+    });
+  }
+
+  // ----- Format consistency (simple) -----
+  const dateRegex = /^\d{4}-\d{2}/; // YYYY-MM
+  const checkDate = (value: string | null | undefined, field: string) => {
+    if (!value) return;
+    if (!dateRegex.test(value)) {
+      issues.push({
+        type: "format",
+        severity: "info",
+        field,
+        message: `Date "${value}" is not in a consistent YYYY-MM format. Use a single format across the resume.`,
+      });
+    }
+  };
+
+  (data.experience || []).forEach((exp: any, idx: number) => {
+    checkDate(exp.startDate, `experience[${idx}].startDate`);
+    if (exp.endDate) checkDate(exp.endDate, `experience[${idx}].endDate`);
+  });
+
+  (data.education || []).forEach((ed: any, idx: number) => {
+    checkDate(ed.graduationDate, `education[${idx}].graduationDate`);
+  });
+
+  // ----- Contact info validation -----
+  const anyData: any = data as any;
+  const email: string | undefined =
+    anyData.email || anyData.contact?.email || anyData.header?.email;
+  const phone: string | undefined =
+    anyData.phone || anyData.contact?.phone || anyData.header?.phone;
+  const location: string | undefined =
+    anyData.location || anyData.contact?.location || anyData.header?.location;
+
+  let contactOk = true;
+  const emailRegex = /\S+@\S+\.\S+/;
+  const phoneRegex = /^[0-9+()\-.\s]{7,}$/;
+
+  if (!email && !phone && !location) {
+    contactOk = false;
+    issues.push({
+      type: "contact",
+      severity: "error",
+      message:
+        "No contact information detected. Include at least email and phone so recruiters can reach you.",
+    });
+  } else {
+    if (email && !emailRegex.test(email)) {
+      contactOk = false;
+      issues.push({
+        type: "contact",
+        severity: "warning",
+        field: "email",
+        message:
+          "Email format looks unusual. Make sure it’s a valid address (e.g., yourname@domain.com).",
+      });
+    }
+    if (phone && !phoneRegex.test(phone)) {
+      contactOk = false;
+      issues.push({
+        type: "contact",
+        severity: "info",
+        field: "phone",
+        message:
+          "Phone number may be missing country code or separators. Ensure it’s easy to dial internationally.",
+      });
+    }
+  }
+
+  // ----- Tone & basic spell/grammar-ish checks -----
+  const lower = trimmed.toLowerCase();
+  const slangWords = ["lol", "lmao", "omg", "bro", "dude", "hella", "kinda", "sorta"];
+  let slangHits = 0;
+
+  slangWords.forEach((w) => {
+    if (lower.includes(` ${w} `) || lower.startsWith(`${w} `) || lower.endsWith(` ${w}`)) {
+      slangHits++;
+      issues.push({
+        type: "tone",
+        severity: "warning",
+        message: `Informal word "${w}" detected. Replace slang with professional language.`,
+      });
+    }
+  });
+
+  if (/[!?]{2,}/.test(trimmed)) {
+    issues.push({
+      type: "tone",
+      severity: "info",
+      message:
+        "Multiple exclamation/question marks found. Keep punctuation neutral and professional.",
+    });
+  }
+
+  if (/\bi\b(?![a-zA-Z])/g.test(trimmed)) {
+    issues.push({
+      type: "spell-grammar",
+      severity: "info",
+      message: 'First-person "I" should be capitalized if you choose to use it.',
+    });
+  }
+
+  if (/\s{2,}/.test(trimmed)) {
+    issues.push({
+      type: "format",
+      severity: "info",
+      message: "Double spaces detected. Clean up extra spaces for a polished look.",
+    });
+  }
+
+  // classify tone
+  let tone: "professional" | "mixed" | "informal" = "professional";
+  if (slangHits > 1 || /[!?]{2,}/.test(trimmed)) {
+    tone = "informal";
+  } else if (slangHits === 1) {
+    tone = "mixed";
+  }
+
+  const hasMissingInfo = issues.some((i) => i.type === "missing-info");
+
+  // note: we can’t do full spell/grammar like Grammarly here, but we at least surface obvious issues
+  if (!trimmed) {
+    // if literally empty, make that clear
+    issues.push({
+      type: "missing-info",
+      severity: "error",
+      message: "Resume content is empty. Add sections before exporting.",
+    });
+  }
+
+  return {
+    issues,
+    wordCount,
+    estimatedPages,
+    tone,
+    contactOk,
+    hasMissingInfo,
+  };
+}
+
 
 /* ---------- Helpers ---------- */
 
@@ -97,6 +629,7 @@ export default function ResumeEditor() {
   // base defaults used when no resume payload exists
   const baseDefaults: ResumeData = {
     name: "Your Name",
+    contact: {}, 
     summary: "",
     experience: [],
     education: [],
@@ -109,12 +642,10 @@ export default function ResumeEditor() {
     },
   };
 
-  // ai handling: optional initial injection (kept minimal so we don't disrupt normal flow)
+  // ai handling: optional initial injection
   let aiInjectedData: ResumeData | null = null;
-
   if (state?.AImode && state?.AiResume) {
     const ai = state.AiResume;
-
     const rawCandidate: Partial<ResumeData> | null =
       Array.isArray(ai.parsedCandidates) && ai.parsedCandidates.length > 0
         ? (ai.parsedCandidates[0] as unknown as Partial<ResumeData>)
@@ -123,10 +654,7 @@ export default function ResumeEditor() {
         : null;
 
     if (rawCandidate) {
-      aiInjectedData = {
-        ...baseDefaults,
-        ...rawCandidate,
-      };
+      aiInjectedData = { ...baseDefaults, ...rawCandidate };
     }
   }
 
@@ -154,6 +682,56 @@ export default function ResumeEditor() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  const [versions, setVersions] = useState<ResumeVersionLite[] | null>(null);
+  const [defaultVersionId, setDefaultVersionId] = useState<string | null>(null);
+
+  // version context
+  const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
+  const [currentVersionName, setCurrentVersionName] = useState<string | null>(
+    null
+  );
+  const [renamingVersion, setRenamingVersion] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+
+  // Create-version modal state
+  const [showCreateVersion, setShowCreateVersion] = useState(false);
+  const [sourceChoice, setSourceChoice] = useState<"default" | "existing">(
+    "default"
+  );
+  const [existingSourceId, setExistingSourceId] = useState<string>("");
+  const [linkingVersionId, setLinkingVersionId] = useState<string | null>(null);
+
+  // Compare & merge state
+  const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [comparePayload, setComparePayload] = useState<{
+    left?: string;
+    right?: string;
+  }>({});
+  const [diff, setDiff] = useState<any | null>(null);
+  const [mergeChoiceSummary, setMergeChoiceSummary] = useState<
+    "base" | "right" | "custom"
+  >("right");
+  const [mergeCustomSummary, setMergeCustomSummary] = useState("");
+  const [mergeChoiceSkills, setMergeChoiceSkills] = useState<
+    "base" | "right" | "union"
+  >("union");
+  const [mergeChoiceExp, setMergeChoiceExp] = useState<Record<string, "base" | "right" | "custom">>({});
+  const [mergeCustomExp, setMergeCustomExp] = useState<Record<string, string>>({});
+  const [validation, setValidation] = useState<ValidationSummary | null>(null);
+  const [lastValidatedAt, setLastValidatedAt] = useState<string | null>(null);
+// --- sharing state ---
+const [showShareSettings, setShowShareSettings] = useState(false);
+const [shareVisibility, setShareVisibility] = useState<
+  "public" | "unlisted" | "restricted"
+>("unlisted");
+const [shareAllowComments, setShareAllowComments] = useState(true);
+const [shareLoading, setShareLoading] = useState(false);
+const [shareUrl, setShareUrl] = useState<string | null>(null);
+
+  const [sections, setSections] = useState<SectionConfig[]>(DEFAULT_SECTIONS);
+  const [draggingId, setDraggingId] = useState<SectionId | null>(null);
+
   const safeGetUser = () => {
     const raw = localStorage.getItem("authUser");
     if (!raw) throw new Error("Not signed in (authUser missing).");
@@ -163,7 +741,58 @@ export default function ResumeEditor() {
     return u;
   };
 
-  // reload by id on hard refresh
+
+  function isSectionEnabled(id: SectionId) {
+    return sections.find((s) => s.id === id)?.enabled !== false;
+  }
+
+  const visibleSectionIds = useMemo(
+    () => sections.filter((s) => s.enabled).map((s) => s.id),
+    [sections]
+    );
+
+    const previewData: ResumeData = useMemo(() => {
+    const clone: ResumeData = { ...data };
+
+    // If you hide summary, make it empty so templates skip it
+    if (!visibleSectionIds.includes("summary")) {
+      clone.summary = "";
+    }
+
+    // Skills off → no skills in preview
+    if (!visibleSectionIds.includes("skills")) {
+      clone.skills = [];
+    }
+
+    // Experience off
+    if (!visibleSectionIds.includes("experience")) {
+      clone.experience = [];
+    }
+
+    // Education off
+    if (!visibleSectionIds.includes("education")) {
+      clone.education = [];
+    }
+
+    // Projects off
+    if (!visibleSectionIds.includes("projects")) {
+      clone.projects = [];
+    }
+
+    // For "header", we usually still keep the name/contact in case your template
+    // uses that; if you truly want it hidden, you can also blank `clone.name` here.
+
+    return clone;
+  }, [data, visibleSectionIds]);
+
+
+  useEffect(() => {
+    const v = runResumeValidation(data);
+    setValidation(v);
+    // We don't update lastValidatedAt here so the "Last checked" label reflects manual checks
+  }, [data]);
+
+  // reload by id on hard refresh; also load versions list
   useEffect(() => {
     (async () => {
       if (!resumeId) return;
@@ -172,10 +801,24 @@ export default function ResumeEditor() {
         const u = raw ? JSON.parse(raw) : null;
         const uid = u?.user?._id ?? u?._id ?? null;
         if (!uid) throw new Error("Missing user session");
+
         const full = await getFullResume({ userid: uid, resumeid: resumeId });
         setFilename(full.filename || "Untitled");
         setData(full.resumedata || data);
         setLastSaved(full.lastSaved || null);
+
+        // We're editing base resume now (not a version)
+        setCurrentVersionId(null);
+        setCurrentVersionName(null);
+        setRenamingVersion(false);
+
+        try {
+          const v = await fetchResumeVersions({ userid: uid, resumeid: resumeId });
+          setVersions(v?.items || []);
+          setDefaultVersionId(v?.defaultVersionId || null);
+        } catch {
+          // optional: ignore
+        }
       } catch (e: any) {
         setErr(e?.message ?? "Failed to reload resume.");
       }
@@ -192,6 +835,51 @@ export default function ResumeEditor() {
     [template.key]
   );
   const pdfDoc = useMemo(() => <PdfComp data={data} />, [PdfComp, data]);
+
+  function openCreateVersion() {
+    setShowCreateVersion(true);
+    setSourceChoice("default");
+    setExistingSourceId("");
+  }
+
+  // Create version confirm
+  async function handleCreateVersionConfirm() {
+    try {
+      const raw = localStorage.getItem("authUser");
+      const u = raw ? JSON.parse(raw) : null;
+      const uid = u?.user?._id ?? u?._id ?? null;
+      if (!uid || !resumeId) throw new Error("Missing session or resume id");
+
+      const payload = {
+        userid: uid,
+        resumeid: resumeId!,
+        sourceVersionId: sourceChoice === "default" ? null : existingSourceId || null,
+        name: `Version ${new Date().toLocaleDateString()}`,
+        description: sourceChoice === "default" ? "Cloned from default" : "Cloned from existing",
+      };
+
+      const created = await createResumeVersionNew(payload);
+
+      // Refresh versions
+      const v = await fetchResumeVersions({ userid: uid, resumeid: resumeId });
+      setVersions(v?.items || []);
+      setDefaultVersionId(v?.defaultVersionId || null);
+
+      setShowCreateVersion(false);
+
+      // Immediately load the created version content into editor
+      const createdFull = await fetchResumeVersion({ userid: uid, versionid: created._id });
+      if (createdFull?.content) {
+        setData(createdFull.content);
+        setFilename(created?.name || filename);
+        setCurrentVersionId(created._id);
+        setCurrentVersionName(created?.name || null);
+        setRenamingVersion(false);
+      }
+    } catch (e: any) {
+      alert(e?.message ?? "Failed to create version");
+    }
+  }
 
   /* ---------- Edit State ---------- */
 
@@ -282,6 +970,51 @@ export default function ResumeEditor() {
     });
   }
 
+
+  const API =
+  (import.meta as any).env?.VITE_API_URL ||
+  (import.meta as any).env?.VITE_API_BASE_URL ||
+  "/api";
+
+  async function loadContactFromProfile(
+  setLocal: (c: ContactInfo) => void,
+  existing: ContactInfo | undefined
+) {
+  try {
+    const raw = localStorage.getItem("authUser");
+    const user = raw ? JSON.parse(raw) : null;
+
+    const token =
+      user?.token ||
+      user?.accessToken ||
+      user?.jwt ||
+      user?.user?.token ||
+      null;
+
+    const res = await fetch(`${API}/profile`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+    });
+
+    if (!res.ok) throw new Error("Failed to load profile");
+    const profile = await res.json();
+
+    const merged: ContactInfo = {
+      email: profile.email ?? existing?.email,
+      phone: profile.phone ?? existing?.phone,
+      location: profile.location ?? existing?.location,
+      website: profile.website ?? existing?.website,
+      linkedin: profile.linkedin ?? existing?.linkedin,
+      github: profile.github ?? existing?.github,
+    };
+
+    setLocal(merged);
+  } catch (err) {
+    console.error(err);
+    alert("Could not load contact info from profile. You can still enter it manually.");
+  }
+}
+
   /* ---------- Forms ---------- */
 
   const EditorForm = () => {
@@ -357,6 +1090,112 @@ export default function ResumeEditor() {
             <button
               type="submit"
               className="px-4 py-2 rounded bg-emerald-600 text-white"
+            >
+              Save
+            </button>
+          </div>
+        </form>
+      );
+    }
+
+    if (editing === "contact") {
+      const [local, setLocal] = useState<ContactInfo>(
+        data.contact || {}
+      );
+
+      const handleChange =
+        (key: keyof ContactInfo) =>
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+          const value = e.target.value;
+          setLocal((c) => ({ ...c, [key]: value }));
+        };
+
+      const handleSaveContact = (e: React.FormEvent) => {
+        e.preventDefault();
+        setData((d) => ({ ...d, contact: local }));
+        setEditing(null);
+      };
+
+      return (
+        <form onSubmit={handleSaveContact} className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Contact information</span>
+            <button
+              type="button"
+              className="text-xs underline text-emerald-700"
+              onClick={() => loadContactFromProfile(setLocal, data.contact)}
+            >
+              Use profile info
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            <label className="block text-sm">
+              Email
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                value={local.email || ""}
+                onChange={handleChange("email")}
+              />
+            </label>
+
+            <label className="block text-sm">
+              Phone
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                value={local.phone || ""}
+                onChange={handleChange("phone")}
+              />
+            </label>
+
+            <label className="block text-sm md:col-span-2">
+              Location
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                value={local.location || ""}
+                onChange={handleChange("location")}
+              />
+            </label>
+
+            <label className="block text-sm">
+              Website
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                value={local.website || ""}
+                onChange={handleChange("website")}
+              />
+            </label>
+
+            <label className="block text-sm">
+              LinkedIn
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                value={local.linkedin || ""}
+                onChange={handleChange("linkedin")}
+              />
+            </label>
+
+            <label className="block text-sm">
+              GitHub
+              <input
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                value={local.github || ""}
+                onChange={handleChange("github")}
+              />
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              className="px-4 py-2 rounded bg-gray-100 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded bg-emerald-600 text-white text-sm"
             >
               Save
             </button>
@@ -682,8 +1521,23 @@ export default function ResumeEditor() {
       const u = raw ? JSON.parse(raw) : null;
       const uid = u?.user?._id ?? u?._id ?? null;
       if (!uid) throw new Error("Missing user session");
-      const ts = new Date().toLocaleTimeString();
 
+      const ts = new Date().toISOString();
+
+      // If editing a VERSION, save to version, not base resume
+      if (currentVersionId) {
+        await updateResumeVersionContent({
+          userid: uid,
+          versionid: currentVersionId,
+          content: data,
+          // name: currentVersionName || undefined, // uncomment to sync name each save
+        });
+        setLastSaved(ts);
+        alert("Version updated.");
+        return;
+      }
+
+      // Otherwise save base resume
       if (!resumeId) {
         const created = await saveResume({
           userid: uid,
@@ -713,49 +1567,94 @@ export default function ResumeEditor() {
   };
 
   const handleSaveAndGoBack = async () => {
-  await handleSave();       // reuse your existing save logic
-  navigate("/resumes");     // then go back to the list
+    await handleSave();
+    navigate("/resumes");
+  };
+
+// OLD handleShare -> now a "confirm" based on settings
+const handleShareConfirm = async () => {
+  try {
+    setShareLoading(true);
+    setErr(null);
+
+    const raw = localStorage.getItem("authUser");
+    const u = raw ? JSON.parse(raw) : null;
+    const uid = u?.user?._id ?? u?._id ?? null;
+    if (!uid || !resumeId) throw new Error("Missing session or resume id");
+
+    const out = await createSharedResume({
+      userid: uid,
+      resumeid: resumeId,
+      resumedata: data,
+      visibility: shareVisibility,
+      allowComments: shareAllowComments,
+    });
+
+    setShareUrl(out.url || null);
+    await navigator.clipboard.writeText(out.url);
+    alert("Share link copied to clipboard!");
+
+    setShowShareSettings(false);
+  } catch (e: any) {
+    setErr(e?.message ?? "Share failed.");
+  } finally {
+    setShareLoading(false);
+  }
 };
 
-  const handleShare = async () => {
-    try {
-      const raw = localStorage.getItem("authUser");
-      const u = raw ? JSON.parse(raw) : null;
-      const uid = u?.user?._id ?? u?._id ?? null;
-      if (!uid || !resumeId) throw new Error("Missing session or resume id");
-      const out = await createSharedResume({
-        userid: uid,
-        resumeid: resumeId,
-        resumedata: data,
+
+  const handleExport = async (format: ExportFormat) => {
+  try {
+    const base = buildBaseFilename(filename, template.key);
+
+    if (format === "json") {
+      // Original backup export
+      const payload = {
+        filename,
+        templateKey: template.key,
+        resumedata: { ...data },
+        lastSaved,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
       });
-      await navigator.clipboard.writeText(out.url);
-      alert("Share link copied!");
-    } catch (e: any) {
-      setErr(e?.message ?? "Share failed.");
+      triggerDownload(blob, `${base}.json`);
+      return;
     }
-  };
 
-  const handleExport = () => {
-    const payload = {
-      filename,
-      templateKey: template.key,
-      resumedata: { ...data },
-      lastSaved,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename || "resume"}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+    if (format === "txt") {
+      const txt = buildPlainTextResume(data);
+      const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+      triggerDownload(blob, `${base}.txt`);
+      return;
+    }
 
-  /* ---------- ai handling: load variations from navigation ---------- */
+    if (format === "html") {
+      const html = buildHtmlResume(data, template.key, "standard");
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      triggerDownload(blob, `${base}.html`);
+      return;
+    }
+
+    if (format === "docx") {
+      await exportDocxResume(data, template.key, base);
+      return;
+    }
+
+    if (format === "pdf") {
+      // Optional: programmatic PDF export; you ALSO still have PDFDownloadLink
+      const instance = pdf(pdfDoc as any);
+      const blob = await instance.toBlob();
+      triggerDownload(blob, `${base}.pdf`);
+      return;
+    }
+  } catch (e: any) {
+    console.error("Export failed:", e);
+    setErr(e?.message ?? "Export failed.");
+  }
+};
+
+  /* ---------- AI handling ---------- */
 
   const AImode = state?.AImode;
   const AiResume = state?.AiResume;
@@ -778,95 +1677,94 @@ export default function ResumeEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [AImode, AiResume]);
 
-  // ai handling: apply bullets + skills
   function applyAiCandidate(c: AiResumeCandidate) {
-  setData((d) => {
-    const next: ResumeData = { ...d };
+    setData((d) => {
+      const next: ResumeData = { ...d };
 
-    /* ---- 1. Ensure experience entries exist and attach bullets ---- */
-    const exp = [...(next.experience || [])];
+      // 1) Ensure experience entries exist and attach bullets
+      const exp = [...(next.experience || [])];
+      for (const eb of c.experienceBullets || []) {
+        const rawIdx = Number(eb.sourceExperienceIndex ?? -1);
+        const idx = rawIdx >= 0 ? rawIdx : exp.length;
 
-    for (const eb of c.experienceBullets || []) {
-      // Prefer the provided index, but fall back to "append" if it’s bad
-      const rawIdx = Number(eb.sourceExperienceIndex ?? -1);
-      const idx = rawIdx >= 0 ? rawIdx : exp.length;
+        if (!exp[idx]) {
+          exp[idx] = {
+            company: eb.company || "",
+            jobTitle: eb.jobTitle || "",
+            startDate: "",
+            endDate: null,
+            location: "",
+            highlights: [],
+          };
+        }
 
-      // Create a skeleton experience row if it doesn't exist yet
-      if (!exp[idx]) {
+        const existingHighlights = Array.isArray(exp[idx].highlights)
+          ? [...exp[idx].highlights]
+          : [];
+
+        for (const b of eb.bullets || []) {
+          if (!existingHighlights.includes(b)) existingHighlights.push(b);
+        }
+
         exp[idx] = {
-          company: eb.company || "",
-          jobTitle: eb.jobTitle || "",
-          startDate: "",
-          endDate: null,
-          location: "",
-          highlights: [],
+          ...exp[idx],
+          company: exp[idx].company || eb.company || "",
+          jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
+          highlights: existingHighlights,
         };
       }
+      next.experience = exp;
 
-      const existingHighlights = Array.isArray(exp[idx].highlights)
-        ? [...exp[idx].highlights]
-        : [];
+      // 2) Merge skills
+      const have = new Set(
+        (next.skills || [])
+          .map((s: any) => (typeof s === "string" ? s : s?.name))
+          .filter(Boolean)
+      );
+      const incoming = [...(c.skills || []), ...(c.atsKeywords || [])];
+      const toAdd = incoming.filter((s) => s && !have.has(s));
+      next.skills = [...(next.skills || []), ...toAdd.map((name) => ({ name }))];
 
-      for (const b of eb.bullets || []) {
-        if (!existingHighlights.includes(b)) {
-          existingHighlights.push(b);
-        }
+      // 3) Fill summary if empty
+      if (
+        (!next.summary || !String(next.summary).trim()) &&
+        c.summarySuggestions &&
+        c.summarySuggestions.length > 0
+      ) {
+        next.summary = c.summarySuggestions[0];
       }
 
-      exp[idx] = {
-        ...exp[idx],
-        company: exp[idx].company || eb.company || "",
-        jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
-        highlights: existingHighlights,
-      };
-    }
+      return next;
+    });
+  }
 
-    next.experience = exp;
-
-    /* ---- 2. Merge skills (and keep them editable in the form) ---- */
-    const have = new Set(
-      (next.skills || [])
-        .map((s: any) => (typeof s === "string" ? s : s?.name))
-        .filter(Boolean)
-    );
-
-    const fromSkills = c.skills || [];
-    const fromAts = c.atsKeywords || []; // treat ATS keywords like extra skills
-    const incoming = [...fromSkills, ...fromAts];
-
-    const toAdd = incoming.filter((s) => s && !have.has(s));
-    next.skills = [
-      ...(next.skills || []),
-      ...toAdd.map((name) => ({ name })),
-    ];
-
-    /* ---- 3. Auto-fill summary if it's empty ---- */
-    if (
-      (!next.summary || !String(next.summary).trim()) &&
-      c.summarySuggestions &&
-      c.summarySuggestions.length > 0
-    ) {
-      next.summary = c.summarySuggestions[0];
-    }
-
-    return next;
-  });
-}
-
-  // ai handling: replace summary quickly
   function replaceSummary(s: string) {
     setData((d) => ({ ...d, summary: s }));
   }
 
-    // ----- Re-generate with AI: button opens job picker -----
   function handleRegenAI() {
     if (!isLoggedIn) {
       navigate("/login", { state: { flash: "Please log in to use AI." } });
       return;
     }
     setAiError(null);
+    setLinkingVersionId(null);
     setShowJobPicker(true);
   }
+
+  const handleRunValidation = () => {
+  // For now this can just be a stub so TypeScript is happy
+  // You can replace this with real checks later.
+  console.log("Run resume quality checks here.", data);
+
+  // Example: basic length warning
+  // const wordCount = JSON.stringify(data)
+  //   .split(/\s+/)
+  //   .filter(Boolean).length;
+  // if (wordCount < 80) {
+  //   alert("Resume looks short. Consider adding more detail.");
+  // }
+  };
 
   async function runAiWithJob(jobOrDraft: Job | JobDraft) {
     setAiError(null);
@@ -878,7 +1776,6 @@ export default function ResumeEditor() {
         Jobdata: jobOrDraft,
       });
 
-      // Normalize candidates: parsedCandidates[] or single data
       const arr =
         (ai && Array.isArray(ai.parsedCandidates) && ai.parsedCandidates.length
           ? ai.parsedCandidates
@@ -887,16 +1784,10 @@ export default function ResumeEditor() {
           : []) as AiResumeCandidate[];
 
       if (arr.length) {
-        // update variations panel
         setAiVars(arr);
         setAiIdx(0);
-
         const first = arr[0];
-
-        // apply bullets + skills into current resume
         applyAiCandidate(first);
-
-        // if AI gave us a summary, use the first one
         if (first.summarySuggestions && first.summarySuggestions.length > 0) {
           replaceSummary(first.summarySuggestions[0]);
         }
@@ -908,33 +1799,221 @@ export default function ResumeEditor() {
     }
   }
 
-  // Job picker -> use saved job
   const handlePickJob = async (job: Job) => {
     setShowJobPicker(false);
+      if (linkingVersionId) {
+      try {
+        const user = safeGetUser();
+
+        await patchResumeVersionMeta({
+          userid: user._id,
+          versionid: linkingVersionId,
+          linkJobIds: [job._id],
+        });
+
+        // optional: refresh versions so UI reflects the link
+        if (resumeId) {
+          const v = await fetchResumeVersions({
+            userid: user._id,
+            resumeid: resumeId,
+          });
+          setVersions(v?.items || []);
+          setDefaultVersionId(v?.defaultVersionId || null);
+        }
+
+        alert("Linked this resume version to the selected job.");
+      } catch (e: any) {
+        alert(e?.message ?? "Failed to link job");
+      } finally {
+        setLinkingVersionId(null);
+      }
+      return;
+    }
     await runAiWithJob(job);
   };
-
-  // Switch from picker -> mini job form
   const handleEnterJobManual = () => {
     setShowJobPicker(false);
+      if (linkingVersionId) {
+      setLinkingVersionId(null);
+      return;
+    }
     setShowMiniForm(true);
   };
-
-  // Mini job form submit
   const handleMiniFormSubmit = async (draft: JobDraft) => {
     setShowMiniForm(false);
     await runAiWithJob(draft);
   };
 
+  /* ---------- Versions helpers ---------- */
+
+  function toggleCompareSelection(id: string) {
+    setSelectedForCompare((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return [prev[1], id]; // keep last + new
+      return [...prev, id];
+    });
+  }
+
+  async function handleSetDefault(vId: string) {
+    try {
+      const user = safeGetUser();
+      await setDefaultResumeVersion({ userid: user._id, versionid: vId });
+      if (resumeId) {
+        const v = await fetchResumeVersions({ userid: user._id, resumeid: resumeId });
+        setVersions(v?.items || []);
+        setDefaultVersionId(v?.defaultVersionId || null);
+      }
+    } catch (e: any) {
+      alert(e?.message ?? "Failed to set default");
+    }
+  }
+
+  async function handleArchive(vId: string) {
+    try {
+      const user = safeGetUser();
+      await patchResumeVersionMeta({
+        userid: user._id,
+        versionid: vId,
+        status: "archived",
+      });
+      if (resumeId) {
+        const v = await fetchResumeVersions({ userid: user._id, resumeid: resumeId });
+        setVersions(v?.items || []);
+      }
+    } catch (e: any) {
+      alert(e?.message ?? "Failed to archive");
+    }
+  }
+
+  async function handleDelete(vId: string) {
+    if (!confirm("Delete this version? This cannot be undone.")) return;
+    try {
+      const user = safeGetUser();
+      await deleteResumeVersionById({ userid: user._id, versionid: vId });
+      if (resumeId) {
+        const v = await fetchResumeVersions({ userid: user._id, resumeid: resumeId });
+        setVersions(v?.items || []);
+        if (currentVersionId === vId) {
+          // if we were editing it, fall back to base
+          setCurrentVersionId(null);
+          setCurrentVersionName(null);
+          // reload base
+          const full = await getFullResume({ userid: user._id, resumeid: resumeId });
+          setFilename(full.filename || "Untitled");
+          setData(full.resumedata || data);
+        }
+      }
+    } catch (e: any) {
+      alert(
+        e?.message?.includes("default")
+          ? "Cannot delete the default version."
+          : e?.message ?? "Failed to delete"
+      );
+    }
+  }
+
+  async function openCompareModal() {
+    if (selectedForCompare.length !== 2) {
+      alert("Pick exactly two versions to compare.");
+      return;
+    }
+    try {
+      const user = safeGetUser();
+      const [left, right] = selectedForCompare;
+      const res = await compareResumeVersions({
+        userid: user._id,
+        leftVersionId: left,
+        rightVersionId: right,
+      });
+      setDiff(res);
+      setComparePayload({ left, right });
+      // reset merge choices
+      setMergeChoiceSummary("right");
+      setMergeCustomSummary("");
+      setMergeChoiceSkills("union");
+      setMergeChoiceExp({});
+      setMergeCustomExp({});
+      setShowCompareModal(true);
+    } catch (e: any) {
+      alert(e?.message ?? "Compare failed");
+    }
+  }
+
+  async function doMerge() {
+    try {
+      const user = safeGetUser();
+      const resolution: Record<string, string> = {};
+
+      // summary
+      if (mergeChoiceSummary === "right") resolution.summary = "right";
+      else if (mergeChoiceSummary === "custom")
+        resolution.summary = `custom:${mergeCustomSummary}`;
+
+      // skills
+      if (mergeChoiceSkills === "right") resolution.skills = "right";
+      else if (mergeChoiceSkills === "union") resolution.skills = "union";
+
+      // experience
+      (diff?.fields?.experience || []).forEach((e: any) => {
+        const key = `experience[${e.index}].bullets`;
+        const choice = mergeChoiceExp[key];
+        if (!choice) return;
+        if (choice === "right") resolution[key] = "right";
+        else if (choice === "custom")
+          resolution[key] = `custom:${(mergeCustomExp[key] || "").trim()}`;
+      });
+
+      const created = await mergeResumeVersions({
+        userid: user._id,
+        baseId: comparePayload.left!,       // treat left as base
+        incomingId: comparePayload.right!,  // right overwrites when chosen
+        name: `Merged ${new Date().toLocaleDateString()}`,
+        description: "Merged via compare tool",
+        resolution,
+      });
+
+      // refresh list
+      if (resumeId) {
+        const v = await fetchResumeVersions({ userid: user._id, resumeid: resumeId });
+        setVersions(v?.items || []);
+        setDefaultVersionId(v?.defaultVersionId || null);
+      }
+
+      // load new merged version
+      const full = await fetchResumeVersion({ userid: user._id, versionid: created._id });
+      if (full?.content) {
+        setData(full.content);
+        setFilename(created?.name || filename);
+        setCurrentVersionId(created._id);
+        setCurrentVersionName(created?.name || null);
+      }
+      setShowCompareModal(false);
+      setSelectedForCompare([]);
+    } catch (e: any) {
+      alert(e?.message ?? "Merge failed");
+    }
+  }
 
   /* ---------- UI ---------- */
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold mb-2">Resume Editor</h1>
+        <h1 className="text-2xl font-semibold mb-2">
+          {currentVersionId
+            ? `Resume Editor — ${currentVersionName || "Version"}`
+            : "Resume Editor"}
+        </h1>
+
         <div className="flex items-center gap-3 flex-wrap">
-          <Button onClick={handleShare}>Share</Button>
+            <Button
+          onClick={() => setShowShareSettings(true)}
+          disabled={!resumeId}
+        >
+          Share
+        </Button>
+
+
           <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
             File name:
           </label>
@@ -944,17 +2023,128 @@ export default function ResumeEditor() {
             onChange={(e) => setFilename(e.target.value)}
           />
           <div className="flex-1" />
+
           {error ? (
             <span className="text-xs text-red-500">Error: {error}</span>
           ) : (
             lastSaved && (
-              <span className="text-xs text-gray-500">Saved {lastSaved}</span>
+              <span className="text-xs text-gray-500">
+                Saved {new Date(lastSaved).toLocaleString?.() || lastSaved}
+              </span>
             )
           )}
+
           <Button onClick={handleSaveAndGoBack}>Save</Button>
-          <Button onClick={handleExport}>Export</Button>
+          <div className="flex flex-wrap gap-2">
+          <Button onClick={() => handleExport("pdf")}>Export PDF</Button>
+          <Button onClick={() => handleExport("docx")}>Export Word</Button>
+          <Button onClick={() => handleExport("txt")}>Export Text</Button>
+          <Button onClick={() => handleExport("html")}>Export HTML</Button>
+          <Button onClick={() => handleExport("json")}>Backup JSON</Button>
+          </div>
           <Button onClick={handleRegenAI}>Regenerate with AI</Button>
+          <Button onClick={openCreateVersion} disabled={!resumeId}>
+            Create New Version
+          </Button>
         </div>
+
+        {/* Version context + rename */}
+        {currentVersionId ? (
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
+              Editing <strong>Version</strong>
+            </span>
+
+            {!renamingVersion ? (
+              <>
+                <span className="text-gray-700">
+                  Name: <strong>{currentVersionName || "(untitled version)"}</strong>
+                </span>
+                <button
+                  className="underline text-xs text-emerald-700"
+                  onClick={() => {
+                    setRenameDraft(currentVersionName || "");
+                    setRenamingVersion(true);
+                  }}
+                >
+                  Rename
+                </button>
+                                <button
+                  className="underline text-xs text-emerald-700"
+                  onClick={() => {
+                    if (!currentVersionId) {
+                      alert("Create or load a version first.");
+                      return;
+                    }
+                    setLinkingVersionId(currentVersionId);
+                    setShowJobPicker(true);
+                  }}
+                >
+                  Link to job
+                </button>
+              </>
+            ) : (
+              <form
+                className="flex items-center gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const raw = localStorage.getItem("authUser");
+                    const u = raw ? JSON.parse(raw) : null;
+                    const uid = u?.user?._id ?? u?._id ?? null;
+                    if (!uid || !currentVersionId)
+                      throw new Error("Missing session or version id");
+
+                    await updateResumeVersionContent({
+                      userid: uid,
+                      versionid: currentVersionId,
+                      content: data,
+                      name: (renameDraft || "").trim() || "Untitled Version",
+                    });
+
+                    setCurrentVersionName(
+                      (renameDraft || "").trim() || "Untitled Version"
+                    );
+                    setRenamingVersion(false);
+
+                    // refresh list to reflect rename
+                    if (resumeId) {
+                      const v = await fetchResumeVersions({
+                        userid: uid,
+                        resumeid: resumeId,
+                      });
+                      setVersions(v?.items || []);
+                      setDefaultVersionId(v?.defaultVersionId || null);
+                    }
+                  } catch (err: any) {
+                    alert(err?.message ?? "Rename failed");
+                  }
+                }}
+              >
+                <input
+                  className="rounded border px-2 py-1 text-sm"
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  placeholder="Version name"
+                />
+                <button className="px-2 py-1 bg-emerald-600 text-white rounded text-xs">
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="px-2 py-1 bg-gray-100 rounded text-xs"
+                  onClick={() => setRenamingVersion(false)}
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
+          <div className="mt-2 text-xs text-gray-600">
+            Editing <strong>Base Resume</strong>
+          </div>
+        )}
       </div>
 
       <p className="text-gray-600 mb-4">
@@ -975,9 +2165,7 @@ export default function ResumeEditor() {
                   key={i}
                   onClick={() => setAiIdx(i)}
                   className={`text-xs px-2 py-1 rounded ${
-                    i === aiIdx
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white border"
+                    i === aiIdx ? "bg-emerald-600 text-white" : "bg-white border"
                   }`}
                 >
                   #{i + 1}
@@ -1063,46 +2251,169 @@ export default function ResumeEditor() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* LEFT: editors + lists */}
         <div className="space-y-6">
+          {/* validation */}
+            <div className="space-y-4">
+              <div className="rounded border p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h3 className="font-medium text-sm">Resume Quality Check</h3>
+                    {lastValidatedAt && (
+                      <div className="text-[10px] text-gray-500">
+                        Last checked {new Date(lastValidatedAt).toLocaleTimeString()}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRunValidation}
+                    className="text-xs px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                  >
+                    Run Checks
+                  </button>
+                </div>
+
+                {validation ? (
+                  <>
+                    <div className="flex flex-wrap gap-2 text-[11px] mb-3">
+                      <span className="px-2 py-1 rounded-full bg-white border text-gray-700">
+                        Words: <strong>{validation.wordCount}</strong>
+                      </span>
+                      <span className="px-2 py-1 rounded-full bg-white border text-gray-700">
+                        Est. length:{" "}
+                        <strong>
+                          {validation.estimatedPages} page
+                          {validation.estimatedPages !== 1 ? "s" : ""}
+                        </strong>
+                      </span>
+                      <span className="px-2 py-1 rounded-full bg-white border text-gray-700">
+                        Tone:{" "}
+                        <strong className="capitalize">{validation.tone}</strong>
+                      </span>
+                      <span
+                        className={`px-2 py-1 rounded-full border ${
+                          validation.contactOk
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-red-50 text-red-700 border-red-200"
+                        }`}
+                      >
+                        {validation.contactOk ? "Contact info looks OK" : "Contact issues detected"}
+                      </span>
+                    </div>
+
+                    {validation.issues.length === 0 ? (
+                      <p className="text-xs text-emerald-700">
+                        ✅ No major issues detected. Still consider a manual review for nuance and style.
+                      </p>
+                    ) : (
+                      <ul className="space-y-1 max-h-48 overflow-auto text-xs">
+                        {validation.issues.map((issue, idx) => {
+                          const colorClass =
+                            issue.severity === "error"
+                              ? "text-red-700"
+                              : issue.severity === "warning"
+                              ? "text-amber-700"
+                              : "text-gray-700";
+                          const badgeClass =
+                            issue.type === "missing-info"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : issue.type === "length"
+                              ? "bg-sky-50 text-sky-700 border-sky-200"
+                              : issue.type === "contact"
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                              : issue.type === "tone"
+                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              : "bg-gray-50 text-gray-700 border-gray-200";
+
+                          return (
+                            <li key={idx} className={`flex gap-2 ${colorClass}`}>
+                              <span
+                                className={`px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide ${badgeClass}`}
+                              >
+                                {issue.type.replace("-", " ")}
+                              </span>
+                              <span>{issue.message}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+
+                    <p className="mt-2 text-[10px] text-gray-500">
+                      Note: These checks are heuristic and don’t replace a full spell/grammar tool,
+                      but they help catch common issues before you submit.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-600">
+                    Click <span className="font-semibold">Run Checks</span> to analyze your resume
+                    for length, missing info, contact issues, and tone.
+                  </p>
+                )}
+              </div>
+            </div>
+
           <div>
             <h2 className="font-semibold mb-2 text-center">Quick Editors</h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("header")}
-              >
-                Edit Name
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("summary")}
-              >
-                Edit Summary
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("skills:add")}
-              >
-                Edit Skills
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("experience:add")}
-              >
-                Add Experience
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("education:add")}
-              >
-                Add Education
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("project:add")}
-              >
-                Add Project
-              </button>
-            </div>
+              <div className="flex flex-wrap gap-2">
+                {isSectionEnabled("header") && (
+                  <button
+                    className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
+                    onClick={() => setEditing("header")}
+                  >
+                    Edit Name
+                  </button>
+                )}
+                {isSectionEnabled("summary") && (
+                  <button
+                    className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
+                    onClick={() => setEditing("summary")}
+                  >
+                    Edit Summary
+                  </button>
+                )}
+                {isSectionEnabled("contact") && (
+                  <button
+                    className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
+                    onClick={() => setEditing("contact")}
+                  >
+                    Edit Contacts
+                  </button>
+                )}
+                
+                {isSectionEnabled("skills") && (
+                  <button
+                    className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
+                    onClick={() => setEditing("skills:add")}
+                  >
+                    Edit Skills
+                  </button>
+                )}
+                {isSectionEnabled("experience") && (
+                  <button
+                    className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
+                    onClick={() => setEditing("experience:add")}
+                  >
+                    Add Experience
+                  </button>
+                )}
+                {isSectionEnabled("education") && (
+                  <button
+                    className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
+                    onClick={() => setEditing("education:add")}
+                  >
+                    Add Education
+                  </button>
+                )}
+                {isSectionEnabled("projects") && (
+                  <button
+                    className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
+                    onClick={() => setEditing("project:add")}
+                  >
+                    Add Project
+                  </button>
+                )}
+
+              </div>
             {editing && (
               <div className="rounded border p-4 mt-3">
                 <EditorForm />
@@ -1110,53 +2421,161 @@ export default function ResumeEditor() {
             )}
           </div>
 
-          {/* Skills chip editor */}
-          <div className="rounded border p-4">
+          {/* SECTION ARRANGEMENT / TOGGLES */}
+          <div className="rounded border p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium">Skills</h3>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget as HTMLFormElement;
-                  const inp = form.elements.namedItem(
-                    "newSkill"
-                  ) as HTMLInputElement;
-                  addSkill(inp.value);
-                  inp.value = "";
-                }}
-                className="flex gap-2"
-              >
-                <input
-                  name="newSkill"
-                  placeholder="Add a skill"
-                  className="rounded border px-2 py-1 text-sm"
-                />
-                <button className="rounded px-3 py-1 text-xs border hover:bg-gray-50">
-                  Add
+              <h2 className="font-medium">Sections</h2>
+
+              {/* Preset templates */}
+              <div className="flex gap-2">
+                <button
+                  className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
+                  type="button"
+                  onClick={() =>
+                    setSections([
+                      { id: "header", label: "Header", enabled: true },
+                      { id: "summary", label: "Summary", enabled: true },
+                      { id: "experience", label: "Experience", enabled: true },
+                      { id: "skills", label: "Skills", enabled: true },
+                      { id: "projects", label: "Projects", enabled: true },
+                      { id: "education", label: "Education", enabled: true },
+                    ])
+                  }
+                >
+                  Standard
                 </button>
-              </form>
+                <button
+                  className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
+                  type="button"
+                  onClick={() =>
+                    setSections([
+                      { id: "header", label: "Header", enabled: true },
+                      { id: "summary", label: "Summary", enabled: true },
+                      { id: "skills", label: "Skills", enabled: true },
+                      { id: "projects", label: "Projects", enabled: true },
+                      { id: "experience", label: "Experience", enabled: true },
+                      { id: "education", label: "Education", enabled: false },
+                    ])
+                  }
+                >
+                  Student / Projects
+                </button>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {(data.skills || []).map((s: any, i: number) => {
-                const label = typeof s === "string" ? s : s?.name;
+
+            <p className="text-xs text-gray-500 mb-2">
+              Drag to reorder, toggle to show/hide. Preview updates in real-time.
+            </p>
+
+            <ul className="space-y-1">
+              {sections.map((sec) => {
+                // completion status indicator (very simple heuristic)
+                let completed = false;
+                if (sec.id === "summary") completed = !!data.summary?.trim();
+                if (sec.id === "skills") completed = (data.skills || []).length > 0;
+                if (sec.id === "experience") completed = (data.experience || []).length > 0;
+                if (sec.id === "education") completed = (data.education || []).length > 0;
+                if (sec.id === "projects") completed = (data.projects || []).length > 0;
+                if (sec.id === "header") completed = !!data.name?.trim();
+
                 return (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
+                  <li
+                    key={sec.id}
+                    draggable
+                    onDragStart={() => setDraggingId(sec.id)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!draggingId || draggingId === sec.id) return;
+                      setSections((prev) => {
+                        const fromIdx = prev.findIndex((s) => s.id === draggingId);
+                        const toIdx = prev.findIndex((s) => s.id === sec.id);
+                        if (fromIdx === -1 || toIdx === -1) return prev;
+                        const copy = [...prev];
+                        const [moved] = copy.splice(fromIdx, 1);
+                        copy.splice(toIdx, 0, moved);
+                        return copy;
+                      });
+                    }}
+                    onDragEnd={() => setDraggingId(null)}
+                    className="flex items-center justify-between gap-2 px-2 py-1 rounded border bg-white cursor-move text-sm"
                   >
-                    {label}
-                    <button
-                      className="text-gray-500 hover:text-red-600"
-                      onClick={() => removeSkill(i)}
-                      title="Remove"
-                    >
-                      ✕
-                    </button>
-                  </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400">☰</span>
+                      <span>{sec.label}</span>
+                      {completed && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                          Complete
+                        </span>
+                      )}
+                    </div>
+                    <label className="inline-flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={sec.enabled}
+                        onChange={(e) =>
+                          setSections((prev) =>
+                            prev.map((s) =>
+                              s.id === sec.id ? { ...s, enabled: e.target.checked } : s
+                            )
+                          )
+                        }
+                      />
+                      <span>{sec.enabled ? "Shown" : "Hidden"}</span>
+                    </label>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </div>
+
+
+          {/* Skills chip editor */}
+          {isSectionEnabled("skills") && (
+              <div className="rounded border p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium">Skills</h3>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget as HTMLFormElement;
+                      const inp = form.elements.namedItem("newSkill") as HTMLInputElement;
+                      addSkill(inp.value);
+                      inp.value = "";
+                    }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      name="newSkill"
+                      placeholder="Add a skill"
+                      className="rounded border px-2 py-1 text-sm"
+                    />
+                    <button className="rounded px-3 py-1 text-xs border hover:bg-gray-50">
+                      Add
+                    </button>
+                  </form>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(data.skills || []).map((s: any, i: number) => {
+                    const label = typeof s === "string" ? s : s?.name;
+                    return (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
+                      >
+                        {label}
+                        <button
+                          className="text-gray-500 hover:text-red-600"
+                          onClick={() => removeSkill(i)}
+                          title="Remove"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
           {/* Experience list */}
           <div className="rounded border p-4">
@@ -1188,7 +2607,7 @@ export default function ResumeEditor() {
                     </button>
                     <button
                       className="text-xs text-red-600 underline"
-                      onClick={() => removeExperience(i)}
+                      onClick={() => removeProject(i)}
                     >
                       Delete
                     </button>
@@ -1299,15 +2718,558 @@ export default function ResumeEditor() {
 
         {/* RIGHT: live preview */}
         <div className="border rounded p-3">
-          <Suspense
-            fallback={
-              <div className="text-sm text-gray-500 p-6">Loading preview…</div>
-            }
-          >
-            <Preview data={data} onEdit={(s: any) => setEditing(s)} />
-          </Suspense>
+           <Suspense fallback={<div className="text-sm text-gray-500 p-6">Loading preview…</div>}>
+              <Preview
+                data={previewData}                        // ⬅ use filtered data
+                onEdit={(s: any) => setEditing(s)}
+                visibleSections={visibleSectionIds}       // ⬅ for extra control in templates
+                sectionOrder={sections.map((s) => s.id)}  // ⬅ drag-drop order
+              />
+            </Suspense>
+         </div>
+      </div>
+
+      {/* Versions panel */}
+      {Array.isArray(versions) && versions.length > 0 && (
+        <div className="mt-6 rounded border p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Versions</h3>
+            <div className="flex items-center gap-2">
+              <Button onClick={openCreateVersion} disabled={!resumeId}>
+                Create New Version
+              </Button>
+              <Button
+                onClick={openCompareModal}
+                disabled={selectedForCompare.length !== 2}
+              >
+                Compare Selected (2)
+              </Button>
+            </div>
+          </div>
+          <ul className="mt-3 divide-y">
+            {versions.map((v) => {
+              const selected = selectedForCompare.includes(v._id);
+              return (
+                <li key={v._id} className="py-2 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleCompareSelection(v._id)}
+                      title="Select for comparison"
+                    />
+                    <div className="text-sm">
+                      <div className="font-medium flex items-center gap-2">
+                        {v.name || v._id}
+                        {defaultVersionId && String(defaultVersionId) === String(v._id) ? (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            default
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {v.createdAt ? new Date(v.createdAt).toLocaleString() : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="text-xs underline"
+                      onClick={async () => {
+                        try {
+                          const raw = localStorage.getItem("authUser");
+                          const u = raw ? JSON.parse(raw) : null;
+                          const uid = u?.user?._id ?? u?._id ?? null;
+                          if (!uid) throw new Error("Missing user session");
+                          const full = await fetchResumeVersion({
+                            userid: uid,
+                            versionid: v._id,
+                          });
+                          if (full?.content) {
+                            setData(full.content);
+                            setFilename(v.name || filename);
+                            setCurrentVersionId(v._id);
+                            setCurrentVersionName(v.name || null);
+                            setRenamingVersion(false);
+                          }
+                        } catch (e: any) {
+                          alert(e?.message ?? "Failed to load version");
+                        }
+                      }}
+                    >
+                      Load
+                    </button>
+                    <button
+                      className="text-xs underline"
+                      onClick={() => handleSetDefault(v._id)}
+                    >
+                      Set default
+                    </button>
+                    <button
+                      className="text-xs underline text-amber-700"
+                      onClick={() => handleArchive(v._id)}
+                    >
+                      Archive
+                    </button>
+                    <button
+                      className="text-xs underline text-red-600"
+                      onClick={() => handleDelete(v._id)}
+                      disabled={
+                        defaultVersionId != null &&
+                        String(defaultVersionId) === String(v._id)
+                      }
+                      title={
+                        defaultVersionId &&
+                        String(defaultVersionId) === String(v._id)
+                          ? "Cannot delete default version"
+                          : "Delete version"
+                      }
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* Create Version Modal */}
+      {showCreateVersion && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border p-6">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-lg font-semibold">Create New Version</h3>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setShowCreateVersion(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Option A: from default */}
+              <label className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="radio"
+                  className="mt-1"
+                  name="sourceChoice"
+                  value="default"
+                  checked={sourceChoice === "default"}
+                  onChange={() => setSourceChoice("default")}
+                />
+                <div>
+                  <div className="font-medium">From default version</div>
+                  <div className="text-xs text-gray-600">
+                    Clone the current default/master resume version.
+                  </div>
+                </div>
+              </label>
+
+              {/* Option B: from existing (only if versions exist) */}
+              {Array.isArray(versions) && versions.length > 0 && (
+                <div className="p-3 border rounded-lg">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      className="mt-1"
+                      name="sourceChoice"
+                      value="existing"
+                      checked={sourceChoice === "existing"}
+                      onChange={() => setSourceChoice("existing")}
+                    />
+                    <div>
+                      <div className="font-medium">From an existing version</div>
+                      <div className="text-xs text-gray-600">
+                        Clone any previous tailored version.
+                      </div>
+                    </div>
+                  </label>
+
+                  {sourceChoice === "existing" && (
+                    <div className="mt-3">
+                      <select
+                        className="w-full rounded border px-3 py-2 text-sm"
+                        value={existingSourceId}
+                        onChange={(e) => setExistingSourceId(e.target.value)}
+                      >
+                        <option value="" disabled>
+                          Select a version…
+                        </option>
+                        {versions.map((v) => (
+                          <option key={v._id} value={v._id}>
+                            {v.name || v._id}
+                            {defaultVersionId &&
+                            String(defaultVersionId) === String(v._id)
+                              ? " (default)"
+                              : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* If no versions, we still show A; B hidden automatically */}
+              {!versions || versions.length === 0 ? (
+                <div className="text-xs text-gray-500">
+                  You don’t have other versions yet. You can start from the default.
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded bg-gray-100"
+                onClick={() => setShowCreateVersion(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-emerald-600 text-white disabled:opacity-50"
+                onClick={handleCreateVersionConfirm}
+                disabled={sourceChoice === "existing" && !existingSourceId}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* Share Settings Modal */}
+{showShareSettings && (
+  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
+    <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border p-6">
+      <div className="flex items-start justify-between mb-4">
+        <h3 className="text-lg font-semibold">Share resume</h3>
+        <button
+          className="text-gray-500 hover:text-gray-700"
+          onClick={() => setShowShareSettings(false)}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      <p className="text-sm text-gray-600 mb-4">
+        Choose who can access this shared link and whether they can leave comments.
+      </p>
+
+      {/* Visibility */}
+      <div className="mb-4">
+        <div className="text-sm font-medium mb-1">Visibility</div>
+        <div className="space-y-2 text-sm">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="public"
+              checked={shareVisibility === "public"}
+              onChange={() => setShareVisibility("public")}
+            />
+            <div>
+              <div className="font-medium">Public</div>
+              <div className="text-xs text-gray-500">
+                Anyone with the link can view.
+              </div>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="unlisted"
+              checked={shareVisibility === "unlisted"}
+              onChange={() => setShareVisibility("unlisted")}
+            />
+            <div>
+              <div className="font-medium">Unlisted</div>
+              <div className="text-xs text-gray-500">
+                Only people you send the link to can view.
+              </div>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="restricted"
+              checked={shareVisibility === "restricted"}
+              onChange={() => setShareVisibility("restricted")}
+            />
+            <div>
+              <div className="font-medium">Restricted</div>
+              <div className="text-xs text-gray-500">
+                Only approved reviewers (e.g., your account or whitelisted users) can view.
+              </div>
+            </div>
+          </label>
         </div>
       </div>
+
+      {/* Allow comments */}
+      <div className="mb-4">
+        <label className="flex items-start gap-2 cursor-pointer text-sm">
+          <input
+            type="checkbox"
+            checked={shareAllowComments}
+            onChange={(e) => setShareAllowComments(e.target.checked)}
+          />
+          <div>
+            <div className="font-medium">Allow comments</div>
+            <div className="text-xs text-gray-500">
+              Reviewers can leave feedback on this resume.
+            </div>
+          </div>
+        </label>
+      </div>
+
+      {/* Last shared URL (optional) */}
+      {shareUrl && (
+        <div className="mb-4 text-xs text-gray-600 break-all bg-gray-50 border rounded px-3 py-2">
+          Last share link: <span className="font-mono">{shareUrl}</span>
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          className="px-4 py-2 rounded bg-gray-100 text-sm"
+          onClick={() => setShowShareSettings(false)}
+          disabled={shareLoading}
+        >
+          Cancel
+        </button>
+        <button
+          className="px-4 py-2 rounded bg-emerald-600 text-white text-sm disabled:opacity-60"
+          onClick={handleShareConfirm}
+          disabled={shareLoading}
+        >
+          {shareLoading ? "Sharing…" : "Copy share link"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+      {/* Compare & Merge Modal */}
+      {showCompareModal && diff && (
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl border p-6 max-h-[85vh] overflow-auto">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold">
+            Compare versions side-by-side
+          </h3>
+          {/* optional: show which versions are left/right if backend sends meta */}
+          {diff.meta && (diff.meta.left || diff.meta.right) && (
+            <p className="mt-1 text-xs text-gray-600">
+              Left:{" "}
+              <strong>{diff.meta.left?.name || diff.meta.left?._id || "Left"}</strong>
+              {"  •  "}
+              Right:{" "}
+              <strong>{diff.meta.right?.name || diff.meta.right?._id || "Right"}</strong>
+            </p>
+          )}
+        </div>
+        <button
+          className="text-gray-500 hover:text-gray-700"
+          onClick={() => setShowCompareModal(false)}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Summary diff */}
+      {"summary" in (diff.fields || {}) && (
+        <div className="mb-4">
+          <div className="font-medium mb-1">Summary</div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="p-3 rounded border bg-gray-50">
+              <div className="text-xs text-gray-500 mb-1">Left version</div>
+              <div>{diff.fields.summary.left || <em>—</em>}</div>
+            </div>
+            <div className="p-3 rounded border bg-gray-50">
+              <div className="text-xs text-gray-500 mb-1">Right version</div>
+              <div>{diff.fields.summary.right || <em>—</em>}</div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSummary"
+                checked={mergeChoiceSummary === "right"}
+                onChange={() => setMergeChoiceSummary("right")}
+              />
+              Use right summary
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSummary"
+                checked={mergeChoiceSummary === "base"}
+                onChange={() => setMergeChoiceSummary("base")}
+              />
+              Keep left summary
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSummary"
+                checked={mergeChoiceSummary === "custom"}
+                onChange={() => setMergeChoiceSummary("custom")}
+              />
+              Custom summary
+            </label>
+          </div>
+          {mergeChoiceSummary === "custom" && (
+            <textarea
+              className="mt-2 w-full rounded border px-3 py-2 text-sm"
+              placeholder="Custom summary"
+              value={mergeCustomSummary}
+              onChange={(e) => setMergeCustomSummary(e.target.value)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Skills diff */}
+      {"skills" in (diff.fields || {}) && (
+        <div className="mb-4">
+          <div className="font-medium mb-1">Skills</div>
+          <div className="text-xs text-gray-600 mb-2">
+            Added in right: {diff.fields.skills.added?.join(", ") || "—"}
+            {" • "}
+            Removed from left: {diff.fields.skills.removed?.join(", ") || "—"}
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSkills"
+                checked={mergeChoiceSkills === "union"}
+                onChange={() => setMergeChoiceSkills("union")}
+              />
+              Union of both
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSkills"
+                checked={mergeChoiceSkills === "base"}
+                onChange={() => setMergeChoiceSkills("base")}
+              />
+              Keep left
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="mergeSkills"
+                checked={mergeChoiceSkills === "right"}
+                onChange={() => setMergeChoiceSkills("right")}
+              />
+              Use right
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Experience bullets diff */}
+      {(diff.fields?.experience || []).length > 0 && (
+        <div className="mb-4">
+          <div className="font-medium mb-1">Experience bullets</div>
+          <div className="space-y-3">
+            {diff.fields.experience.map((e: any) => {
+              const key = `experience[${e.index}].bullets`;
+              const choice = mergeChoiceExp[key] || "right";
+              return (
+                <div key={key} className="border rounded p-3 text-sm">
+                  <div className="font-medium mb-1">Entry #{e.index}</div>
+                  <div className="text-xs text-gray-600 mb-2">
+                    Added in right: {e.bullets.added?.join("; ") || "—"}
+                    {" • "}
+                    Removed from left: {e.bullets.removed?.join("; ") || "—"}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        name={key}
+                        checked={choice === "right"}
+                        onChange={() =>
+                          setMergeChoiceExp((d) => ({ ...d, [key]: "right" }))
+                        }
+                      />
+                      Use right bullets
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        name={key}
+                        checked={choice === "base"}
+                        onChange={() =>
+                          setMergeChoiceExp((d) => ({ ...d, [key]: "base" }))
+                        }
+                      />
+                      Keep left bullets
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        name={key}
+                        checked={choice === "custom"}
+                        onChange={() =>
+                          setMergeChoiceExp((d) => ({ ...d, [key]: "custom" }))
+                        }
+                      />
+                      Custom bullets
+                    </label>
+                  </div>
+                  {choice === "custom" && (
+                    <textarea
+                      className="mt-2 w-full rounded border px-3 py-2 text-xs"
+                      placeholder="One bullet per line"
+                      value={mergeCustomExp[key] || ""}
+                      onChange={(e) =>
+                        setMergeCustomExp((d) => ({
+                          ...d,
+                          [key]: e.target.value,
+                        }))
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex items-center justify-end gap-2">
+        <button
+          className="px-4 py-2 rounded bg-gray-100"
+          onClick={() => setShowCompareModal(false)}
+        >
+          Cancel
+        </button>
+        <button
+          className="px-4 py-2 rounded bg-emerald-600 text-white"
+          onClick={doMerge}
+        >
+          Merge → New Version
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* AI re-gen modals */}
       <JobPickerSheet
@@ -1347,7 +3309,6 @@ export default function ResumeEditor() {
         </div>
       )}
 
-
       {/* PDF */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <details className="w-full">
@@ -1376,7 +3337,9 @@ export default function ResumeEditor() {
         >
           <PDFDownloadLink
             document={pdfDoc}
-            fileName={`${filename || "resume"}.pdf`}
+            fileName={`${(currentVersionName || filename || "resume")
+              .trim()
+              .replace(/\s+/g, "_")}.pdf`}
             className="inline-block px-4 py-2 bg-black text-white rounded"
           >
             {({ loading }) => (loading ? "Preparing…" : "Download PDF")}
