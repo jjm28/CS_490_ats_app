@@ -13,7 +13,8 @@ import {
   type Contact,
 } from "../../types/jobs.types";
 import InterviewScheduler from "./InterviewScheduler";
-
+import { listResumes } from "../../api/resumes";
+import { listCoverletters } from "../../api/coverletter";
 import CompanyResearchInline from "./CompanyResearchInline";
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
@@ -29,6 +30,9 @@ export default function JobDetails({
   const [analyzing, setAnalyzing] = useState(false);
   const [matchAnalysis, setMatchAnalysis] = useState<any | null>(null);
   const [analysisError, setAnalysisError] = useState("");
+  const [resumeName, setResumeName] = useState<string | null>(null);
+  const [coverLetterName, setCoverLetterName] = useState<string | null>(null);
+
 
   // NEW: controls the company info popup
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
@@ -50,9 +54,42 @@ export default function JobDetails({
     []
   );
 
+
+
+  useEffect(() => {
+    const loadNames = async () => {
+      if (!job?.applicationPackage) return;
+
+      try {
+        const userId = job.userId;
+
+        const [resumes, coverLetters] = await Promise.all([
+          listResumes({ userid: userId }),
+          listCoverletters({ userid: userId }),
+        ]);
+
+        const resume = resumes.find(
+          (r: any) => r._id === job.applicationPackage?.resumeId
+        );
+        const coverLetter = coverLetters.find(
+          (c: any) => c._id === job.applicationPackage?.coverLetterId
+        );
+
+        setResumeName(resume ? resume.filename : null);
+        setCoverLetterName(coverLetter ? coverLetter.filename : null);
+      } catch (err) {
+        console.error("Failed to resolve resume/cover letter names:", err);
+      }
+    };
+
+    loadNames();
+  }, [job]);
+
   useEffect(() => {
     fetchJob();
   }, [jobId]);
+
+
 
   const fetchJob = async () => {
     try {
@@ -331,13 +368,12 @@ export default function JobDetails({
     }
   };
 
-
   if (loading) return <div className="p-6">Loading...</div>;
   if (!job) return <div className="p-6">Job not found</div>;
 
   return (
-    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-      <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[9999]">
+      <Card className="relative z-[10000] w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
           <h2 className="text-xl font-bold">
@@ -421,6 +457,65 @@ export default function JobDetails({
               />
             </div>
           </section>
+          <section>
+            <h3 className="font-semibold text-lg mb-3">Application Package</h3>
+
+            {job.applicationPackage ? (
+              <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
+
+                <div className="flex justify-between">
+                  <span className="font-medium">Resume</span>
+                  <span>
+                    {resumeName ??
+                      (job.applicationPackage?.resumeId ? "Resume attached" : "—")}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="font-medium">Cover Letter</span>
+                  <span>
+                    {coverLetterName ??
+                      (job.applicationPackage?.coverLetterId
+                        ? "Cover letter attached"
+                        : "—")}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="font-medium">Portfolio URL</span>
+                  <span className="truncate max-w-[60%] text-right">
+                    {job.applicationPackage?.portfolioUrl ? (
+                      <a
+                        href={job.applicationPackage.portfolioUrl}
+                        className="text-blue-600 hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {job.applicationPackage.portfolioUrl}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-xs text-gray-500 mt-2">
+                  <span>Generated</span>
+                  <span>
+                    {job.applicationPackage?.generatedAt
+                      ? new Date(job.applicationPackage.generatedAt).toLocaleString()
+                      : "Unknown"}
+                  </span>
+                </div>
+
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">
+                No application package has been generated for this job yet.
+              </p>
+            )}
+          </section>
+
 
           {/* Contacts */}
           <section>
@@ -515,106 +610,106 @@ export default function JobDetails({
                 </Button>
               )}
             </div>
-              {/* Match Analysis Section */}
-             <section>
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-semibold text-lg">Match Analysis</h3>
-                  <Button
-                    variant="primary"
-                    onClick={handleAnalyzeMatch}
-                    disabled={analyzing}
-                  >
-                    {analyzing ? "Analyzing..." : "Analyze Match"}
-                  </Button>
-                </div>
+            {/* Match Analysis Section */}
+            <section>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-semibold text-lg">Match Analysis</h3>
+                <Button
+                  variant="primary"
+                  onClick={handleAnalyzeMatch}
+                  disabled={analyzing}
+                >
+                  {analyzing ? "Analyzing..." : "Analyze Match"}
+                </Button>
+              </div>
 
-                {analysisError && (
-                  <p className="text-red-600 text-sm">{analysisError}</p>
-                )}
+              {analysisError && (
+                <p className="text-red-600 text-sm">{analysisError}</p>
+              )}
 
-                {matchAnalysis && (
-                  <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
-                    {/* Overall Score with color */}
-                    <p className="font-semibold">
-                      Overall Match Score:{" "}
-                      <span
-                        className={
-                          matchAnalysis.matchScore >= 90
-                            ? "text-green-700"
-                            : matchAnalysis.matchScore >= 70
+              {matchAnalysis && (
+                <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
+                  {/* Overall Score with color */}
+                  <p className="font-semibold">
+                    Overall Match Score:{" "}
+                    <span
+                      className={
+                        matchAnalysis.matchScore >= 90
+                          ? "text-green-700"
+                          : matchAnalysis.matchScore >= 70
                             ? "text-yellow-600"
                             : "text-red-600"
-                        }
-                      >
-                        {matchAnalysis.matchScore || 0}%
-                      </span>
-                    </p>
+                      }
+                    >
+                      {matchAnalysis.matchScore || 0}%
+                    </span>
+                  </p>
 
-                    {/* Category Breakdown with Highlights */}
-                    <ul className="list-disc pl-6 space-y-1">
-                      <li
-                        className={
-                          matchAnalysis.matchBreakdown?.skills < 70
-                            ? "text-red-600"
-                            : matchAnalysis.matchBreakdown?.skills < 90
+                  {/* Category Breakdown with Highlights */}
+                  <ul className="list-disc pl-6 space-y-1">
+                    <li
+                      className={
+                        matchAnalysis.matchBreakdown?.skills < 70
+                          ? "text-red-600"
+                          : matchAnalysis.matchBreakdown?.skills < 90
                             ? "text-yellow-600"
                             : "text-green-700"
-                        }
-                      >
-                        Skills: {matchAnalysis.matchBreakdown?.skills ?? 0}%
-                      </li>
-                      <li
-                        className={
-                          matchAnalysis.matchBreakdown?.experience < 70
-                            ? "text-red-600"
-                            : matchAnalysis.matchBreakdown?.experience < 90
+                      }
+                    >
+                      Skills: {matchAnalysis.matchBreakdown?.skills ?? 0}%
+                    </li>
+                    <li
+                      className={
+                        matchAnalysis.matchBreakdown?.experience < 70
+                          ? "text-red-600"
+                          : matchAnalysis.matchBreakdown?.experience < 90
                             ? "text-yellow-600"
                             : "text-green-700"
-                        }
-                      >
-                        Experience: {matchAnalysis.matchBreakdown?.experience ?? 0}%
-                      </li>
-                      <li
-                        className={
-                          matchAnalysis.matchBreakdown?.education < 70
-                            ? "text-red-600"
-                            : matchAnalysis.matchBreakdown?.education < 90
+                      }
+                    >
+                      Experience: {matchAnalysis.matchBreakdown?.experience ?? 0}%
+                    </li>
+                    <li
+                      className={
+                        matchAnalysis.matchBreakdown?.education < 70
+                          ? "text-red-600"
+                          : matchAnalysis.matchBreakdown?.education < 90
                             ? "text-yellow-600"
                             : "text-green-700"
-                        }
-                      >
-                        Education: {matchAnalysis.matchBreakdown?.education ?? 0}%
-                      </li>
-                    </ul>
+                      }
+                    >
+                      Education: {matchAnalysis.matchBreakdown?.education ?? 0}%
+                    </li>
+                  </ul>
 
-                    {/* Strengths / Gaps Feedback */}
-                    <div className="mt-3 text-gray-700 text-sm">
-                      {matchAnalysis.matchScore >= 90 && (
-                        <p>💪 Excellent match — your profile fits this job very well!</p>
-                      )}
-                      {matchAnalysis.matchScore >= 70 && matchAnalysis.matchScore < 90 && (
-                        <p>👍 Good match — a few small improvements could make it perfect.</p>
-                      )}
-                      {matchAnalysis.matchScore < 70 && (
-                        <p>⚠️ Some areas need improvement — focus on red or yellow sections above.</p>
-                      )}
-                    </div>
-
-                    {/* Suggestions */}
-                    {matchAnalysis.suggestions?.length > 0 && (
-                      <>
-                        <h4 className="font-semibold mt-3">Suggestions for Improvement:</h4>
-                        <ul className="list-disc pl-6 text-gray-700">
-                          {matchAnalysis.suggestions.map((s: string, i: number) => (
-                            <li key={i}>{s}</li>
-                          ))}
-                        </ul>
-                      </>
+                  {/* Strengths / Gaps Feedback */}
+                  <div className="mt-3 text-gray-700 text-sm">
+                    {matchAnalysis.matchScore >= 90 && (
+                      <p>💪 Excellent match — your profile fits this job very well!</p>
                     )}
-
+                    {matchAnalysis.matchScore >= 70 && matchAnalysis.matchScore < 90 && (
+                      <p>👍 Good match — a few small improvements could make it perfect.</p>
+                    )}
+                    {matchAnalysis.matchScore < 70 && (
+                      <p>⚠️ Some areas need improvement — focus on red or yellow sections above.</p>
+                    )}
                   </div>
-                )}
-              </section>
+
+                  {/* Suggestions */}
+                  {matchAnalysis.suggestions?.length > 0 && (
+                    <>
+                      <h4 className="font-semibold mt-3">Suggestions for Improvement:</h4>
+                      <ul className="list-disc pl-6 text-gray-700">
+                        {matchAnalysis.suggestions.map((s: string, i: number) => (
+                          <li key={i}>{s}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                </div>
+              )}
+            </section>
             {/* Add new entry form */}
             {isAddingHistory && (
               <div className="mb-4 p-4 bg-blue-50 rounded border border-blue-200">
@@ -727,26 +822,26 @@ export default function JobDetails({
         </div>
       </Card>
       {showCompanyInfo && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <Card className="w-full max-w-4xl max-h-[85vh] overflow-y-auto">
-      <div className="flex justify-between items-center border-b p-4">
-        <h3 className="font-semibold text-lg">
-          Company Research: {formData.company || "Unknown Company"}
-        </h3>
-        <button
-          type="button"
-          onClick={() => setShowCompanyInfo(false)}
-          className="text-gray-500 hover:text-gray-800"
-        >
-          ✕
-        </button>
-      </div>
-      <div className="p-4">
-        <CompanyResearchInline companyName={formData.company || ""} />
-      </div>
-    </Card>
-  </div>
-)}
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <Card className="w-full max-w-4xl max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b p-4">
+              <h3 className="font-semibold text-lg">
+                Company Research: {formData.company || "Unknown Company"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCompanyInfo(false)}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4">
+              <CompanyResearchInline companyName={formData.company || ""} />
+            </div>
+          </Card>
+        </div>
+      )}
 
     </div>
   );
@@ -800,7 +895,7 @@ function Field({
             className={`w-full form-input ${error ? "border-red-500" : ""}`}
           />
         )
-            ) : (
+      ) : (
         <>
           {isClickable && value ? (
             <button

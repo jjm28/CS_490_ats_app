@@ -683,6 +683,7 @@ function JobsEntry() {
   }, [isLoggedIn]);
 
   const fetchJobs = async () => {
+    console.log("Output");
     setLoading(true);
     setErr(null);
     try {
@@ -692,7 +693,6 @@ function JobsEntry() {
           Authorization: `Bearer ${token}`,
         },
       });
-
       if (response.status === 401) {
         localStorage.removeItem("token");
         localStorage.removeItem("authToken");
@@ -1873,10 +1873,9 @@ function JobsEntry() {
                         : ""
                     }`}
                   >
-                    <div
+                    <div 
                       className="flex items-start justify-between gap-4 cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => setSelectedJobId(job._id)}
-                    >
+                      onClick={() => setSelectedJobId(job._id)}                    >
                       <div className="flex items-start gap-3 flex-1">
                         {/* Selection Checkbox */}
                         <input

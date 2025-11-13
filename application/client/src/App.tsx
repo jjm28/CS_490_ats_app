@@ -41,6 +41,9 @@ import JobDetailsPage from './components/Jobs/JobDetailsPage';
 import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
 import './App.css';
 import CompanyResearch from './components/Job_Tools/CompanyResearch';
+import AutomationRules from "./components/AutomationRules/AutomationRules";
+import RuleForm from "./components/AutomationRules/RuleForm";
+
 
 function App() {
   const location = useLocation();
@@ -96,13 +99,31 @@ function App() {
           <Route path="/resumes/share" element={<PrivateRoute><ResumeShareView /></PrivateRoute>} />
           <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
           <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
-          <Route path="/Applications" element={<ApplicationsPage />} />
-          <Route path="/Applications" element={<PrivateRoute><ApplicationsPage /></PrivateRoute>} />
+          <Route
+            path="/Applications"
+            element={<PrivateRoute><ApplicationsPage /></PrivateRoute>}
+          />
           <Route path="/Jobs/:id" element={<PrivateRoute><JobDetailsPage /></PrivateRoute>} />
           <Route
             path="/Applications/Analytics"
             element={<PrivateRoute><ApplicationAnalytics /></PrivateRoute>}
           />
+          <Route
+            path="/automation"
+            element={<PrivateRoute><AutomationRules /></PrivateRoute>}
+          />
+
+          <Route
+            path="/automation/new"
+            element={<PrivateRoute><RuleForm /></PrivateRoute>}
+          />
+
+          <Route
+            path="/automation/:id/edit"
+            element={<PrivateRoute><RuleForm /></PrivateRoute>}
+          />
+
+
         </Routes>
       </div>
     </>
