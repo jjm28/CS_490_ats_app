@@ -251,3 +251,87 @@ export async function GetAiResumeContent(
 
   return data;
 }
+
+// --- Resume Versions API ---
+// GET all versions for a 
+export async function fetchResumeVersions({ userid, resumeid }:{userid:string; resumeid:string;}) {
+  const r = await fetch(`${API}/resume-versions?userid=${userid}&resumeid=${resumeid}`, { credentials:"include" });
+  if(!r.ok) throw new Error("Failed to fetch versions");
+  return r.json(); // { items, defaultVersionId }
+}
+export async function fetchResumeVersion({ userid, versionid }:{userid:string; versionid:string;}) {
+  const r = await fetch(`${API}/resume-versions/${versionid}?userid=${userid}`, { credentials:"include" });
+  if(!r.ok) throw new Error("Failed to fetch version");
+  return r.json();
+}
+export async function createResumeVersionNew(args:{
+  userid:string; resumeid:string; sourceVersionId?:string|null; name?:string; description?:string;
+}) {
+  const r = await fetch(`${API}/resume-versions`, { method:"POST", credentials:"include",
+    headers:{ "Content-Type":"application/json" }, body: JSON.stringify(args) });
+  if(!r.ok) throw new Error("Failed to create version");
+  return r.json();
+}
+export async function patchResumeVersion(args:{
+  versionid:string; payload:any; userid:string;
+}) {
+  const r = await fetch(`${API}/resume-versions/${args.versionid}?userid=${args.userid}`, {
+    method:"PATCH", credentials:"include", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(args.payload)
+  });
+  if(!r.ok) throw new Error("Failed to update version");
+  return r.json();
+}
+export async function deleteResumeVersionAPI({ userid, versionid }:{userid:string; versionid:string;}) {
+  const r = await fetch(`${API}/resume-versions/${versionid}?userid=${userid}`, { method:"DELETE", credentials:"include" });
+  if(!r.ok) throw new Error("Delete failed");
+  return true;
+}
+export async function setDefaultResumeVersionAPI({ userid, versionid }:{userid:string; versionid:string;}) {
+  const r = await fetch(`${API}/resume-versions/${versionid}/set-default?userid=${userid}`, { method:"POST", credentials:"include" });
+  if(!r.ok) throw new Error("Failed to set default");
+  return r.json();
+}
+export async function compareResumeVersionsAPI({ userid, leftVersionId, rightVersionId }:{
+  userid:string; leftVersionId:string; rightVersionId:string;
+}) {
+  const r = await fetch(`${API}/resume-versions/compare`, {
+    method:"POST", credentials:"include", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ userid, leftVersionId, rightVersionId })
+  });
+  if(!r.ok) throw new Error("Compare failed");
+  return r.json();
+}
+export async function mergeResumeVersionsAPI({ userid, baseId, incomingId, resolution, name, description }:{
+  userid:string; baseId:string; incomingId:string; resolution:any; name:string; description?:string;
+}) {
+  const r = await fetch(`${API}/resume-versions/merge`, {
+    method:"POST", credentials:"include", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ userid, baseId, incomingId, resolution, name, description })
+  });
+  if(!r.ok) throw new Error("Merge failed");
+  return r.json();
+}
+
+// api/resumes.ts
+export async function updateResumeVersionContent({
+  userid,
+  versionid,
+  content,
+  name, // optional
+}: {
+  userid: string;
+  versionid: string;
+  content: ResumeData;
+  name?: string;
+}) {
+  const res = await fetch(`${API}/resume-versions/${versionid}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userid, content, name }),
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to update version");
+  return res.json();
+}
+

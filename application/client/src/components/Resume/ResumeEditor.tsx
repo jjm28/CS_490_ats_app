@@ -15,6 +15,10 @@ import {
   getFullResume,
   createSharedResume,
   GetAiResumeContent,
+  fetchResumeVersions,
+  fetchResumeVersion,
+  createResumeVersionNew,
+  updateResumeVersionContent, // <-- added
 } from "../../api/resumes";
 
 import JobPickerSheet from "../Resume/JobPickerSheet";
@@ -44,7 +48,6 @@ type LocationState = {
     resumedata: ResumeData;
     lastSaved: string | null;
   };
-  // ai handling
   AImode?: boolean;
   AiResume?: {
     parsedCandidates?: AiResumeCandidate[];
@@ -64,6 +67,13 @@ type SectionKey =
   | "project:edit";
 
 type AnyIndex = { idx: number } | null;
+
+type ResumeVersionLite = {
+  _id: string;
+  name: string;
+  createdAt?: string;
+  isDefault?: boolean;
+};
 
 /* ---------- Helpers ---------- */
 
@@ -109,12 +119,10 @@ export default function ResumeEditor() {
     },
   };
 
-  // ai handling: optional initial injection (kept minimal so we don't disrupt normal flow)
+  // ai handling: optional initial injection
   let aiInjectedData: ResumeData | null = null;
-
   if (state?.AImode && state?.AiResume) {
     const ai = state.AiResume;
-
     const rawCandidate: Partial<ResumeData> | null =
       Array.isArray(ai.parsedCandidates) && ai.parsedCandidates.length > 0
         ? (ai.parsedCandidates[0] as unknown as Partial<ResumeData>)
@@ -123,10 +131,7 @@ export default function ResumeEditor() {
         : null;
 
     if (rawCandidate) {
-      aiInjectedData = {
-        ...baseDefaults,
-        ...rawCandidate,
-      };
+      aiInjectedData = { ...baseDefaults, ...rawCandidate };
     }
   }
 
@@ -154,6 +159,24 @@ export default function ResumeEditor() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  const [versions, setVersions] = useState<ResumeVersionLite[] | null>(null);
+  const [defaultVersionId, setDefaultVersionId] = useState<string | null>(null);
+
+  // version name / context
+  const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
+  const [currentVersionName, setCurrentVersionName] = useState<string | null>(
+    null
+  );
+  const [renamingVersion, setRenamingVersion] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+
+  // Create-version modal state
+  const [showCreateVersion, setShowCreateVersion] = useState(false);
+  const [sourceChoice, setSourceChoice] = useState<"default" | "existing">(
+    "default"
+  );
+  const [existingSourceId, setExistingSourceId] = useState<string>("");
+
   const safeGetUser = () => {
     const raw = localStorage.getItem("authUser");
     if (!raw) throw new Error("Not signed in (authUser missing).");
@@ -163,7 +186,7 @@ export default function ResumeEditor() {
     return u;
   };
 
-  // reload by id on hard refresh
+  // reload by id on hard refresh; also load versions list
   useEffect(() => {
     (async () => {
       if (!resumeId) return;
@@ -172,10 +195,24 @@ export default function ResumeEditor() {
         const u = raw ? JSON.parse(raw) : null;
         const uid = u?.user?._id ?? u?._id ?? null;
         if (!uid) throw new Error("Missing user session");
+
         const full = await getFullResume({ userid: uid, resumeid: resumeId });
         setFilename(full.filename || "Untitled");
         setData(full.resumedata || data);
         setLastSaved(full.lastSaved || null);
+
+        // We're editing base resume now (not a version)
+        setCurrentVersionId(null);
+        setCurrentVersionName(null);
+        setRenamingVersion(false);
+
+        try {
+          const v = await fetchResumeVersions({ userid: uid, resumeid: resumeId });
+          setVersions(v?.items || []);
+          setDefaultVersionId(v?.defaultVersionId || null);
+        } catch {
+          // optional: ignore
+        }
       } catch (e: any) {
         setErr(e?.message ?? "Failed to reload resume.");
       }
@@ -192,6 +229,51 @@ export default function ResumeEditor() {
     [template.key]
   );
   const pdfDoc = useMemo(() => <PdfComp data={data} />, [PdfComp, data]);
+
+  function openCreateVersion() {
+    setShowCreateVersion(true);
+    setSourceChoice("default");
+    setExistingSourceId("");
+  }
+
+  // Create version confirm
+  async function handleCreateVersionConfirm() {
+    try {
+      const raw = localStorage.getItem("authUser");
+      const u = raw ? JSON.parse(raw) : null;
+      const uid = u?.user?._id ?? u?._id ?? null;
+      if (!uid || !resumeId) throw new Error("Missing session or resume id");
+
+      const payload = {
+        userid: uid,
+        resumeid: resumeId!,
+        sourceVersionId: sourceChoice === "default" ? null : existingSourceId || null,
+        name: `Version ${new Date().toLocaleDateString()}`,
+        description: sourceChoice === "default" ? "Cloned from default" : "Cloned from existing",
+      };
+
+      const created = await createResumeVersionNew(payload);
+
+      // Refresh versions
+      const v = await fetchResumeVersions({ userid: uid, resumeid: resumeId });
+      setVersions(v?.items || []);
+      setDefaultVersionId(v?.defaultVersionId || null);
+
+      setShowCreateVersion(false);
+
+      // Immediately load the created version content into editor
+      const createdFull = await fetchResumeVersion({ userid: uid, versionid: created._id });
+      if (createdFull?.content) {
+        setData(createdFull.content);
+        setFilename(created?.name || filename);
+        setCurrentVersionId(created._id);
+        setCurrentVersionName(created?.name || null);
+        setRenamingVersion(false);
+      }
+    } catch (e: any) {
+      alert(e?.message ?? "Failed to create version");
+    }
+  }
 
   /* ---------- Edit State ---------- */
 
@@ -682,8 +764,23 @@ export default function ResumeEditor() {
       const u = raw ? JSON.parse(raw) : null;
       const uid = u?.user?._id ?? u?._id ?? null;
       if (!uid) throw new Error("Missing user session");
-      const ts = new Date().toLocaleTimeString();
 
+      const ts = new Date().toISOString();
+
+      // If editing a VERSION, save to version, not base resume
+      if (currentVersionId) {
+        await updateResumeVersionContent({
+          userid: uid,
+          versionid: currentVersionId,
+          content: data,
+          // name: currentVersionName || undefined, // uncomment to sync name each save
+        });
+        setLastSaved(ts);
+        alert("Version updated.");
+        return;
+      }
+
+      // Otherwise save base resume
       if (!resumeId) {
         const created = await saveResume({
           userid: uid,
@@ -713,9 +810,9 @@ export default function ResumeEditor() {
   };
 
   const handleSaveAndGoBack = async () => {
-  await handleSave();       // reuse your existing save logic
-  navigate("/resumes");     // then go back to the list
-};
+    await handleSave();
+    navigate("/resumes");
+  };
 
   const handleShare = async () => {
     try {
@@ -748,14 +845,14 @@ export default function ResumeEditor() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${filename || "resume"}.json`;
+    a.download = `${(currentVersionName || filename || "resume").replace(/\s+/g, "_")}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  /* ---------- ai handling: load variations from navigation ---------- */
+  /* ---------- AI handling ---------- */
 
   const AImode = state?.AImode;
   const AiResume = state?.AiResume;
@@ -778,87 +875,71 @@ export default function ResumeEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [AImode, AiResume]);
 
-  // ai handling: apply bullets + skills
   function applyAiCandidate(c: AiResumeCandidate) {
-  setData((d) => {
-    const next: ResumeData = { ...d };
+    setData((d) => {
+      const next: ResumeData = { ...d };
 
-    /* ---- 1. Ensure experience entries exist and attach bullets ---- */
-    const exp = [...(next.experience || [])];
+      // 1) Ensure experience entries exist and attach bullets
+      const exp = [...(next.experience || [])];
+      for (const eb of c.experienceBullets || []) {
+        const rawIdx = Number(eb.sourceExperienceIndex ?? -1);
+        const idx = rawIdx >= 0 ? rawIdx : exp.length;
 
-    for (const eb of c.experienceBullets || []) {
-      // Prefer the provided index, but fall back to "append" if it’s bad
-      const rawIdx = Number(eb.sourceExperienceIndex ?? -1);
-      const idx = rawIdx >= 0 ? rawIdx : exp.length;
+        if (!exp[idx]) {
+          exp[idx] = {
+            company: eb.company || "",
+            jobTitle: eb.jobTitle || "",
+            startDate: "",
+            endDate: null,
+            location: "",
+            highlights: [],
+          };
+        }
 
-      // Create a skeleton experience row if it doesn't exist yet
-      if (!exp[idx]) {
+        const existingHighlights = Array.isArray(exp[idx].highlights)
+          ? [...exp[idx].highlights]
+          : [];
+
+        for (const b of eb.bullets || []) {
+          if (!existingHighlights.includes(b)) existingHighlights.push(b);
+        }
+
         exp[idx] = {
-          company: eb.company || "",
-          jobTitle: eb.jobTitle || "",
-          startDate: "",
-          endDate: null,
-          location: "",
-          highlights: [],
+          ...exp[idx],
+          company: exp[idx].company || eb.company || "",
+          jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
+          highlights: existingHighlights,
         };
       }
+      next.experience = exp;
 
-      const existingHighlights = Array.isArray(exp[idx].highlights)
-        ? [...exp[idx].highlights]
-        : [];
+      // 2) Merge skills
+      const have = new Set(
+        (next.skills || [])
+          .map((s: any) => (typeof s === "string" ? s : s?.name))
+          .filter(Boolean)
+      );
+      const incoming = [...(c.skills || []), ...(c.atsKeywords || [])];
+      const toAdd = incoming.filter((s) => s && !have.has(s));
+      next.skills = [...(next.skills || []), ...toAdd.map((name) => ({ name }))];
 
-      for (const b of eb.bullets || []) {
-        if (!existingHighlights.includes(b)) {
-          existingHighlights.push(b);
-        }
+      // 3) Fill summary if empty
+      if (
+        (!next.summary || !String(next.summary).trim()) &&
+        c.summarySuggestions &&
+        c.summarySuggestions.length > 0
+      ) {
+        next.summary = c.summarySuggestions[0];
       }
 
-      exp[idx] = {
-        ...exp[idx],
-        company: exp[idx].company || eb.company || "",
-        jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
-        highlights: existingHighlights,
-      };
-    }
+      return next;
+    });
+  }
 
-    next.experience = exp;
-
-    /* ---- 2. Merge skills (and keep them editable in the form) ---- */
-    const have = new Set(
-      (next.skills || [])
-        .map((s: any) => (typeof s === "string" ? s : s?.name))
-        .filter(Boolean)
-    );
-
-    const fromSkills = c.skills || [];
-    const fromAts = c.atsKeywords || []; // treat ATS keywords like extra skills
-    const incoming = [...fromSkills, ...fromAts];
-
-    const toAdd = incoming.filter((s) => s && !have.has(s));
-    next.skills = [
-      ...(next.skills || []),
-      ...toAdd.map((name) => ({ name })),
-    ];
-
-    /* ---- 3. Auto-fill summary if it's empty ---- */
-    if (
-      (!next.summary || !String(next.summary).trim()) &&
-      c.summarySuggestions &&
-      c.summarySuggestions.length > 0
-    ) {
-      next.summary = c.summarySuggestions[0];
-    }
-
-    return next;
-  });
-}
-
-  // ai handling: replace summary quickly
   function replaceSummary(s: string) {
     setData((d) => ({ ...d, summary: s }));
   }
 
-    // ----- Re-generate with AI: button opens job picker -----
   function handleRegenAI() {
     if (!isLoggedIn) {
       navigate("/login", { state: { flash: "Please log in to use AI." } });
@@ -878,7 +959,6 @@ export default function ResumeEditor() {
         Jobdata: jobOrDraft,
       });
 
-      // Normalize candidates: parsedCandidates[] or single data
       const arr =
         (ai && Array.isArray(ai.parsedCandidates) && ai.parsedCandidates.length
           ? ai.parsedCandidates
@@ -887,16 +967,10 @@ export default function ResumeEditor() {
           : []) as AiResumeCandidate[];
 
       if (arr.length) {
-        // update variations panel
         setAiVars(arr);
         setAiIdx(0);
-
         const first = arr[0];
-
-        // apply bullets + skills into current resume
         applyAiCandidate(first);
-
-        // if AI gave us a summary, use the first one
         if (first.summarySuggestions && first.summarySuggestions.length > 0) {
           replaceSummary(first.summarySuggestions[0]);
         }
@@ -908,33 +982,35 @@ export default function ResumeEditor() {
     }
   }
 
-  // Job picker -> use saved job
   const handlePickJob = async (job: Job) => {
     setShowJobPicker(false);
     await runAiWithJob(job);
   };
-
-  // Switch from picker -> mini job form
   const handleEnterJobManual = () => {
     setShowJobPicker(false);
     setShowMiniForm(true);
   };
-
-  // Mini job form submit
   const handleMiniFormSubmit = async (draft: JobDraft) => {
     setShowMiniForm(false);
     await runAiWithJob(draft);
   };
-
 
   /* ---------- UI ---------- */
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold mb-2">Resume Editor</h1>
+        <h1 className="text-2xl font-semibold mb-2">
+          {currentVersionId
+            ? `Resume Editor — ${currentVersionName || "Version"}`
+            : "Resume Editor"}
+        </h1>
+
         <div className="flex items-center gap-3 flex-wrap">
-          <Button onClick={handleShare}>Share</Button>
+          <Button onClick={handleShare} disabled={!resumeId}>
+            Share
+          </Button>
+
           <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
             File name:
           </label>
@@ -944,17 +1020,109 @@ export default function ResumeEditor() {
             onChange={(e) => setFilename(e.target.value)}
           />
           <div className="flex-1" />
+
           {error ? (
             <span className="text-xs text-red-500">Error: {error}</span>
           ) : (
             lastSaved && (
-              <span className="text-xs text-gray-500">Saved {lastSaved}</span>
+              <span className="text-xs text-gray-500">
+                Saved {new Date(lastSaved).toLocaleString?.() || lastSaved}
+              </span>
             )
           )}
+
           <Button onClick={handleSaveAndGoBack}>Save</Button>
           <Button onClick={handleExport}>Export</Button>
           <Button onClick={handleRegenAI}>Regenerate with AI</Button>
+          <Button onClick={openCreateVersion} disabled={!resumeId}>
+            Create New Version
+          </Button>
         </div>
+
+        {/* Version context + rename */}
+        {currentVersionId ? (
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
+              Editing <strong>Version</strong>
+            </span>
+
+            {!renamingVersion ? (
+              <>
+                <span className="text-gray-700">
+                  Name: <strong>{currentVersionName || "(untitled version)"}</strong>
+                </span>
+                <button
+                  className="underline text-xs text-emerald-700"
+                  onClick={() => {
+                    setRenameDraft(currentVersionName || "");
+                    setRenamingVersion(true);
+                  }}
+                >
+                  Rename
+                </button>
+              </>
+            ) : (
+              <form
+                className="flex items-center gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const raw = localStorage.getItem("authUser");
+                    const u = raw ? JSON.parse(raw) : null;
+                    const uid = u?.user?._id ?? u?._id ?? null;
+                    if (!uid || !currentVersionId)
+                      throw new Error("Missing session or version id");
+
+                    await updateResumeVersionContent({
+                      userid: uid,
+                      versionid: currentVersionId,
+                      content: data,
+                      name: (renameDraft || "").trim() || "Untitled Version",
+                    });
+
+                    setCurrentVersionName(
+                      (renameDraft || "").trim() || "Untitled Version"
+                    );
+                    setRenamingVersion(false);
+
+                    // refresh list to reflect rename
+                    if (resumeId) {
+                      const v = await fetchResumeVersions({
+                        userid: uid,
+                        resumeid: resumeId,
+                      });
+                      setVersions(v?.items || []);
+                      setDefaultVersionId(v?.defaultVersionId || null);
+                    }
+                  } catch (err: any) {
+                    alert(err?.message ?? "Rename failed");
+                  }
+                }}
+              >
+                <input
+                  className="rounded border px-2 py-1 text-sm"
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  placeholder="Version name"
+                />
+                <button className="px-2 py-1 bg-emerald-600 text-white rounded text-xs">
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="px-2 py-1 bg-gray-100 rounded text-xs"
+                  onClick={() => setRenamingVersion(false)}
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+          </div>
+        ) : (
+          <div className="mt-2 text-xs text-gray-600">
+            Editing <strong>Base Resume</strong>
+          </div>
+        )}
       </div>
 
       <p className="text-gray-600 mb-4">
@@ -975,9 +1143,7 @@ export default function ResumeEditor() {
                   key={i}
                   onClick={() => setAiIdx(i)}
                   className={`text-xs px-2 py-1 rounded ${
-                    i === aiIdx
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white border"
+                    i === aiIdx ? "bg-emerald-600 text-white" : "bg-white border"
                   }`}
                 >
                   #{i + 1}
@@ -1309,6 +1475,170 @@ export default function ResumeEditor() {
         </div>
       </div>
 
+      {/* Versions panel */}
+      {Array.isArray(versions) && versions.length > 0 && (
+        <div className="mt-6 rounded border p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Versions</h3>
+            <Button onClick={openCreateVersion} disabled={!resumeId}>
+              Create New Version
+            </Button>
+          </div>
+          <ul className="mt-3 divide-y">
+            {versions.map((v) => (
+              <li key={v._id} className="py-2 flex items-center justify-between">
+                <div className="text-sm">
+                  <div className="font-medium">
+                    {v.name || v._id}{" "}
+                    {v.isDefault ? (
+                      <span className="text-xs text-emerald-600 ml-1">
+                        (default)
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {v.createdAt
+                      ? new Date(v.createdAt).toLocaleString()
+                      : ""}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="text-xs underline"
+                    onClick={async () => {
+                      try {
+                        const raw = localStorage.getItem("authUser");
+                        const u = raw ? JSON.parse(raw) : null;
+                        const uid = u?.user?._id ?? u?._id ?? null;
+                        if (!uid) throw new Error("Missing user session");
+                        const full = await fetchResumeVersion({
+                          userid: uid,
+                          versionid: v._id,
+                        });
+                        if (full?.content) {
+                          setData(full.content);
+                          setFilename(v.name || filename);
+                          setCurrentVersionId(v._id);
+                          setCurrentVersionName(v.name || null);
+                          setRenamingVersion(false);
+                        }
+                      } catch (e: any) {
+                        alert(e?.message ?? "Failed to load version");
+                      }
+                    }}
+                  >
+                    Load
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Create Version Modal */}
+      {showCreateVersion && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border p-6">
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-lg font-semibold">Create New Version</h3>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setShowCreateVersion(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Option A: from default */}
+              <label className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="radio"
+                  className="mt-1"
+                  name="sourceChoice"
+                  value="default"
+                  checked={sourceChoice === "default"}
+                  onChange={() => setSourceChoice("default")}
+                />
+                <div>
+                  <div className="font-medium">From default version</div>
+                  <div className="text-xs text-gray-600">
+                    Clone the current default/master resume version.
+                  </div>
+                </div>
+              </label>
+
+              {/* Option B: from existing (only if versions exist) */}
+              {Array.isArray(versions) && versions.length > 0 && (
+                <div className="p-3 border rounded-lg">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      className="mt-1"
+                      name="sourceChoice"
+                      value="existing"
+                      checked={sourceChoice === "existing"}
+                      onChange={() => setSourceChoice("existing")}
+                    />
+                    <div>
+                      <div className="font-medium">From an existing version</div>
+                      <div className="text-xs text-gray-600">
+                        Clone any previous tailored version.
+                      </div>
+                    </div>
+                  </label>
+
+                  {sourceChoice === "existing" && (
+                    <div className="mt-3">
+                      <select
+                        className="w-full rounded border px-3 py-2 text-sm"
+                        value={existingSourceId}
+                        onChange={(e) => setExistingSourceId(e.target.value)}
+                      >
+                        <option value="" disabled>
+                          Select a version…
+                        </option>
+                        {versions.map((v) => (
+                          <option key={v._id} value={v._id}>
+                            {v.name || v._id}
+                            {v.isDefault ? " (default)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* If no versions, we still show A; B hidden automatically */}
+              {!versions || versions.length === 0 ? (
+                <div className="text-xs text-gray-500">
+                  You don’t have other versions yet. You can start from the default.
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded bg-gray-100"
+                onClick={() => setShowCreateVersion(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-emerald-600 text-white disabled:opacity-50"
+                onClick={handleCreateVersionConfirm}
+                disabled={sourceChoice === "existing" && !existingSourceId}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AI re-gen modals */}
       <JobPickerSheet
         open={showJobPicker}
@@ -1347,7 +1677,6 @@ export default function ResumeEditor() {
         </div>
       )}
 
-
       {/* PDF */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <details className="w-full">
@@ -1376,7 +1705,9 @@ export default function ResumeEditor() {
         >
           <PDFDownloadLink
             document={pdfDoc}
-            fileName={`${filename || "resume"}.pdf`}
+            fileName={`${(currentVersionName || filename || "resume")
+              .trim()
+              .replace(/\s+/g, "_")}.pdf`}
             className="inline-block px-4 py-2 bg-black text-white rounded"
           >
             {({ loading }) => (loading ? "Preparing…" : "Download PDF")}
