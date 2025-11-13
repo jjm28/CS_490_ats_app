@@ -18,7 +18,13 @@ import {
   fetchResumeVersions,
   fetchResumeVersion,
   createResumeVersionNew,
-  updateResumeVersionContent, // <-- added
+  updateResumeVersionContent, // save version content / rename (PATCH :id)
+  // NEW API helpers you should expose in ../../api/resumes (simple fetch wrappers to your existing endpoints):
+  setDefaultResumeVersion,       // POST /api/resume-versions/:id/set-default
+  patchResumeVersionMeta,        // PATCH /api/resume-versions/:id  (status, description, linkJobIds, etc.)
+  deleteResumeVersionById,       // DELETE /api/resume-versions/:id
+  compareResumeVersions,         // POST /api/resume-versions/compare
+  mergeResumeVersions,           // POST /api/resume-versions/merge
 } from "../../api/resumes";
 
 import JobPickerSheet from "../Resume/JobPickerSheet";
@@ -162,7 +168,7 @@ export default function ResumeEditor() {
   const [versions, setVersions] = useState<ResumeVersionLite[] | null>(null);
   const [defaultVersionId, setDefaultVersionId] = useState<string | null>(null);
 
-  // version name / context
+  // version context
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
   const [currentVersionName, setCurrentVersionName] = useState<string | null>(
     null
@@ -176,6 +182,24 @@ export default function ResumeEditor() {
     "default"
   );
   const [existingSourceId, setExistingSourceId] = useState<string>("");
+
+  // Compare & merge state
+  const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [comparePayload, setComparePayload] = useState<{
+    left?: string;
+    right?: string;
+  }>({});
+  const [diff, setDiff] = useState<any | null>(null);
+  const [mergeChoiceSummary, setMergeChoiceSummary] = useState<
+    "base" | "right" | "custom"
+  >("right");
+  const [mergeCustomSummary, setMergeCustomSummary] = useState("");
+  const [mergeChoiceSkills, setMergeChoiceSkills] = useState<
+    "base" | "right" | "union"
+  >("union");
+  const [mergeChoiceExp, setMergeChoiceExp] = useState<Record<string, "base" | "right" | "custom">>({});
+  const [mergeCustomExp, setMergeCustomExp] = useState<Record<string, string>>({});
 
   const safeGetUser = () => {
     const raw = localStorage.getItem("authUser");
@@ -995,6 +1019,156 @@ export default function ResumeEditor() {
     await runAiWithJob(draft);
   };
 
+  /* ---------- Versions helpers ---------- */
+
+  function toggleCompareSelection(id: string) {
+    setSelectedForCompare((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return [prev[1], id]; // keep last + new
+      return [...prev, id];
+    });
+  }
+
+  async function handleSetDefault(vId: string) {
+    try {
+      const user = safeGetUser();
+      await setDefaultResumeVersion({ userid: user._id, versionid: vId });
+      if (resumeId) {
+        const v = await fetchResumeVersions({ userid: user._id, resumeid: resumeId });
+        setVersions(v?.items || []);
+        setDefaultVersionId(v?.defaultVersionId || null);
+      }
+    } catch (e: any) {
+      alert(e?.message ?? "Failed to set default");
+    }
+  }
+
+  async function handleArchive(vId: string) {
+    try {
+      const user = safeGetUser();
+      await patchResumeVersionMeta({
+        userid: user._id,
+        versionid: vId,
+        status: "archived",
+      });
+      if (resumeId) {
+        const v = await fetchResumeVersions({ userid: user._id, resumeid: resumeId });
+        setVersions(v?.items || []);
+      }
+    } catch (e: any) {
+      alert(e?.message ?? "Failed to archive");
+    }
+  }
+
+  async function handleDelete(vId: string) {
+    if (!confirm("Delete this version? This cannot be undone.")) return;
+    try {
+      const user = safeGetUser();
+      await deleteResumeVersionById({ userid: user._id, versionid: vId });
+      if (resumeId) {
+        const v = await fetchResumeVersions({ userid: user._id, resumeid: resumeId });
+        setVersions(v?.items || []);
+        if (currentVersionId === vId) {
+          // if we were editing it, fall back to base
+          setCurrentVersionId(null);
+          setCurrentVersionName(null);
+          // reload base
+          const full = await getFullResume({ userid: user._id, resumeid: resumeId });
+          setFilename(full.filename || "Untitled");
+          setData(full.resumedata || data);
+        }
+      }
+    } catch (e: any) {
+      alert(
+        e?.message?.includes("default")
+          ? "Cannot delete the default version."
+          : e?.message ?? "Failed to delete"
+      );
+    }
+  }
+
+  async function openCompareModal() {
+    if (selectedForCompare.length !== 2) {
+      alert("Pick exactly two versions to compare.");
+      return;
+    }
+    try {
+      const user = safeGetUser();
+      const [left, right] = selectedForCompare;
+      const res = await compareResumeVersions({
+        userid: user._id,
+        leftVersionId: left,
+        rightVersionId: right,
+      });
+      setDiff(res);
+      setComparePayload({ left, right });
+      // reset merge choices
+      setMergeChoiceSummary("right");
+      setMergeCustomSummary("");
+      setMergeChoiceSkills("union");
+      setMergeChoiceExp({});
+      setMergeCustomExp({});
+      setShowCompareModal(true);
+    } catch (e: any) {
+      alert(e?.message ?? "Compare failed");
+    }
+  }
+
+  async function doMerge() {
+    try {
+      const user = safeGetUser();
+      const resolution: Record<string, string> = {};
+
+      // summary
+      if (mergeChoiceSummary === "right") resolution.summary = "right";
+      else if (mergeChoiceSummary === "custom")
+        resolution.summary = `custom:${mergeCustomSummary}`;
+
+      // skills
+      if (mergeChoiceSkills === "right") resolution.skills = "right";
+      else if (mergeChoiceSkills === "union") resolution.skills = "union";
+
+      // experience
+      (diff?.fields?.experience || []).forEach((e: any) => {
+        const key = `experience[${e.index}].bullets`;
+        const choice = mergeChoiceExp[key];
+        if (!choice) return;
+        if (choice === "right") resolution[key] = "right";
+        else if (choice === "custom")
+          resolution[key] = `custom:${(mergeCustomExp[key] || "").trim()}`;
+      });
+
+      const created = await mergeResumeVersions({
+        userid: user._id,
+        baseId: comparePayload.left!,       // treat left as base
+        incomingId: comparePayload.right!,  // right overwrites when chosen
+        name: `Merged ${new Date().toLocaleDateString()}`,
+        description: "Merged via compare tool",
+        resolution,
+      });
+
+      // refresh list
+      if (resumeId) {
+        const v = await fetchResumeVersions({ userid: user._id, resumeid: resumeId });
+        setVersions(v?.items || []);
+        setDefaultVersionId(v?.defaultVersionId || null);
+      }
+
+      // load new merged version
+      const full = await fetchResumeVersion({ userid: user._id, versionid: created._id });
+      if (full?.content) {
+        setData(full.content);
+        setFilename(created?.name || filename);
+        setCurrentVersionId(created._id);
+        setCurrentVersionName(created?.name || null);
+      }
+      setShowCompareModal(false);
+      setSelectedForCompare([]);
+    } catch (e: any) {
+      alert(e?.message ?? "Merge failed");
+    }
+  }
+
   /* ---------- UI ---------- */
 
   return (
@@ -1354,7 +1528,7 @@ export default function ResumeEditor() {
                     </button>
                     <button
                       className="text-xs text-red-600 underline"
-                      onClick={() => removeExperience(i)}
+                      onClick={() => removeProject(i)}
                     >
                       Delete
                     </button>
@@ -1480,58 +1654,103 @@ export default function ResumeEditor() {
         <div className="mt-6 rounded border p-4">
           <div className="flex items-center justify-between">
             <h3 className="font-medium">Versions</h3>
-            <Button onClick={openCreateVersion} disabled={!resumeId}>
-              Create New Version
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={openCreateVersion} disabled={!resumeId}>
+                Create New Version
+              </Button>
+              <Button
+                onClick={openCompareModal}
+                disabled={selectedForCompare.length !== 2}
+              >
+                Compare Selected (2)
+              </Button>
+            </div>
           </div>
           <ul className="mt-3 divide-y">
-            {versions.map((v) => (
-              <li key={v._id} className="py-2 flex items-center justify-between">
-                <div className="text-sm">
-                  <div className="font-medium">
-                    {v.name || v._id}{" "}
-                    {v.isDefault ? (
-                      <span className="text-xs text-emerald-600 ml-1">
-                        (default)
-                      </span>
-                    ) : null}
+            {versions.map((v) => {
+              const selected = selectedForCompare.includes(v._id);
+              return (
+                <li key={v._id} className="py-2 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleCompareSelection(v._id)}
+                      title="Select for comparison"
+                    />
+                    <div className="text-sm">
+                      <div className="font-medium flex items-center gap-2">
+                        {v.name || v._id}
+                        {defaultVersionId && String(defaultVersionId) === String(v._id) ? (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            default
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {v.createdAt ? new Date(v.createdAt).toLocaleString() : ""}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {v.createdAt
-                      ? new Date(v.createdAt).toLocaleString()
-                      : ""}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className="text-xs underline"
-                    onClick={async () => {
-                      try {
-                        const raw = localStorage.getItem("authUser");
-                        const u = raw ? JSON.parse(raw) : null;
-                        const uid = u?.user?._id ?? u?._id ?? null;
-                        if (!uid) throw new Error("Missing user session");
-                        const full = await fetchResumeVersion({
-                          userid: uid,
-                          versionid: v._id,
-                        });
-                        if (full?.content) {
-                          setData(full.content);
-                          setFilename(v.name || filename);
-                          setCurrentVersionId(v._id);
-                          setCurrentVersionName(v.name || null);
-                          setRenamingVersion(false);
+                  <div className="flex gap-2">
+                    <button
+                      className="text-xs underline"
+                      onClick={async () => {
+                        try {
+                          const raw = localStorage.getItem("authUser");
+                          const u = raw ? JSON.parse(raw) : null;
+                          const uid = u?.user?._id ?? u?._id ?? null;
+                          if (!uid) throw new Error("Missing user session");
+                          const full = await fetchResumeVersion({
+                            userid: uid,
+                            versionid: v._id,
+                          });
+                          if (full?.content) {
+                            setData(full.content);
+                            setFilename(v.name || filename);
+                            setCurrentVersionId(v._id);
+                            setCurrentVersionName(v.name || null);
+                            setRenamingVersion(false);
+                          }
+                        } catch (e: any) {
+                          alert(e?.message ?? "Failed to load version");
                         }
-                      } catch (e: any) {
-                        alert(e?.message ?? "Failed to load version");
+                      }}
+                    >
+                      Load
+                    </button>
+                    <button
+                      className="text-xs underline"
+                      onClick={() => handleSetDefault(v._id)}
+                    >
+                      Set default
+                    </button>
+                    <button
+                      className="text-xs underline text-amber-700"
+                      onClick={() => handleArchive(v._id)}
+                    >
+                      Archive
+                    </button>
+                    <button
+                      className="text-xs underline text-red-600"
+                      onClick={() => handleDelete(v._id)}
+                      disabled={
+                        defaultVersionId &&
+                        String(defaultVersionId) === String(v._id)
                       }
-                    }}
-                  >
-                    Load
-                  </button>
-                </div>
-              </li>
-            ))}
+                      title={
+                        defaultVersionId &&
+                        String(defaultVersionId) === String(v._id)
+                          ? "Cannot delete default version"
+                          : "Delete version"
+                      }
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -1603,7 +1822,10 @@ export default function ResumeEditor() {
                         {versions.map((v) => (
                           <option key={v._id} value={v._id}>
                             {v.name || v._id}
-                            {v.isDefault ? " (default)" : ""}
+                            {defaultVersionId &&
+                            String(defaultVersionId) === String(v._id)
+                              ? " (default)"
+                              : ""}
                           </option>
                         ))}
                       </select>
@@ -1633,6 +1855,204 @@ export default function ResumeEditor() {
                 disabled={sourceChoice === "existing" && !existingSourceId}
               >
                 Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compare & Merge Modal */}
+      {showCompareModal && diff && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl border p-6 max-h-[85vh] overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Compare Versions</h3>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setShowCompareModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Summary diff */}
+            {"summary" in (diff.fields || {}) && (
+              <div className="mb-4">
+                <div className="font-medium mb-1">Summary</div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="p-3 rounded border bg-gray-50">
+                    <div className="text-xs text-gray-500 mb-1">Base (left)</div>
+                    <div>{diff.fields.summary.left || <em>—</em>}</div>
+                  </div>
+                  <div className="p-3 rounded border bg-gray-50">
+                    <div className="text-xs text-gray-500 mb-1">Incoming (right)</div>
+                    <div>{diff.fields.summary.right || <em>—</em>}</div>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center gap-3 text-xs">
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="mergeSummary"
+                      checked={mergeChoiceSummary === "right"}
+                      onChange={() => setMergeChoiceSummary("right")}
+                    />
+                    Use incoming
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="mergeSummary"
+                      checked={mergeChoiceSummary === "base"}
+                      onChange={() => setMergeChoiceSummary("base")}
+                    />
+                    Keep base
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="mergeSummary"
+                      checked={mergeChoiceSummary === "custom"}
+                      onChange={() => setMergeChoiceSummary("custom")}
+                    />
+                    Custom
+                  </label>
+                </div>
+                {mergeChoiceSummary === "custom" && (
+                  <textarea
+                    className="mt-2 w-full rounded border px-3 py-2 text-sm"
+                    placeholder="Custom summary"
+                    value={mergeCustomSummary}
+                    onChange={(e) => setMergeCustomSummary(e.target.value)}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Skills diff */}
+            {"skills" in (diff.fields || {}) && (
+              <div className="mb-4">
+                <div className="font-medium mb-1">Skills</div>
+                <div className="text-xs text-gray-600 mb-2">
+                  Added (incoming): {diff.fields.skills.added?.join(", ") || "—"}
+                  {" • "}
+                  Removed (base): {diff.fields.skills.removed?.join(", ") || "—"}
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="mergeSkills"
+                      checked={mergeChoiceSkills === "union"}
+                      onChange={() => setMergeChoiceSkills("union")}
+                    />
+                    Union
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="mergeSkills"
+                      checked={mergeChoiceSkills === "base"}
+                      onChange={() => setMergeChoiceSkills("base")}
+                    />
+                    Keep base
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="mergeSkills"
+                      checked={mergeChoiceSkills === "right"}
+                      onChange={() => setMergeChoiceSkills("right")}
+                    />
+                    Use incoming
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Experience bullets diff */}
+            {(diff.fields?.experience || []).length > 0 && (
+              <div className="mb-4">
+                <div className="font-medium mb-1">Experience bullets</div>
+                <div className="space-y-3">
+                  {diff.fields.experience.map((e: any) => {
+                    const key = `experience[${e.index}].bullets`;
+                    const choice = mergeChoiceExp[key] || "right";
+                    return (
+                      <div key={key} className="border rounded p-3 text-sm">
+                        <div className="font-medium mb-1">Entry #{e.index}</div>
+                        <div className="text-xs text-gray-600 mb-2">
+                          Added (incoming): {e.bullets.added?.join("; ") || "—"}
+                          {" • "}
+                          Removed (base): {e.bullets.removed?.join("; ") || "—"}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="radio"
+                              name={key}
+                              checked={choice === "right"}
+                              onChange={() =>
+                                setMergeChoiceExp((d) => ({ ...d, [key]: "right" }))
+                              }
+                            />
+                            Use incoming
+                          </label>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="radio"
+                              name={key}
+                              checked={choice === "base"}
+                              onChange={() =>
+                                setMergeChoiceExp((d) => ({ ...d, [key]: "base" }))
+                              }
+                            />
+                            Keep base
+                          </label>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="radio"
+                              name={key}
+                              checked={choice === "custom"}
+                              onChange={() =>
+                                setMergeChoiceExp((d) => ({ ...d, [key]: "custom" }))
+                              }
+                            />
+                            Custom
+                          </label>
+                        </div>
+                        {choice === "custom" && (
+                          <textarea
+                            className="mt-2 w-full rounded border px-3 py-2 text-xs"
+                            placeholder="One bullet per line"
+                            value={mergeCustomExp[key] || ""}
+                            onChange={(e) =>
+                              setMergeCustomExp((d) => ({
+                                ...d,
+                                [key]: e.target.value,
+                              }))
+                            }
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded bg-gray-100"
+                onClick={() => setShowCompareModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-emerald-600 text-white"
+                onClick={doMerge}
+              >
+                Merge → New Version
               </button>
             </div>
           </div>
