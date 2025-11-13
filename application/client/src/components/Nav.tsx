@@ -181,6 +181,12 @@ function Navbar() {
                   >
                     My Profile
                   </NavLink>
+                  <NavLink
+                    to="/Notifications"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Notification Settings
+                  </NavLink>
                   <button
                     onClick={logout}
                     className="block w-full text-center px-4 py-2 text-red-600 font-semibold hover:bg-red-50 border-t border-gray-200"

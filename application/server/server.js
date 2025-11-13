@@ -28,6 +28,8 @@ import resumeVersionsRouter from "./routes/resume-versions.js";
 
 import automationRoutes from "./routes/automation.js";
 import { startAutomationRunner } from "./utils/automationRunner.js";
+import { setupNotificationCron } from './jobs/notificationcron.js';
+import notificationRoutes from './routes/notifications.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -90,6 +92,14 @@ try {
   app.use("/api/resumes", attachDevUser, resumesRoute);
   app.use('/api/resume-templates', attachDevUser, templatesRoute);
   app.use("/api/resume-versions", resumeVersionsRouter);
+
+
+  // Notification routes and cron job
+  // After DB connects:
+  setupNotificationCron();
+
+  // With routes (protected by auth):
+  app.use('/api/notifications', notificationRoutes);
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

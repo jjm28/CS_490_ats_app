@@ -6,14 +6,22 @@ Font.register({
   family: "Inter",
   fonts: [
     { src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf" }, // regular
-    { src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf", fontStyle: "italic" },
-    { src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf", fontWeight: 600 },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf",
+      fontStyle: "italic",
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3Fwr08GpBW2Qq4IO.ttf",
+      fontWeight: 600,
+    },
   ],
 });
 
 const tw = createTw({
   theme: {
-    fontFamily: { sans: ["Inter", "Helvetica", "Arial", "sans-serif"] },
+    fontFamily: {
+      sans: ["Inter", "Helvetica", "Arial", "sans-serif"],
+    },
   },
 });
 
@@ -39,11 +47,13 @@ function sanitize(str?: string) {
 
 function sanitizeParagraphs(input: string[] | string): string[] {
   if (!input) return [];
+
   const text = Array.isArray(input) ? input.join("\n") : input;
+
   return text
     .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "")
     .split(/\n{2,}|\n|\r/) // split by newlines or double newlines
-    .map(p => p.trim())
+    .map((p) => p.trim())
     .filter(Boolean);
 }
 
@@ -76,9 +86,11 @@ export default function FormalPDF(props: CoverLetterData) {
   return (
     <Document>
       <Page size="A4" style={tw("p-12 bg-white")}>
+
         {/* Header */}
         <View style={tw("items-center mb-12")}>
           <Text style={tw("text-xl font-semibold")}>{sanitize(name)}</Text>
+
           <Text style={tw("text-[9px] text-gray-500 mt-1 text-center")}>
             {sanitize(address)} · {sanitize(phonenumber)} · {sanitize(email)}
           </Text>
@@ -99,11 +111,35 @@ export default function FormalPDF(props: CoverLetterData) {
 
         {/* Paragraphs */}
         {safeParagraphs.length > 0 ? (
-          safeParagraphs.map((p, i) => (
-            <Text key={i} style={tw("text-sm leading-relaxed mb-4")}>
-              {p}
-            </Text>
-          ))
+          safeParagraphs.map((p, i) => {
+            const isBullet = p.trim().startsWith("-");
+
+            if (isBullet) {
+              // 🧱 Split + render bullets cleanly
+              return (
+                <View key={i} style={tw("mb-2 ml-4")}>
+                  {p
+                    .split(/(?=- )/) // split each bullet
+                    .filter(Boolean)
+                    .map((line, idx) => (
+                      <Text
+                        key={`${i}-${idx}`}
+                        style={tw("text-sm leading-relaxed mb-1")}
+                      >
+                        {line.trim()}
+                      </Text>
+                    ))}
+                </View>
+              );
+            }
+
+            // Normal paragraph
+            return (
+              <Text key={i} style={tw("text-sm leading-relaxed mb-4")}>
+                {p.trim()}
+              </Text>
+            );
+          })
         ) : (
           <Text style={tw("text-sm italic text-gray-500 mb-6")}>
             (No paragraph content)
@@ -111,7 +147,9 @@ export default function FormalPDF(props: CoverLetterData) {
         )}
 
         <Text style={tw("text-sm mb-6")}>{sanitize(closing)}</Text>
+
         <Text style={tw("text-sm italic mb-10")}>{sanitize(signatureNote)}</Text>
+
         <Text style={tw("text-sm")}>{sanitize(name)}</Text>
       </Page>
     </Document>

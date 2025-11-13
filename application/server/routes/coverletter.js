@@ -1,9 +1,13 @@
 import express from 'express';
 import { createCoverletter, updateCoverletter, getCoverletter, createSharedLink, fetchSharedCoverletter,findmostpopular,GetRelevantinfofromuser,GenerateCoverletterBasedON} from '../services/coverletter.service.js';
-import { verifyJWT } from '../middleware/auth.js'; 
+import { verifyJWT } from '../middleware/auth.js';
+import axios from "axios";
 import 'dotenv/config';
 import jwt from "jsonwebtoken";
 import { jobs } from 'googleapis/build/src/apis/jobs/index.js';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+//const genAI_rewrite = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
 
 
 const router = express.Router();
@@ -113,52 +117,136 @@ router.get('/share', async (req, res) => {
   }
 });
 
-  // POST /api/coverletter/generate-coverletterai
-router.post('/generate-coverletterai', async (req, res) => {
+// POST /api/coverletter/generate-coverletterai
+router.post("/generate-coverletterai", async (req, res) => {
   try {
-    // Gather all relevant info on the user
-    const { userid, Jobdata,} = req.body || {};
-    if (!userid || !Jobdata){
-          return res.status(400).json({ error: 'Missing required fields' });
+    // ✅ extract toneSettings here so it exists in this scope
+    const { userid, Jobdata, toneSettings, experienceMode } = req.body || {};
+    
+    console.log("🟦 experienceMode received from frontend:", experienceMode);
+    
 
+    if (!userid || !Jobdata) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
-    const Usersinfo =  await GetRelevantinfofromuser(userid)
-  delete Jobdata._id
-  delete Jobdata.userId
-  delete Jobdata.createdAt
-  delete Jobdata.updatedAt
-  delete Jobdata.__v
-// Will try to get api for company info
-  const CompanyInfo =  {
-    name: Jobdata.company,
-    roleTitle: Jobdata.jobTitle,
-    cultureTraits: ["customer-obsessed", "safety-first", "continuous improvement"],
-    values: ["integrity", "teamwork", "inclusive service"],
-    productLines: ["global network", "loyalty program"],
-    toneHint: "warm, operationally rigorous",
-    recentNews: [
-      { title: "Delta expands transatlantic routes", summary: "New seasonal routes for Summer 2026.", date: "2025-10-20", url: "https://example.com/delta-news" }
-    ]
-  }
-  const AIresponse = await GenerateCoverletterBasedON(  Usersinfo, CompanyInfo ,Jobdata,  { variations: 2, maxWords: 430, temperature: 0.65 , candidateCount: 3 })
+
+    const Usersinfo = await GetRelevantinfofromuser(userid);
+
+    // Clean Jobdata
+    delete Jobdata._id;
+    delete Jobdata.userId;
+    delete Jobdata.createdAt;
+    delete Jobdata.updatedAt;
+    delete Jobdata.__v;
+
+    // 🧠 Fetch live company research
+    let CompanyInfo;
+    try {
+      const resCompany = await axios.post(
+        "http://localhost:5050/api/company/research",
+        { companyName: Jobdata.company }
+      );
+      CompanyInfo = resCompany.data;
+      console.log("✅ Company info fetched for:", Jobdata.company);
+    } catch (err) {
+      console.warn("⚠️ Company research failed, using fallback:", err.message);
+      CompanyInfo = {
+        name: Jobdata.company,
+        roleTitle: Jobdata.jobTitle,
+        description: "No detailed company info available.",
+        mission: "Not specified",
+        values: ["innovation"],
+        cultureTraits: ["inclusive", "collaborative"],
+        recent_news: [],
+        industry: "Not specified",
+      };
+    }
+
+    // Normalize
+    CompanyInfo.roleTitle = Jobdata.jobTitle;
+    CompanyInfo.cultureTraits = [CompanyInfo.culture || "inclusive", "collaborative"];
+    CompanyInfo.values = CompanyInfo.values?.split?.(",") ?? [CompanyInfo.values ?? "innovation"];
+    CompanyInfo.productLines = [CompanyInfo.industry || "Not specified"];
+    CompanyInfo.toneHint = "professional and authentic";
+    CompanyInfo.recentNews =
+      CompanyInfo.news?.map((n) => ({
+        title: n.title,
+        summary: n.summary,
+        date: n.publishedAt,
+        url: n.link,
+      })) ?? [];
+
+      
+    // LOG what we are sending to generator
+    console.log("🔥 Sending into generator → experienceMode:", experienceMode);
+
+    // ✅ Pass toneSettings safely (defaults to empty object if missing)
+    const AIresponse = await GenerateCoverletterBasedON(
+      Usersinfo,
+      CompanyInfo,
+      Jobdata,
+      {
+        variations: 2,
+        maxWords: 430,
+        temperature: 0.65,
+        candidateCount: 3,
+        toneSettings: toneSettings || {},
+        experienceMode: experienceMode === true,
+      }
+    );
+
     return res.status(201).json(AIresponse);
   } catch (err) {
-    console.log(err)
-    return res.status(500).json({ error: "Share link invalid or expired" });
+    console.error("❌ Error in /generate-coverletterai:", err);
+    return res.status(500).json({ error: "Failed to generate cover letter" });
   }
 });
 
-// export type CoverLetterData = {
-//   name: string;
-//   phonenumber: string;
-//   email: string;
-//   address: string;
-//   date: string;
-//   recipientLines: string[];
-//   greeting: string;
-//   paragraphs: string[] | string; // allow either
-//   closing: string;
-//   signatureNote: string;
-// };
+// POST /api/coverletter/rewrite
+router.post("/rewrite", async (req, res) => {
+  try {
+    console.log("🔥 REWRITE BODY:", req.body);
+    const { text, instruction } = req.body;
+
+    if (!text || !instruction) {
+      return res.status(400).json({ error: "Missing text or instruction" });
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
+
+    // Use same model as your main generator (because your version supports it!)
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction:
+        "Rewrite ONLY the provided text. Do not add new ideas. Return only the rewritten text. No markdown."
+    });
+
+    const prompt = `
+Rewrite the following text using this instruction:
+
+Instruction: ${instruction}
+
+Text:
+${text}
+
+Return only the rewritten text. No headers, no markdown, no explanations.
+`;
+
+    const result = await model.generateContent(prompt);
+    const out = result.response.text().trim();
+
+    return res.json({ rewritten: out });
+
+  } catch (err) {
+    console.error("🔥 Rewrite API Error:", err);
+    return res.status(500).json({
+      error: "Rewrite failed",
+      details: err.message
+    });
+  }
+});
+
+
+
 
 export default router;

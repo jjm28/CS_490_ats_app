@@ -486,6 +486,14 @@ export default function ResumeEditor() {
   const [mergeCustomExp, setMergeCustomExp] = useState<Record<string, string>>({});
   const [validation, setValidation] = useState<ValidationSummary | null>(null);
   const [lastValidatedAt, setLastValidatedAt] = useState<string | null>(null);
+// --- sharing state ---
+const [showShareSettings, setShowShareSettings] = useState(false);
+const [shareVisibility, setShareVisibility] = useState<
+  "public" | "unlisted" | "restricted"
+>("unlisted");
+const [shareAllowComments, setShareAllowComments] = useState(true);
+const [shareLoading, setShareLoading] = useState(false);
+const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   const safeGetUser = () => {
     const raw = localStorage.getItem("authUser");
@@ -1129,23 +1137,37 @@ export default function ResumeEditor() {
     navigate("/resumes");
   };
 
-  const handleShare = async () => {
-    try {
-      const raw = localStorage.getItem("authUser");
-      const u = raw ? JSON.parse(raw) : null;
-      const uid = u?.user?._id ?? u?._id ?? null;
-      if (!uid || !resumeId) throw new Error("Missing session or resume id");
-      const out = await createSharedResume({
-        userid: uid,
-        resumeid: resumeId,
-        resumedata: data,
-      });
-      await navigator.clipboard.writeText(out.url);
-      alert("Share link copied!");
-    } catch (e: any) {
-      setErr(e?.message ?? "Share failed.");
-    }
-  };
+// OLD handleShare -> now a "confirm" based on settings
+const handleShareConfirm = async () => {
+  try {
+    setShareLoading(true);
+    setErr(null);
+
+    const raw = localStorage.getItem("authUser");
+    const u = raw ? JSON.parse(raw) : null;
+    const uid = u?.user?._id ?? u?._id ?? null;
+    if (!uid || !resumeId) throw new Error("Missing session or resume id");
+
+    const out = await createSharedResume({
+      userid: uid,
+      resumeid: resumeId,
+      resumedata: data,
+      visibility: shareVisibility,
+      allowComments: shareAllowComments,
+    });
+
+    setShareUrl(out.url || null);
+    await navigator.clipboard.writeText(out.url);
+    alert("Share link copied to clipboard!");
+
+    setShowShareSettings(false);
+  } catch (e: any) {
+    setErr(e?.message ?? "Share failed.");
+  } finally {
+    setShareLoading(false);
+  }
+};
+
 
   const handleExport = () => {
     const payload = {
@@ -1509,9 +1531,13 @@ export default function ResumeEditor() {
         </h1>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <Button onClick={handleShare} disabled={!resumeId}>
-            Share
-          </Button>
+            <Button
+          onClick={() => setShowShareSettings(true)}
+          disabled={!resumeId}
+        >
+          Share
+        </Button>
+
 
           <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
             File name:
@@ -2302,6 +2328,123 @@ export default function ResumeEditor() {
           </div>
         </div>
       )}
+
+{/* Share Settings Modal */}
+{showShareSettings && (
+  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
+    <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border p-6">
+      <div className="flex items-start justify-between mb-4">
+        <h3 className="text-lg font-semibold">Share resume</h3>
+        <button
+          className="text-gray-500 hover:text-gray-700"
+          onClick={() => setShowShareSettings(false)}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      <p className="text-sm text-gray-600 mb-4">
+        Choose who can access this shared link and whether they can leave comments.
+      </p>
+
+      {/* Visibility */}
+      <div className="mb-4">
+        <div className="text-sm font-medium mb-1">Visibility</div>
+        <div className="space-y-2 text-sm">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="public"
+              checked={shareVisibility === "public"}
+              onChange={() => setShareVisibility("public")}
+            />
+            <div>
+              <div className="font-medium">Public</div>
+              <div className="text-xs text-gray-500">
+                Anyone with the link can view.
+              </div>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="unlisted"
+              checked={shareVisibility === "unlisted"}
+              onChange={() => setShareVisibility("unlisted")}
+            />
+            <div>
+              <div className="font-medium">Unlisted</div>
+              <div className="text-xs text-gray-500">
+                Only people you send the link to can view.
+              </div>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="restricted"
+              checked={shareVisibility === "restricted"}
+              onChange={() => setShareVisibility("restricted")}
+            />
+            <div>
+              <div className="font-medium">Restricted</div>
+              <div className="text-xs text-gray-500">
+                Only approved reviewers (e.g., your account or whitelisted users) can view.
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      {/* Allow comments */}
+      <div className="mb-4">
+        <label className="flex items-start gap-2 cursor-pointer text-sm">
+          <input
+            type="checkbox"
+            checked={shareAllowComments}
+            onChange={(e) => setShareAllowComments(e.target.checked)}
+          />
+          <div>
+            <div className="font-medium">Allow comments</div>
+            <div className="text-xs text-gray-500">
+              Reviewers can leave feedback on this resume.
+            </div>
+          </div>
+        </label>
+      </div>
+
+      {/* Last shared URL (optional) */}
+      {shareUrl && (
+        <div className="mb-4 text-xs text-gray-600 break-all bg-gray-50 border rounded px-3 py-2">
+          Last share link: <span className="font-mono">{shareUrl}</span>
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          className="px-4 py-2 rounded bg-gray-100 text-sm"
+          onClick={() => setShowShareSettings(false)}
+          disabled={shareLoading}
+        >
+          Cancel
+        </button>
+        <button
+          className="px-4 py-2 rounded bg-emerald-600 text-white text-sm disabled:opacity-60"
+          onClick={handleShareConfirm}
+          disabled={shareLoading}
+        >
+          {shareLoading ? "Sharing…" : "Copy share link"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Compare & Merge Modal */}
       {showCompareModal && diff && (
