@@ -2203,7 +2203,7 @@ const handleShareConfirm = async () => {
                       className="text-xs underline text-red-600"
                       onClick={() => handleDelete(v._id)}
                       disabled={
-                        defaultVersionId &&
+                        defaultVersionId != null &&
                         String(defaultVersionId) === String(v._id)
                       }
                       title={
