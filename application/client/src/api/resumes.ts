@@ -158,10 +158,14 @@ export async function createSharedResume({
   userid,
   resumeid,
   resumedata,
+  visibility,
+  allowComments,
 }: {
   userid: string;
   resumeid: string;
   resumedata: ResumeData;
+  visibility: string,
+  allowComments: boolean,
 }) {
   const r = await fetch(
     `${API}/resumes/${encodeURIComponent(
@@ -170,7 +174,7 @@ export async function createSharedResume({
     {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ resumedata }),
+      body: JSON.stringify({ resumedata,visibility,allowComments}),
     }
   );
   if (!r.ok) throw new Error("Share failed");
