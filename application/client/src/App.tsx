@@ -47,6 +47,7 @@ import CompanyResearch from './components/Job_Tools/CompanyResearch';
 import AutomationRules from "./components/AutomationRules/AutomationRules";
 import RuleForm from "./components/AutomationRules/RuleForm";
 
+import SalaryResearch from './components/Job_Tools/SalaryResearchPage';
 
 function App() {
   const location = useLocation();
@@ -108,6 +109,7 @@ function App() {
             element={<PrivateRoute><ApplicationsPage /></PrivateRoute>}
           />
           <Route path="/Jobs/:id" element={<PrivateRoute><JobDetailsPage /></PrivateRoute>} />
+          <Route path="/SalaryResearch" element={<PrivateRoute><SalaryResearch /></PrivateRoute>} />
           <Route
             path="/Applications/Analytics"
             element={<PrivateRoute><ApplicationAnalytics /></PrivateRoute>}

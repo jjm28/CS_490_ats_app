@@ -2,16 +2,21 @@
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
+    "@google/generative-ai": "^0.24.1",
     "@hello-pangea/dnd": "^18.0.1",
     "@react-pdf/renderer": "^4.3.1",
     "axios": "^1.13.1",
+    "cheerio": "^1.1.2",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "mongodb": "^7.0.0",
     "mongoose": "^8.19.3",
+    "puppeteer": "^24.30.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-pdf-tailwind": "^3.0.0",
-    "react-router-dom": "^7.9.5"
+    "react-router-dom": "^7.9.5",
+    "recharts": "^3.4.1",
+    "turndown": "^7.2.2"
   }
 }
