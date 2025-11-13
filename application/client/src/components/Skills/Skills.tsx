@@ -14,6 +14,7 @@ import { DragDropContext } from "@hello-pangea/dnd";
 import type { DropResult } from "@hello-pangea/dnd";
 import Button from "../StyledComponents/Button";
 import Card from "../StyledComponents/Card";
+import SkillInsightsPanel from "./InsightsPanel";
 
 //Define type for proficiency levels
 export type Proficiency = "Beginner" | "Intermediate" | "Advanced" | "Expert";
@@ -195,6 +196,8 @@ export default function Skills({ onUpdate }: SkillsProps) {
       </div>
 
       {!isAdding && !showForm && (
+      <>
+        {/* 🔍 Search bar */}
         <div className="skills-search">
           <input
             type="text"
@@ -204,7 +207,11 @@ export default function Skills({ onUpdate }: SkillsProps) {
             className="form-input"
           />
         </div>
-      )}
+
+        {/* 📊 Insights panel below search */}
+        <SkillInsightsPanel skills={skills} />
+      </>
+    )}
 
       {showForm && (
         <Card>

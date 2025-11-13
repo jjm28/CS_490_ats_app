@@ -7,6 +7,7 @@ import {
 } from "@headlessui/react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Menu, X, User, ChevronDown } from "lucide-react";
 import "../styles/Navbar.css";
 import Button from "./StyledComponents/Button";
 
@@ -33,7 +34,6 @@ function Navbar() {
 
   const logout = () => {
     setLoggedIn(false);
-    //localStorage.removeItem("authToken"); //added to fix issues with different accounts having same profile and employment
     localStorage.removeItem("devUserId");
     navigate("/Logout");
   };
@@ -49,12 +49,6 @@ function Navbar() {
           </div>
 
           <div className="hidden md:flex space-x-4">
-            {/* <NavLink to="/" className={({ isActive }) =>
-              `rounded-md px-3 py-2 text-lg font-medium ${isActive ? "bg-(--brand-sage) text-(--brand-navy)"
-                : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-              }`
-            }>Home</NavLink> */}
-
             <NavLink
               to="/ProfileDashboard"
               className={({ isActive }) =>
@@ -66,34 +60,13 @@ function Navbar() {
             >
               Dashboard
             </NavLink>
-            <NavLink
-              to="/coverletter"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${isActive
-                  ? "bg-(--brand-sage) text-(--brand-navy)"
-                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              CoverLetters
-            </NavLink>
-            <NavLink
-              to="/ProfilePage"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${isActive
-                  ? "bg-(--brand-sage) text-(--brand-navy)"
-                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Profile
-            </NavLink>
 
             <Popover className="relative">
-              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
+              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Qualifications
+                <ChevronDown size={16} />
               </PopoverButton>
-              <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg">
+              <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
                 <NavLink
                   to="/Skills"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -114,11 +87,13 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
+
             <Popover className="relative">
-              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
+              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Experience
+                <ChevronDown size={16} />
               </PopoverButton>
-              <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg">
+              <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
                 <NavLink
                   to="/Projects"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -134,43 +109,51 @@ function Navbar() {
               </PopoverPanel>
             </Popover>
             <Popover className="relative">
-              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
-                Resumes
+              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
+                Documents
+                <ChevronDown size={16} />
               </PopoverButton>
-              <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg">
-                {/* OLD: <NavLink to="/templates" ...>Resume Templates</NavLink> */}
-                <NavLink to="/resumes/new" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+              <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
+                <NavLink
+                  to="/resumes/new"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
                   Resume Templates
                 </NavLink>
-                <NavLink to="/resumes" className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
-                  Resumes
+                <NavLink
+                  to="/resumes"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  My Resumes
+                </NavLink>
+                <NavLink
+                  to="/coverletter"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Cover Letters
                 </NavLink>
               </PopoverPanel>
             </Popover>
-
-            <NavLink
-              to="/Jobs"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${isActive
-                  ? "bg-(--brand-sage) text-(--brand-navy)"
-                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Jobs
-            </NavLink>
-            <NavLink
-              to="/Applications"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${isActive
-                  ? "bg-(--brand-sage) text-(--brand-navy)"
-                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Applications
-            </NavLink>
-
+            <Popover className="relative">
+              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
+                Job Search
+                <ChevronDown size={16} />
+              </PopoverButton>
+              <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
+                <NavLink
+                  to="/Jobs"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Browse Jobs
+                </NavLink>
+                <NavLink
+                  to="/Applications"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  My Applications
+                </NavLink>
+              </PopoverPanel>
+            </Popover>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -187,44 +170,32 @@ function Navbar() {
                 </Button>
               </>
             ) : (
-              <Button variant="primary" onClick={logout}>
-                Log out
-              </Button>
+              <Popover className="relative">
+                <PopoverButton className="p-2 text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-full focus:outline-none">
+                  <User size={24} />
+                </PopoverButton>
+                <PopoverPanel className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
+                  <NavLink
+                    to="/ProfilePage"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    My Profile
+                  </NavLink>
+                  <button
+                    onClick={logout}
+                    className="block w-full text-center px-4 py-2 text-red-600 font-semibold hover:bg-red-50 border-t border-gray-200"
+                  >
+                    Log Out
+                  </button>
+                </PopoverPanel>
+              </Popover>
             )}
 
             <Disclosure as="div" className="md:hidden">
               {({ open }) => (
                 <>
                   <Disclosure.Button className="p-2 text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md focus:outline-none">
-                    {!open ? (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        className="size-6"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        className="size-6"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    )}
+                    {!open ? <Menu size={24} /> : <X size={24} />}
                   </Disclosure.Button>
                   <Disclosure.Panel className="absolute top-16 right-0 w-48 bg-gray-800 rounded-md shadow-lg py-2 z-50">
                     <NavLink
@@ -237,8 +208,9 @@ function Navbar() {
                       to="/ProfilePage"
                       className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
-                      Profile
+                      My Profile
                     </NavLink>
+                    <div className="border-t border-gray-700 my-2"></div>
                     <NavLink
                       to="/Skills"
                       className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
@@ -257,6 +229,7 @@ function Navbar() {
                     >
                       Certifications
                     </NavLink>
+                    <div className="border-t border-gray-700 my-2"></div>
                     <NavLink
                       to="/Projects"
                       className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
@@ -269,19 +242,39 @@ function Navbar() {
                     >
                       Employment
                     </NavLink>
+                    <div className="border-t border-gray-700 my-2"></div>
+                    <NavLink
+                      to="/resumes"
+                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    >
+                      Resumes
+                    </NavLink>
+                    <NavLink
+                      to="/coverletter"
+                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                    >
+                      Cover Letters
+                    </NavLink>
+                    <div className="border-t border-gray-700 my-2"></div>
                     <NavLink
                       to="/Jobs"
                       className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
-                      Jobs
+                      Browse Jobs
                     </NavLink>
                     <NavLink
-                      to="/Jobs"
+                      to="/Applications"
                       className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
-                      Applications
+                      My Applications
                     </NavLink>
-
+                    <div className="border-t border-gray-700 my-2"></div>
+                    <button
+                      onClick={logout}
+                      className="block w-full text-center px-4 py-2 text-red-600 font-semibold hover:bg-gray-700"
+                    >
+                      Log Out
+                    </button>
                   </Disclosure.Panel>
                 </>
               )}

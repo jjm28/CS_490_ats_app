@@ -62,6 +62,7 @@ const JobCard: React.FC<ExtendedJobCardProps> = ({
         >
           ☰
         </div>
+
       </div>
 
       <div className="font-semibold text-gray-900">{job.jobTitle}</div>

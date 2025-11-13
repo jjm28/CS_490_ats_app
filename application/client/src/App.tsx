@@ -30,7 +30,6 @@ import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
 import Projects from "./components/Projects/Projects";
 
-import CompanyResearch from './components/Job_Tools/CompanyResearch';
 import JobsEntry from './components/Jobs/JobsEntry';
 import NewResume from './components/Resume/NewResume';
 import ResumeEditor from './components/Resume/ResumeEditor';
@@ -41,6 +40,7 @@ import ApplicationsPage from './components/Applications/ApplicationsPage';
 import JobDetailsPage from './components/Jobs/JobDetailsPage';
 import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
 import './App.css';
+import CompanyResearch from './components/Job_Tools/CompanyResearch';
 
 function App() {
   const location = useLocation();
@@ -66,6 +66,7 @@ function App() {
           <Route path="/Registration" element={<Registration />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/Dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} /> {/* Protected Routes */}
+          <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Skills" element={<PrivateRoute><Skills /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Login" element={<LoginPage />} />
           <Route path="/ProfileDashboard" element={<PrivateRoute><ProfileDashboard /></PrivateRoute>} />{/* Protected Routes */}
@@ -81,10 +82,9 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/Education" element={<PrivateRoute><Education /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} /> {/* Protected Routes */}
-          <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
           <Route path="/company-research" element={<PrivateRoute><CompanyResearch /></PrivateRoute>} />
           <Route path="/Jobs" element={<PrivateRoute><JobsEntry /></PrivateRoute>} />
-          <Route path="/Jobs/Pipeline" element={<Navigate to="/Applications" replace />} />
+          <Route path="/Jobs/Pipeline" element={<PrivateRoute><Navigate to="/Applications" replace /></PrivateRoute>} />
           <Route path="/Jobs/Calendar" element={<PrivateRoute><DeadlineCalendar /></PrivateRoute>} />
           <Route path="/coverletter" element={<PrivateRoute><Coverletter /></PrivateRoute>} />
           <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
@@ -97,6 +97,7 @@ function App() {
           <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
           <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
           <Route path="/Applications" element={<ApplicationsPage />} />
+          <Route path="/Applications" element={<PrivateRoute><ApplicationsPage /></PrivateRoute>} />
           <Route path="/Jobs/:id" element={<PrivateRoute><JobDetailsPage /></PrivateRoute>} />
           <Route
             path="/Applications/Analytics"
