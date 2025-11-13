@@ -105,7 +105,14 @@ const JobSchema = new Schema({
         type: String,
         default: ''
     },
-
+    //  NEW FIELDS - for matching
+    matchScore: { type: Number, default: null }, // e.g., 73
+    matchBreakdown: {
+        skills: { type: Number, default: null }, // e.g., 80
+        experience: { type: Number, default: null }, // e.g., 70
+        education: { type: Number, default: null } // e.g., 60
+    },
+    skillGaps: { type: [String], default: [] },
     // Application history tracking
     applicationHistory: [ApplicationHistorySchema],
 

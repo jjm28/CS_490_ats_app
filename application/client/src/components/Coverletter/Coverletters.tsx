@@ -82,6 +82,7 @@ const handleImport = async () => {
       try {
         const text = await file.text();
         const json = JSON.parse(text);
+           console.log(json)
 
         // Validate that it's shaped like your CoverLetterData
         if (

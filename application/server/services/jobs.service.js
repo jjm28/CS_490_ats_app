@@ -283,12 +283,10 @@ export async function addApplicationHistory({ userId, id, action }) {
   try {
     const job = await Jobs.findOne({ _id: id, userId });
     if (!job) return null;
-
     job.applicationHistory.push({
       action: action.trim(),
       timestamp: new Date()
     });
-
     await job.save();
     return job;
   } catch (err) {
