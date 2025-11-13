@@ -15,6 +15,8 @@ import {
   Save,
   Search,
   Settings,
+  Clock,      // ADD THIS
+  Archive,    // ADD THIS
   
   // User
   User,
@@ -42,6 +44,8 @@ const ICONS = {
   save: Save,
   search: Search,
   settings: Settings,
+  clock: Clock,        // ADD THIS
+  archive: Archive,    // ADD THIS
   user: User,
   login: LogIn,
   logout: LogOut,
