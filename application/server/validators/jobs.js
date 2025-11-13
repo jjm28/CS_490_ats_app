@@ -93,9 +93,9 @@ export async function validateJobCreate(input) {
     const urlPattern = /^https?:\/\/.+/;
     if (!urlPattern.test(input.jobPostingUrl)) {
       errors.jobPostingUrl = 'Invalid URL format';
-    } else if (input.jobPostingUrl.length > 500) {
-      errors.jobPostingUrl = 'URL must be 500 characters or less';
-    }
+    } // else if (input.jobPostingUrl.length > 500) {
+    //   errors.jobPostingUrl = 'URL must be 500 characters or less';
+    // }
   }
 
   if (input.applicationDeadline) {
@@ -104,6 +104,15 @@ export async function validateJobCreate(input) {
       errors.applicationDeadline = 'Invalid date format';
     }
   }
+
+  // Auto-archive validation
+  if (input.autoArchiveDays !== undefined && input.autoArchiveDays !== null) {
+    const n = Number(input.autoArchiveDays);
+    if (isNaN(n) || n < 1) {
+      errors.autoArchiveDays = 'Auto-archive days must be a positive number';
+    }
+  }
+
 
   // Status validation
   if (input.status !== undefined && !VALID_STATUSES.includes(input.status)) {
@@ -146,6 +155,16 @@ export async function validateJobCreate(input) {
     notes: input.notes?.trim() || '',
     salaryNotes: input.salaryNotes?.trim() || '',
     interviewNotes: input.interviewNotes?.trim() || '',
+    autoArchiveDays: input.autoArchiveDays
+      ? Number(input.autoArchiveDays)
+      : 60,
+    autoArchiveDate: input.createdAt
+      ? new Date(
+        new Date(input.createdAt).getTime() +
+        (input.autoArchiveDays || 60) * 24 * 60 * 60 * 1000
+      )
+      : undefined,
+
   };
 
   return { ok: true, value };
@@ -197,9 +216,9 @@ export async function validateJobUpdate(input) {
     const urlPattern = /^https?:\/\/.+/;
     if (!urlPattern.test(input.jobPostingUrl)) {
       errors.jobPostingUrl = 'Invalid URL format';
-    } else if (input.jobPostingUrl.length > 500) {
-      errors.jobPostingUrl = 'URL must be 500 characters or less';
-    }
+    } // else if (input.jobPostingUrl.length > 500) {
+    //   errors.jobPostingUrl = 'URL must be 500 characters or less';
+    // }
   }
 
   if (input.applicationDeadline !== undefined) {

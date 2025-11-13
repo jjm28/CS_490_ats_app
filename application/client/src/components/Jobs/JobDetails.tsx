@@ -12,6 +12,7 @@ import {
   type JobStatus,
   type Contact,
 } from "../../types/jobs.types";
+import InterviewScheduler from "./InterviewScheduler";
 
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
@@ -435,6 +436,11 @@ export default function JobDetails({
             }
           />
 
+          {/* Interview Scheduling Section */}
+          <div className="mt-8">
+            <InterviewScheduler jobId={job._id} />
+          </div>
+
           {/* Status History */}
           <section>
             <h3 className="font-semibold text-lg mb-3">Status History</h3>
@@ -738,9 +744,8 @@ function ContactFields({
               type="email"
               value={contact?.email || ""}
               onChange={(e) => handleFieldChange("email", e.target.value)}
-              className={`w-full form-input ${
-                emailError ? "border-red-500" : ""
-              }`}
+              className={`w-full form-input ${emailError ? "border-red-500" : ""
+                }`}
               placeholder="john@company.com"
             />
           ) : (

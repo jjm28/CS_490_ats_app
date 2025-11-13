@@ -6,13 +6,14 @@ import Card from "../StyledComponents/Card";
 import "../../App.css";
 import "../../styles/StyledComponents/FormInput.css";
 import JobDetails from "./JobDetails";
+import { useToast } from "../../hooks/useToast";
+
 import {
   type Job,
   type JobStatus,
   type ValidationErrors,
   type JobFormData,
   formatSalary,
-  formatDate,
   extractDecimal,
   STATUS_DISPLAY,
 } from "../../types/jobs.types";
@@ -20,6 +21,8 @@ import DeadlineIndicator from "./DeadlineIndicator";
 import { getDeadlineInfo } from "../../utils/deadlines";
 import ExtendDeadlineModal from "./ExtendDeadlineModal";
 import BulkDeadlineManager from "./BulkDeadlineManager";
+import { toggleArchiveJob } from "../../api/jobs";
+import JobUrlImporter from "./JobUrlImporter";
 
 // Configuration
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
@@ -81,7 +84,9 @@ function JobsEntry() {
     description: "",
     industry: "",
     type: "",
+    autoArchiveDays: "60",
   });
+  const { showToast, Toast } = useToast();
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
@@ -110,6 +115,7 @@ function JobsEntry() {
 
   const [extendingJob, setExtendingJob] = useState<Job | null>(null);
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+  const [archivingJob, setArchivingJob] = useState<Job | null>(null);
 
   const token = useMemo(
     () =>
@@ -601,6 +607,34 @@ function JobsEntry() {
     }
   };
 
+  const handleImportSuccess = (importedData: any) => {
+    // Merge imported data with existing form data
+    setFormData((prev) => ({
+      ...prev,
+      jobTitle: importedData.jobTitle || prev.jobTitle,
+      company: importedData.company || prev.company,
+      location: importedData.location || prev.location,
+      description: importedData.description || prev.description,
+      jobPostingUrl: importedData.jobPostingUrl || prev.jobPostingUrl,
+    }));
+
+    // Clear any previous errors for imported fields
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      if (importedData.jobTitle) delete newErrors.jobTitle;
+      if (importedData.company) delete newErrors.company;
+      return newErrors;
+    });
+
+    setFlash("Job data imported! Please review and complete the form.");
+    setTimeout(() => setFlash(null), 5000);
+  };
+
+  const handleImportError = (error: string) => {
+    setErr(error);
+    setTimeout(() => setErr(null), 5000);
+  };
+
   // Auto-save last search when filters change
   useEffect(() => {
     if (isLoggedIn && hasActiveFilters) {
@@ -851,6 +885,9 @@ function JobsEntry() {
       payload.applicationDeadline = formData.applicationDeadline;
     if (formData.salaryMin) payload.salaryMin = parseFloat(formData.salaryMin);
     if (formData.salaryMax) payload.salaryMax = parseFloat(formData.salaryMax);
+    payload.autoArchiveDays = formData.autoArchiveDays
+      ? parseInt(formData.autoArchiveDays)
+      : 60;
 
     try {
       const url = editingJob
@@ -925,6 +962,7 @@ function JobsEntry() {
       description: job.description || "",
       industry: job.industry,
       type: job.type,
+      autoArchiveDays: job.autoArchiveDays?.toString() || "60",
     });
     setShowForm(true);
   };
@@ -963,6 +1001,54 @@ function JobsEntry() {
     }
   };
 
+  const handleArchive = async (jobId: string, reason?: string) => {
+    const token =
+      localStorage.getItem("authToken") || localStorage.getItem("token") || "";
+
+    try {
+      // 🔹 Archive the job
+      await toggleArchiveJob(jobId, true, reason);
+
+      // Find the job so we can restore it easily on undo
+      const archivedJob = jobs.find((j) => j._id === jobId);
+
+      // 🔹 Instantly remove from the UI
+      setJobs((prevJobs) => prevJobs.filter((j) => j._id !== jobId));
+
+      // 🔹 Show toast with Undo option
+      showToast("Job archived", {
+        actionLabel: "Undo",
+        onAction: async () => {
+          // Un-archive job on undo
+          const res = await fetch(`${API_BASE}/api/jobs/${jobId}/archive`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ archive: false }),
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            console.error("Undo failed:", text);
+            return showToast("Undo failed. Please refresh.");
+          }
+
+          // Restore the job back into the list immediately
+          if (archivedJob) {
+            setJobs((prev) => [archivedJob, ...prev]);
+          }
+
+          showToast("Undo successful!");
+        },
+      });
+    } catch (err) {
+      console.error("Error archiving job:", err);
+      showToast("Failed to archive job.");
+    }
+  };
+
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text;
     const parts = text.split(new RegExp(`(${query})`, "gi"));
@@ -982,6 +1068,12 @@ function JobsEntry() {
   };
 
   if (loading) return <p className="p-6">Loading...</p>;
+  const remainingDays = (autoArchiveDate: string | Date) => {
+    const target = new Date(autoArchiveDate);
+    const now = new Date();
+    const diffMs = target.getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -1009,6 +1101,13 @@ function JobsEntry() {
         });
 
         if (overdueJobs.length === 0 && urgentJobs.length === 0) return null;
+
+        const remainingDays = (autoArchiveDate: string | Date) => {
+          const target = new Date(autoArchiveDate);
+          const now = new Date();
+          const diffMs = target.getTime() - now.getTime();
+          return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        };
 
         return (
           <div className="mb-6">
@@ -1072,6 +1171,12 @@ function JobsEntry() {
                   {editingJob ? "Edit Job Opportunity" : "Add Job Opportunity"}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {!editingJob && (
+                    <JobUrlImporter
+                      onImportSuccess={handleImportSuccess}
+                      onImportError={handleImportError}
+                    />
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="form-label">Job Title *</label>
@@ -1217,7 +1322,14 @@ function JobsEntry() {
                     </div>
 
                     <div>
-                      <label className="form-label">Job Posting URL</label>
+                      <label className="form-label">
+                        Job Posting URL
+                        {formData.jobPostingUrl && (
+                          <span className="text-xs text-green-600 ml-2">
+                            ✓ Auto-filled
+                          </span>
+                        )}
+                      </label>
                       <input
                         type="url"
                         name="jobPostingUrl"
@@ -1225,6 +1337,10 @@ function JobsEntry() {
                         onChange={handleInputChange}
                         className={`form-input ${
                           errors.jobPostingUrl ? "!border-red-500" : ""
+                        } ${
+                          formData.jobPostingUrl && !errors.jobPostingUrl
+                            ? "bg-green-50"
+                            : ""
                         }`}
                         placeholder="https://example.com/job/123"
                       />
@@ -1245,6 +1361,25 @@ function JobsEntry() {
                         className="form-input"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="form-label">
+                      Auto-Archive After (Days)
+                    </label>
+                    <input
+                      type="number"
+                      name="autoArchiveDays"
+                      value={formData.autoArchiveDays}
+                      onChange={handleInputChange}
+                      className="form-input"
+                      placeholder="Default: 60"
+                      min="1"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Jobs will automatically archive after this many days
+                      (default: 60).
+                    </p>
                   </div>
 
                   <div>
@@ -1284,8 +1419,8 @@ function JobsEntry() {
           )}
 
           {/* ========================================
-              SEARCH AND FILTER UI
-              ======================================== */}
+                          SEARCH AND FILTER UI
+                          ======================================== */}
           <div className="mb-6">
             <Card>
               {/* Search Bar & Saved Searches Toggle */}
@@ -1649,6 +1784,11 @@ function JobsEntry() {
             onBulkExtend={handleBulkExtend}
             onBulkSetDeadline={handleBulkSetDeadline}
             onBulkRemoveDeadline={handleBulkRemoveDeadline}
+            onJobsArchived={(archivedIds) =>
+              setJobs((prev) =>
+                prev.filter((job) => !archivedIds.includes(job._id))
+              )
+            }
           />
 
           {/* Jobs List */}
@@ -1738,6 +1878,23 @@ function JobsEntry() {
                               />
                             </div>
                           </div>
+                          {job.autoArchiveDate && (
+                            <p className="mt-1 text-sm text-gray-600">
+                              <span className="font-medium text-gray-700">
+                                Days Until Auto Archive:
+                              </span>{" "}
+                              <span
+                                className={
+                                  remainingDays(job.autoArchiveDate) <= 7
+                                    ? "text-red-600 font-semibold"
+                                    : "text-gray-800"
+                                }
+                              >
+                                {remainingDays(job.autoArchiveDate)}
+                              </span>
+                            </p>
+                          )}
+
                           {job.description && (
                             <p className="mt-2 text-sm text-gray-600 line-clamp-2">
                               {searchQuery
@@ -1790,6 +1947,15 @@ function JobsEntry() {
                           Delete
                         </Button>
                       </div>
+                      <Button
+                        variant="secondary"
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          setArchivingJob(job); // you'll add this state next
+                        }}
+                      >
+                        📦 Archive
+                      </Button>
                     </div>
                   </Card>
                 </li>
@@ -1806,7 +1972,20 @@ function JobsEntry() {
                 📅 View Calendar
               </Button>
               <Button onClick={() => navigate("/Jobs/Pipeline")}>
-                View Pipeline
+                View Application Pipeline
+              </Button>
+              <Button
+                onClick={() => navigate("/Jobs/Archived")}
+                className="bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                📦 View Archived Jobs
+              </Button>
+
+              <Button
+                onClick={() => navigate("/Jobs/Stats")}
+                className="bg-teal-600 hover:bg-teal-700 text-white"
+              >
+                📈 View Job Stats
               </Button>
             </div>
           </div>
@@ -1827,6 +2006,42 @@ function JobsEntry() {
           onExtend={handleExtendDeadline}
         />
       )}
+      {archivingJob && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <Card className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h2 className="text-xl font-semibold mb-3">Archive Job</h2>
+            <p className="text-gray-700 mb-3">
+              Are you sure you want to archive <b>{archivingJob.jobTitle}</b> at{" "}
+              <b>{archivingJob.company}</b>?
+            </p>
+            <textarea
+              className="form-input w-full mb-3"
+              placeholder="Optional reason for archiving..."
+              value={archivingJob.archiveReason || ""}
+              onChange={(e) =>
+                setArchivingJob({
+                  ...archivingJob,
+                  archiveReason: e.target.value,
+                })
+              }
+            />
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setArchivingJob(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  handleArchive(archivingJob._id!, archivingJob.archiveReason);
+                  setArchivingJob(null);
+                }}
+              >
+                Confirm Archive
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+      <Toast />
     </div>
   );
 }
