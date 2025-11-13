@@ -1912,8 +1912,14 @@ function JobsEntry() {
                           </div>
                           <div className="mt-2 space-y-1 text-sm text-gray-600">
                             {job.location && <div>📍 {job.location}</div>}
-                            <div>
+                            <div className="flex items-center">
                               💰 {formatSalary(job.salaryMin, job.salaryMax)}
+                              <a
+                                onClick={() => navigate(`/SalaryResearch`)}
+                                className="ml-2 text-blue-600 hover:underline cursor-pointer text-sm font-medium"
+                              >
+                                Research salary →
+                              </a>
                             </div>
                             <div className="mt-2">
                               <DeadlineIndicator
@@ -1958,6 +1964,34 @@ function JobsEntry() {
                               View posting →
                             </a>
                           )}
+                        {job.matchScore != null && (
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <p className="text-sm">
+                            <span className="font-medium">Match Score:</span>{" "}
+                            <span
+                              className={
+                                job.matchScore >= 80
+                                  ? "text-green-700 font-bold"
+                                  : job.matchScore >= 60
+                                  ? "text-yellow-600 font-bold"
+                                  : "text-red-600 font-bold"
+                              }
+                            >
+                              {Math.round(
+                              ((job.matchBreakdown?.skills ?? 0) +
+                                (job.matchBreakdown?.experience ?? 0) +
+                                (job.matchBreakdown?.education ?? 0)) / 3
+                              )}
+                              %
+                            </span>
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Skills {job.matchBreakdown?.skills ?? 0}% | Exp{" "}
+                            {job.matchBreakdown?.experience ?? 0}% | Edu{" "}
+                            {job.matchBreakdown?.education ?? 0}%
+                          </p>
+                        </div>
+                      )} 
                         </div>
                       </div>
 

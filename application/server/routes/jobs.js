@@ -1,6 +1,8 @@
 // routes/jobs.js
 import mongoose from "mongoose";
 import { Router } from "express";
+import { ObjectId } from "mongodb";
+import { getDb } from "../db/connection.js";
 import { verifyJWT } from "../middleware/auth.js";
 import {
   validateJobCreate,
