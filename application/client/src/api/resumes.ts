@@ -1,8 +1,18 @@
 // Minimal client wrapper for your existing resume routes.
 export type TemplateKey = "chronological" | "functional" | "hybrid";
 
+export type ContactInfo = {
+  email?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  linkedin?: string;
+  github?: string;
+};
+
 export type ResumeData = {
   name: string;
+  contact?: ContactInfo;
   summary?: string;
   experience?: any[];
   education?: any[];

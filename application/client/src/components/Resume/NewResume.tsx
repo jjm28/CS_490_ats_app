@@ -390,7 +390,7 @@ export default function NewResume() {
                 {t.img ? (
                   <img src={t.img} alt={t.title} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
-                  <div className="w-full h-full grid place-items-center text-gray-400 text-sm bg-gray-50">No preview</div>
+                  <div className="w-full h-full" />
                 )}
               </div>
 
