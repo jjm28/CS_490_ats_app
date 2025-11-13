@@ -80,6 +80,289 @@ type ResumeVersionLite = {
   createdAt?: string;
   isDefault?: boolean;
 };
+// ---------- Validation Types & Helpers ----------
+
+type ValidationIssueType =
+  | "missing-info"
+  | "length"
+  | "format"
+  | "contact"
+  | "tone"
+  | "spell-grammar";
+
+type ValidationSeverity = "info" | "warning" | "error";
+
+type ValidationIssue = {
+  type: ValidationIssueType;
+  severity: ValidationSeverity;
+  message: string;
+  field?: string;
+};
+
+type ValidationSummary = {
+  issues: ValidationIssue[];
+  wordCount: number;
+  estimatedPages: number;
+  tone: "professional" | "mixed" | "informal";
+  contactOk: boolean;
+  hasMissingInfo: boolean;
+};
+
+function collectTextFromResume(data: ResumeData): string {
+  const chunks: string[] = [];
+
+  if (data.name) chunks.push(String(data.name));
+  if (data.summary) chunks.push(String(data.summary));
+
+  (data.experience || []).forEach((exp: any) => {
+    if (exp.company) chunks.push(String(exp.company));
+    if (exp.jobTitle) chunks.push(String(exp.jobTitle));
+    if (exp.location) chunks.push(String(exp.location));
+    if (Array.isArray(exp.highlights)) {
+      chunks.push(exp.highlights.join(" "));
+    }
+  });
+
+  (data.education || []).forEach((ed: any) => {
+    if (ed.institution) chunks.push(String(ed.institution));
+    if (ed.degree) chunks.push(String(ed.degree));
+    if (ed.fieldOfStudy) chunks.push(String(ed.fieldOfStudy));
+  });
+
+  (data.projects || []).forEach((p: any) => {
+    if (p.name) chunks.push(String(p.name));
+    if (p.technologies) chunks.push(String(p.technologies));
+    if (p.outcomes) chunks.push(String(p.outcomes));
+  });
+
+  (data.skills || []).forEach((s: any) => {
+    const name = typeof s === "string" ? s : s?.name;
+    if (name) chunks.push(String(name));
+  });
+
+  return chunks.filter(Boolean).join(" ");
+}
+
+function runResumeValidation(data: ResumeData): ValidationSummary {
+  const issues: ValidationIssue[] = [];
+  const text = collectTextFromResume(data);
+  const trimmed = text.trim();
+  const wordCount = trimmed ? trimmed.split(/\s+/).length : 0;
+  const estimatedPages = Math.max(1, Math.round(wordCount / 500)); // ~500 words/page
+
+  // ----- Length optimization -----
+  if (estimatedPages > 2) {
+    issues.push({
+      type: "length",
+      severity: "warning",
+      message:
+        "Resume may be too long. Aim for 1–2 pages by tightening bullets and removing older or less relevant roles.",
+    });
+  } else if (wordCount < 200) {
+    issues.push({
+      type: "length",
+      severity: "info",
+      message:
+        "Resume looks very short. Consider adding more detail on impact, metrics, and relevant experience.",
+    });
+  }
+
+  // ----- Missing info -----
+  if (!data.summary || !String(data.summary).trim()) {
+    issues.push({
+      type: "missing-info",
+      severity: "warning",
+      field: "summary",
+      message:
+        "Summary is empty. Add a 2–3 sentence summary emphasizing your role, focus, and key strengths.",
+    });
+  }
+
+  if (!data.experience || data.experience.length === 0) {
+    issues.push({
+      type: "missing-info",
+      severity: "warning",
+      field: "experience",
+      message: "No experience entries. Add internships, projects, or roles to show your impact.",
+    });
+  } else {
+    (data.experience || []).forEach((exp: any, idx: number) => {
+      if (!exp.company || !exp.jobTitle || !exp.startDate) {
+        issues.push({
+          type: "missing-info",
+          severity: "warning",
+          field: `experience[${idx}]`,
+          message:
+            "Each experience should have a company, job title, and start date. Some entries are incomplete.",
+        });
+      }
+      if (!exp.highlights || exp.highlights.length === 0) {
+        issues.push({
+          type: "missing-info",
+          severity: "info",
+          field: `experience[${idx}].highlights`,
+          message: "Add 2–5 bullet points for each experience to describe your impact.",
+        });
+      }
+    });
+  }
+
+  if (!data.education || data.education.length === 0) {
+    issues.push({
+      type: "missing-info",
+      severity: "warning",
+      field: "education",
+      message: "No education entries. Add your degree, institution, and expected graduation date.",
+    });
+  }
+
+  if (!data.skills || data.skills.length === 0) {
+    issues.push({
+      type: "missing-info",
+      severity: "warning",
+      field: "skills",
+      message: "No skills listed. Add your core technical and relevant tools (e.g., React, Node, SQL).",
+    });
+  }
+
+  // ----- Format consistency (simple) -----
+  const dateRegex = /^\d{4}-\d{2}/; // YYYY-MM
+  const checkDate = (value: string | null | undefined, field: string) => {
+    if (!value) return;
+    if (!dateRegex.test(value)) {
+      issues.push({
+        type: "format",
+        severity: "info",
+        field,
+        message: `Date "${value}" is not in a consistent YYYY-MM format. Use a single format across the resume.`,
+      });
+    }
+  };
+
+  (data.experience || []).forEach((exp: any, idx: number) => {
+    checkDate(exp.startDate, `experience[${idx}].startDate`);
+    if (exp.endDate) checkDate(exp.endDate, `experience[${idx}].endDate`);
+  });
+
+  (data.education || []).forEach((ed: any, idx: number) => {
+    checkDate(ed.graduationDate, `education[${idx}].graduationDate`);
+  });
+
+  // ----- Contact info validation -----
+  const anyData: any = data as any;
+  const email: string | undefined =
+    anyData.email || anyData.contact?.email || anyData.header?.email;
+  const phone: string | undefined =
+    anyData.phone || anyData.contact?.phone || anyData.header?.phone;
+  const location: string | undefined =
+    anyData.location || anyData.contact?.location || anyData.header?.location;
+
+  let contactOk = true;
+  const emailRegex = /\S+@\S+\.\S+/;
+  const phoneRegex = /^[0-9+()\-.\s]{7,}$/;
+
+  if (!email && !phone && !location) {
+    contactOk = false;
+    issues.push({
+      type: "contact",
+      severity: "error",
+      message:
+        "No contact information detected. Include at least email and phone so recruiters can reach you.",
+    });
+  } else {
+    if (email && !emailRegex.test(email)) {
+      contactOk = false;
+      issues.push({
+        type: "contact",
+        severity: "warning",
+        field: "email",
+        message:
+          "Email format looks unusual. Make sure it’s a valid address (e.g., yourname@domain.com).",
+      });
+    }
+    if (phone && !phoneRegex.test(phone)) {
+      contactOk = false;
+      issues.push({
+        type: "contact",
+        severity: "info",
+        field: "phone",
+        message:
+          "Phone number may be missing country code or separators. Ensure it’s easy to dial internationally.",
+      });
+    }
+  }
+
+  // ----- Tone & basic spell/grammar-ish checks -----
+  const lower = trimmed.toLowerCase();
+  const slangWords = ["lol", "lmao", "omg", "bro", "dude", "hella", "kinda", "sorta"];
+  let slangHits = 0;
+
+  slangWords.forEach((w) => {
+    if (lower.includes(` ${w} `) || lower.startsWith(`${w} `) || lower.endsWith(` ${w}`)) {
+      slangHits++;
+      issues.push({
+        type: "tone",
+        severity: "warning",
+        message: `Informal word "${w}" detected. Replace slang with professional language.`,
+      });
+    }
+  });
+
+  if (/[!?]{2,}/.test(trimmed)) {
+    issues.push({
+      type: "tone",
+      severity: "info",
+      message:
+        "Multiple exclamation/question marks found. Keep punctuation neutral and professional.",
+    });
+  }
+
+  if (/\bi\b(?![a-zA-Z])/g.test(trimmed)) {
+    issues.push({
+      type: "spell-grammar",
+      severity: "info",
+      message: 'First-person "I" should be capitalized if you choose to use it.',
+    });
+  }
+
+  if (/\s{2,}/.test(trimmed)) {
+    issues.push({
+      type: "format",
+      severity: "info",
+      message: "Double spaces detected. Clean up extra spaces for a polished look.",
+    });
+  }
+
+  // classify tone
+  let tone: "professional" | "mixed" | "informal" = "professional";
+  if (slangHits > 1 || /[!?]{2,}/.test(trimmed)) {
+    tone = "informal";
+  } else if (slangHits === 1) {
+    tone = "mixed";
+  }
+
+  const hasMissingInfo = issues.some((i) => i.type === "missing-info");
+
+  // note: we can’t do full spell/grammar like Grammarly here, but we at least surface obvious issues
+  if (!trimmed) {
+    // if literally empty, make that clear
+    issues.push({
+      type: "missing-info",
+      severity: "error",
+      message: "Resume content is empty. Add sections before exporting.",
+    });
+  }
+
+  return {
+    issues,
+    wordCount,
+    estimatedPages,
+    tone,
+    contactOk,
+    hasMissingInfo,
+  };
+}
+
 
 /* ---------- Helpers ---------- */
 
@@ -201,6 +484,8 @@ export default function ResumeEditor() {
   >("union");
   const [mergeChoiceExp, setMergeChoiceExp] = useState<Record<string, "base" | "right" | "custom">>({});
   const [mergeCustomExp, setMergeCustomExp] = useState<Record<string, string>>({});
+  const [validation, setValidation] = useState<ValidationSummary | null>(null);
+  const [lastValidatedAt, setLastValidatedAt] = useState<string | null>(null);
 
   const safeGetUser = () => {
     const raw = localStorage.getItem("authUser");
@@ -210,6 +495,11 @@ export default function ResumeEditor() {
     if (!u?._id) throw new Error("authUser is missing _id.");
     return u;
   };
+  useEffect(() => {
+    const v = runResumeValidation(data);
+    setValidation(v);
+    // We don't update lastValidatedAt here so the "Last checked" label reflects manual checks
+  }, [data]);
 
   // reload by id on hard refresh; also load versions list
   useEffect(() => {
@@ -876,7 +1166,11 @@ export default function ResumeEditor() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-
+  const handleRunValidation = () => {
+    const v = runResumeValidation(data);
+    setValidation(v);
+    setLastValidatedAt(new Date().toISOString());
+  };
   /* ---------- AI handling ---------- */
 
   const AImode = state?.AImode;
@@ -1450,6 +1744,107 @@ export default function ResumeEditor() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* LEFT: editors + lists */}
         <div className="space-y-6">
+          {/* validation */}
+            <div className="space-y-4">
+              <div className="rounded border p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h3 className="font-medium text-sm">Resume Quality Check</h3>
+                    {lastValidatedAt && (
+                      <div className="text-[10px] text-gray-500">
+                        Last checked {new Date(lastValidatedAt).toLocaleTimeString()}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRunValidation}
+                    className="text-xs px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                  >
+                    Run Checks
+                  </button>
+                </div>
+
+                {validation ? (
+                  <>
+                    <div className="flex flex-wrap gap-2 text-[11px] mb-3">
+                      <span className="px-2 py-1 rounded-full bg-white border text-gray-700">
+                        Words: <strong>{validation.wordCount}</strong>
+                      </span>
+                      <span className="px-2 py-1 rounded-full bg-white border text-gray-700">
+                        Est. length:{" "}
+                        <strong>
+                          {validation.estimatedPages} page
+                          {validation.estimatedPages !== 1 ? "s" : ""}
+                        </strong>
+                      </span>
+                      <span className="px-2 py-1 rounded-full bg-white border text-gray-700">
+                        Tone:{" "}
+                        <strong className="capitalize">{validation.tone}</strong>
+                      </span>
+                      <span
+                        className={`px-2 py-1 rounded-full border ${
+                          validation.contactOk
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-red-50 text-red-700 border-red-200"
+                        }`}
+                      >
+                        {validation.contactOk ? "Contact info looks OK" : "Contact issues detected"}
+                      </span>
+                    </div>
+
+                    {validation.issues.length === 0 ? (
+                      <p className="text-xs text-emerald-700">
+                        ✅ No major issues detected. Still consider a manual review for nuance and style.
+                      </p>
+                    ) : (
+                      <ul className="space-y-1 max-h-48 overflow-auto text-xs">
+                        {validation.issues.map((issue, idx) => {
+                          const colorClass =
+                            issue.severity === "error"
+                              ? "text-red-700"
+                              : issue.severity === "warning"
+                              ? "text-amber-700"
+                              : "text-gray-700";
+                          const badgeClass =
+                            issue.type === "missing-info"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : issue.type === "length"
+                              ? "bg-sky-50 text-sky-700 border-sky-200"
+                              : issue.type === "contact"
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                              : issue.type === "tone"
+                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              : "bg-gray-50 text-gray-700 border-gray-200";
+
+                          return (
+                            <li key={idx} className={`flex gap-2 ${colorClass}`}>
+                              <span
+                                className={`px-1.5 py-0.5 rounded border text-[10px] uppercase tracking-wide ${badgeClass}`}
+                              >
+                                {issue.type.replace("-", " ")}
+                              </span>
+                              <span>{issue.message}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+
+                    <p className="mt-2 text-[10px] text-gray-500">
+                      Note: These checks are heuristic and don’t replace a full spell/grammar tool,
+                      but they help catch common issues before you submit.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-600">
+                    Click <span className="font-semibold">Run Checks</span> to analyze your resume
+                    for length, missing info, contact issues, and tone.
+                  </p>
+                )}
+              </div>
+            </div>
+
           <div>
             <h2 className="font-semibold mb-2 text-center">Quick Editors</h2>
             <div className="flex flex-wrap gap-2">
