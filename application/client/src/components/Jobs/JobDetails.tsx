@@ -12,7 +12,7 @@ import {
   type JobStatus,
   type Contact,
 } from "../../types/jobs.types";
-
+import CompanyResearchInline from "./CompanyResearchInline";
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
 export default function JobDetails({
@@ -24,7 +24,8 @@ export default function JobDetails({
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Job>>({});
   const [loading, setLoading] = useState(true);
-
+  // NEW: controls the company info popup
+  const [showCompanyInfo, setShowCompanyInfo] = useState(false);
   // New state for adding application history
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);
@@ -350,6 +351,8 @@ export default function JobDetails({
                 isEditing={isEditing}
                 onChange={(val) => setFormData({ ...formData, company: val })}
                 error={formErrors.company}
+                isClickable={!isEditing && !!formData.company}
+                onDisplayClick={() => setShowCompanyInfo(true)}
               />
               <Field
                 label="Position"
@@ -586,6 +589,28 @@ export default function JobDetails({
           </section>
         </div>
       </Card>
+      {showCompanyInfo && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <Card className="w-full max-w-4xl max-h-[85vh] overflow-y-auto">
+      <div className="flex justify-between items-center border-b p-4">
+        <h3 className="font-semibold text-lg">
+          Company Research: {formData.company || "Unknown Company"}
+        </h3>
+        <button
+          type="button"
+          onClick={() => setShowCompanyInfo(false)}
+          className="text-gray-500 hover:text-gray-800"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="p-4">
+        <CompanyResearchInline companyName={formData.company || ""} />
+      </div>
+    </Card>
+  </div>
+)}
+
     </div>
   );
 }
@@ -599,6 +624,8 @@ interface FieldProps {
   type?: "text" | "select";
   options?: string[];
   error?: string;
+  isClickable?: boolean;
+  onDisplayClick?: () => void;
 }
 
 function Field({
@@ -609,6 +636,8 @@ function Field({
   type = "text",
   options = [],
   error,
+  isClickable,
+  onDisplayClick,
 }: FieldProps) {
   return (
     <div>
@@ -634,8 +663,20 @@ function Field({
             className={`w-full form-input ${error ? "border-red-500" : ""}`}
           />
         )
-      ) : (
-        <p className="text-gray-900">{value || "-"}</p>
+            ) : (
+        <>
+          {isClickable && value ? (
+            <button
+              type="button"
+              onClick={onDisplayClick}
+              className="text-blue-600 hover:underline font-medium"
+            >
+              {value}
+            </button>
+          ) : (
+            <p className="text-gray-900">{value || "-"}</p>
+          )}
+        </>
       )}
       {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
     </div>
