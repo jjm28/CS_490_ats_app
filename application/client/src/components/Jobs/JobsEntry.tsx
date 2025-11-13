@@ -7,6 +7,8 @@ import "../../App.css";
 import "../../styles/StyledComponents/FormInput.css";
 import JobDetails from "./JobDetails";
 import { useToast } from "../../hooks/useToast";
+import Icon from "../StyledComponents/Icon";
+import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 
 import {
   type Job,
@@ -1163,6 +1165,51 @@ function JobsEntry() {
 
       {isLoggedIn && (
         <>
+          {/* Quick Actions Bar */}
+          <div className="flex gap-2 mb-6 justify-between items-center">
+            <Button onClick={() => setShowForm(!showForm)}>
+              <Icon name="add" size={18} className="inline mr-2" />
+              {showForm ? "Cancel" : "Add New Opportunity"}
+            </Button>
+
+            <Popover className="relative">
+              <PopoverButton className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 font-medium text-gray-700">
+                <Icon name="menu" size={16} />
+                View Options
+              </PopoverButton>
+              <PopoverPanel className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50 border border-gray-200">
+                <button
+                  onClick={() => navigate("/Jobs/Calendar")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                >
+                  <Icon name="home" size={18} className="icon-teal" />
+                  <span>Calendar View</span>
+                </button>
+                <button
+                  onClick={() => navigate("/Jobs/Pipeline")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                >
+                  <Icon name="search" size={18} className="icon-teal" />
+                  <span>Application Pipeline</span>
+                </button>
+                <button
+                  onClick={() => navigate("/Jobs/Archived")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                >
+                  <Icon name="save" size={18} className="icon-sage" />
+                  <span>Archived Jobs</span>
+                </button>
+                <button
+                  onClick={() => navigate("/Jobs/Stats")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 border-t border-gray-200"
+                >
+                  <Icon name="success" size={18} className="icon-teal" />
+                  <span>Job Statistics</span>
+                </button>
+              </PopoverPanel>
+            </Popover>
+          </div>
+
           {/* Add/Edit Form Modal */}
           {showForm && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1417,10 +1464,6 @@ function JobsEntry() {
               </Card>
             </div>
           )}
-
-          {/* ========================================
-                          SEARCH AND FILTER UI
-                          ======================================== */}
           <div className="mb-6">
             <Card>
               {/* Search Bar & Saved Searches Toggle */}
@@ -1962,26 +2005,6 @@ function JobsEntry() {
               ))}
             </ul>
           )}
-
-          <div className="flex gap-1 mt-6 justify-between">
-            <Button onClick={() => setShowForm(!showForm)}>
-              {showForm ? "Cancel" : "Add new opportunity"}
-            </Button>
-            <div className="flex gap-2">
-              <Button onClick={() => navigate("/Jobs/Calendar")}>
-                📅 View Calendar
-              </Button>
-              <Button onClick={() => navigate("/Jobs/Pipeline")}>
-                View Application Pipeline
-              </Button>
-              <Button
-                onClick={() => navigate("/Jobs/Archived")}
-                className="bg-gray-600 hover:bg-gray-700 text-white"
-              >
-                📦 View Archived Jobs
-              </Button>
-            </div>
-          </div>
         </>
       )}
       {selectedJobId && (

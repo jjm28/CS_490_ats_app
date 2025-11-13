@@ -746,23 +746,29 @@ router.delete("/:id/history/:historyIndex", async (req, res) => {
   }
 });
 
+// ✅ Archive or restore a job
 router.patch("/:id/archive", async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = getUserId(req); // ✅ real user ID extraction
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
     const { id } = req.params;
     const { archive, reason } = req.body;
+
     console.log(`[PATCH /api/jobs/${id}/archive] archive=${archive}, reason=${reason}`);
+
     const updated = await Jobs.findOneAndUpdate(
-      { _id: id, userId },
+      { _id: id, userId }, // ✅ ensure user match
       {
         archived: archive,
         archiveReason: archive ? reason || "User action" : null,
-        archivedAt: archive ? new Date() : null
+        archivedAt: archive ? new Date() : null,
       },
       { new: true }
     );
+
     if (!updated) return res.status(404).json({ error: "Job not found" });
+
     res.json(updated);
   } catch (err) {
     console.error("Archive update failed:", err);
