@@ -23,6 +23,8 @@ import jobRoutes from './routes/jobs.js'
 import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";               
 import { ensureSystemTemplates } from './services/templates.service.js';
+import resumeVersionsRouter from "./routes/resume-versions.js";
+
 
 
 const PORT = process.env.PORT || 5050;
@@ -85,6 +87,8 @@ try {
   //resume routes
   app.use("/api/resumes", attachDevUser, resumesRoute);
   app.use('/api/resume-templates', attachDevUser, templatesRoute);
+  app.use("/api/resume-versions", resumeVersionsRouter);
+
 
   
 
