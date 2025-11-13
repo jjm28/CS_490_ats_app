@@ -1963,56 +1963,64 @@ function JobsEntry() {
 
                       {/* Action buttons */}
                       <Popover className="relative">
-                        <PopoverButton 
-                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                          className="p-2 hover:bg-gray-100 rounded-md"
-                        >
-                          <Icon name="menu" size={20} />
-                        </PopoverButton>
-                        <PopoverPanel className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50 border border-gray-200">
-                          {job.applicationDeadline && (
-                            <button
-                              onClick={(e: React.MouseEvent) => {
-                                e.stopPropagation();
-                                setExtendingJob(job);
-                              }}
-                              className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                        {({ close }) => (
+                          <>
+                            <PopoverButton 
+                              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              className="p-2 hover:bg-gray-100 rounded-md"
                             >
-                              <Icon name="clock" size={16} />
-                              <span>Extend</span>
-                            </button>
-                          )}
-                          <button
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              handleEdit(job);
-                            }}
-                            className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
-                          >
-                            <Icon name="edit" size={16} />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              setArchivingJob(job);
-                            }}
-                            className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
-                          >
-                            <Icon name="archive" size={16} />
-                            <span>Archive</span>
-                          </button>
-                          <button
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              handleDelete(job._id);
-                            }}
-                            className="flex items-center gap-3 w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 border-t border-gray-200"
-                          >
-                            <Icon name="delete" size={16} />
-                            <span>Delete</span>
-                          </button>
-                        </PopoverPanel>
+                              <Icon name="menu" size={20} />
+                            </PopoverButton>
+                            <PopoverPanel className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50 border border-gray-200">
+                              {job.applicationDeadline && (
+                                <button
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setExtendingJob(job);
+                                    close();
+                                  }}
+                                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Icon name="clock" size={16} />
+                                  <span>Extend</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  handleEdit(job);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                              >
+                                <Icon name="edit" size={16} />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  setArchivingJob(job);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                              >
+                                <Icon name="archive" size={16} />
+                                <span>Archive</span>
+                              </button>
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  handleDelete(job._id);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 border-t border-gray-200"
+                              >
+                                <Icon name="delete" size={16} />
+                                <span>Delete</span>
+                              </button>
+                            </PopoverPanel>
+                          </>
+                        )}
                       </Popover>
                     </div>
                   </Card>
