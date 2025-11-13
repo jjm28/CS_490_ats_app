@@ -1987,6 +1987,19 @@ function JobsEntry() {
               >
                 📈 View Job Stats
               </Button>
+              <Button
+                onClick={() => navigate("/Jobs/Archived")}
+                className="bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                📦 View Archived Jobs
+              </Button>
+
+              <Button
+                onClick={() => navigate("/Jobs/Stats")}
+                className="bg-teal-600 hover:bg-teal-700 text-white"
+              >
+                📈 View Job Stats
+              </Button>
             </div>
           </div>
         </>
