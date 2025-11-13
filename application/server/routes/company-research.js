@@ -99,7 +99,14 @@ async function searchCompanyBasicInfo(companyName) {
   "headquarters": "city and state/country (e.g., 'Newark, New Jersey', 'Cupertino, California', 'London, United Kingdom'). Use your best knowledge. If unknown, return 'Not specified'",
   "mission": "company mission statement (1-2 sentences) if commonly known. If unknown, return 'Not specified'",
   "values": "2-4 core company values, comma-separated if commonly known. If unknown, return 'Not specified'",
-  "culture": "brief company culture description (1-2 sentences) if commonly known. If unknown, return 'Not specified'"
+  "culture": "brief company culture description (1-2 sentences) if commonly known. If unknown, return 'Not specified'",
+  "logoUrl": "direct URL to the company's logo image if known. If unknown, use an empty string.",
+  "contactEmail": "general contact or careers email if commonly known. If unknown, use an empty string.",
+  "contactPhone": "main phone number if commonly known. If unknown, use an empty string.",
+  "contactAddress": "full mailing address or HQ address if commonly known. If unknown, return 'Not specified'",
+  "glassdoorRating": "Glassdoor rating between 0 and 5 as a number if commonly known. If unknown, use null.",
+  "glassdoorReviewsCount": "approximate number of Glassdoor reviews as an integer if commonly known. If unknown, use null.",
+  "glassdoorUrl": "URL to the company's Glassdoor profile if commonly known. If unknown, use an empty string."
 }`;
 
     const result = await model.generateContent(prompt);
@@ -132,8 +139,23 @@ async function searchCompanyBasicInfo(companyName) {
         title: `${companyName} - AI Research`,
         snippet: parsed.description || '',
         link: parsed.website || ''
-      }]
+      }],
+      logoUrl: parsed.logoUrl || null,
+      contactEmail: parsed.contactEmail || "",
+      contactPhone: parsed.contactPhone || "",
+      contactAddress: parsed.contactAddress || "Not specified",
+      glassdoorRating:
+          typeof parsed.glassdoorRating === "number"
+            ? parsed.glassdoorRating
+            : undefined,
+      glassdoorReviewsCount:
+          typeof parsed.glassdoorReviewsCount === "number"
+            ? parsed.glassdoorReviewsCount
+            : undefined,
+      glassdoorUrl: parsed.glassdoorUrl || "",
+      
     };
+    
 
   } catch (error) {
     console.error('Gemini API error:', error.message);
@@ -161,7 +183,15 @@ async function searchCompanyBasicInfo(companyName) {
           title: r.title,
           snippet: r.snippet,
           link: r.link
-        }))
+        })),
+        logoUrl: "",
+        contactEmail: "",
+        contactPhone: "",
+        contactAddress: "Not specified",
+        glassdoorRating: undefined,
+        glassdoorReviewsCount: undefined,
+        glassdoorUrl: "",
+        searchResults: [],
       };
     }
 
