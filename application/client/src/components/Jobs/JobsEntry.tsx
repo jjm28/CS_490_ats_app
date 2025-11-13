@@ -1468,7 +1468,12 @@ function JobsEntry() {
                                   : "text-red-600 font-bold"
                               }
                             >
-                              {job.matchScore}%
+                             {Math.round(
+                              ((job.matchBreakdown?.skills ?? 0) +
+                                (job.matchBreakdown?.experience ?? 0) +
+                                (job.matchBreakdown?.education ?? 0)) / 3
+                            )}
+                            %
                             </span>
                           </p>
                           <p className="text-xs text-gray-600 mt-1">
