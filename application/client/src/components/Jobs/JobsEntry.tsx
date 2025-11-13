@@ -1886,6 +1886,9 @@ function JobsEntry() {
                             e.stopPropagation();
                             handleToggleSelect(job._id);
                           }}
+                            onClick={(e) => {
+                              e.stopPropagation(); // ← Add this
+                            }}
                           className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                         />
 
