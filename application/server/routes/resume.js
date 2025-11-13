@@ -1,5 +1,6 @@
 import express from "express";
 import { verifyJWT } from "../middleware/auth.js";
+import { GenerateResumeBasedOn } from "../services/resume_ai.service.js";
 import {
   createResume, updateResume, getResume, deleteResume,
   createSharedResume, fetchSharedResume,
@@ -64,6 +65,35 @@ router.post("/", async (req, res) => {
     res.status(201).json(out);
   } catch {
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post("/generate-resumeai", async (req, res) => {
+  try {
+    const { userid, Jobdata } = req.body || {};
+    if (!userid || !Jobdata) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // scrub DB-only fields if Jobdata came from your collection
+    const safeJob = { ...Jobdata };
+    delete safeJob._id; delete safeJob.userId;
+    delete safeJob.createdAt; delete safeJob.updatedAt; delete safeJob.__v;
+
+    const ai = await GenerateResumeBasedOn(userid, safeJob, {
+      temperature: 0.6,
+      candidateCount: 3,
+      maxBulletsPerRole: 5
+    });
+
+    if (ai.error) {
+      const code = ai.error === "rate_limit" ? 429 : ai.error === "auth" ? 401 : 500;
+      return res.status(code).json(ai);
+    }
+    return res.status(201).json(ai);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 

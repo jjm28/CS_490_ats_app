@@ -5,24 +5,37 @@ import { useNavigate } from "react-router-dom";
 
 import { resumePreviewRegistry, resumePdfRegistry } from "../../components/Resume";
 import type { ResumeData, TemplateKey } from "../../api/resumes";
-import { GetAiGeneratedResume } from "../../api/resumes";
 import { listResumeTemplates, getDefaultResumeTemplate, setDefaultResumeTemplate } from "../../api/templates";
+import { GetAiResumeContent } from "../../api/resumes";
 
 import { PDFViewer } from "@react-pdf/renderer";
+
+import JobPickerSheet from "../Resume/JobPickerSheet";
+import MiniJobForm, { type JobDraft } from "../Resume/MiniJobForm";
+import { useJobs } from "./hooks/useJobs";
+
+/* ---------------- Types & helpers ---------------- */
 
 type TemplateMeta = {
   templateKey: TemplateKey;
   title: string;
   blurb?: string;
-  img?: string; // optional thumbnail
+  img?: string;
 };
 
 function getUserId(): string | null {
   const raw = localStorage.getItem("authUser");
   const u = raw ? JSON.parse(raw) : null;
   return (
-    u?._id ?? u?.id ?? u?.userId ?? u?.userid ??
-    u?.user?._id ?? u?.user?.id ?? u?.user?.userId ?? u?.user?.userid ?? null
+    u?._id ??
+    u?.id ??
+    u?.userId ??
+    u?.userid ??
+    u?.user?._id ??
+    u?.user?.id ??
+    u?.user?.userId ??
+    u?.user?.userid ??
+    null
   );
 }
 
@@ -53,14 +66,11 @@ function starterDataForTemplate(key: TemplateKey): ResumeData {
       },
     ],
     skills: [{ name: "TypeScript" }, { name: "React" }, { name: "Node.js" }, { name: "MongoDB" }],
-    projects: [
-      { name: "Portfolio", technologies: "React, TS", outcomes: "Deployed on Vercel • Lighthouse 98+" },
-    ],
+    projects: [{ name: "Portfolio", technologies: "React, TS", outcomes: "Deployed on Vercel • Lighthouse 98+" }],
     style: { color: { primary: "#111827" }, font: { family: "Sans" }, layout: { columns: 1 } },
   };
 
   if (key === "functional") {
-    // emphasize skills/projects first
     return {
       ...base,
       summary:
@@ -68,15 +78,80 @@ function starterDataForTemplate(key: TemplateKey): ResumeData {
     };
   }
   if (key === "hybrid") {
-    // light tweak
     return {
       ...base,
       style: { ...base.style, layout: { columns: 2 } },
     };
   }
-  // default chronological
   return base;
 }
+
+/* ---------- AI: normalization helpers (non-AI parts unchanged) ---------- */
+
+// Convert loose AI payload to strict ResumeData shape
+function toResumeData(payload: any, templateKey: TemplateKey): ResumeData {
+  if (!payload || typeof payload !== "object") {
+    return starterDataForTemplate(templateKey);
+  }
+
+  const skillsArr = Array.isArray(payload.skills)
+    ? payload.skills
+        .map((s: any) => (typeof s === "string" ? { name: s } : { name: s?.name || "" }))
+        .filter((s: any) => s.name)
+    : [];
+
+  const expArr = Array.isArray(payload.experience)
+    ? payload.experience.map((e: any) => ({
+        company: e?.company || "",
+        jobTitle: e?.jobTitle || e?.title || "",
+        startDate: e?.startDate || "",
+        endDate: e?.endDate ?? null,
+        location: e?.location || "",
+        highlights: Array.isArray(e?.highlights)
+          ? e.highlights.map((h: any) => String(h)).filter(Boolean)
+          : [],
+      }))
+    : [];
+
+  const eduArr = Array.isArray(payload.education)
+    ? payload.education.map((ed: any) => ({
+        institution: ed?.institution || ed?.school || "",
+        degree: ed?.degree || "",
+        fieldOfStudy: ed?.fieldOfStudy || ed?.major || "",
+        graduationDate: ed?.graduationDate || "",
+      }))
+    : [];
+
+  const projArr = Array.isArray(payload.projects)
+    ? payload.projects.map((p: any) => ({
+        name: p?.name || "",
+        technologies: p?.technologies || "",
+        outcomes: p?.outcomes || "",
+      }))
+    : [];
+
+  return {
+    name: payload.name || "Your Name",
+    summary: payload.summary || "",
+    experience: expArr,
+    education: eduArr,
+    skills: skillsArr,
+    projects: projArr,
+    style: payload.style || {
+      color: { primary: "#111827" },
+      font: { family: "Sans" },
+      layout: { columns: 1 },
+    },
+  };
+}
+
+// Pick the best candidate from AI response (supports {data} or {parsedCandidates: []})
+function pickAiResumeData(ai: any, templateKey: TemplateKey): ResumeData {
+  const candidate = ai?.data ?? (Array.isArray(ai?.parsedCandidates) ? ai.parsedCandidates[0] : null);
+  return toResumeData(candidate, templateKey);
+}
+
+/* ---------------- Component ---------------- */
 
 export default function NewResume() {
   const navigate = useNavigate();
@@ -91,14 +166,123 @@ export default function NewResume() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // fetch templates + default
+  // ai handling
+  const { jobs, loading: jobsLoading, err: jobsError, isLoggedIn } = useJobs();
+  const [showJobPicker, setShowJobPicker] = useState(false);
+  const [showMiniForm, setShowMiniForm] = useState(false);
+
+  // helper
+  const safeGetUser = () => {
+    const raw = localStorage.getItem("authUser");
+    if (!raw) throw new Error("Not signed in (authUser missing).");
+    const u = JSON.parse(raw).user || JSON.parse(raw);
+    if (!u?._id) throw new Error("authUser is missing _id.");
+    return u;
+  };
+
+  // “Generate with AI” button => open job picker
+  const handleGenerateAI = async () => {
+    if (!active) return;
+    if (!isLoggedIn) return navigate("/login", { state: { flash: "Please log in to use AI." } });
+    setShowJobPicker(true);
+  };
+
+  // Pick an existing job -> call AI -> navigate to editor with AI draft
+  const handlePickJob = async (job: import("./hooks/useJobs").Job) => {
+    setShowJobPicker(false);
+  setChooseMode(false);
+  setOpen(false);
+
+  setAiError(null);
+  setAiLoading(true);
+
+  try {
+    const user = safeGetUser();
+    const ai = await GetAiResumeContent({ userid: user._id, Jobdata: job });
+
+    // 🔥 Make sure AI returns normalized ResumeData
+    const aiData =
+      ai?.data ||
+      (Array.isArray(ai?.parsedCandidates) ? ai.parsedCandidates[0] : null);
+
+    if (!aiData) throw new Error("AI returned no usable resume data.");
+
+    navigate("/resumes/editor", {
+      state: {
+        template: { key: active!.templateKey, title: active!.title },
+        AImode: true,
+        AiResume: ai,     // raw AI payload
+        resumeData: {
+          filename: `${active!.title} — Draft`,
+        templateKey: active!.templateKey,
+          resumedata: aiData,      // 🔥 This ensures ResumeEditor loads AI fields
+          lastSaved: null
+        }
+      }
+    });
+  } catch (e: any) {
+    setAiError(e?.message ?? String(e));
+  } finally {
+    setAiLoading(false);
+  }
+  };
+
+  const handleMiniFormSubmit = async (draft: JobDraft) => {
+    setShowMiniForm(false);
+    setAiError(null);
+    setAiLoading(true);
+    try {
+      const user = safeGetUser();
+      const ai = await GetAiResumeContent({ userid: user._id, Jobdata: draft });
+      const generated = pickAiResumeData(ai, active!.templateKey);
+
+      navigate("/resumes/editor", {
+        state: {
+          template: { key: active!.templateKey, title: active!.title },
+          AImode: true,
+          ResumeId: null,
+          
+          resumeData: {
+            filename: `${active!.title} – AI Draft`,
+            templateKey: active!.templateKey,
+            resumedata: generated,
+            lastSaved: null,
+          },
+          AiResumeRaw: ai,
+        },
+      });
+    } catch (e: any) {
+      console.error(e);
+      setAiError(e?.message ?? "AI generation failed");
+      // still let the user continue editing with a starter doc
+      const fallback = starterDataForTemplate(active!.templateKey);
+      navigate("/resumes/editor", {
+        state: {
+          template: { key: active!.templateKey, title: active!.title },
+          AImode: true,
+          ResumeId: null,
+          resumeData: {
+            filename: `${active!.title} – Draft`,
+            templateKey: active!.templateKey,
+            resumedata: fallback,
+            lastSaved: null,
+          },
+        },
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+  // ai handling END
+
+  // fetch templates + default (UNCHANGED behavior)
   useEffect(() => {
     (async () => {
       try {
         const userid = getUserId();
         if (!userid) throw new Error("Missing user session");
         const list = await listResumeTemplates({ userid });
-        // Normalize to TemplateMeta[]
+
         const metas: TemplateMeta[] = (list || []).map((t: any) => ({
           templateKey: t.templateKey as TemplateKey,
           title: t.title || t.templateKey,
@@ -127,57 +311,23 @@ export default function NewResume() {
     setChooseMode(true);
   };
 
-
   const handleCreateManual = () => {
-  if (!active) return;
-  const demo = starterDataForTemplate(active.templateKey);   // <-- use preview-like data
-  setChooseMode(false);
-  setOpen(false);
-  navigate("/resumes/editor", {
-    state: {
-      template: { key: active.templateKey, title: active.title },
-      ResumeId: null,
-      resumeData: {
-        filename: `${active.title} – Draft`,
-        templateKey: active.templateKey,
-        resumedata: demo,            // <-- pass starter doc
-        lastSaved: null,
-      },
-    },
-  });
-};
-
-  const handleGenerateAI = async () => {
     if (!active) return;
-    const userid = getUserId();
-    if (!userid) {
-      navigate("/login", { state: { flash: "Please log in to use AI." } });
-      return;
-    }
+    const demo = starterDataForTemplate(active.templateKey);
     setChooseMode(false);
     setOpen(false);
-    setAiError(null);
-    setAiLoading(true);
-    try {
-      const result = await GetAiGeneratedResume({ userid });
-      const data = (result?.data ?? {}) as ResumeData;
-      navigate("/resumes/editor", {
-        state: {
-          template: { key: active.templateKey, title: active.title },
-          ResumeId: null,
-          resumeData: {
-            filename: `${active.title} – Draft`,
-            templateKey: active.templateKey,
-            resumedata: data,
-            lastSaved: null,
-          },
+    navigate("/resumes/editor", {
+      state: {
+        template: { key: active.templateKey, title: active.title },
+        ResumeId: null,
+        resumeData: {
+          filename: `${active.title} – Draft`,
+          templateKey: active.templateKey,
+          resumedata: demo,
+          lastSaved: null,
         },
-      });
-    } catch (e: any) {
-      setAiError(e?.message ?? "AI generation failed");
-    } finally {
-      setAiLoading(false);
-    }
+      },
+    });
   };
 
   const setAsDefault = async (tpl: TemplateMeta) => {
@@ -191,19 +341,19 @@ export default function NewResume() {
     }
   };
 
-  // live preview registry component
+  // live preview registry component (UNCHANGED)
   const Preview = useMemo(() => {
     if (!active) return null;
     return resumePreviewRegistry[active.templateKey];
   }, [active]);
 
-  // PDF preview registry component
+  // PDF preview registry component (UNCHANGED)
   const PdfComp = useMemo(() => {
     if (!active) return null;
     return resumePdfRegistry[active.templateKey];
   }, [active]);
 
-  // a tiny demo data block for previews (not persisted)
+  // demo data for previews only (UNCHANGED)
   const demoData: ResumeData = useMemo(
     () => ({
       name: "Your Name",
@@ -224,7 +374,7 @@ export default function NewResume() {
     <div className="max-w-7xl mx-auto px-6 py-10 relative">
       <h1 className="text-2xl font-semibold text-center mb-8">Select a resume template</h1>
 
-      {/* Template grid */}
+      {/* Template grid (UNCHANGED) */}
       <div className={`grid grid-cols-1 md:grid-cols-3 gap-8 ${aiLoading ? "opacity-50 pointer-events-none" : ""}`}>
         {templates.map((t) => {
           const isDefault = defaultKey === t.templateKey;
@@ -270,7 +420,7 @@ export default function NewResume() {
         })}
       </div>
 
-      {/* Modal with Live/PDF preview + choose mode */}
+      {/* Modal with Live/PDF preview + choose mode (UNCHANGED, except Generate with AI button uses job picker) */}
       {open && active && (
         <div className="fixed inset-0 z-40 flex items-center justify-center" aria-modal="true" role="dialog">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
@@ -300,7 +450,6 @@ export default function NewResume() {
                 <div className="border rounded-lg overflow-hidden">
                   <div className="px-3 py-2 text-sm text-gray-600 border-b">PDF Preview</div>
                   <PDFViewer width="100%" height={480} showToolbar>
-                    {/* FIXED: pass as { data } */}
                     <PdfComp data={demoData} />
                   </PDFViewer>
                 </div>
@@ -376,6 +525,22 @@ export default function NewResume() {
           )}
         </div>
       )}
+
+      {/* Job picker + mini form for AI (NEW UI elements for the AI path) */}
+      <JobPickerSheet
+        open={showJobPicker}
+        onClose={() => setShowJobPicker(false)}
+        jobs={jobs}
+        loading={jobsLoading}
+        error={jobsError}
+        onPickJob={handlePickJob}
+        onEnterManual={() => setShowMiniForm(true)}
+      />
+      <MiniJobForm
+        open={showMiniForm}
+        onCancel={() => setShowMiniForm(false)}
+        onSubmit={handleMiniFormSubmit}
+      />
 
       {/* global AI overlay */}
       {aiLoading && (

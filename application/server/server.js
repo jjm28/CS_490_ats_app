@@ -83,8 +83,8 @@ try {
   app.use('/api/coverletter', coverletter)
 
   //resume routes
-  app.use("/api/resumes", resumesRoute);
-  app.use('/api/resume-templates', templatesRoute);
+  app.use("/api/resumes", attachDevUser, resumesRoute);
+  app.use('/api/resume-templates', attachDevUser, templatesRoute);
 
   
 
