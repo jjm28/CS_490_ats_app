@@ -17,6 +17,7 @@ import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
 import projectsRoutes from "./routes/projects.js";
 import companyResearch from './routes/company-research.js';
+<<<<<<< Updated upstream
 import coverletter from './routes/coverletter.js'
 import jobRoutes from './routes/jobs.js'
 
@@ -24,6 +25,10 @@ import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";               
 import { ensureSystemTemplates } from './services/templates.service.js';
 import resumeVersionsRouter from "./routes/resume-versions.js";
+=======
+import jobRoutes from './routes/jobs.js';
+import coverletter from './routes/coverletter.js';
+>>>>>>> Stashed changes
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
