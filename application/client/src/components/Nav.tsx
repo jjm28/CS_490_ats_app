@@ -200,6 +200,20 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
+            <Popover className="relative">
+            <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium">
+              Job Tools
+            </PopoverButton>
+            <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg">
+              <NavLink
+                to="/company-research"
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+              >
+                Company Research
+              </NavLink>
+            </PopoverPanel>
+          </Popover>
+
           </div>
 
           <div className="flex items-center space-x-4">
