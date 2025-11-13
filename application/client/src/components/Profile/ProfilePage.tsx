@@ -9,6 +9,7 @@ import ProfileStrength from "./ProfileStrength";
 import Education from "../Education/Education";
 import Skills from "../Skills/Skills";
 import Projects from "../Projects/Projects";
+import axios from "axios";
 
 function ProfilePage() {
   const navigate = useNavigate();
@@ -97,6 +98,10 @@ function ProfilePage() {
     if (profiles.length > 0) refreshCompleteness();
   }, [profiles, location.key]);
 
+   const handleProfileUpdated = async () => {
+    await refreshCompleteness();
+  };
+
   // Navigate to create/edit form
   const createOrEditProfile = () => navigate("/ProfileForm");
 
@@ -105,29 +110,45 @@ function ProfilePage() {
     fields.filter(Boolean).join(separator);
 
   // DELETE account handler
- // src/components/ProfilePage.tsx
 const handleDelete = async () => {
   const password = prompt("Confirm your password to delete your account:");
   if (!password) return;
 
-  const response = await fetch("http://localhost:5050/api/profile/delete", {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
-    body: JSON.stringify({ password }),
-  });
+  try {
+    const response = await fetch("http://localhost:5050/api/auth/delete", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ password }),
+    });
 
-  const data = await response.json();
-  alert(data.message || data.error);
+    const data = await response.json();
 
-  if (response.ok) {
-    // ✅ Log out user and redirect
+    if (!response.ok) {
+      alert(data.error || "Failed to delete account.");
+      return;
+    }
+
+    // ✅ Success: Show confirmation, log out, and redirect
+    alert("Account deleted successfully. Redirecting to login...");
+
+    // Clear tokens and redirect
     localStorage.removeItem("token");
-    window.location.href = "/login";
+    localStorage.removeItem("authToken");
+
+    // Optional: Add slight delay for UX polish
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 800);
+  } catch (err) {
+    console.error("Delete failed:", err);
+    alert("Something went wrong while deleting your account.");
   }
 };
+
+
 
 
   if (loading) return <p className="p-6">Loading...</p>;
@@ -182,10 +203,12 @@ const handleDelete = async () => {
     />
   )}
       </div>
-      
+       <Education onUpdate={handleProfileUpdated} />
+      <Skills onUpdate={handleProfileUpdated} />
+      <Projects onUpdate={handleProfileUpdated} />
 
       <p className="text-gray-600 mb-6">
-        Create multiple profiles for different roles. Select one to edit or create a new one below.
+        Create your Personal Profile
       </p>
 
       {flash && <p className="mb-4 text-sm text-green-700">{flash}</p>}
@@ -249,9 +272,19 @@ const handleDelete = async () => {
           <div className="mt-6">
             <Button onClick={createNew}>Create new profile</Button>
           </div>
+          <div className="mt-8 text-center">
+  <button
+    onClick={handleDelete}
+    className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg transition-colors duration-200"
+  >
+    Delete Account
+  </button>
+</div>
+
         </>
       )}
     </div>
+    
   );
 }
 

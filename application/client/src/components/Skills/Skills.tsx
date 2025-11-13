@@ -18,6 +18,7 @@ import Card from "../StyledComponents/Card";
 //Define type for proficiency levels
 export type Proficiency = "Beginner" | "Intermediate" | "Advanced" | "Expert";
 
+
 //Define type for skill object
 export interface Skill {
   _id?: string;
@@ -27,8 +28,12 @@ export interface Skill {
   order?: number;
 }
 
+interface SkillsProps {
+  onUpdate?: () => void;
+}
+
 //Define skills component
-export default function Skills() {
+export default function Skills({ onUpdate }: SkillsProps) {
   const [skills, setSkills] = useState<Skill[]>([]); //Array of skills displayed, start empty
   const [name, setName] = useState(""); //State for input name
   const [category, setCategory] = useState(categories[0]); //State for input category
@@ -73,6 +78,7 @@ export default function Skills() {
       setName("");
       setCategory(categories[0]);
       setProficiency("Beginner");
+      onUpdate?.();
     } catch (err) {
       console.error("Error adding skill:", err);
     }
@@ -91,6 +97,7 @@ export default function Skills() {
       const newSkills = [...skills];
       newSkills[index] = skillToUpdate;
       setSkills(newSkills);
+      onUpdate?.();
     } catch (err) {
       console.error("Error updating skill:", err);
     }
@@ -106,6 +113,7 @@ export default function Skills() {
       //Remove the skill from front end
       setSkills(skills.filter((_, i) => i !== index));
       alert("Skill deleted successfully!");
+      onUpdate?.();
     } catch (err) {
       console.error("Error deleting skill:", err);
       alert("Failed to delete skill. Please try again.");

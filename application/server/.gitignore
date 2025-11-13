@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+*.lcov
+*.xml
+*.json
+# Environment variables
+*.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -23,3 +29,7 @@ dist-ssr
 *.sln
 *.sw?server/node
 server/server@1.0.0
+
+# Coverage directory
+__tests__/
+coverage/

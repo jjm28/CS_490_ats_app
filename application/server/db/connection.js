@@ -1,9 +1,9 @@
 // application/server/db/connection.js
-import 'dotenv/config';
 import mongoose from 'mongoose';
 import { MongoClient } from 'mongodb';
 
 const URI =
+  process.env.MONGODB_URI ||
   process.env.ATLAS_URI ||
   process.env.MONGO_URI;
 
@@ -32,7 +32,7 @@ export async function connectDB() {
 
   try {
     await mongoose.connect(URI, {
-     
+      
     });
     console.log(`[mongo] Mongoose connected: ${redactUriDb(URI)}`);
     return mongoose.connection;
