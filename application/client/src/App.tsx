@@ -32,6 +32,10 @@ import Projects from "./components/Projects/Projects";
 import CompanyResearch from './components/Job_Tools/CompanyResearch';
 import JobsEntry from './components/Jobs/JobsEntry';
 import JobsPipeline from './components/Jobs/JobsPipeline';
+import NewResume from './components/Resume/NewResume';
+import ResumeEditor from './components/Resume/ResumeEditor';
+import Resumes from './components/Resume/Resumes';
+import ResumeShareView from './components/Resume/ResumeShareView';
 import DeadlineCalendar from './components/Jobs/DeadlineCalendar';
 
 import './App.css';
@@ -84,6 +88,10 @@ function App() {
           <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
           <Route path="/coverletter/editor/:id?" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
           <Route path="/coverletter/share/:shareid?" element={<PrivateRoute><ShareView /></PrivateRoute>} />
+          <Route path="/resumes" element={<PrivateRoute><Resumes /></PrivateRoute>} />
+          <Route path="/resumes/new" element={<PrivateRoute><NewResume /></PrivateRoute>} />
+          <Route path="/resumes/editor" element={<PrivateRoute><ResumeEditor /></PrivateRoute>} />
+          <Route path="/resumes/share" element={<PrivateRoute><ResumeShareView /></PrivateRoute>} />
           <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
           <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
         </Routes>

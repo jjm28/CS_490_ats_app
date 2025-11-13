@@ -20,6 +20,11 @@ import companyResearch from './routes/company-research.js';
 import coverletter from './routes/coverletter.js'
 import jobRoutes from './routes/jobs.js'
 
+import resumesRoute from "./routes/resume.js";
+import templatesRoute from "./routes/templates.js";               
+import { ensureSystemTemplates } from './services/templates.service.js';
+
+
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -45,6 +50,7 @@ app.use(companyResearch);
 // Start after DB connects
 try {
   await connectDB();
+  await ensureSystemTemplates();
   // Routes
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/record', records);
@@ -60,7 +66,8 @@ try {
   app.use('/api/profile', attachDevUser, profilePhoto);
   app.use('/api/employment', attachDevUser, employmentRouter);
 
-  // Job routes
+  // Job routes  
+  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/api/jobs', jobRoutes);
 
   // for picture uploads
@@ -74,6 +81,12 @@ try {
     })
   );
   app.use('/api/coverletter', coverletter)
+
+  //resume routes
+  app.use("/api/resumes", resumesRoute);
+  app.use('/api/resume-templates', templatesRoute);
+
+  
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
