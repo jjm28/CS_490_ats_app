@@ -40,7 +40,6 @@ import ApplicationsPage from './components/Applications/ApplicationsPage';
 import JobDetailsPage from './components/Jobs/JobDetailsPage';
 import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
 import NotificationSettings from './components/Settings/NotificationSettings';
-import InAppNotifications from './components/Jobs/InAppNotifications';
 
 import './App.css';
 import CompanyResearch from './components/Job_Tools/CompanyResearch';
@@ -67,7 +66,6 @@ function App() {
   return (
     <>
       {showNavbar && <Nav />}
-      {showNavbar && <InAppNotifications />}
       <div className="main-content">
         <Routes>
           <Route path="/" element={<HomePage />} />

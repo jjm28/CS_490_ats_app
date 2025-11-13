@@ -248,6 +248,27 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ✅ Get archived jobs
+router.get("/archived", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      console.error("No userId found in /archived");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const jobs = await Jobs.find({
+      userId,
+      archived: true,
+    }).sort({ archivedAt: -1 });
+
+    res.json(jobs);
+  } catch (err) {
+    console.error("Get archived jobs failed:", err);
+    res.status(500).json({ error: err.message || "Failed to get archived jobs" });
+  }
+});
+
 // /api/jobs/stats
 router.get("/stats", async (req, res) => {
   try {
