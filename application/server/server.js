@@ -26,6 +26,8 @@ import { ensureSystemTemplates } from './services/templates.service.js';
 import resumeVersionsRouter from "./routes/resume-versions.js";
 
 
+import automationRoutes from "./routes/automation.js";
+import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from './jobs/notificationcron.js';
 import notificationRoutes from './routes/notifications.js';
 

@@ -4,6 +4,7 @@ import API_BASE from "../../utils/apiBase";
 import Button from "../StyledComponents/Button";
 import type { Job } from "../../types/jobs.types";
 import InterviewScheduler from "../Jobs/InterviewScheduler";
+import ApplicationTimeline from "./ApplicationTimeline";
 
 const JobDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +59,38 @@ const JobDetailsPage: React.FC = () => {
   if (loading) return <p className="p-6">Loading job details...</p>;
   if (err) return <p className="p-6 text-red-600">{err}</p>;
   if (!job) return <p className="p-6 text-gray-500">Job not found.</p>;
+  // Define pipeline order
+  const PIPELINE_ORDER = [
+    "interested",
+    "applied",
+    "phone_screen",
+    "interview",
+    "offer",
+    "rejected",
+  ];
+
+  // Current status index
+  const currentStatusIndex = PIPELINE_ORDER.indexOf(job.status);
+
+  // Filter valid timeline entries
+  // Build one latest timestamp per stage
+  const latestByStage: Record<string, string> = {};
+  for (const entry of job.statusHistory ?? []) {
+    latestByStage[entry.status] = entry.timestamp; // overrides old timestamps
+  }
+
+  // Determine where we stop
+  const currentIndex = PIPELINE_ORDER.indexOf(job.status);
+
+  // Build final cleaned timeline
+  const filteredTimeline = PIPELINE_ORDER
+    .slice(0, currentIndex + 1) // include only stages <= current
+    .filter(stage => latestByStage[stage]) // must exist in history
+    .map(stage => ({
+      status: stage,
+      timestamp: latestByStage[stage],
+    }));
+
 
   const salaryMin = parseSalary(job.salaryMin);
   const salaryMax = parseSalary(job.salaryMax);
@@ -150,6 +183,58 @@ const JobDetailsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Application Timeline Visualization */}
+      <div className="mt-10">
+        <h3 className="text-xl font-semibold text-gray-900 mb-3">
+          Application Timeline
+        </h3>
+        <ApplicationTimeline history={filteredTimeline} />
+      </div>
+
+      {/* ================================
+    APPLICATION PACKAGE
+==================================*/}
+      {job.applicationPackage && (
+        <div className="mb-6 p-4 border rounded bg-gray-50">
+          <h3 className="text-lg font-semibold mb-2">Application Package</h3>
+
+          <p className="text-sm text-gray-600">
+            Generated At:{" "}
+            {job.applicationPackage.generatedAt
+              ? new Date(job.applicationPackage.generatedAt).toLocaleString()
+              : "Not generated"}
+          </p>
+
+          <div className="mt-2">
+            <p><strong>Resume:</strong> {job.applicationPackage.resumeId || "None"}</p>
+            <p><strong>Cover Letter:</strong> {job.applicationPackage.coverLetterId || "None"}</p>
+
+            {job.applicationPackage.portfolioUrls?.length ? (
+
+              <div className="mt-2">
+                <strong>Portfolio Links:</strong>
+                <ul className="list-disc ml-5">
+                  {job.applicationPackage.portfolioUrls.map((url: string, idx: number) => (
+                    <li key={idx}>
+                      <a
+                        href={url}
+                        className="text-blue-600 underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+
 
       {/* ✅ Interview Scheduling Section */}
       <div className="mt-10">

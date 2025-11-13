@@ -13,7 +13,8 @@ import {
   type Contact,
 } from "../../types/jobs.types";
 import InterviewScheduler from "./InterviewScheduler";
-
+import { listResumes } from "../../api/resumes";
+import { listCoverletters } from "../../api/coverletter";
 import CompanyResearchInline from "./CompanyResearchInline";
 
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
@@ -41,6 +42,9 @@ export default function JobDetails({
   const [analyzing, setAnalyzing] = useState(false);
   const [matchAnalysis, setMatchAnalysis] = useState<any | null>(null);
   const [analysisError, setAnalysisError] = useState("");
+  const [resumeName, setResumeName] = useState<string | null>(null);
+  const [coverLetterName, setCoverLetterName] = useState<string | null>(null);
+
 
   // NEW: linked resume state
   const [linkedResumes, setLinkedResumes] = useState<LinkedResumeVersion[] | null>(null);
@@ -67,9 +71,42 @@ export default function JobDetails({
     []
   );
 
+
+
+  useEffect(() => {
+    const loadNames = async () => {
+      if (!job?.applicationPackage) return;
+
+      try {
+        const userId = job.userId;
+
+        const [resumes, coverLetters] = await Promise.all([
+          listResumes({ userid: userId }),
+          listCoverletters({ userid: userId }),
+        ]);
+
+        const resume = resumes.find(
+          (r: any) => r._id === job.applicationPackage?.resumeId
+        );
+        const coverLetter = coverLetters.find(
+          (c: any) => c._id === job.applicationPackage?.coverLetterId
+        );
+
+        setResumeName(resume ? resume.filename : null);
+        setCoverLetterName(coverLetter ? coverLetter.filename : null);
+      } catch (err) {
+        console.error("Failed to resolve resume/cover letter names:", err);
+      }
+    };
+
+    loadNames();
+  }, [job]);
+
   useEffect(() => {
     fetchJob();
   }, [jobId]);
+
+
 
   const fetchJob = async () => {
     try {
@@ -397,13 +434,12 @@ export default function JobDetails({
     }
   };
 
-
   if (loading) return <div className="p-6">Loading...</div>;
   if (!job) return <div className="p-6">Job not found</div>;
 
   return (
-    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-      <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[9999]">
+      <Card className="relative z-[10000] w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
           <h2 className="text-xl font-bold">
@@ -487,6 +523,65 @@ export default function JobDetails({
               />
             </div>
           </section>
+          <section>
+            <h3 className="font-semibold text-lg mb-3">Application Package</h3>
+
+            {job.applicationPackage ? (
+              <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
+
+                <div className="flex justify-between">
+                  <span className="font-medium">Resume</span>
+                  <span>
+                    {resumeName ??
+                      (job.applicationPackage?.resumeId ? "Resume attached" : "—")}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="font-medium">Cover Letter</span>
+                  <span>
+                    {coverLetterName ??
+                      (job.applicationPackage?.coverLetterId
+                        ? "Cover letter attached"
+                        : "—")}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="font-medium">Portfolio URL</span>
+                  <span className="truncate max-w-[60%] text-right">
+                    {job.applicationPackage?.portfolioUrl ? (
+                      <a
+                        href={job.applicationPackage.portfolioUrl}
+                        className="text-blue-600 hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {job.applicationPackage.portfolioUrl}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-xs text-gray-500 mt-2">
+                  <span>Generated</span>
+                  <span>
+                    {job.applicationPackage?.generatedAt
+                      ? new Date(job.applicationPackage.generatedAt).toLocaleString()
+                      : "Unknown"}
+                  </span>
+                </div>
+
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">
+                No application package has been generated for this job yet.
+              </p>
+            )}
+          </section>
+
 
           {/* Contacts */}
           <section>
