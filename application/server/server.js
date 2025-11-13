@@ -33,7 +33,7 @@ import notificationRoutes from './routes/notifications.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const CORS_ORIGIN = process.env.CORS_ORGIN || true;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
 const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
