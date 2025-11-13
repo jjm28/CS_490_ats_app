@@ -22,6 +22,7 @@ import { getDeadlineInfo } from "../../utils/deadlines";
 import ExtendDeadlineModal from "./ExtendDeadlineModal";
 import BulkDeadlineManager from "./BulkDeadlineManager";
 import { toggleArchiveJob } from "../../api/jobs";
+import JobUrlImporter from "./JobUrlImporter";
 
 // Configuration
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
@@ -165,15 +166,15 @@ function JobsEntry() {
           typeof job.salaryMin === "object" && job.salaryMin?.$numberDecimal
             ? parseFloat(job.salaryMin.$numberDecimal)
             : job.salaryMin
-              ? Number(job.salaryMin)
-              : 0;
+            ? Number(job.salaryMin)
+            : 0;
 
         const jobSalaryMax =
           typeof job.salaryMax === "object" && job.salaryMax?.$numberDecimal
             ? parseFloat(job.salaryMax.$numberDecimal)
             : job.salaryMax
-              ? Number(job.salaryMax)
-              : Infinity;
+            ? Number(job.salaryMax)
+            : Infinity;
 
         const filterMin = salaryMinFilter ? parseFloat(salaryMinFilter) : 0;
         const filterMax = salaryMaxFilter
@@ -224,14 +225,14 @@ function JobsEntry() {
             typeof a.salaryMax === "object" && a.salaryMax?.$numberDecimal
               ? parseFloat(a.salaryMax.$numberDecimal)
               : a.salaryMax
-                ? Number(a.salaryMax)
-                : 0;
+              ? Number(a.salaryMax)
+              : 0;
           const bSalaryMax =
             typeof b.salaryMax === "object" && b.salaryMax?.$numberDecimal
               ? parseFloat(b.salaryMax.$numberDecimal)
               : b.salaryMax
-                ? Number(b.salaryMax)
-                : 0;
+              ? Number(b.salaryMax)
+              : 0;
           return bSalaryMax - aSalaryMax;
 
         case "company":
@@ -604,6 +605,34 @@ function JobsEntry() {
       console.error("Error removing deadlines:", error);
       throw error;
     }
+  };
+
+  const handleImportSuccess = (importedData: any) => {
+    // Merge imported data with existing form data
+    setFormData((prev) => ({
+      ...prev,
+      jobTitle: importedData.jobTitle || prev.jobTitle,
+      company: importedData.company || prev.company,
+      location: importedData.location || prev.location,
+      description: importedData.description || prev.description,
+      jobPostingUrl: importedData.jobPostingUrl || prev.jobPostingUrl,
+    }));
+
+    // Clear any previous errors for imported fields
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      if (importedData.jobTitle) delete newErrors.jobTitle;
+      if (importedData.company) delete newErrors.company;
+      return newErrors;
+    });
+
+    setFlash("Job data imported! Please review and complete the form.");
+    setTimeout(() => setFlash(null), 5000);
+  };
+
+  const handleImportError = (error: string) => {
+    setErr(error);
+    setTimeout(() => setErr(null), 5000);
   };
 
   // Auto-save last search when filters change
@@ -1020,7 +1049,6 @@ function JobsEntry() {
     }
   };
 
-
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text;
     const parts = text.split(new RegExp(`(${query})`, "gi"));
@@ -1143,6 +1171,12 @@ function JobsEntry() {
                   {editingJob ? "Edit Job Opportunity" : "Add Job Opportunity"}
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {!editingJob && (
+                    <JobUrlImporter
+                      onImportSuccess={handleImportSuccess}
+                      onImportError={handleImportError}
+                    />
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="form-label">Job Title *</label>
@@ -1151,8 +1185,9 @@ function JobsEntry() {
                         name="jobTitle"
                         value={formData.jobTitle}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.jobTitle ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.jobTitle ? "!border-red-500" : ""
+                        }`}
                         placeholder="e.g. Senior Software Engineer"
                       />
                       {errors.jobTitle && (
@@ -1169,8 +1204,9 @@ function JobsEntry() {
                         name="company"
                         value={formData.company}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.company ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.company ? "!border-red-500" : ""
+                        }`}
                         placeholder="e.g. TechCorp"
                       />
                       {errors.company && (
@@ -1186,8 +1222,9 @@ function JobsEntry() {
                         name="industry"
                         value={formData.industry}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.industry ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.industry ? "!border-red-500" : ""
+                        }`}
                       >
                         <option value="">Select industry</option>
                         <option value="Technology">Technology</option>
@@ -1216,8 +1253,9 @@ function JobsEntry() {
                         name="type"
                         value={formData.type}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.type ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.type ? "!border-red-500" : ""
+                        }`}
                       >
                         <option value="">Select type</option>
                         <option value="Full-time">Full-time</option>
@@ -1252,8 +1290,9 @@ function JobsEntry() {
                         name="salaryMin"
                         value={formData.salaryMin}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.salaryMin ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.salaryMin ? "!border-red-500" : ""
+                        }`}
                         placeholder="e.g. 100000"
                       />
                       {errors.salaryMin && (
@@ -1270,8 +1309,9 @@ function JobsEntry() {
                         name="salaryMax"
                         value={formData.salaryMax}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.salaryMax ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.salaryMax ? "!border-red-500" : ""
+                        }`}
                         placeholder="e.g. 150000"
                       />
                       {errors.salaryMax && (
@@ -1282,14 +1322,26 @@ function JobsEntry() {
                     </div>
 
                     <div>
-                      <label className="form-label">Job Posting URL</label>
+                      <label className="form-label">
+                        Job Posting URL
+                        {formData.jobPostingUrl && (
+                          <span className="text-xs text-green-600 ml-2">
+                            ✓ Auto-filled
+                          </span>
+                        )}
+                      </label>
                       <input
                         type="url"
                         name="jobPostingUrl"
                         value={formData.jobPostingUrl}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.jobPostingUrl ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.jobPostingUrl ? "!border-red-500" : ""
+                        } ${
+                          formData.jobPostingUrl && !errors.jobPostingUrl
+                            ? "bg-green-50"
+                            : ""
+                        }`}
                         placeholder="https://example.com/job/123"
                       />
                       {errors.jobPostingUrl && (
@@ -1312,7 +1364,9 @@ function JobsEntry() {
                   </div>
 
                   <div>
-                    <label className="form-label">Auto-Archive After (Days)</label>
+                    <label className="form-label">
+                      Auto-Archive After (Days)
+                    </label>
                     <input
                       type="number"
                       name="autoArchiveDays"
@@ -1323,10 +1377,10 @@ function JobsEntry() {
                       min="1"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Jobs will automatically archive after this many days (default: 60).
+                      Jobs will automatically archive after this many days
+                      (default: 60).
                     </p>
                   </div>
-
 
                   <div>
                     <label className="form-label">Description</label>
@@ -1335,8 +1389,9 @@ function JobsEntry() {
                       value={formData.description}
                       onChange={handleInputChange}
                       rows={4}
-                      className={`form-input ${errors.description ? "!border-red-500" : ""
-                        }`}
+                      className={`form-input ${
+                        errors.description ? "!border-red-500" : ""
+                      }`}
                       placeholder="Job description, notes, or requirements..."
                     />
                     {errors.description && (
@@ -1730,9 +1785,10 @@ function JobsEntry() {
             onBulkSetDeadline={handleBulkSetDeadline}
             onBulkRemoveDeadline={handleBulkRemoveDeadline}
             onJobsArchived={(archivedIds) =>
-              setJobs((prev) => prev.filter((job) => !archivedIds.includes(job._id)))
+              setJobs((prev) =>
+                prev.filter((job) => !archivedIds.includes(job._id))
+              )
             }
-
           />
 
           {/* Jobs List */}
@@ -1757,21 +1813,22 @@ function JobsEntry() {
               {filteredAndSortedJobs.map((job) => (
                 <li key={job._id}>
                   <Card
-                    className={`${job.applicationDeadline
-                      ? (() => {
-                        const info = getDeadlineInfo(
-                          job.applicationDeadline
-                        );
-                        if (info.urgency === "overdue")
-                          return "border-l-4 border-l-red-500";
-                        if (info.urgency === "critical")
-                          return "border-l-4 border-l-orange-500";
-                        if (info.urgency === "warning")
-                          return "border-l-4 border-l-yellow-500";
-                        return "";
-                      })()
-                      : ""
-                      }`}
+                    className={`${
+                      job.applicationDeadline
+                        ? (() => {
+                            const info = getDeadlineInfo(
+                              job.applicationDeadline
+                            );
+                            if (info.urgency === "overdue")
+                              return "border-l-4 border-l-red-500";
+                            if (info.urgency === "critical")
+                              return "border-l-4 border-l-orange-500";
+                            if (info.urgency === "warning")
+                              return "border-l-4 border-l-yellow-500";
+                            return "";
+                          })()
+                        : ""
+                    }`}
                   >
                     <div
                       className="flex items-start justify-between gap-4 cursor-pointer hover:opacity-90 transition-opacity"
@@ -1823,7 +1880,9 @@ function JobsEntry() {
                           </div>
                           {job.autoArchiveDate && (
                             <p className="mt-1 text-sm text-gray-600">
-                              <span className="font-medium text-gray-700">Days Until Auto Archive:</span>{" "}
+                              <span className="font-medium text-gray-700">
+                                Days Until Auto Archive:
+                              </span>{" "}
                               <span
                                 className={
                                   remainingDays(job.autoArchiveDate) <= 7
@@ -1897,7 +1956,6 @@ function JobsEntry() {
                       >
                         📦 Archive
                       </Button>
-
                     </div>
                   </Card>
                 </li>
@@ -1916,11 +1974,17 @@ function JobsEntry() {
               <Button onClick={() => navigate("/Jobs/Pipeline")}>
                 View Pipeline
               </Button>
-              <Button onClick={() => navigate("/Jobs/Archived")} className="bg-gray-600 hover:bg-gray-700 text-white">
+              <Button
+                onClick={() => navigate("/Jobs/Archived")}
+                className="bg-gray-600 hover:bg-gray-700 text-white"
+              >
                 📦 View Archived Jobs
               </Button>
 
-              <Button onClick={() => navigate("/Jobs/Stats")} className="bg-teal-600 hover:bg-teal-700 text-white">
+              <Button
+                onClick={() => navigate("/Jobs/Stats")}
+                className="bg-teal-600 hover:bg-teal-700 text-white"
+              >
                 📈 View Job Stats
               </Button>
             </div>
@@ -1955,14 +2019,14 @@ function JobsEntry() {
               placeholder="Optional reason for archiving..."
               value={archivingJob.archiveReason || ""}
               onChange={(e) =>
-                setArchivingJob({ ...archivingJob, archiveReason: e.target.value })
+                setArchivingJob({
+                  ...archivingJob,
+                  archiveReason: e.target.value,
+                })
               }
             />
             <div className="flex justify-end gap-3">
-              <Button
-                variant="secondary"
-                onClick={() => setArchivingJob(null)}
-              >
+              <Button variant="secondary" onClick={() => setArchivingJob(null)}>
                 Cancel
               </Button>
               <Button
@@ -1978,9 +2042,7 @@ function JobsEntry() {
         </div>
       )}
       <Toast />
-
     </div>
-
   );
 }
 

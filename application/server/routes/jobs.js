@@ -31,6 +31,8 @@ import {
   deleteUserPreferences
 } from "../services/userpreferences.service.js";
 import Jobs from "../models/jobs.js";
+import { validateJobImport } from '../validators/jobimport.js';
+import { scrapeJobFromUrl } from '../services/jobscraper.service.js';
 
 const router = Router();
 
@@ -265,6 +267,53 @@ router.get("/stats", async (req, res) => {
   } catch (err) {
     console.error("Stats generation failed:", err);
     res.status(500).json({ error: err.message || "Failed to get job stats" });
+  }
+});
+
+
+/**
+ * POST /api/jobs/import-from-url
+ * Import job data from a job posting URL
+ * Place this route BEFORE the router.get("/:id") route to avoid conflicts
+ */
+router.post("/import-from-url", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const r = await validateJobImport(req.body);
+    if (!r.ok) return res.status(r.status).json(r.error);
+
+    const result = await scrapeJobFromUrl(r.value.url);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        status: result.status,
+        error: result.error || 'Failed to import job data',
+        data: result.data,
+        jobBoard: result.jobBoard
+      });
+    }
+
+    res.json({
+      success: true,
+      status: result.status,
+      data: result.data,
+      jobBoard: result.jobBoard,
+      extractedFields: result.extractedFields,
+      message: result.status === 'success' 
+        ? 'Job data imported successfully' 
+        : 'Partial data imported - please review and complete missing fields'
+    });
+
+  } catch (err) {
+    console.error('Error importing job from URL:', err);
+    res.status(500).json({ 
+      success: false,
+      status: 'failed',
+      error: err?.message || "Failed to import job data" 
+    });
   }
 });
 
