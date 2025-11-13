@@ -953,9 +953,7 @@ export default function JobDetails({
             </div>
           </section>
         </div>
-      </Card>
-
-      {showCompanyInfo && (
+              {showCompanyInfo && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <Card className="w-full max-w-4xl max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b p-4">
@@ -976,6 +974,9 @@ export default function JobDetails({
           </Card>
         </div>
       )}
+      </Card>
+
+
 
     </div>
   );
