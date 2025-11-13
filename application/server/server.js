@@ -31,7 +31,7 @@ import { startAutomationRunner } from "./utils/automationRunner.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
+const CORS_ORIGIN = process.env.CORS_ORGIN || true;
 const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
@@ -90,11 +90,6 @@ try {
   app.use("/api/resumes", attachDevUser, resumesRoute);
   app.use('/api/resume-templates', attachDevUser, templatesRoute);
   app.use("/api/resume-versions", resumeVersionsRouter);
-
-
-  app.use("/api/automation", automationRoutes);
-  startAutomationRunner();
-
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
