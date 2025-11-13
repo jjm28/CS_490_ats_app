@@ -19,9 +19,10 @@ import projectsRoutes from "./routes/projects.js";
 import companyResearch from './routes/company-research.js';
 import coverletter from './routes/coverletter.js'
 import jobRoutes from './routes/jobs.js'
-
+import salaryRoutes from "./routes/salary.js";
 import resumesRoute from "./routes/resume.js";
-import templatesRoute from "./routes/templates.js";               
+import templatesRoute from "./routes/templates.js";   
+import interviewRoutes from "./routes/interview-insights.js";            
 import { ensureSystemTemplates } from './services/templates.service.js';
 
 
@@ -70,6 +71,8 @@ try {
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/api/jobs', jobRoutes);
 
+ app.use("/api/salary", salaryRoutes);
+ app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   // for picture uploads
   app.use(
     '/uploads',

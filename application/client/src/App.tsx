@@ -43,6 +43,7 @@ import JobDetailsPage from './components/Jobs/JobDetailsPage';
 import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
 import './App.css';
 import CompanyResearch from './components/Job_Tools/CompanyResearch';
+import SalaryResearch from './components/Job_Tools/SalaryResearchPage';
 
 function App() {
   const location = useLocation();
@@ -100,6 +101,7 @@ function App() {
           <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
           <Route path="/Applications" element={<PrivateRoute><ApplicationsPage /></PrivateRoute>} />
           <Route path="/Jobs/:id" element={<PrivateRoute><JobDetailsPage /></PrivateRoute>} />
+          <Route path="/SalaryResearch" element={<PrivateRoute><SalaryResearch /></PrivateRoute>} />
           <Route
             path="/Applications/Analytics"
             element={<PrivateRoute><ApplicationAnalytics /></PrivateRoute>}
