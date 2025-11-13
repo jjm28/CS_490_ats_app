@@ -107,5 +107,8 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ message: "Error deleting skill", error: err });
   }
 });
-
+export async function getSkillsByUser(userId) {
+  const db = getDb();
+  return await db.collection("skills").find({ userId }).toArray();
+}
 export default router;

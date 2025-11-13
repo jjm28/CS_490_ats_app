@@ -47,7 +47,14 @@ export interface Job {
   // Application history
   applicationHistory?: ApplicationHistoryEntry[];
   
-  // Timestamps
+  matchScore?: number | null;
+  matchBreakdown?: {
+    skills: number | null;
+    experience: number | null;
+    education: number | null;
+  };
+  skillGaps?: string[];
+
   createdAt?: string;
   updatedAt?: string;
 

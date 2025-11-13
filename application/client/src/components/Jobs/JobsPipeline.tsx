@@ -45,6 +45,23 @@ const JobsPipeline: React.FC = () => {
       if (!res.ok) throw new Error("Failed to fetch jobs");
       const data: Job[] = await res.json();
       setJobs(data);
+      const analysisPromises = data.map(async (job) => {
+      if (job._id && (job.matchScore === undefined || job.matchScore === null)) {
+        try {
+          await fetch(`${API_BASE}/api/jobs/${job._id}/analyze-match`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+        } catch (err) {
+          console.warn("Match analysis failed for job:", job._id, err);
+        }
+      }
+    });
+
+    await Promise.all(analysisPromises)
     } catch (error: any) {
       setErr(error.message || "Error fetching jobs");
     } finally {

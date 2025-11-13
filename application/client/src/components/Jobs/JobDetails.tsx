@@ -14,6 +14,7 @@ import {
 } from "../../types/jobs.types";
 import InterviewScheduler from "./InterviewScheduler";
 
+import CompanyResearchInline from "./CompanyResearchInline";
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
 export default function JobDetails({
@@ -25,7 +26,12 @@ export default function JobDetails({
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Job>>({});
   const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [matchAnalysis, setMatchAnalysis] = useState<any | null>(null);
+  const [analysisError, setAnalysisError] = useState("");
 
+  // NEW: controls the company info popup
+  const [showCompanyInfo, setShowCompanyInfo] = useState(false);
   // New state for adding application history
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);
@@ -56,7 +62,6 @@ export default function JobDetails({
           Authorization: `Bearer ${token}`,
         },
       });
-
       if (!response.ok) {
         throw new Error("Failed to fetch job");
       }
@@ -298,6 +303,34 @@ export default function JobDetails({
       alert("Failed to delete history entry. Please try again.");
     }
   };
+  const handleAnalyzeMatch = async () => {
+    if (!job?._id) return;
+    try {
+      setAnalyzing(true);
+      setAnalysisError("");
+
+      const response = await fetch(`${JOBS_ENDPOINT}/${job._id}/analyze-match`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to analyze job match");
+      }
+
+      const data = await response.json();
+      setMatchAnalysis(data);
+    } catch (err: any) {
+      console.error(err);
+      setAnalysisError(err.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
 
   if (loading) return <div className="p-6">Loading...</div>;
   if (!job) return <div className="p-6">Job not found</div>;
@@ -351,6 +384,8 @@ export default function JobDetails({
                 isEditing={isEditing}
                 onChange={(val) => setFormData({ ...formData, company: val })}
                 error={formErrors.company}
+                isClickable={!isEditing && !!formData.company}
+                onDisplayClick={() => setShowCompanyInfo(true)}
               />
               <Field
                 label="Position"
@@ -480,7 +515,106 @@ export default function JobDetails({
                 </Button>
               )}
             </div>
+              {/* Match Analysis Section */}
+             <section>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-lg">Match Analysis</h3>
+                  <Button
+                    variant="primary"
+                    onClick={handleAnalyzeMatch}
+                    disabled={analyzing}
+                  >
+                    {analyzing ? "Analyzing..." : "Analyze Match"}
+                  </Button>
+                </div>
 
+                {analysisError && (
+                  <p className="text-red-600 text-sm">{analysisError}</p>
+                )}
+
+                {matchAnalysis && (
+                  <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
+                    {/* Overall Score with color */}
+                    <p className="font-semibold">
+                      Overall Match Score:{" "}
+                      <span
+                        className={
+                          matchAnalysis.matchScore >= 90
+                            ? "text-green-700"
+                            : matchAnalysis.matchScore >= 70
+                            ? "text-yellow-600"
+                            : "text-red-600"
+                        }
+                      >
+                        {matchAnalysis.matchScore || 0}%
+                      </span>
+                    </p>
+
+                    {/* Category Breakdown with Highlights */}
+                    <ul className="list-disc pl-6 space-y-1">
+                      <li
+                        className={
+                          matchAnalysis.matchBreakdown?.skills < 70
+                            ? "text-red-600"
+                            : matchAnalysis.matchBreakdown?.skills < 90
+                            ? "text-yellow-600"
+                            : "text-green-700"
+                        }
+                      >
+                        Skills: {matchAnalysis.matchBreakdown?.skills ?? 0}%
+                      </li>
+                      <li
+                        className={
+                          matchAnalysis.matchBreakdown?.experience < 70
+                            ? "text-red-600"
+                            : matchAnalysis.matchBreakdown?.experience < 90
+                            ? "text-yellow-600"
+                            : "text-green-700"
+                        }
+                      >
+                        Experience: {matchAnalysis.matchBreakdown?.experience ?? 0}%
+                      </li>
+                      <li
+                        className={
+                          matchAnalysis.matchBreakdown?.education < 70
+                            ? "text-red-600"
+                            : matchAnalysis.matchBreakdown?.education < 90
+                            ? "text-yellow-600"
+                            : "text-green-700"
+                        }
+                      >
+                        Education: {matchAnalysis.matchBreakdown?.education ?? 0}%
+                      </li>
+                    </ul>
+
+                    {/* Strengths / Gaps Feedback */}
+                    <div className="mt-3 text-gray-700 text-sm">
+                      {matchAnalysis.matchScore >= 90 && (
+                        <p>💪 Excellent match — your profile fits this job very well!</p>
+                      )}
+                      {matchAnalysis.matchScore >= 70 && matchAnalysis.matchScore < 90 && (
+                        <p>👍 Good match — a few small improvements could make it perfect.</p>
+                      )}
+                      {matchAnalysis.matchScore < 70 && (
+                        <p>⚠️ Some areas need improvement — focus on red or yellow sections above.</p>
+                      )}
+                    </div>
+
+                    {/* Suggestions */}
+                    {matchAnalysis.suggestions?.length > 0 && (
+                      <>
+                        <h4 className="font-semibold mt-3">Suggestions for Improvement:</h4>
+                        <ul className="list-disc pl-6 text-gray-700">
+                          {matchAnalysis.suggestions.map((s: string, i: number) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+
+                  </div>
+                )}
+              </section>
             {/* Add new entry form */}
             {isAddingHistory && (
               <div className="mb-4 p-4 bg-blue-50 rounded border border-blue-200">
@@ -592,6 +726,28 @@ export default function JobDetails({
           </section>
         </div>
       </Card>
+      {showCompanyInfo && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <Card className="w-full max-w-4xl max-h-[85vh] overflow-y-auto">
+      <div className="flex justify-between items-center border-b p-4">
+        <h3 className="font-semibold text-lg">
+          Company Research: {formData.company || "Unknown Company"}
+        </h3>
+        <button
+          type="button"
+          onClick={() => setShowCompanyInfo(false)}
+          className="text-gray-500 hover:text-gray-800"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="p-4">
+        <CompanyResearchInline companyName={formData.company || ""} />
+      </div>
+    </Card>
+  </div>
+)}
+
     </div>
   );
 }
@@ -605,6 +761,8 @@ interface FieldProps {
   type?: "text" | "select";
   options?: string[];
   error?: string;
+  isClickable?: boolean;
+  onDisplayClick?: () => void;
 }
 
 function Field({
@@ -615,6 +773,8 @@ function Field({
   type = "text",
   options = [],
   error,
+  isClickable,
+  onDisplayClick,
 }: FieldProps) {
   return (
     <div>
@@ -640,8 +800,20 @@ function Field({
             className={`w-full form-input ${error ? "border-red-500" : ""}`}
           />
         )
-      ) : (
-        <p className="text-gray-900">{value || "-"}</p>
+            ) : (
+        <>
+          {isClickable && value ? (
+            <button
+              type="button"
+              onClick={onDisplayClick}
+              className="text-blue-600 hover:underline font-medium"
+            >
+              {value}
+            </button>
+          ) : (
+            <p className="text-gray-900">{value || "-"}</p>
+          )}
+        </>
       )}
       {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
     </div>
