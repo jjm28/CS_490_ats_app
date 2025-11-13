@@ -17,7 +17,7 @@ export function setupNotificationCron() {
   // '0 18 * * *' = 6:00 PM
   // '0 */6 * * *' = Every 6 hours
   
-  cron.schedule('0 9 * * *', async () => {
+  cron.schedule('* * * * *', async () => {
     console.log('⏰ Running daily deadline notification check...');
     await notificationService.checkAndSendDeadlineNotifications();
   });

@@ -1,5 +1,5 @@
 // ============================================
-// FILE: backend/services/notificationService.js
+// FILE: backend/services/notifications.service.js
 // ============================================
 // This is the main notification service that handles sending emails
 
@@ -28,8 +28,21 @@ class NotificationService {
     try {
       console.log('🔔 Checking deadline notifications...');
       
-      // Get all users with notification preferences enabled
+      const db = getDb();
+      
+      // DEBUG: Let's see what's actually in the jobs collection
+      const sampleJobs = await db.collection('jobs').find({}).limit(5).toArray();
+      console.log(`📊 Sample jobs from database (showing ${sampleJobs.length}):`);
+      sampleJobs.forEach(job => {
+        console.log(`   - Job ID: ${job._id}`);
+        console.log(`     userId: "${job.userId}" (type: ${typeof job.userId})`);
+        console.log(`     company: ${job.company}`);
+        console.log(`     deadline: ${job.applicationDeadline}`);
+        console.log(`     status: ${job.status}`);
+      });
+      
       const users = await this.getUsersWithNotificationsEnabled();
+      console.log(`👥 Found ${users.length} users with notifications enabled:`, users.map(u => u.email));
       
       for (const user of users) {
         await this.processUserNotifications(user);
@@ -79,14 +92,30 @@ class NotificationService {
   async processUserNotifications(user) {
     const db = getDb();
     
-    // Get all user's jobs with deadlines
-    // userId is stored as String in jobs collection
+    console.log(`🔍 Looking for jobs with userId: "${String(user._id)}" (type: ${typeof String(user._id)})`);
+    
+    // Let's see what's actually in the jobs collection for this user
+    const allUserJobs = await db.collection('jobs').find({
+      userId: String(user._id)
+    }).toArray();
+    
+    console.log(`   Found ${allUserJobs.length} total jobs for this user`);
+    
     const jobs = await db.collection('jobs').find({
       userId: String(user._id),
       applicationDeadline: { $exists: true, $ne: null },
-      status: { $in: ['wishlist', 'applied'] }, // Don't notify for rejected/accepted
+      status: { $in: ['interested', 'applied', 'phone_screen', 'interview'] },
     }).toArray();
 
+    console.log(`📋 User ${user.email} has ${jobs.length} jobs with deadlines`);
+    
+    // Let's see what one job looks like if they have any
+    if (allUserJobs.length > 0) {
+      console.log(`   Sample job userId: "${allUserJobs[0].userId}" (type: ${typeof allUserJobs[0].userId})`);
+      console.log(`   Sample job status: "${allUserJobs[0].status}"`);
+      console.log(`   Sample job deadline: ${allUserJobs[0].applicationDeadline}`);
+    }
+    
     const now = new Date();
     
     for (const job of jobs) {
@@ -101,8 +130,29 @@ class NotificationService {
     const db = getDb();
     
     const deadline = new Date(job.applicationDeadline);
-    const daysUntil = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
-    const hoursUntil = Math.ceil((deadline - now) / (1000 * 60 * 60));
+    
+    // Work in UTC to avoid timezone confusion
+    const todayMidnightUTC = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    ));
+    
+    const deadlineMidnightUTC = new Date(Date.UTC(
+      deadline.getUTCFullYear(),
+      deadline.getUTCMonth(),
+      deadline.getUTCDate(),
+      0, 0, 0, 0
+    ));
+    
+    // Calculate days difference using UTC midnight times
+    const daysUntil = Math.round((deadlineMidnightUTC - todayMidnightUTC) / (1000 * 60 * 60 * 24));
+    
+    console.log(`🔍 Checking job ${job.company}:`);
+    console.log(`   Deadline (UTC): ${deadlineMidnightUTC.toISOString()}`);
+    console.log(`   Today (UTC): ${todayMidnightUTC.toISOString()}`);
+    console.log(`   Days until: ${daysUntil}`);
 
     // Check if already notified today
     const startOfDay = new Date(now);
@@ -114,7 +164,10 @@ class NotificationService {
       createdAt: { $gte: startOfDay },
     });
 
-    if (alreadyNotified) return;
+    if (alreadyNotified) {
+      console.log(`   ⏭️  Already notified today`);
+      return;
+    }
 
     // Determine notification type
     let notificationType = null;
@@ -124,8 +177,8 @@ class NotificationService {
       // Overdue
       notificationType = 'overdue';
       shouldNotify = user.preferences.email.types.overdue;
-    } else if (daysUntil === 0 && hoursUntil <= 12) {
-      // Day of (morning notification)
+    } else if (daysUntil === 0) {
+      // Day of deadline
       notificationType = 'dayOf';
       shouldNotify = user.preferences.email.types.dayOf;
     } else if (daysUntil === 1) {
@@ -137,6 +190,8 @@ class NotificationService {
       notificationType = 'approaching';
       shouldNotify = user.preferences.email.types.approaching;
     }
+
+    console.log(`   📬 Type: ${notificationType}, shouldNotify: ${shouldNotify}`);
 
     if (shouldNotify && notificationType) {
       await this.sendDeadlineEmail(user, job, notificationType, daysUntil);
@@ -237,6 +292,16 @@ class NotificationService {
         ? 'Your application is due <strong>tomorrow</strong>. Make sure you have everything ready!'
         : `You have <strong>${daysUntil} days</strong> to submit your application. It's a good time to start preparing if you haven't already.`;
 
+    // Format deadline date in UTC to match our calculation
+    const deadlineDate = new Date(job.applicationDeadline);
+    const formattedDeadline = deadlineDate.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'UTC'  // ← Add this to force UTC
+    });
+
     return `
       <!DOCTYPE html>
       <html>
@@ -261,7 +326,7 @@ class NotificationService {
             </p>
             
             <div style="background-color: white; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Application Deadline:</strong> ${new Date(job.applicationDeadline).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p style="margin: 5px 0;"><strong>Application Deadline:</strong> ${formattedDeadline}</p>
               ${job.location ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${job.location}</p>` : ''}
               ${job.type ? `<p style="margin: 5px 0;"><strong>Type:</strong> ${job.type}</p>` : ''}
             </div>
@@ -272,7 +337,7 @@ class NotificationService {
             
             <div style="margin: 30px 0; text-align: center;">
               <a href="${process.env.CORS_ORIGIN || 'http://localhost:5173'}/Jobs" 
-                 style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                 View Job Details
               </a>
             </div>
