@@ -124,6 +124,31 @@ const JobSchema = new Schema({
         type: Date,
     },
 
+    // Interview scheduling integration
+    interviews: [
+        {
+            _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+            type: {
+                type: String,
+                enum: ["phone", "video", "in-person"],
+                required: true,
+            },
+            date: { type: Date, required: true },
+            locationOrLink: { type: String, default: "" },
+            notes: { type: String, default: "" },
+            interviewer: { type: String, default: "" }, // 🟢 Added
+            contactInfo: { type: String, default: "" }, // 🟢 Added
+            outcome: {
+                type: String,
+                enum: ["pending", "passed", "rejected", "offer"],
+                default: "pending",
+            },
+            reminderSent: { type: Boolean, default: false },
+            eventId: { type: String, default: "" }, // 🟢 Ensures calendar sync works
+        },
+    ],
+
+
 
     // analytics helpers
     responseReceived: { type: Boolean, default: false },
