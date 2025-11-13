@@ -66,10 +66,9 @@ try {
   app.use('/api/profile', attachDevUser, profilePhoto);
   app.use('/api/employment', attachDevUser, employmentRouter);
 
-  // Job routes
-  app.use('/api/jobs', attachDevUser, jobRoutes);
-  
+  // Job routes  
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+  app.use('/api/jobs', jobRoutes);
 
   // for picture uploads
   app.use(
@@ -81,7 +80,7 @@ try {
       setHeaders: (res) => res.set('Cache-Control', 'no-store'),
     })
   );
-  app.use('/api/coverletter',coverletter)
+  app.use('/api/coverletter', coverletter)
 
   //resume routes
   app.use("/api/resumes", resumesRoute);

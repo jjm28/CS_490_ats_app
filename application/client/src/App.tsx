@@ -14,6 +14,8 @@ import Education from './components/Education/Education';
 import AuthCallback from './components/AuthCallback';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+import JobStatsDashboard from "./components/Jobs/JobStatsDashboard";
+import ArchivedJobs from "./components/Jobs/ArchivedJobs";
 
 import EmploymentPage from "./components/Employment/EmploymentPage";
 import EmploymentForm from "./components/Employment/EmploymentForm";
@@ -43,13 +45,13 @@ function App() {
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
 
-    useEffect(() => {
+  useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
-     if (location.pathname === "/coverletter/editor") {
+    if (location.pathname === "/coverletter/editor") {
       // we are currently ON the editor page → don't clear yet
       return;
     }
-     console.log("working")
+    console.log("working")
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
@@ -68,7 +70,7 @@ function App() {
           <Route path="/ProfilePage" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/ProfileForm/:id" element={<PrivateRoute><ProfileForm /></PrivateRoute>} />
-          <Route path="/EmploymentPage" element={<PrivateRoute><EmploymentPage/></PrivateRoute>} />
+          <Route path="/EmploymentPage" element={<PrivateRoute><EmploymentPage /></PrivateRoute>} />
           <Route path="/EmploymentForm" element={<PrivateRoute><EmploymentForm /></PrivateRoute>} />
           <Route path="/EmploymentForm/:id" element={<PrivateRoute><EmploymentForm /></PrivateRoute>} />
           <Route path="/Logout" element={<Logout />} />
@@ -86,11 +88,12 @@ function App() {
           <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
           <Route path="/coverletter/editor/:id?" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
           <Route path="/coverletter/share/:shareid?" element={<PrivateRoute><ShareView /></PrivateRoute>} />
-
           <Route path="/resumes" element={<PrivateRoute><Resumes /></PrivateRoute>} />
           <Route path="/resumes/new" element={<PrivateRoute><NewResume /></PrivateRoute>} />
           <Route path="/resumes/editor" element={<PrivateRoute><ResumeEditor /></PrivateRoute>} />
           <Route path="/resumes/share" element={<PrivateRoute><ResumeShareView /></PrivateRoute>} />
+          <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
+          <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
         </Routes>
       </div>
     </>
