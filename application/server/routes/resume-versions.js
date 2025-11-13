@@ -4,7 +4,8 @@ import {
   listResumeVersions, getResumeVersion, createResumeVersion,
   updateResumeVersion, deleteResumeVersion, 
   compareVersions, mergeVersions,
-  setDefaultVersion,updateResumeVersionContent
+  setDefaultVersion,updateResumeVersionContent,
+  listResumeVersionsLinkedToJob
 } from "../services/resume_version.service.js";
 
 const router = express.Router();
@@ -18,6 +19,25 @@ router.get("/", async (req,res)=>{
   if(!userid || !resumeid) return res.status(400).json({error:"Missing userid or resumeid"});
   const out = await listResumeVersions({ userid, resumeid });
   res.status(200).json(out);
+});
+
+router.get("/linked-to-job/:jobId", async (req, res) => {
+  try {
+    const userid = userIdFrom(req);
+    const { jobId } = req.params;
+    if (!userid || !jobId) {
+      return res.status(400).json({ error: "Missing userid or jobId" });
+    }
+
+    const out = await listResumeVersionsLinkedToJob({ userid, jobId });
+    // expect out to look like { items: [...] }
+    res.status(200).json(out);
+  } catch (e) {
+    console.error("linked-to-job error:", e);
+    res
+      .status(500)
+      .json({ error: e?.message || "Failed to load linked resume versions" });
+  }
 });
 
 // get one

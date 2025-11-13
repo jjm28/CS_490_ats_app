@@ -3,6 +3,12 @@ import { ObjectId } from "mongodb";
 import { getResume } from "./resume.service.js";
 
 /* ------------ CRUD helpers ------------ */
+const COLLECTION = "resume_versions";
+
+async function resumeVersionsCollection() {
+  const db = await getDb();
+  return db.collection(COLLECTION);
+}
 
 export async function listResumeVersions({ userid, resumeid }) {
   const db = getDb();
@@ -231,4 +237,38 @@ export async function updateResumeVersionContent({ userid, versionid, content, n
     .updateOne({ _id: new ObjectId(versionid), owner: userid }, update);
 
   return res.matchedCount ? { ok: true } : null;
+}
+
+
+export async function listResumeVersionsLinkedToJob({ userid, jobId }) {
+  const col = await resumeVersionsCollection();
+
+  // Handle both ObjectId-based and string-based storage for safety
+  const jobIdFilter = ObjectId.isValid(jobId)
+    ? new ObjectId(jobId)
+    : jobId;
+
+  const docs = await col
+    .find({
+      // ⬅️ matches your schema
+      owner: userid,
+      // ⬅️ field name is `linkedJobIds` and it’s an array of ObjectIds
+      linkedJobIds: { $in: [jobIdFilter] },
+    })
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  console.log("linked docs for job", jobId, docs);
+
+  return {
+    items: docs.map((d) => ({
+      _id: d._id,
+      name: d.name,
+      // ⬅️ schema uses `resumeId`, not `resumeid`
+      resumeId: d.resumeId,
+      createdAt: d.createdAt,
+      isDefault: d.isDefault || false,
+      resumeFilename: d.resumeFilename,
+    })),
+  };
 }

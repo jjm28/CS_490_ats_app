@@ -182,6 +182,7 @@ export default function ResumeEditor() {
     "default"
   );
   const [existingSourceId, setExistingSourceId] = useState<string>("");
+  const [linkingVersionId, setLinkingVersionId] = useState<string | null>(null);
 
   // Compare & merge state
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
@@ -970,6 +971,7 @@ export default function ResumeEditor() {
       return;
     }
     setAiError(null);
+    setLinkingVersionId(null);
     setShowJobPicker(true);
   }
 
@@ -1008,10 +1010,42 @@ export default function ResumeEditor() {
 
   const handlePickJob = async (job: Job) => {
     setShowJobPicker(false);
+      if (linkingVersionId) {
+      try {
+        const user = safeGetUser();
+
+        await patchResumeVersionMeta({
+          userid: user._id,
+          versionid: linkingVersionId,
+          linkJobIds: [job._id],
+        });
+
+        // optional: refresh versions so UI reflects the link
+        if (resumeId) {
+          const v = await fetchResumeVersions({
+            userid: user._id,
+            resumeid: resumeId,
+          });
+          setVersions(v?.items || []);
+          setDefaultVersionId(v?.defaultVersionId || null);
+        }
+
+        alert("Linked this resume version to the selected job.");
+      } catch (e: any) {
+        alert(e?.message ?? "Failed to link job");
+      } finally {
+        setLinkingVersionId(null);
+      }
+      return;
+    }
     await runAiWithJob(job);
   };
   const handleEnterJobManual = () => {
     setShowJobPicker(false);
+      if (linkingVersionId) {
+      setLinkingVersionId(null);
+      return;
+    }
     setShowMiniForm(true);
   };
   const handleMiniFormSubmit = async (draft: JobDraft) => {
@@ -1233,6 +1267,19 @@ export default function ResumeEditor() {
                   }}
                 >
                   Rename
+                </button>
+                                <button
+                  className="underline text-xs text-emerald-700"
+                  onClick={() => {
+                    if (!currentVersionId) {
+                      alert("Create or load a version first.");
+                      return;
+                    }
+                    setLinkingVersionId(currentVersionId);
+                    setShowJobPicker(true);
+                  }}
+                >
+                  Link to job
                 </button>
               </>
             ) : (
