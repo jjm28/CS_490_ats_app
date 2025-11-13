@@ -25,11 +25,9 @@ import templatesRoute from "./routes/templates.js";
 import { ensureSystemTemplates } from './services/templates.service.js';
 import resumeVersionsRouter from "./routes/resume-versions.js";
 
-
-
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
+const CORS_ORIGIN = process.env.CORS_ORGIN || true;
 const DB = process.env.DB_NAME || 'appdb'
 
 const app = express();
