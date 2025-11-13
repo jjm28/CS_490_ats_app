@@ -16,7 +16,19 @@ import InterviewScheduler from "./InterviewScheduler";
 import { listResumes } from "../../api/resumes";
 import { listCoverletters } from "../../api/coverletter";
 import CompanyResearchInline from "./CompanyResearchInline";
+
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
+const RESUME_VERSIONS_ENDPOINT = `${API_BASE}/api/resume-versions`; // NEW
+
+// NEW: type for linked resume versions coming from backend
+interface LinkedResumeVersion {
+  _id: string;
+  name?: string;
+  resumeId?: string;
+  resumeFilename?: string;
+  isDefault?: boolean;
+  createdAt?: string;
+}
 
 export default function JobDetails({
   jobId,
@@ -33,6 +45,11 @@ export default function JobDetails({
   const [resumeName, setResumeName] = useState<string | null>(null);
   const [coverLetterName, setCoverLetterName] = useState<string | null>(null);
 
+
+  // NEW: linked resume state
+  const [linkedResumes, setLinkedResumes] = useState<LinkedResumeVersion[] | null>(null);
+  const [linkedLoading, setLinkedLoading] = useState(false);
+  const [linkedError, setLinkedError] = useState<string | null>(null);
 
   // NEW: controls the company info popup
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
@@ -112,6 +129,54 @@ export default function JobDetails({
       setLoading(false);
     }
   };
+
+  // 🔥 NEW: fetch resume versions that are linked to this job
+  useEffect(() => {
+    const fetchLinkedResumes = async () => {
+      if (!jobId) return;
+
+      setLinkedLoading(true);
+      setLinkedError(null);
+
+      try {
+        const raw = localStorage.getItem("authUser");
+        const u = raw ? JSON.parse(raw) : null;
+        const uid = u?.user?._id ?? u?._id ?? null;
+        if (!uid) throw new Error("Missing user session");
+
+        const res = await fetch(
+          `${RESUME_VERSIONS_ENDPOINT}/linked-to-job/${jobId}?userid=${uid}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to load linked resumes");
+        }
+
+        const data = await res.json();
+        const items: LinkedResumeVersion[] = Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data)
+          ? data
+          : [];
+
+        setLinkedResumes(items);
+      } catch (e: any) {
+        console.error("Error loading linked resumes", e);
+        setLinkedError(e?.message || "Failed to load linked resumes");
+        setLinkedResumes([]);
+      } finally {
+        setLinkedLoading(false);
+      }
+    };
+
+    fetchLinkedResumes();
+  }, [jobId, token]);
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -340,6 +405,7 @@ export default function JobDetails({
       alert("Failed to delete history entry. Please try again.");
     }
   };
+
   const handleAnalyzeMatch = async () => {
     if (!job?._id) return;
     try {
@@ -610,6 +676,7 @@ export default function JobDetails({
                 </Button>
               )}
             </div>
+
             {/* Match Analysis Section */}
             <section>
               <div className="flex justify-between items-center mb-3">
@@ -637,8 +704,8 @@ export default function JobDetails({
                         matchAnalysis.matchScore >= 90
                           ? "text-green-700"
                           : matchAnalysis.matchScore >= 70
-                            ? "text-yellow-600"
-                            : "text-red-600"
+                          ? "text-yellow-600"
+                          : "text-red-600"
                       }
                     >
                       {matchAnalysis.matchScore || 0}%
@@ -652,8 +719,8 @@ export default function JobDetails({
                         matchAnalysis.matchBreakdown?.skills < 70
                           ? "text-red-600"
                           : matchAnalysis.matchBreakdown?.skills < 90
-                            ? "text-yellow-600"
-                            : "text-green-700"
+                          ? "text-yellow-600"
+                          : "text-green-700"
                       }
                     >
                       Skills: {matchAnalysis.matchBreakdown?.skills ?? 0}%
@@ -663,8 +730,8 @@ export default function JobDetails({
                         matchAnalysis.matchBreakdown?.experience < 70
                           ? "text-red-600"
                           : matchAnalysis.matchBreakdown?.experience < 90
-                            ? "text-yellow-600"
-                            : "text-green-700"
+                          ? "text-yellow-600"
+                          : "text-green-700"
                       }
                     >
                       Experience: {matchAnalysis.matchBreakdown?.experience ?? 0}%
@@ -674,8 +741,8 @@ export default function JobDetails({
                         matchAnalysis.matchBreakdown?.education < 70
                           ? "text-red-600"
                           : matchAnalysis.matchBreakdown?.education < 90
-                            ? "text-yellow-600"
-                            : "text-green-700"
+                          ? "text-yellow-600"
+                          : "text-green-700"
                       }
                     >
                       Education: {matchAnalysis.matchBreakdown?.education ?? 0}%
@@ -687,22 +754,23 @@ export default function JobDetails({
                     {matchAnalysis.matchScore >= 90 && (
                       <p>💪 Excellent match — your profile fits this job very well!</p>
                     )}
-                    {matchAnalysis.matchScore >= 70 && matchAnalysis.matchScore < 90 && (
-                      <p>👍 Good match — a few small improvements could make it perfect.</p>
-                    )}
+                      {matchAnalysis.matchScore >= 70 && matchAnalysis.matchScore < 90 && (
+                        <p>👍 Good match — a few small improvements could make it perfect.</p>
+                      )}
                     {matchAnalysis.matchScore < 70 && (
-                      <p>⚠️ Some areas need improvement — focus on red or yellow sections above.</p>
-                    )}
-                  </div>
+                        <p>⚠️ Some areas need improvement — focus on red or yellow sections above.</p>
+                      )}
+                    </div>
+                
 
                   {/* Suggestions */}
                   {matchAnalysis.suggestions?.length > 0 && (
                     <>
-                      <h4 className="font-semibold mt-3">Suggestions for Improvement:</h4>
+                        <h4 className="font-semibold mt-3">Suggestions for Improvement:</h4>
                       <ul className="list-disc pl-6 text-gray-700">
-                        {matchAnalysis.suggestions.map((s: string, i: number) => (
-                          <li key={i}>{s}</li>
-                        ))}
+                          {matchAnalysis.suggestions.map((s: string, i: number) => (
+                            <li key={i}>{s}</li>
+                          ))}
                       </ul>
                     </>
                   )}
@@ -710,6 +778,7 @@ export default function JobDetails({
                 </div>
               )}
             </section>
+
             {/* Add new entry form */}
             {isAddingHistory && (
               <div className="mb-4 p-4 bg-blue-50 rounded border border-blue-200">
@@ -819,8 +888,73 @@ export default function JobDetails({
               )}
             </div>
           </section>
+
+          {/*Linked resume versions section at the BOTTOM */}
+          <section>
+            <h3 className="font-semibold text-lg mb-3">
+              Linked Resume Versions
+            </h3>
+            <div className="bg-gray-50 p-4 rounded text-sm space-y-2">
+              {linkedLoading && (
+                <p className="text-gray-500">Loading linked resumes…</p>
+              )}
+              {linkedError && (
+                <p className="text-red-600">{linkedError}</p>
+              )}
+
+              {!linkedLoading &&
+                !linkedError &&
+                (!linkedResumes || linkedResumes.length === 0) && (
+                  <p className="text-gray-500">
+                    No resume versions linked to this job yet.
+                  </p>
+                )}
+
+              {!linkedLoading &&
+                !linkedError &&
+                linkedResumes &&
+                linkedResumes.length > 0 && (
+                  <ul className="space-y-1">
+                    {linkedResumes.map((r) => (
+                      <li
+                        key={r._id}
+                        className="flex items-center justify-between"
+                      >
+                        <div>
+                          <span className="font-medium">
+                            {r.name ||
+                              r.resumeFilename ||
+                              "Untitled version"}
+                          </span>
+                          {r.resumeFilename &&
+                            r.name &&
+                            r.name !== r.resumeFilename && (
+                              <span className="text-xs text-gray-500 ml-2">
+                                ({r.resumeFilename})
+                              </span>
+                            )}
+                        </div>
+                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                          {r.isDefault && (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              default
+                            </span>
+                          )}
+                          {r.createdAt && (
+                            <span>
+                              {new Date(r.createdAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+            </div>
+          </section>
         </div>
       </Card>
+
       {showCompanyInfo && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <Card className="w-full max-w-4xl max-h-[85vh] overflow-y-auto">
@@ -1012,7 +1146,7 @@ function ContactFields({
               value={contact?.email || ""}
               onChange={(e) => handleFieldChange("email", e.target.value)}
               className={`w-full form-input ${emailError ? "border-red-500" : ""
-                }`}
+              }`}
               placeholder="john@company.com"
             />
           ) : (
