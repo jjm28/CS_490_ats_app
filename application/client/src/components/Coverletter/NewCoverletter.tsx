@@ -9,6 +9,14 @@ import MiniJobForm from "./MiniJobForm";
 import type { JobDraft } from "./MiniJobForm";
 import { type GetCoverletterResponse, GetAiGeneratedContent } from "../../api/coverletter";
 
+type ToneSettings = {
+  tone: "formal" | "casual" | "enthusiastic" | "analytical";
+  style: "narrative" | "direct" | "bullet";
+  culture: "corporate" | "startup";
+  length: "brief" | "standard" | "detailed";
+  custom?: string;
+};
+
 export default function NewCoverletter() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<(typeof TEMPLATES)[number] | null>(null);
@@ -21,6 +29,17 @@ export default function NewCoverletter() {
   // 🔹 NEW: AI loading + error state
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  const [showToneModal, setShowToneModal] = useState(false);
+  const [toneSettings, setToneSettings] = useState<ToneSettings>({
+  tone: "formal",
+  style: "narrative",
+  culture: "corporate",
+  length: "standard",
+  custom: "",
+});
+
+const [experienceMode, setExperienceMode] = useState(false);
 
   const navigate = useNavigate();
 
@@ -64,7 +83,8 @@ export default function NewCoverletter() {
       navigate("/login", { state: { flash: "Please log in to use AI with your saved jobs." } });
       return;
     }
-    setShowJobPicker(true);
+    //setShowJobPicker(true);
+    setShowToneModal(true);
     setChooseMode(false);
     setOpen(false);
   };
@@ -88,7 +108,7 @@ export default function NewCoverletter() {
     setAiLoading(true);
     try {
       const user = safeGetUser();
-      const data = await GetAiGeneratedContent({ userid: user._id, Jobdata: job });
+      const data = await GetAiGeneratedContent({ userid: user._id, Jobdata: job, toneSettings, experienceMode, });
       navigate("/coverletter/editor", {
         state: {
           template: active,
@@ -115,11 +135,12 @@ export default function NewCoverletter() {
     setAiLoading(true);
     try {
       const user = safeGetUser();
-      const data = await GetAiGeneratedContent({ userid: user._id, Jobdata: draft });
+      const data = await GetAiGeneratedContent({ userid: user._id, Jobdata: draft, toneSettings, experienceMode, });
       navigate("/coverletter/editor", {
         state: {
           template: active,
           AImode: true,
+          experienceMode,
           GeminiCoverletter: data,
         },
       });
@@ -181,6 +202,105 @@ export default function NewCoverletter() {
         })}
       </div>
 
+
+{/* Tone modal (simple inline) */}
+{showToneModal && (
+  <div
+    className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    onClick={(e) => { if (e.target === e.currentTarget) setShowToneModal(false); }}
+  >
+    <div className="bg-white rounded-2xl p-6 w-[90vw] max-w-lg shadow-xl space-y-4">
+      <h3 className="text-lg font-semibold">Tone & Style</h3>
+
+      <div className="grid grid-cols-1 gap-3">
+        <label className="text-sm font-medium">Tone</label>
+        <select
+          className="border rounded-md px-3 py-2"
+          value={toneSettings.tone}
+          onChange={(e) => setToneSettings({ ...toneSettings, tone: e.target.value as ToneSettings["tone"] })}
+        >
+          <option value="formal">Formal</option>
+          <option value="casual">Casual</option>
+          <option value="enthusiastic">Enthusiastic</option>
+          <option value="analytical">Analytical</option>
+        </select>
+
+        <label className="text-sm font-medium">Writing Style</label>
+        <select
+          className="border rounded-md px-3 py-2"
+          value={toneSettings.style}
+          onChange={(e) => setToneSettings({ ...toneSettings, style: e.target.value as ToneSettings["style"] })}
+        >
+          <option value="narrative">Narrative</option>
+          <option value="direct">Direct</option>
+          <option value="bullet">Bullet Points</option>
+        </select>
+
+        <label className="text-sm font-medium">Company Culture</label>
+        <select
+          className="border rounded-md px-3 py-2"
+          value={toneSettings.culture}
+          onChange={(e) => setToneSettings({ ...toneSettings, culture: e.target.value as ToneSettings["culture"] })}
+        >
+          <option value="corporate">Corporate</option>
+          <option value="startup">Startup</option>
+        </select>
+
+        <label className="text-sm font-medium">Length</label>
+        <select
+          className="border rounded-md px-3 py-2"
+          value={toneSettings.length}
+          onChange={(e) => setToneSettings({ ...toneSettings, length: e.target.value as ToneSettings["length"] })}
+        >
+          <option value="brief">Brief (1 paragraph)</option>
+          <option value="standard">Standard (2–3 paragraphs)</option>
+          <option value="detailed">Detailed (3–4 paragraphs)</option>
+        </select>
+
+        <label className="text-sm font-medium">Custom Tone Instruction</label>
+        <textarea
+          className="border rounded-md px-3 py-2 resize-none"
+          rows={3}
+          placeholder="e.g. Make it confident but humble…"
+          value={toneSettings.custom ?? ""}
+          onChange={(e) => setToneSettings({ ...toneSettings, custom: e.target.value })}
+        />
+      </div>
+      {/* Experience Highlighting Toggle */}
+<div className="mt-4 border-t pt-4">
+  <label className="flex items-center gap-3 text-sm font-medium">
+    <input
+      type="checkbox"
+      checked={experienceMode}
+      onChange={(e) => setExperienceMode(e.target.checked)}
+      className="h-4 w-4"
+    />
+    Enable Experience Highlighting
+  </label>
+  <p className="text-xs text-gray-500 ml-7 mt-1">
+    AI will analyze your previous roles and emphasize the most relevant 
+    achievements for this job.
+  </p>
+</div>
+
+
+      <div className="flex justify-end gap-3 pt-3 border-t">
+        <button
+          onClick={() => setShowToneModal(false)}
+          className="px-4 py-2 rounded-md bg-gray-100 text-gray-800 hover:bg-gray-200"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => { setShowToneModal(false); setShowJobPicker(true); }}
+          className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {/* Display jobs or enter manually */}
       <JobPickerSheet
         open={showJobPicker}
