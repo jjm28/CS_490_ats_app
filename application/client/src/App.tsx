@@ -1,4 +1,5 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+
 import { useEffect } from 'react';
 import Nav from './components/Nav';
 import HomePage from './components/Homepage';
@@ -39,7 +40,9 @@ import ResumeEditor from './components/Resume/ResumeEditor';
 import Resumes from './components/Resume/Resumes';
 import ResumeShareView from './components/Resume/ResumeShareView';
 import DeadlineCalendar from './components/Jobs/DeadlineCalendar';
-
+import ApplicationsPage from './components/Applications/ApplicationsPage';
+import JobDetailsPage from './components/Jobs/JobDetailsPage';
+import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
 import './App.css';
 import CompanyResearch from './components/Job_Tools/CompanyResearch';
 
@@ -84,7 +87,7 @@ function App() {
           <Route path="/Certifications" element={<PrivateRoute><Certifications /></PrivateRoute>} /> {/* Protected Routes */}
           <Route path="/company-research" element={<PrivateRoute><CompanyResearch /></PrivateRoute>} />
           <Route path="/Jobs" element={<PrivateRoute><JobsEntry /></PrivateRoute>} />
-          <Route path="/Jobs/Pipeline" element={<PrivateRoute><JobsPipeline /></PrivateRoute>} />
+          <Route path="/Jobs/Pipeline" element={<Navigate to="/Applications" replace />} />
           <Route path="/Jobs/Calendar" element={<PrivateRoute><DeadlineCalendar /></PrivateRoute>} />
           <Route path="/coverletter" element={<PrivateRoute><Coverletter /></PrivateRoute>} />
           <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
@@ -96,6 +99,12 @@ function App() {
           <Route path="/resumes/share" element={<PrivateRoute><ResumeShareView /></PrivateRoute>} />
           <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
           <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
+          <Route path="/Applications" element={<ApplicationsPage />} />
+          <Route path="/Jobs/:id" element={<PrivateRoute><JobDetailsPage /></PrivateRoute>} />
+          <Route
+            path="/Applications/Analytics"
+            element={<PrivateRoute><ApplicationAnalytics /></PrivateRoute>}
+          />
         </Routes>
       </div>
     </>

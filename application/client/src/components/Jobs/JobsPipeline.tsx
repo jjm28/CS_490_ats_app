@@ -15,17 +15,19 @@ import {
 const JobsPipeline: React.FC = () => {
   const token = useMemo(
     () =>
-      localStorage.getItem("authToken") || localStorage.getItem("token") || "",
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("token") ||
+      "",
     []
   );
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState<string>("");
   const navigate = useNavigate();
 
-  // Fetch jobs
   useEffect(() => {
     fetchJobs();
   }, []);
@@ -67,6 +69,43 @@ const JobsPipeline: React.FC = () => {
     }
   };
 
+  const toggleJobSelection = (id: string, selected: boolean) => {
+    setSelectedJobs((prev) =>
+      selected ? [...prev, id] : prev.filter((jobId) => jobId !== id)
+    );
+  };
+
+  const handleBulkUpdate = async () => {
+    if (!bulkStatus || selectedJobs.length === 0) {
+      alert("Select at least one job and a status to update.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/bulk-status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          jobIds: selectedJobs,
+          status: bulkStatus,
+          note: "Bulk status update from pipeline",
+        }),
+      });
+
+      if (!res.ok) throw new Error("Bulk update failed");
+      await fetchJobs();
+      setSelectedJobs([]);
+      setBulkStatus("");
+      alert("✅ Bulk update successful!");
+    } catch (err) {
+      console.error("Bulk update error:", err);
+      alert("Failed to bulk update jobs");
+    }
+  };
+
   const groupedJobs: Record<JobStatus, Job[]> = STATUS_ORDER.reduce(
     (acc, status) => {
       acc[status] = jobs.filter((job) => job.status === status);
@@ -76,38 +115,38 @@ const JobsPipeline: React.FC = () => {
   );
 
   const handleDragEnd = async (event: any) => {
-    const { active, over } = event;
+  const { active, over } = event;
+  if (!over) return;
 
-    if (!over) return;
+  const draggedJobId = active.id;
+  const targetStatus = over.id as JobStatus;
 
-    const draggedJobId = active.id;
-    const targetStatus = over.id as JobStatus;
+  // 🛑 If job not found or already in same column, do nothing
+  const job = jobs.find((j) => j._id === draggedJobId);
+  if (!job || job.status === targetStatus) return;
 
-    const job = jobs.find((j) => j._id === draggedJobId);
-    if (!job || job.status === targetStatus) return;
+  // ✅ Update local state immediately for smooth UX
+  setJobs((prev) =>
+    prev.map((j) =>
+      j._id === draggedJobId ? { ...j, status: targetStatus } : j
+    )
+  );
 
-    // Optimistic update
-    setJobs((prev) =>
-      prev.map((j) =>
-        j._id === draggedJobId ? { ...j, status: targetStatus } : j
-      )
-    );
+  try {
+    // 🧠 Double-call prevention: Check backend won't double write
+    await fetch(`${API_BASE}/api/jobs/${draggedJobId}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status: targetStatus }),
+    });
+  } catch (err) {
+    console.error("Failed to update job status:", err);
+  }
+};
 
-    // Update backend
-    try {
-      await fetch(`${API_BASE}/api/jobs/${draggedJobId}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ status: targetStatus }),
-      });
-    } catch (err) {
-      console.error("Failed to update job status:", err);
-      // Optionally revert UI if API fails
-    }
-  };
 
   if (loading) return <p className="p-6">Loading...</p>;
   if (err) return <p className="p-6 text-red-600">{err}</p>;
@@ -117,6 +156,35 @@ const JobsPipeline: React.FC = () => {
       <h1 className="text-2xl font-bold text-gray-900 mb-4">
         Job Application Pipeline
       </h1>
+
+      {/* ✅ Bulk Update Controls */}
+      <div className="flex items-center gap-3 mb-6">
+        <select
+          value={bulkStatus}
+          onChange={(e) => setBulkStatus(e.target.value)}
+          className="border rounded px-3 py-1 text-sm"
+        >
+          <option value="">Select status...</option>
+          <option value="interested">Interested</option>
+          <option value="applied">Applied</option>
+          <option value="phone_screen">Phone Screen</option>
+          <option value="interview">Interview</option>
+          <option value="offer">Offer</option>
+          <option value="rejected">Rejected</option>
+        </select>
+
+        <Button variant="primary" onClick={handleBulkUpdate}>
+          Update Selected Jobs
+        </Button>
+
+        {selectedJobs.length > 0 && (
+          <span className="text-sm text-gray-600">
+            {selectedJobs.length} selected
+          </span>
+        )}
+      </div>
+
+      {/* ✅ Pipeline Columns */}
       <div className="flex gap-4 overflow-x-auto pb-6">
         <DndContext
           collisionDetection={closestCenter}
@@ -129,10 +197,13 @@ const JobsPipeline: React.FC = () => {
               title={STATUS_DISPLAY[status]}
               colorClass={STATUS_COLORS[status]}
               jobs={groupedJobs[status]}
+              selectedJobs={selectedJobs}
+              toggleJobSelection={toggleJobSelection}
             />
           ))}
         </DndContext>
       </div>
+
       <Button className="mt-4" onClick={() => navigate("/Jobs")}>
         Back to Jobs
       </Button>
