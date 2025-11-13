@@ -24,8 +24,8 @@ import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";               
 import { ensureSystemTemplates } from './services/templates.service.js';
 
-import cron from 'node-cron';
-import { sendDeadlineNotifications } from './services/notification.service.js';
+import { setupNotificationCron } from './jobs/notificationcron.js';
+import notificationRoutes from './routes/notifications.js';
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -36,12 +36,6 @@ const app = express();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Run every hour
-cron.schedule('0 * * * *', async () => {
-  console.log('Running deadline notification check...');
-  await sendDeadlineNotifications();
-});
 
 app.set('baseUrl', BASE);
 
@@ -94,7 +88,12 @@ try {
   app.use("/api/resumes", attachDevUser, resumesRoute);
   app.use('/api/resume-templates', attachDevUser, templatesRoute);
 
-  
+  // Notification routes and cron job
+  // After DB connects:
+  setupNotificationCron();
+
+  // With routes (protected by auth):
+  app.use('/api/notifications', notificationRoutes);
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

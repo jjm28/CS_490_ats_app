@@ -7,6 +7,7 @@ import axios from 'axios';
 import { connectDB, getDb } from "../db/connection.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { createDefaultNotificationPreferences } from '../utils/notificationhelpers.js';
 
 const router = express.Router();
 const oauth2 = new google.auth.OAuth2(  
@@ -25,6 +26,9 @@ router.post('/register', async (req, res) => {
     const user = await createUser({ email, password, firstName, lastName });
     // Return new userId so client can use it for subsequent profile calls
     const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "1h"});
+
+    // Create default notification preferences
+    await createDefaultNotificationPreferences(String(user._id));
 
     return res.status(201).json({ token, userId: String(user._id), user });
   } catch (err) {
@@ -100,6 +104,8 @@ try {
       const email = payload.email
       token= jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "2h"});
 
+      // Create default notification preferences
+      await createDefaultNotificationPreferences(String(user._id));
 
     }
     else {
@@ -159,6 +165,8 @@ try {
       const email = payload.mail
       token= jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "2h"});
 
+      // Create default notification preferences
+      await createDefaultNotificationPreferences(String(user._id));
 
     }
     else {

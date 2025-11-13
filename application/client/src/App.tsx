@@ -41,7 +41,7 @@ import DeadlineCalendar from './components/Jobs/DeadlineCalendar';
 import ApplicationsPage from './components/Applications/ApplicationsPage';
 import JobDetailsPage from './components/Jobs/JobDetailsPage';
 import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
-import NotificationSettings from './components/Jobs/NotificationSettings';
+import NotificationSettings from './components/Settings/NotificationSettings';
 import InAppNotifications from './components/Jobs/InAppNotifications';
 
 import './App.css';
