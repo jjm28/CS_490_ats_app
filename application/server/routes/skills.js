@@ -40,7 +40,7 @@ router.post("/", async (req, res) => {
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const { name, category, proficiency } = req.body;
-    if (!name || !category || !proficiency) {``
+    if (!name || !category || !proficiency) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 

@@ -26,15 +26,12 @@ export default function JobDetails({
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<Job>>({});
   const [loading, setLoading] = useState(true);
-<<<<<<< HEAD
   const [analyzing, setAnalyzing] = useState(false);
   const [matchAnalysis, setMatchAnalysis] = useState<any | null>(null);
   const [analysisError, setAnalysisError] = useState("");
 
-=======
   // NEW: controls the company info popup
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
->>>>>>> 8b15edd7f8a092bc9dd2e40e6552c136ecbb7bcc
   // New state for adding application history
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);

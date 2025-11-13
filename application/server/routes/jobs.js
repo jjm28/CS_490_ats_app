@@ -20,7 +20,8 @@ import {
     bulkUpdateJobStatus,
     addApplicationHistory,
     updateApplicationHistory,
-    deleteApplicationHistory
+    deleteApplicationHistory,
+    getJobStats
 } from "../services/jobs.service.js";
 import {
     getUserPreferences,
@@ -30,22 +31,19 @@ import {
     deleteSavedSearch,
     deleteUserPreferences
 } from "../services/userpreferences.service.js";
+import Jobs from "../models/jobs.js";
+import { validateJobImport } from '../validators/jobimport.js';
+import { scrapeJobFromUrl } from '../services/jobscraper.service.js';
 import { calculateJobMatch } from "../__tests__/services/matchAnalysis.service.js";
-import { getDb } from '../db/connection.js';
-import { ObjectId } from "mongodb";
 import { getSkillsByUser } from "./skills.js";
 
 const router = Router();
-<<<<<<< HEAD
-const VALID_STATUSES = ['interested', 'applied', 'phone_screen', 'interview', 'offer', 'rejected'];
-=======
 
 const VALID_STATUSES = ["interested", "applied", "phone_screen", "interview", "offer", "rejected"];
 
 // ============================================
 // AUTH + UTIL HELPERS
 // ============================================
->>>>>>> ae69be1f45d1b795345ac092249c62326b3d702c
 
 router.use((req, res, next) => {
   if (req.headers["x-dev-user-id"]) {
@@ -190,19 +188,21 @@ router.post("/", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const db = getDb();
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    // Fetch jobs from DB
+    // Build the Mongoose query object
+    const query = { userId, archived: { $ne: true } }; // Ensure non-archived jobs are fetched
     const statusParam = req.query.status;
-    let jobs;
 
     if (statusParam) {
-      jobs = await db.collection("jobs").find({ userId, status: statusParam }).toArray();
-    } else {
-      jobs = await db.collection("jobs").find({ userId }).toArray();
+      query.status = statusParam;
     }
+
+    // ✅ Fetch jobs using Mongoose with sorting
+    const jobs = await Jobs.find(query)
+      .sort({ createdAt: -1 })
+      .lean();
 
     // ✅ Fetch user skills
     const userSkills = await getSkillsByUser(userId);
@@ -218,81 +218,35 @@ router.get("/", async (req, res) => {
         ? Math.round((skillsMatched.length / jobSkills.length) * 100)
         : 0;
 
-<<<<<<< HEAD
       return {
         ...job,
         matchScore,
         skillsMatched,
         skillsMissing,
       };
-=======
-    const stats = await getJobStats(userId);
-    res.json(stats);
-  } catch (err) {
-    console.error("Stats generation failed:", err);
-    res.status(500).json({ error: err.message || "Failed to get job stats" });
-  }
-});
-
-
-/**
- * POST /api/jobs/import-from-url
- * Import job data from a job posting URL
- * Place this route BEFORE the router.get("/:id") route to avoid conflicts
- */
-router.post("/import-from-url", async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
-    const r = await validateJobImport(req.body);
-    if (!r.ok) return res.status(r.status).json(r.error);
-
-    const result = await scrapeJobFromUrl(r.value.url);
-
-    if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        status: result.status,
-        error: result.error || 'Failed to import job data',
-        data: result.data,
-        jobBoard: result.jobBoard
-      });
-    }
-
-    res.json({
-      success: true,
-      status: result.status,
-      data: result.data,
-      jobBoard: result.jobBoard,
-      extractedFields: result.extractedFields,
-      message: result.status === 'success'
-        ? 'Job data imported successfully'
-        : 'Partial data imported - please review and complete missing fields'
->>>>>>> ae69be1f45d1b795345ac092249c62326b3d702c
     });
 
     res.json(enhancedJobs);
   } catch (err) {
-<<<<<<< HEAD
-    console.error("Error fetching jobs:", err);
-    res.status(500).json({ error: err?.message || "Get all jobs failed" });
-=======
-    console.error('Error importing job from URL:', err);
-    res.status(500).json({
-      success: false,
-      status: 'failed',
-      error: err?.message || "Failed to import job data"
-    });
->>>>>>> ae69be1f45d1b795345ac092249c62326b3d702c
+    console.error("Get jobs failed:", err);
+    res.status(500).json({ error: err?.message || "Get jobs failed" });
   }
 });
 
+// ✅ Get archived jobs
 router.get("/archived", async (req, res) => {
   try {
     const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const jobs = await Jobs.find({ userId, archived: true }).sort({ archivedAt: -1 });
+    if (!userId) {
+      console.error("No userId found in /archived");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const jobs = await Jobs.find({
+      userId,
+      archived: true,
+    }).sort({ archivedAt: -1 });
+
     res.json(jobs);
   } catch (err) {
     console.error("Get archived jobs failed:", err);
@@ -300,10 +254,12 @@ router.get("/archived", async (req, res) => {
   }
 });
 
+// /api/jobs/stats
 router.get("/stats", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
     const stats = await getJobStats(userId);
     res.json(stats);
   } catch (err) {
@@ -348,7 +304,6 @@ router.post("/import-from-url", async (req, res) => {
         ? 'Job data imported successfully'
         : 'Partial data imported - please review and complete missing fields'
     });
-
   } catch (err) {
     console.error('Error importing job from URL:', err);
     res.status(500).json({
