@@ -8,9 +8,9 @@ const CreativePreview = React.lazy(() => import("./CoverLetterTemplates/ClientSi
 const TechnicalPreview = React.lazy(() => import("./CoverLetterTemplates/ClientSide/TechnicalPreview"));
 
 
-const FormalPDF = React.lazy(() => import("./CoverLetterTemplates/Pdf/Formalpdf.tsx")); 
-const CreativePDF = React.lazy(() => import("./CoverLetterTemplates/Pdf/Creativepdf.tsx")); 
-const TechnicalPDF = React.lazy(() => import("./CoverLetterTemplates/Pdf/Techincalpdf.tsx"));
+const FormalPDF = React.lazy(() => import("./CoverLetterTemplates/Pdf/Formalpdf")); 
+const CreativePDF = React.lazy(() => import("./CoverLetterTemplates/Pdf/Creativepdf")); 
+const TechnicalPDF = React.lazy(() => import("./CoverLetterTemplates/Pdf/Techincalpdf"));
 
 // Map whatever “criteria” you like => component
 export const previewRegistry: Record<string, React.LazyExoticComponent<React.FC<PreviewProps>>> = {

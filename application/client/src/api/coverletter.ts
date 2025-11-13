@@ -1,4 +1,3 @@
-import type { CoverLetterData } from "../components/Coverletter/CoverLetterTemplates/Pdf/Formalpdf";
 import type { Template } from "../components/Coverletter/Coverletterstore";
 import type { Job } from "../components/Coverletter/hooks/useJobs";
 
@@ -59,6 +58,54 @@ export interface CoverletterSummary {
 }
 
 export type ListCoverlettersResponse = CoverletterSummary[];
+
+// =========================
+// COVER LETTER BASE TYPES
+// =========================
+
+export type CoverLetterData = {
+  name: string;
+  phonenumber: string;
+  email: string;
+  address: string;
+  date: string;
+  recipientLines: string[];
+  greeting: string;
+  paragraphs: string[] | string;
+  closing: string;
+  signatureNote: string;
+};
+
+// =========================
+// RELEVANT EXPERIENCE TYPE
+// =========================
+
+export type RelevantExperience = {
+  title: string;
+  company: string;
+  relevanceScore: number; // 0–100
+  reason: string;         // Explanation for score
+};
+
+// =========================
+// AI CANDIDATE OUTPUT TYPE
+// =========================
+// This extends normal CoverLetterData
+// and adds AI metadata such as relevance scores
+
+export type CoverLetterAIResult = CoverLetterData & {
+  relevantExperiences?: RelevantExperience[];
+  // (You can add future AI metadata here too)
+};
+
+// =========================
+// FULL AI RESPONSE TYPE
+// =========================
+
+export type AIcoverletterPromptResponse = {
+  rawText: string;                // Full LLM response (optional but useful)
+  parsedCandidates: CoverLetterAIResult[];  // Multiple versions from LLM
+};
 
 
 
@@ -226,22 +273,31 @@ export const AIGenerateCoverletter = async (
 
   return data as AIGenerateResponse;
 };
+
+// Add types
+export type ToneSettings = {
+  tone: "formal" | "casual" | "enthusiastic" | "analytical";
+  style: "narrative" | "direct" | "bullet";
+  culture: "corporate" | "startup";
+  length: "brief" | "standard" | "detailed";
+  custom?: string;
+};
+
 export interface AIcoverletterPromptSchema {
 userid: string, 
 Jobdata: Job
-
+toneSettings? : ToneSettings;
+experienceMode?: boolean;
 }
 
 
-export interface AIcoverletterPromptResponse {
-parsedCandidates: CoverLetterData[]
-}
+
 
 export  const GetAiGeneratedContent = async (  AIcoverletterPrompt: AIcoverletterPromptSchema): Promise<AIcoverletterPromptResponse> => {
     console.log("Getting Data", API_URL+ "generate-coverletterai")
 
   const res = await fetch(API_URL+ "generate-coverletterai" , {
-        method: "POST",
+    method: "POST",
     headers: authHeaders() ,    
     body: JSON.stringify(AIcoverletterPrompt)}
   );
