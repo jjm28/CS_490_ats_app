@@ -479,6 +479,27 @@ export default function CoverletterEditor() {
     );
   };
 
+    // Export/import as before (left intact)
+  const handleExport = async () => {
+      const tk = template["key"] ??  "formal";
+
+        const jsondata =  { userid:"", filename: filename,templateKey: tk,coverletterdata: {...data},lastSaved: lastSaved }
+
+
+        const jsonStr = JSON.stringify(jsondata, null, 2)
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        URL.revokeObjectURL(url);
+  };
+  
   const handleSave = async () => {
     if (!CoverletterID) {
       try {
@@ -687,7 +708,15 @@ function generatePdfFilename(filename: string) {
       >
         Download PDF
       </button>
-
+      <button
+        className="block w-full text-left px-3 py-2 hover:bg-gray-100"
+        onClick={() => {
+          setExportOpen(false);
+          handleExport();
+        }}
+      >
+        Download JSON
+      </button>
       {/* ---- DOCX DOWNLOAD ---- */}
       <button
         className="block w-full text-left px-3 py-2 hover:bg-gray-100"
