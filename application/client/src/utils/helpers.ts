@@ -42,3 +42,79 @@ export function isValidPassword(password: string): boolean {
   const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
   return regex.test(password);
 }
+
+export interface ValidationErrors {
+  [key: string]: string;
+}
+
+export function  validateFields  (name: string, value: string | number)  {
+    let error = "";
+
+    switch (name) {
+   
+
+      case "company":
+        if (!value.trim()) {
+          error = "Company is required";
+        } else if (value.length > 150) {
+          error = "Company must be 150 characters or less";
+        }
+        break;
+
+      case "industry":
+        if (!value) {
+          error = "Industry is required";
+        }
+        break;
+
+      case "type":
+        if (!value) {
+          error = "Job type is required";
+        }
+        break;
+
+      case "location":
+        if (value.length > 150) {
+          error = "Location must be 150 characters or less";
+        }
+        break;
+
+      case "salaryMin":
+        if (value && parseFloat(value) < 0) {
+          error = "Salary min must be a positive number";
+        } else if (
+          value &&
+          otherSalaryValue &&
+          parseFloat(value) > parseFloat(otherSalaryValue)
+        ) {
+          error = "Salary min cannot exceed salary max";
+        }
+        break;
+
+      case "salaryMax":
+        if (value && parseFloat(value) < 0) {
+          error = "Salary max must be a positive number";
+        } else if (
+          value &&
+          otherSalaryValue &&
+          parseFloat(value) < parseFloat(otherSalaryValue)
+        ) {
+          error = "Salary max cannot be less than salary min";
+        }
+        break;
+
+      case "jobPostingUrl":
+        if (value && !value.match(/^https?:\/\/.+/)) {
+          error = "Please enter a valid URL (e.g., https://example.com)";
+        }
+        break;
+
+      case "description":
+        if (value.length > 2000) {
+          error = "Description must be 2000 characters or less";
+        }
+        break;
+    }
+
+    return error;
+  };
