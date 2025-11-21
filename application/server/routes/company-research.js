@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import NodeCache from 'node-cache';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = express.Router();
@@ -8,6 +9,11 @@ const router = express.Router();
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const cache = new NodeCache({ 
+  stdTTL: 86400,
+  checkperiod: 3600 
+});
 
 router.post('/api/company/research', async (req, res) => {
   try {
@@ -23,7 +29,18 @@ router.post('/api/company/research', async (req, res) => {
       });
     }
 
-    console.log(`Researching: ${companyName}`);
+    // Create cache key with today's date
+    const today = new Date().toISOString().split('T')[0];
+    const cacheKey = `company:${companyName.toLowerCase()}:${today}`;
+    
+    // CHECK CACHE FIRST
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      console.log(`✅ Cache HIT for ${companyName}`);
+      return res.json(cachedData);
+    }
+
+    console.log(`🔄 Cache MISS - Researching: ${companyName}`);
 
     // Run all searches in parallel for speed
     const [
@@ -33,7 +50,7 @@ router.post('/api/company/research', async (req, res) => {
         socialMedia,
         competitorInfo,
         financialHealth
-        ] = await Promise.all([
+    ] = await Promise.all([
         searchCompanyBasicInfo(companyName),
         searchCompanyNews(companyName),
         searchLeadership(companyName),
@@ -53,6 +70,10 @@ router.post('/api/company/research', async (req, res) => {
         financialHealth,
         lastUpdated: new Date().toISOString()
     };
+
+    // SAVE TO CACHE
+    cache.set(cacheKey, companyData);
+    console.log(`💾 Cached data for ${companyName}`);
 
     res.json(companyData);
 
@@ -76,7 +97,7 @@ async function googleSearch(query, numResults = 10) {
         num: numResults
       }
     });
-
+ /// when interviewing, what makes someone standout or like you know they've done their hw
     return response.data.items || [];
   } catch (error) {
     console.error(`Search error for "${query}":`, error.response?.data?.error?.message || error.message);
