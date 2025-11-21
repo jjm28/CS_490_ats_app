@@ -46,75 +46,47 @@ export function isValidPassword(password: string): boolean {
 export interface ValidationErrors {
   [key: string]: string;
 }
+export function validateFields(name: string, value: string) {
+  let error = "";
 
-export function  validateFields  (name: string, value: string | number)  {
-    let error = "";
+  switch (name) {
 
-    switch (name) {
-   
+    case "full_name":
+      if (!value.trim()) {
+        error = "Full name is required.";
+      }
+      break;
 
-      case "company":
-        if (!value.trim()) {
-          error = "Company is required";
-        } else if (value.length > 150) {
-          error = "Company must be 150 characters or less";
-        }
-        break;
+    case "email":
+      if (!value.trim()) {
+        error = "Email is required.";
+      } else if (!/^\S+@\S+\.\S+$/.test(value)) {
+        error = "Please enter a valid email address.";
+      }
+      break;
 
-      case "industry":
-        if (!value) {
-          error = "Industry is required";
-        }
-        break;
 
-      case "type":
-        if (!value) {
-          error = "Job type is required";
-        }
-        break;
+    case "relationship":
+      if (!value.trim()) {
+        error = "Relationship is required.";
+      }
+      break;
 
-      case "location":
-        if (value.length > 150) {
-          error = "Location must be 150 characters or less";
-        }
-        break;
+    case "phone":
+      if (value && !/^\+?[0-9()\-\s]{7,20}$/.test(value)) {
+        error = "Please enter a valid phone number.";
+      }
+      break;
 
-      case "salaryMin":
-        if (value && parseFloat(value) < 0) {
-          error = "Salary min must be a positive number";
-        } else if (
-          value &&
-          otherSalaryValue &&
-          parseFloat(value) > parseFloat(otherSalaryValue)
-        ) {
-          error = "Salary min cannot exceed salary max";
-        }
-        break;
+    case "preferred_contact_method":
+      if (!value.trim()) {
+        error = "Preferred contact method is required.";
+      }
+      break;
 
-      case "salaryMax":
-        if (value && parseFloat(value) < 0) {
-          error = "Salary max must be a positive number";
-        } else if (
-          value &&
-          otherSalaryValue &&
-          parseFloat(value) < parseFloat(otherSalaryValue)
-        ) {
-          error = "Salary max cannot be less than salary min";
-        }
-        break;
+    default:
+      break;
+  }
 
-      case "jobPostingUrl":
-        if (value && !value.match(/^https?:\/\/.+/)) {
-          error = "Please enter a valid URL (e.g., https://example.com)";
-        }
-        break;
-
-      case "description":
-        if (value.length > 2000) {
-          error = "Description must be 2000 characters or less";
-        }
-        break;
-    }
-
-    return error;
-  };
+  return error;
+}
