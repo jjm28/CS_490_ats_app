@@ -2,8 +2,8 @@ import { Edit } from "lucide-react";
 import Button from "../StyledComponents/Button"
 import Card  from "../StyledComponents/Card"
 import React, { useState, useEffect, useMemo } from "react";
-import type { RefereeFormData} from "../../api/reference";
-import { addnewReferee } from "../../api/reference";
+import type { RefereeFormData,GetRefereeResponse} from "../../api/reference";
+import { addnewReferee,getReferee,getAllReferee ,DeleteThisReferees} from "../../api/reference";
 import { validateFields } from "../../utils/helpers";
 import type { ValidationErrors } from "../../utils/helpers";
 
@@ -25,6 +25,12 @@ export default function ManageReferences(){
       });
     const [formerros,setformerros] = useState<ValidationErrors>({});
     const [tagInput, setTagInput] = useState("");
+    const [referees, setReferees] = useState<GetRefereeResponse[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedRefIds, setSelectedRefIds] = useState<string[]>([]);
+    const [EditRefId, setEditRefId] = useState("");
 
     const handleSubmit =  async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,17 +50,75 @@ export default function ManageReferences(){
     const payload: any = {...formData}
     const user = JSON.parse(localStorage.getItem("authUser") ?? "").user
     payload.user_id = user._id
-
-
-
+    if (EditRefId){
+      payload.referenceid = EditRefId
+    }
  try{
-       const item = await addnewReferee(payload)
+    const  response = await addnewReferee(payload)
+    if (response){
+      if (!Editing){
+        addRefereetolist(response._id,user._id)
+        resetForm()
+      }
+      else{ 
+      setReferees((prev) =>
+      prev.map((r) =>
+        getRefId(r._id) === response._id // or response.referee_id depending on your API
+          ? { ...r, ...payload }    // use updated data from backend
+          : r
+      )
+    );
+    resetForm();
+        resetForm()
+      }
+    }
    
     } catch (error) {
-      console.error("Error saving job:", error);
+      console.error("Error saving Referee:", error);
       setformerros({"Servererror": "Something went wrong"})
     }
+   
   };
+
+  const addRefereetolist = async (refrenceid: string,userid: string) =>{
+    try {
+    const referee = await getReferee({referee_id: refrenceid,user_id:userid})
+  setReferees(prev => {
+    const next = [...prev, referee];
+    return next;
+  });
+    }
+    catch(error){
+      console.error("Error saving Referee:", error);
+      setformerros({"Servererror": "Something went wrong"})
+    }
+  }
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setFetchError(null);
+
+        const raw = localStorage.getItem("authUser");
+        const user = raw ? JSON.parse(raw).user : null;
+        if (!user?._id) throw new Error("Missing user session");
+
+        const res = await getAllReferee({ user_id: user._id }); 
+        if (!alive) return;
+        setReferees(res.referees ?? []);
+      } catch (e: any) {
+        if (!alive) return;
+        setFetchError(e?.message ?? "Failed to load references.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
     const resetForm = () => {
         setShowAddrefForm(false)
@@ -72,6 +136,7 @@ export default function ManageReferences(){
         last_used_at: "",
         usage_count: 0,
       })
+      setEditRefId("")
     }
       const handleInputChange = (   e: React.ChangeEvent<     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement    >   ) => {
         const { name, value } = e.target;
@@ -122,8 +187,73 @@ const handleRemoveTag = (index: number) => {
   }));
 };
 
+  const filteredReferees = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return referees;
+
+    return referees.filter((r) => {
+      const fields = [
+        r._id,
+        r.full_name,
+        r.title,
+        r.organization,
+        r.relationship,
+        r.email,
+        Array.isArray(r.tags) ? r.tags.join(" ") : "",
+      ];
+      return fields.some((f) => f?.toLowerCase().includes(q));
+    });
+  }, [referees, searchTerm]);
+const getRefId = (referee_id: string) =>   referee_id ;
+
+
+  const handleDeleteOne = async (id: string) => {
+  try {
+    const response = await DeleteThisReferees({referee_ids: [id]})
+    if (response.completed == true){
+    setReferees((prev) => prev.filter((r) => getRefId(r._id) !== id));
+    setSelectedRefIds((prev) => prev.filter((x) => x !== id));
+    setEditRefId("")
+    resetForm()
+    }
+    else {
+    setformerros({ Servererror: "Failed to delete selected references. Please try again." });
+    }
+
+  } catch (err) {
+    console.error("Failed to delete referee", err);
+    setformerros({ Servererror: "Failed to delete reference. Please try again." });
+  }
+};
+
+
+
+const handleDeleteSelected = async () => {
+  if (selectedRefIds.length === 0) return;
+  try {
+
+    const response = await DeleteThisReferees({referee_ids: selectedRefIds})
+    if (response.completed == true){
+    setReferees((prev) => prev.filter((r) => !selectedRefIds.includes(getRefId(r._id))));
+    setSelectedRefIds([]);
+    }
+    else {
+    setformerros({ Servererror: "Failed to delete selected references. Please try again." });
+    }
+  } catch (err) {
+    console.error("Failed to delete selected referees", err);
+    setformerros({ Servererror: "Failed to delete selected references. Please try again." });
+  }
+};
+
+const toggleSelectRef = (id: string) => {
+  setSelectedRefIds((prev) =>
+    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  );
+};
+
 return (
-        <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="p-6 min-h-screen">
              <div className="max-w-5xl mx-auto flex flex-col gap-4">
 
                 <div>
@@ -137,7 +267,8 @@ return (
                             type="text"
                             className="w-full rounded-lg border px-3 py-2 text-sm"
                             placeholder="Search by name, company, or role…"
-        
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                             <Button
@@ -145,13 +276,214 @@ return (
                             >
                             Add Reference
                             </Button>
+                </div> 
+            {fetchError && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="font-medium">Something went wrong.</p>
+            <p>{fetchError}</p>
+          </div>
+        )}
+
+        {loading && (
+          <p className="text-sm text-gray-500 mt-4">Loading references…</p>
+        )}
+
+         {!loading && !fetchError && referees.length === 0 && (
+          <Card className="mt-4 p-6 flex flex-col items-start gap-2">
+            <h2 className="text-lg font-semibold">No references yet</h2>
+            <p className="text-sm text-gray-600">
+              Add your first professional reference so you can quickly attach
+              them to job applications.
+            </p>
+            <Button
+              className="mt-3"
+              onClick={() => setShowAddrefForm(true)}
+            >
+              Add your first reference
+            </Button>
+          </Card>
+        )}
+        {!loading &&
+          !fetchError &&
+          referees.length > 0 &&
+          filteredReferees.length === 0 && (
+            <Card className="mt-4 p-4">
+              <p className="text-sm text-gray-600">
+                No references match “{searchTerm}”. Try a different name,
+                company, or role.
+              </p>
+            </Card>
+          )}
+
+
+{!loading && filteredReferees.length > 0 && (
+  <>
+    {/* Bulk delete toolbar when something is selected */}
+    {selectedRefIds.length > 0 && (
+      <div className="mt-4 flex items-center justify-between">
+        <p className="text-xs text-gray-600">
+          {selectedRefIds.length} reference
+          {selectedRefIds.length > 1 ? "s" : ""} selected
+        </p>
+        <Button
+          variant="secondary"
+          className="!bg-red-50 !text-red-700 hover:!bg-red-100 border border-red-200"
+          type="button"
+          onClick={handleDeleteSelected}
+        >
+          Delete selected
+        </Button>
+      </div>
+    )}
+
+    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {filteredReferees.map((ref) => {
+        const id = ref._id;
+        const isSelected = selectedRefIds.includes(id);
+
+        return (
+          <Card
+            key={id}
+            className={`p-4 flex flex-col justify-between rounded-lg border transition
+              ${
+                isSelected
+                  ? "border-red-500 bg-red-50 ring-1 ring-red-200"
+                  : "border-gray-200 hover:border-gray-300"
+              }
+            `}
+          >
+            <div className="flex items-start justify-between gap-2">
+              {/* custom selection dot + info */}
+              <div className="flex items-start gap-2">
+                {/* custom red selector instead of native checkbox */}
+                <button
+                  type="button"
+                  onClick={() => toggleSelectRef(id)}
+                  className={`mt-1 h-4 w-4 rounded-full border-2 flex items-center justify-center transition
+                    ${
+                      isSelected
+                        ? "border-red-500 bg-red-500"
+                        : "border-gray-300 bg-white hover:border-red-300"
+                    }
+                  `}
+                  aria-pressed={isSelected}
+                >
+                  {isSelected && (
+                    <span className="block h-2 w-2 rounded-full bg-white" />
+                  )}
+                </button>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    {ref.full_name || "Unnamed reference"}
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    {ref.title || "Title not set"}
+                    {ref.organization && ` • ${ref.organization}`}
+                  </p>
+                  {ref.relationship && (
+                    <span className="mt-1 inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+                      {ref.relationship}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Edit + delete actions */}
+              <div className="flex flex-col gap-1 items-end">
+                <button
+                  type="button"
+                  className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                  onClick={() => {
+                    setFormData({
+                      full_name: ref.full_name ?? "",
+                      title: ref.title ?? "",
+                      organization: ref.organization ?? "",
+                      relationship: ref.relationship ?? "",
+                      email: ref.email ?? "",
+                      phone: ref.phone ?? "",
+                      preferred_contact_method:
+                        ref.preferred_contact_method ?? "",
+                      availability_notes: ref.availability_notes ?? "",
+                      tags: ref.tags ?? [],
+                      last_used_at: ref.last_used_at ?? "",
+                      usage_count: ref.usage_count ?? 0,
+                    });
+                    setEditing(true);
+                    setShowAddrefForm(true);
+                    setEditRefId(ref._id);
+                  }}
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </button>
+
+
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-1 text-xs text-gray-600">
+              {ref.email && <p>Email: {ref.email}</p>}
+              {ref.phone && <p>Phone: {ref.phone}</p>}
+              {ref.preferred_contact_method && (
+                <p>
+                  Preferred:{" "}
+                  {ref.preferred_contact_method === "email"
+                    ? "Email"
+                    : ref.preferred_contact_method === "phone"
+                    ? "Phone"
+                    : ref.preferred_contact_method}
+                </p>
+              )}
+            </div>
+
+            {Array.isArray(ref.tags) && ref.tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1">
+                {ref.tags.map((t, i) => (
+                  <span
+                    key={i}
+                    className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center justify-between text-[11px] text-gray-500">
+              <span>
+                Used in {ref.usage_count ?? 0}{" "}
+                {ref.usage_count === 1 ? "application" : "applications"}
+              </span>
+              {ref.last_used_at && <span>Last used: {ref.last_used_at}</span>}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  </>
+)}
+
+
         {ShowFormRef && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
             <Card className="bg-white rounded-lg p-6 max-w-3xl w-full my-8 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-900">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900">
                 {Editing ? "Edit Referee" : "Add Referee"}
-                </h2>
+              </h2>
 
+              {Editing && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteOne(EditRefId)}
+                  className="rounded-md border border-red-300 bg-red-50 px-3 py-1.5 
+                            text-sm font-medium text-red-700 hover:bg-red-100 shadow-sm"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
 
                 {/* Basic info */}
@@ -351,8 +683,8 @@ return (
             </div>
 
           )}
-                        </div>
                 </div>
+                {/* <h1>{referees[0].full_name}</h1> */}
         </div>
 );
 }
