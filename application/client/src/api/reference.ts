@@ -1,6 +1,10 @@
 const API_URL="http://localhost:5050/api/reference/";
 type AvailabilityStatus = "available" | "limited" | "unavailable" | "other" | "";
-
+interface RelationshipEntry {
+  action: string;
+  message_content?: string;
+  created_at: Date;
+}
 export type RefereeFormData = {
   full_name: string,
   title: string,
@@ -19,6 +23,7 @@ export type RefereeFormData = {
 
   last_used_at?: string,
   usage_count?: number,
+  relationship_history?: RelationshipEntry[];
 };
 const authHeaders = (): HeadersInit => {
   const token = localStorage.getItem("token");
@@ -61,6 +66,8 @@ export type  GetReferee=  {
  export type  GetRefereeResponse=RefereeFormData&  {
     user_id: string;
     _id: string;
+    relationship_history?: RelationshipEntry[];
+
 
 };
 
@@ -120,3 +127,48 @@ export  const DeleteThisReferees = async (  refereeinfo: DeleteReferees ): Promi
 
   return data as Promise<DeleteRefereesResponse>;
 };
+
+
+export async function logReferenceRelationship(opts: {
+  referenceId: string;
+  action: string;
+  message_content?: string;
+}) {
+  const res = await fetch(`${API_URL}relationship/add`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      // add auth header if needed
+    },
+    body: JSON.stringify(opts),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || "Failed to log relationship entry");
+  }
+
+  return res.json();
+}
+
+export async function generateAppreciationMessage(opts: {
+  reference: any;
+  job?: any;
+  type: "thank_you" | "update" | "general";
+}) {
+  const res = await fetch(`${API_URL}generate-appreciation`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // auth if needed
+    },
+    body: JSON.stringify(opts),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || "Failed to generate appreciation message");
+  }
+
+  return res.json() as Promise<{ generated_message: string }>;
+}

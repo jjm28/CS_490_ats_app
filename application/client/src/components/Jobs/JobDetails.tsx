@@ -17,7 +17,7 @@ import { listResumes } from "../../api/resumes";
 import { listCoverletters } from "../../api/coverletter";
 import CompanyResearchInline from "./CompanyResearchInline";
 import type { GetRefereeResponse } from "../../api/reference";
-import { getAllReferee } from "../../api/reference";
+import { getAllReferee , logReferenceRelationship,generateAppreciationMessage,} from "../../api/reference";
 
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 const REFERENCE_ENDPOINT =  `${API_BASE}/api/reference`
@@ -87,6 +87,12 @@ export default function JobDetails({
   });
   const [feedbackSaving, setFeedbackSaving] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [showRefThanksModal, setShowRefThanksModal] = useState(false);
+  const [activeThanksUsage, setActiveThanksUsage] = useState<any | null>(null);
+  const [activeThanksRef, setActiveThanksRef] = useState<GetRefereeResponse | null>(null);
+  const [thanksMessage, setThanksMessage] = useState("");
+  const [thanksLoading, setThanksLoading] = useState(false);
+  const [thanksError, setThanksError] = useState<string | null>(null);
   // New state for editing application history
   const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(
     null
@@ -429,6 +435,75 @@ export default function JobDetails({
       alert("Preparation notes copied to clipboard.");
     } catch {
       alert("Failed to copy. You can still select and copy manually.");
+    }
+  };
+  const openThankYouModal = (usage: any) => {
+    const ref = allReferences.find((r) => r._id === usage.reference_id);
+    if (!ref) return;
+
+    setActiveThanksUsage(usage);
+    setActiveThanksRef(ref);
+    setThanksMessage("");
+    setThanksError(null);
+    setShowRefThanksModal(true);
+  };
+
+  const handleGenerateThankYou = async () => {
+    if (!activeThanksRef || !job?._id) return;
+
+    try {
+      setThanksLoading(true);
+      setThanksError(null);
+
+      const resp = await generateAppreciationMessage({
+        reference: activeThanksRef,
+        job: {
+          company: job.company,
+          jobTitle: job.jobTitle,
+        },
+        type: "thank_you",
+      });
+
+      setThanksMessage(resp.generated_message || "");
+    } catch (err: any) {
+      console.error("Failed to generate thank-you message:", err);
+      setThanksError(err?.message || "Failed to generate message.");
+    } finally {
+      setThanksLoading(false);
+    }
+  };
+
+  const handleSaveThankYou = async () => {
+    if (!activeThanksRef || !thanksMessage.trim()) return;
+
+    try {
+      setThanksLoading(true);
+      setThanksError(null);
+
+      // log to relationship_history
+      await logReferenceRelationship({
+        referenceId: activeThanksRef._id,
+        action: "sent_thank_you",
+        message_content: thanksMessage,
+      });
+
+      // optional: refresh references to pull updated relationship_history
+      const raw = localStorage.getItem("authUser");
+      const u = raw ? JSON.parse(raw) : null;
+      const uid = u?.user?._id ?? u?._id ?? null;
+      if (uid) {
+        const res = await getAllReferee({ user_id: uid });
+        setAllReferences(res.referees ?? []);
+      }
+
+      setShowRefThanksModal(false);
+      setActiveThanksUsage(null);
+      setActiveThanksRef(null);
+    } catch (err: any) {
+      console.error("Failed to save thank-you log:", err);
+      setThanksError(err?.message || "Failed to save thank-you entry.");
+    } finally {
+      setThanksLoading(false);
     }
   };
 
@@ -959,6 +1034,17 @@ export default function JobDetails({
                                         >
                                           Log feedback
                                         </button>
+
+                                    {usage.status === "completed" && (
+                                                      <button
+                                                        type="button"
+                                                        className="px-2 py-1 rounded bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-300"
+                                                        onClick={() => openThankYouModal(usage)}
+                                                      >
+                                                        Send thank-you
+                                                      </button>
+                                                    )}
+
                                       </div>
 
                                       {/* Second row: requested date + feedback pill */}
@@ -1778,6 +1864,92 @@ export default function JobDetails({
                 disabled={feedbackSaving}
               >
                 {feedbackSaving ? "Saving..." : "Save feedback"}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+      {showRefThanksModal && activeThanksRef && (
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[10002]">
+          <Card className="w-full max-w-lg max-h-[80vh] overflow-y-auto p-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-lg">Thank Your Reference</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRefThanksModal(false);
+                  setActiveThanksUsage(null);
+                  setActiveThanksRef(null);
+                  setThanksError(null);
+                }}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-sm text-gray-700 mb-2">
+              <div className="font-medium">
+                {activeThanksRef.full_name || "Reference"}
+              </div>
+              <div className="text-xs text-gray-500">
+                {activeThanksRef.title}
+                {activeThanksRef.organization &&
+                  ` • ${activeThanksRef.organization}`}
+              </div>
+            </div>
+
+            {thanksError && (
+              <p className="text-sm text-red-600 mb-2">{thanksError}</p>
+            )}
+
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700">
+                  Generate a thank-you message
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleGenerateThankYou}
+                  disabled={thanksLoading}
+                >
+                  {thanksLoading ? "Generating..." : "Generate"}
+                </Button>
+              </div>
+
+              <div>
+                <label className="form-label text-sm">
+                  Message (you can edit before sending)
+                </label>
+                <textarea
+                  rows={6}
+                  className="form-input w-full"
+                  placeholder="Your thank-you message will appear here..."
+                  value={thanksMessage}
+                  onChange={(e) => setThanksMessage(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  if (thanksMessage) {
+                    navigator.clipboard?.writeText(thanksMessage);
+                  }
+                }}
+              >
+                Copy
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveThankYou}
+                disabled={thanksLoading || !thanksMessage.trim()}
+              >
+                {thanksLoading ? "Saving..." : "Save as interaction"}
               </Button>
             </div>
           </Card>

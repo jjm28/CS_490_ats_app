@@ -3,7 +3,7 @@ import Button from "../StyledComponents/Button"
 import Card  from "../StyledComponents/Card"
 import React, { useState, useEffect, useMemo } from "react";
 import type { RefereeFormData,GetRefereeResponse} from "../../api/reference";
-import { addnewReferee,getReferee,getAllReferee ,DeleteThisReferees} from "../../api/reference";
+import { addnewReferee,getReferee,getAllReferee ,DeleteThisReferees ,logReferenceRelationship,  generateAppreciationMessage,} from "../../api/reference";
 import { validateFields } from "../../utils/helpers";
 import type { ValidationErrors } from "../../utils/helpers";
 type OpportunityType =
@@ -40,7 +40,25 @@ export default function ManageReferences(){
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedRefIds, setSelectedRefIds] = useState<string[]>([]);
     const [EditRefId, setEditRefId] = useState("");
+    const [showRelationshipModal, setShowRelationshipModal] = useState(false);
+    const [activeRefForRelationship, setActiveRefForRelationship] =
+      useState<GetRefereeResponse | null>(null);
 
+    const [relationshipMode, setRelationshipMode] = useState<
+      "log" | "generate"
+    >("log");
+
+    const [relationshipForm, setRelationshipForm] = useState({
+      action: "sent_thank_you",
+      message_content: "",
+    });
+
+    const [relSaving, setRelSaving] = useState(false);
+    const [relError, setRelError] = useState<string | null>(null);
+
+    // For AI-generated appreciation
+    const [generatedMessage, setGeneratedMessage] = useState("");
+    const [generatingMessage, setGeneratingMessage] = useState(false);
     const handleSubmit =  async (e: React.FormEvent) => {
     e.preventDefault();
     console.log(formerros)
@@ -262,6 +280,76 @@ const toggleSelectRef = (id: string) => {
   );
 };
 
+  const handleSaveRelationshipEntry = async () => {
+    if (!activeRefForRelationship?._id) return;
+
+    try {
+      setRelSaving(true);
+      setRelError(null);
+
+      await logReferenceRelationship({
+        referenceId: activeRefForRelationship._id,
+        action: relationshipForm.action,
+        message_content: relationshipForm.message_content || undefined,
+      });
+
+      // Optionally refresh list so relationship info is up to date
+      const raw = localStorage.getItem("authUser");
+      const user = raw ? JSON.parse(raw).user : null;
+      if (user?._id) {
+        const res = await getAllReferee({ user_id: user._id });
+        setReferees(res.referees ?? []);
+      }
+
+      setShowRelationshipModal(false);
+      setActiveRefForRelationship(null);
+    } catch (err: any) {
+      console.error("Failed to log relationship entry:", err);
+      setRelError(
+        err?.message || "Failed to log relationship entry. Please try again."
+      );
+    } finally {
+      setRelSaving(false);
+    }
+  };
+
+  const handleGenerateAppreciation = async () => {
+    if (!activeRefForRelationship) return;
+
+    try {
+      setGeneratingMessage(true);
+      setRelError(null);
+      setGeneratedMessage("");
+
+      // If you want to later pass job context, you can
+      const resp = await generateAppreciationMessage({
+        reference: activeRefForRelationship,
+        job: null,
+        type:
+          relationshipForm.action === "sent_thank_you"
+            ? "thank_you"
+            : relationshipForm.action === "shared_update"
+            ? "update"
+            : "general",
+      });
+
+      setGeneratedMessage(resp.generated_message || "");
+      // also copy into message_content for quick edit
+      setRelationshipForm((prev) => ({
+        ...prev,
+        message_content: resp.generated_message || prev.message_content,
+      }));
+    } catch (err: any) {
+      console.error("Failed to generate appreciation message:", err);
+      setRelError(
+        err?.message || "Failed to generate appreciation message."
+      );
+    } finally {
+      setGeneratingMessage(false);
+    }
+  };
+
+
 return (
         <div className="p-6 min-h-screen">
              <div className="max-w-5xl mx-auto flex flex-col gap-4">
@@ -350,7 +438,11 @@ return (
       {filteredReferees.map((ref) => {
         const id = ref._id;
         const isSelected = selectedRefIds.includes(id);
-
+        const lastRel =
+          Array.isArray(ref.relationship_history) &&
+          ref.relationship_history.length > 0
+            ? ref.relationship_history[ref.relationship_history.length - 1]
+            : null;
         return (
           <Card
             key={id}
@@ -429,7 +521,23 @@ return (
                   <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </button>
-
+                      <button
+                        type="button"
+                        className="mt-1 inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs text-indigo-700 hover:bg-indigo-100"
+                        onClick={() => {
+                          setActiveRefForRelationship(ref);
+                          setRelationshipMode("log");
+                          setRelationshipForm({
+                            action: "sent_thank_you",
+                            message_content: "",
+                          });
+                          setGeneratedMessage("");
+                          setRelError(null);
+                          setShowRelationshipModal(true);
+                        }}
+                      >
+                        Maintain
+                      </button>
 
               </div>
             </div>
@@ -462,13 +570,35 @@ return (
               </div>
             )}
 
-            <div className="mt-3 flex items-center justify-between text-[11px] text-gray-500">
-              <span>
-                Used in {ref.usage_count ?? 0}{" "}
-                {ref.usage_count === 1 ? "application" : "applications"}
-              </span>
-              {ref.last_used_at && <span>Last used: {ref.last_used_at}</span>}
-            </div>
+                    <div className="mt-3 flex flex-col gap-1 text-[11px] text-gray-500">
+                      <div className="flex justify-between">
+                        <span>
+                          Used in {ref.usage_count ?? 0}{" "}
+                          {ref.usage_count === 1 ? "application" : "applications"}
+                        </span>
+                        {ref.last_used_at && <span>Last used: {ref.last_used_at}</span>}
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span>
+                          Last contact:{" "}
+                          {lastRel
+                            ? new Date(lastRel.created_at).toLocaleDateString()
+                            : "No contact logged yet"}
+                        </span>
+
+                        {/* simple “health” chip */}
+                        {lastRel ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Relationship active
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                            Needs check-in
+                          </span>
+                        )}
+                      </div>
+                    </div>
           </Card>
         );
       })}
@@ -762,6 +892,216 @@ return (
             </div>
 
           )}
+
+
+                {showRelationshipModal && activeRefForRelationship && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <Card className="bg-white rounded-lg p-6 max-w-xl w-full my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Maintain Relationship
+                </h2>
+                <p className="text-xs text-gray-600 mt-1">
+                  {activeRefForRelationship.full_name} —{" "}
+                  {activeRefForRelationship.title}{" "}
+                  {activeRefForRelationship.organization &&
+                    ` @ ${activeRefForRelationship.organization}`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRelationshipModal(false);
+                  setActiveRefForRelationship(null);
+                }}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Mode toggle */}
+            <div className="flex border-b mb-4 text-sm">
+              <button
+                type="button"
+                className={`px-3 py-2 ${
+                  relationshipMode === "log"
+                    ? "border-b-2 border-indigo-600 text-indigo-700 font-medium"
+                    : "text-gray-500"
+                }`}
+                onClick={() => setRelationshipMode("log")}
+              >
+                Log Interaction
+              </button>
+              <button
+                type="button"
+                className={`px-3 py-2 ${
+                  relationshipMode === "generate"
+                    ? "border-b-2 border-indigo-600 text-indigo-700 font-medium"
+                    : "text-gray-500"
+                }`}
+                onClick={() => setRelationshipMode("generate")}
+              >
+                Generate Message
+              </button>
+            </div>
+
+            {relError && (
+              <p className="text-sm text-red-600 mb-2">{relError}</p>
+            )}
+
+            {relationshipMode === "log" && (
+              <div className="space-y-4 text-sm">
+                <div>
+                  <label className="form-label text-sm">
+                    Interaction type
+                  </label>
+                  <select
+                    className="form-input w-full"
+                    value={relationshipForm.action}
+                    onChange={(e) =>
+                      setRelationshipForm((prev) => ({
+                        ...prev,
+                        action: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="sent_thank_you">Sent thank-you</option>
+                    <option value="shared_update">
+                      Shared job search update
+                    </option>
+                    <option value="check_in">Reconnected / check-in</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label text-sm">
+                    Notes or message (optional)
+                  </label>
+                  <textarea
+                    rows={4}
+                    className="form-input w-full"
+                    placeholder="What did you send or talk about?"
+                    value={relationshipForm.message_content}
+                    onChange={(e) =>
+                      setRelationshipForm((prev) => ({
+                        ...prev,
+                        message_content: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowRelationshipModal(false);
+                      setActiveRefForRelationship(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSaveRelationshipEntry}
+                    disabled={relSaving}
+                  >
+                    {relSaving ? "Saving..." : "Save to history"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {relationshipMode === "generate" && (
+              <div className="space-y-4 text-sm">
+                <div className="text-xs text-gray-600">
+                  Choose the type of message you want and we’ll draft something
+                  you can send, then optionally save it to your relationship
+                  log.
+                </div>
+
+                <div>
+                  <label className="form-label text-sm">
+                    Message purpose
+                  </label>
+                  <select
+                    className="form-input w-full"
+                    value={relationshipForm.action}
+                    onChange={(e) =>
+                      setRelationshipForm((prev) => ({
+                        ...prev,
+                        action: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="sent_thank_you">Thank-you message</option>
+                    <option value="shared_update">
+                      Job update / progress
+                    </option>
+                    <option value="check_in">General check-in</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleGenerateAppreciation}
+                    disabled={generatingMessage}
+                  >
+                    {generatingMessage ? "Generating..." : "Generate message"}
+                  </Button>
+                </div>
+
+                <div>
+                  <label className="form-label text-sm">
+                    Message (editable)
+                  </label>
+                  <textarea
+                    rows={6}
+                    className="form-input w-full"
+                    placeholder="Generated message will appear here..."
+                    value={relationshipForm.message_content}
+                    onChange={(e) =>
+                      setRelationshipForm((prev) => ({
+                        ...prev,
+                        message_content: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(
+                        relationshipForm.message_content || ""
+                      );
+                    }}
+                  >
+                    Copy
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSaveRelationshipEntry}
+                    disabled={relSaving || !relationshipForm.message_content}
+                  >
+                    {relSaving ? "Saving..." : "Save to history"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
                 </div>
                 {/* <h1>{referees[0].full_name}</h1> */}
         </div>

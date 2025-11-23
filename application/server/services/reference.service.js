@@ -35,7 +35,7 @@ export async function updateReferee({ user_id, full_name, title, organization, r
   return { _id: referenceid};
 }
 
-export async function getReferee({ userid,referee_id}) {
+export async function getReferee({ userid=undefined,referee_id}) {
   const db = getDb();
   let result;
    result = await db
@@ -288,3 +288,33 @@ Requirements for "prepNotes":
   };
 }
 
+
+export async function addRelationtoReferee({referenceId,action,message_content}) {
+  const db = getDb();
+
+
+ const updatedRef = await  db
+    .collection("Referees")
+    .findOneAndUpdate(
+          { 
+      _id: new ObjectId(referenceId), 
+    },
+      {
+        $push: {
+          relationship_history: {
+            action,
+            message_content,
+            created_at: new Date(),
+          },
+        },
+      },
+      { new: true } // return the updated document
+    );
+
+    if (!updatedRef) {
+      return { message: "Referee not found" };
+    }
+
+
+    return updatedRef
+}

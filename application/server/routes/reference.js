@@ -1,5 +1,5 @@
 import express from 'express';
-import { createReferee ,getReferee, getALLReferee,deleteReferees, updateReferee, updateJobandReferee, updateJobReferencestat,generateReferenceRequest, updatefeedback} from '../services/reference.service.js';
+import { createReferee ,getReferee, getALLReferee,deleteReferees, updateReferee, updateJobandReferee, updateJobReferencestat,generateReferenceRequest, updatefeedback,addRelationtoReferee} from '../services/reference.service.js';
 import { getJob } from '../services/jobs.service.js';
 import { verifyJWT } from '../middleware/auth.js';
 import 'dotenv/config';
@@ -197,6 +197,77 @@ router.patch("/update-feedback", async (req, res) => {
   } catch (err) {
     console.error("Error in /reference/update-feedback:", err);
     return res.status(500).json({ error: "Failed to update feedback." });
+  }
+});
+
+// PATCH /api/reference/relationship/add
+router.patch("/relationship/add", async (req, res) => {
+  try {
+    const { referenceId, action, message_content } = req.body;
+
+    if (!referenceId || !action) {
+      return res
+        .status(400)
+        .json({ error: "referenceId and action are required." });
+    }
+     const response =  await addRelationtoReferee({referenceId,action,message_content})
+   
+
+    return res.status(200).json(response);
+    // return updated reference
+  } catch (err) {
+    console.error("Error in /reference/relationship/add:", err);
+    return res.status(500).json({ error: "Failed to log relationship entry." });
+  }
+});
+
+// POST /api/reference/generate-appreciation
+router.post("/generate-appreciation", async (req, res) => {
+  try {
+    const { reference, job, type } = req.body;
+
+    const refName = reference?.full_name || "your reference";
+    const company = job?.company || "the company";
+    const role = job?.jobTitle || "the role";
+
+    let generated_message = "";
+
+    switch (type) {
+      case "thank_you":
+        generated_message = `Hi ${refName},
+
+I just wanted to say thank you again for supporting my application for the ${role} role at ${company}. I really appreciate you taking the time to speak on my behalf.
+
+I'll keep you posted on how things go, and I'm grateful for your continued support.
+
+Best regards,
+[Your Name]`;
+        break;
+      case "update":
+        generated_message = `Hi ${refName},
+
+I wanted to send you a quick update regarding my application for the ${role} role at ${company}. [Share any updates here.]
+
+Thank you again for being willing to act as a reference. Your support means a lot.
+
+Best,
+[Your Name]`;
+        break;
+      default:
+        generated_message = `Hi ${refName},
+
+I hope you're doing well. I just wanted to keep in touch and let you know I really appreciate your support in my career journey.
+
+Best,
+[Your Name]`;
+    }
+
+    return res.status(200).json({ generated_message });
+  } catch (err) {
+    console.error("Error in /reference/generate-appreciation:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to generate appreciation message." });
   }
 });
 
