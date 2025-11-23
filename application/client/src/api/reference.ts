@@ -1,4 +1,6 @@
 const API_URL="http://localhost:5050/api/reference/";
+type AvailabilityStatus = "available" | "limited" | "unavailable" | "other" | "";
+
 export type RefereeFormData = {
   full_name: string,
   title: string,
@@ -7,10 +9,16 @@ export type RefereeFormData = {
   email: string,
   phone?: string,
   preferred_contact_method: "email" | "phone" | "",
-  availability_notes?: string,
   tags: string[],
-  last_used_at: string,
-  usage_count: number,
+  availability_status: AvailabilityStatus;
+  availability_other_note?: string;
+
+  
+  preferred_opportunity_types: string[];  // below
+  preferred_number_of_uses?: number | null;
+
+  last_used_at?: string,
+  usage_count?: number,
 };
 const authHeaders = (): HeadersInit => {
   const token = localStorage.getItem("token");

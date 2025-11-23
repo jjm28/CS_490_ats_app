@@ -1,22 +1,22 @@
 import { getDb } from '../db/connection.js';
-import { ObjectId } from "mongodb";
+import { ObjectId, ReturnDocument, Timestamp } from "mongodb";
 
 
 
-export async function createReferee({ user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, availability_notes,tags, last_used_at, usage_count}) {
+export async function createReferee({ user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, tags, last_used_at, usage_count,availability_status,availability_other_note,preferred_opportunity_types,preferred_number_of_uses}) {
   const db = getDb();
   const references = db.collection('Referees');
 
-  const doc =  { user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, availability_notes,tags, last_used_at, usage_count}
+  const doc =  { user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, tags, last_used_at, usage_count,availability_status,availability_other_note,preferred_opportunity_types,preferred_number_of_uses}
 
   const res = await references.insertOne(doc);
   return { _id: res.insertedId };
 }
 
-export async function updateReferee({ user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, availability_notes,tags, last_used_at, usage_count,referenceid}) {
+export async function updateReferee({ user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, tags, last_used_at, usage_count,referenceid,availability_status,availability_other_note,preferred_opportunity_types,preferred_number_of_uses}) {
   const db = getDb();
 
-  const doc =  { user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, availability_notes,tags, last_used_at, usage_count}
+  const doc =  { user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, tags, last_used_at, usage_count,availability_status,availability_other_note,preferred_opportunity_types,preferred_number_of_uses}
 
       const result = await db
       .collection("Referees")
@@ -71,3 +71,65 @@ export async function deleteReferees({ referee_ids}) {
   return result ;
 }
 
+export async function updateJobandReferee({referenceIds, job_id}) {
+  const db = getDb();
+  const referencestoad = [];
+  for (const key in referenceIds) {
+      const doc =  { 
+      reference_id: referenceIds[key],     // ObjectId of the referee
+      status: "planned",
+      requested_at: "",
+      responded_at: "",
+      notes: "",
+  }
+    referencestoad.push(doc)
+
+      const Refereeresult = await db
+      .collection("Referees")
+      .updateOne(
+        { _id: new ObjectId(referenceIds[key]) }, 
+        { $set: {last_used_at: new Date().toISOString()} ,  $inc: { usage_count: 1 } }
+      );
+  }
+
+
+  const Jobresult = await db
+    .collection("jobs")
+    .findOneAndUpdate(
+      { _id: new ObjectId(job_id) }, 
+      { $set: {references: referencestoad} },
+      {returnDocument: "after"}
+    );
+
+  if (Jobresult.matchedCount === 0) {
+    return { message: "Referee not found" };
+  }
+
+  return Jobresult
+}
+
+export async function updateJobReferencestat({referenceId, job_id,status}) {
+  const db = getDb();
+
+
+const Jobresult = await db
+  .collection("jobs")
+  .findOneAndUpdate(
+    { 
+      _id: new ObjectId(job_id), 
+      "references.reference_id": referenceId 
+    },
+    { 
+      $set: { 
+        "references.$.status": status 
+      } 
+    },
+    { returnDocument: "after" }
+  );
+
+    if (Jobresult === null) {
+    return { message: "Referee not found" };
+  }
+
+  return Jobresult
+}

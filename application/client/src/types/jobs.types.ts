@@ -63,6 +63,8 @@ export interface Job {
   archivedAt?: string;
 
   applicationPackage?: ApplicationPackage | null;
+  // To store or edit references used in an application
+  references?: JobReferenceUsage[]; 
 }
 
 // Job status enum
@@ -249,4 +251,22 @@ export interface DeadlineInfo {
   color: string;
   bgColor: string;
   icon: string;
+}
+
+
+export type JobReferenceStatus =
+  | "planned"
+  | "requested"
+  | "confirmed"
+  | "declined"
+  | "completed";
+
+  
+export interface JobReferenceUsage {
+  _id: string;               // subdoc id 
+  reference_id: string;      // ObjectId of the referee
+  status: JobReferenceStatus;
+  requested_at?: string;
+  responded_at?: string;
+  notes?: string;
 }

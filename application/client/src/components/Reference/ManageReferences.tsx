@@ -6,6 +6,12 @@ import type { RefereeFormData,GetRefereeResponse} from "../../api/reference";
 import { addnewReferee,getReferee,getAllReferee ,DeleteThisReferees} from "../../api/reference";
 import { validateFields } from "../../utils/helpers";
 import type { ValidationErrors } from "../../utils/helpers";
+type OpportunityType =
+  | "internship"
+  | "full-time"
+  | "co-op"
+  | "research"
+  | "grad-school";
 
 export default function ManageReferences(){
     const [ShowFormRef, setShowAddrefForm] = useState(false);
@@ -18,10 +24,13 @@ export default function ManageReferences(){
         email: "",
         phone: "",
         preferred_contact_method: "",
-        availability_notes: "",
+        availability_status: "",
         tags: [],
         last_used_at: "",
         usage_count: 0,
+        preferred_opportunity_types: []
+        
+
       });
     const [formerros,setformerros] = useState<ValidationErrors>({});
     const [tagInput, setTagInput] = useState("");
@@ -131,7 +140,8 @@ export default function ManageReferences(){
         email: "",
         phone: "",
         preferred_contact_method: "",
-        availability_notes: "",
+        availability_status: "",
+        preferred_opportunity_types: [],
         tags: [],
         last_used_at: "",
         usage_count: 0,
@@ -403,11 +413,13 @@ return (
                       email: ref.email ?? "",
                       phone: ref.phone ?? "",
                       preferred_contact_method:
-                        ref.preferred_contact_method ?? "",
-                      availability_notes: ref.availability_notes ?? "",
+                      ref.preferred_contact_method ?? "",
                       tags: ref.tags ?? [],
                       last_used_at: ref.last_used_at ?? "",
                       usage_count: ref.usage_count ?? 0,
+                      availability_status: ref.availability_status ?? "",
+                      preferred_opportunity_types:ref.preferred_opportunity_types ?? [],
+                      preferred_number_of_uses: ref.preferred_number_of_uses ?? 0
                     });
                     setEditing(true);
                     setShowAddrefForm(true);
@@ -650,22 +662,89 @@ return (
                         </div>
                     )}
                     </div>
-
-                {/* Availability Notes */}
+                    {/* Preferred Opp */}
+            <div>
+              <label className="form-label">Best suited for</label>
+              <select
+                multiple
+                name="preferred_opportunity_types"
+                value={formData.preferred_opportunity_types ?? []}
+                onChange={(e) => {
+                  const options = Array.from(e.target.selectedOptions).map(o => o.value);
+                  setFormData(prev => ({ ...prev, preferred_opportunity_types: options }));
+                }}
+                className="form-input h-24"
+              >
+                        <option value=""></option>
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Contract">Contract</option>
+                        <option value="Internship">Internship</option>
+                        <option value="Freelance">Freelance</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                We’ll use this to recommend the best references for each job type.
+              </p>
+            </div>
                 <div>
-                    <label className="form-label">Availability <span className="text-red-500">*</span></label>
-                    <textarea
-                    name="availability_notes"
-                    value={formData.availability_notes}
-                    onChange={handleInputChange}
-                    rows={4}
-                    className={`form-input ${formerros.availability_notes ? "!border-red-500" : ""}`}
-                    placeholder="e.g. Best reached Mon–Fri after 4 PM EST"
-                    />
-                    {formerros.availability_notes && (
-                    <p className="text-sm text-red-600 -mt-2 mb-2">{formerros.availability_notes}</p>
-                    )}
+                  <label className="form-label">Max uses per year (optional)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    name="preferred_number_of_uses"
+                    value={formData.preferred_number_of_uses ?? ""}
+                    onChange={(e) =>
+                      setFormData(prev => ({
+                        ...prev,
+                        preferred_number_of_uses: e.target.value ? Number(e.target.value) : null,
+                      }))
+                    }
+                    className="form-input"
+                    placeholder="e.g. 3 (leave blank for no limit)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    We’ll warn you if you go over this number.
+                  </p>
                 </div>
+
+                {/* Availability */}
+            <div>
+              <label className="form-label">
+                Availability <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="availability_status"
+                value={formData.availability_status}
+                onChange={handleInputChange}
+                className={`form-input ${formerros.availability_status ? "!border-red-500" : ""}`}
+              >
+                <option value="">Select availability</option>
+                <option value="available">Available</option>
+                <option value="limited">Limited / case-by-case</option>
+                <option value="unavailable">Not available currently</option>
+                <option value="other">Other (see note)</option>
+              </select>
+              {formerros.availability_status && (
+                <p className="text-sm text-red-600 -mt-2 mb-2">
+                  {formerros.availability_status}
+                </p>
+              )}
+            </div>
+
+            {formData.availability_status === "other" && (
+              <div className="mt-3">
+                <label className="form-label">Availability note</label>
+                <textarea
+                  name="availability_other_note"
+                  value={formData.availability_other_note || ""}
+                  onChange={handleInputChange}
+                  rows={3}
+                  className="form-input"
+                  placeholder="e.g. Only for grad school or after May 2026"
+                />
+              </div>
+            )}
+
 
                 {/* Action Buttons */}
                 <div className="flex justify-end gap-3 pt-4">

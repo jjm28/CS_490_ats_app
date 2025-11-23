@@ -16,8 +16,11 @@ import InterviewScheduler from "./InterviewScheduler";
 import { listResumes } from "../../api/resumes";
 import { listCoverletters } from "../../api/coverletter";
 import CompanyResearchInline from "./CompanyResearchInline";
+import type { GetRefereeResponse } from "../../api/reference";
+import { getAllReferee } from "../../api/reference";
 
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
+const REFERENCE_ENDPOINT =  `${API_BASE}/api/reference`
 const RESUME_VERSIONS_ENDPOINT = `${API_BASE}/api/resume-versions`; // NEW
 
 // NEW: type for linked resume versions coming from backend
@@ -56,6 +59,12 @@ export default function JobDetails({
   // New state for adding application history
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);
+
+  const [allReferences, setAllReferences] = useState<GetRefereeResponse[]>([]);
+  const [refsLoading, setRefsLoading] = useState(false);
+  const [refsError, setRefsError] = useState<string | null>(null);
+  const [showRefModal, setShowRefModal] = useState(false);
+  const [refSelection, setRefSelection] = useState<string[]>([]);
 
   // New state for editing application history
   const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(
@@ -130,7 +139,7 @@ export default function JobDetails({
     }
   };
 
-  // 🔥 NEW: fetch resume versions that are linked to this job
+  // fetch resume versions that are linked to this job
   useEffect(() => {
     const fetchLinkedResumes = async () => {
       if (!jobId) return;
@@ -177,6 +186,101 @@ export default function JobDetails({
 
     fetchLinkedResumes();
   }, [jobId, token]);
+
+    // Load all references for this user (for attaching to this job)
+  useEffect(() => {
+    const loadReferences = async () => {
+      try {
+        setRefsLoading(true);
+        setRefsError(null);
+
+        const raw = localStorage.getItem("authUser");
+        const u = raw ? JSON.parse(raw) : null;
+        const uid = u?.user?._id ?? u?._id ?? null;
+        if (!uid) throw new Error("Missing user session");
+
+        const res = await getAllReferee({ user_id: uid });
+        setAllReferences(res.referees ?? []);
+      } catch (e: any) {
+        console.error("Failed to load references", e);
+        setRefsError(e?.message || "Failed to load references.");
+      } finally {
+        setRefsLoading(false);
+      }
+    };
+
+    loadReferences();
+  }, []);
+
+  
+    const toggleRefSelection = (id: string) => {
+    setRefSelection((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+    const handleAttachReferences = async () => {
+    if (!job?._id || refSelection.length === 0) {
+      setShowRefModal(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${REFERENCE_ENDPOINT}/addtojob`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ referenceIds: refSelection, job_id: job._id}),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to attach references");
+      }
+
+      const updated = await response.json();
+      setJob(updated);
+      setShowRefModal(false);
+      setRefSelection([]);
+
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error("Error attaching references:", err);
+      alert("Failed to attach references. Please try again.");
+    }
+  };
+  const handleUpdateReferenceStatus = async (
+    reference_id: string,
+    status: "planned" | "requested" | "confirmed" | "declined" | "completed"
+  ) => {
+    if (!job?._id) return;
+
+    try {
+      const response = await fetch(
+        `${REFERENCE_ENDPOINT}/updaterefstat`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({status: status, referenceId: reference_id, job_id: job._id}),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update reference status");
+      }
+
+      const updated = await response.json();
+      setJob(updated);
+
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      console.error("Error updating reference status:", err);
+      alert("Failed to update reference status. Please try again.");
+    }
+  };
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -607,6 +711,101 @@ export default function JobDetails({
               />
             </div>
           </section>
+          {/* References for this application */}
+          <section>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-lg">References</h3>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  // pre-select ones already attached to this job
+                  const existingIds =
+                    job.references?.map((r: any) => r.reference_id) ?? [];
+                  setRefSelection(existingIds);
+                  setShowRefModal(true);
+                }}
+              >
+                + Attach References
+              </Button>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
+              {refsLoading && (
+                <p className="text-gray-500">Loading your references…</p>
+              )}
+              {refsError && <p className="text-red-600">{refsError}</p>}
+
+              {!refsLoading &&
+                !refsError &&
+                (!job.references || job.references.length === 0) && (
+                  <p className="text-gray-500">
+                    No references attached to this application yet.
+                  </p>
+                )}
+
+              {!refsLoading &&
+                !refsError &&
+                job.references &&
+                job.references.length > 0 && (
+                  <ul className="space-y-2">
+                    {job.references.map((usage: any) => {
+                      const ref = allReferences.find(
+                        (r) => r._id === usage.reference_id
+                      );
+
+                      return (
+                        <li
+                          key={usage._id}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {ref?.full_name || "Unknown reference"}
+                            </span>
+                            <span className="text-xs text-gray-600">
+                              {ref?.title || ""}
+                              {ref?.organization && ` • ${ref.organization}`}
+                            </span>
+                            {ref?.relationship && (
+                              <span className="text-[11px] text-indigo-700">
+                                {ref.relationship}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 text-xs">
+                            <select
+                              value={usage.status}
+                              onChange={(e) =>
+                                handleUpdateReferenceStatus(
+                                  usage.reference_id,
+                                  e.target.value as any
+                                )
+                              }
+                              className="border rounded px-2 py-1 bg-white"
+                            >
+                              <option value="planned">Planned</option>
+                              <option value="requested">Requested</option>
+                              <option value="confirmed">Confirmed</option>
+                              <option value="declined">Declined</option>
+                              <option value="completed">Completed</option>
+                            </select>
+                            {usage.requested_at && (
+                              <span className="text-gray-500">
+                                Req:{" "}
+                                {new Date(
+                                  usage.requested_at
+                                ).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+            </div>
+          </section>
 
           {/* Notes Sections */}
           <TextArea
@@ -974,6 +1173,181 @@ export default function JobDetails({
           </Card>
         </div>
       )}
+
+      {showRefModal && (
+  <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[10001]">
+    <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg">
+                Attach References to Application
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowRefModal(false)}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            {refsLoading && (
+              <p className="text-gray-500 text-sm">Loading references…</p>
+            )}
+
+            {!refsLoading && allReferences.length === 0 && (
+              <p className="text-gray-500 text-sm">
+                You don&apos;t have any references yet. Go to{" "}
+                <span className="font-medium">Professional References</span> to
+                add some first.
+              </p>
+            )}
+{!refsLoading && allReferences.length > 0 && job && (
+  <div className="space-y-3">
+    <p className="text-xs text-gray-600 mb-2">
+      Select which references you plan to use for this job. We’ll
+      recommend the best matches based on availability, usage, and role type.
+    </p>
+
+    {(() => {
+      const jobType = job.type; // e.g. "internship", "full-time"
+
+      // 1) compute scores & flags per reference
+      const scoredRefs = allReferences.map((ref) => {
+        const matchesType =
+          Array.isArray(ref.preferred_opportunity_types) &&
+          ref.preferred_opportunity_types.includes(jobType as any);
+
+        const unavailable = ref.availability_status === "unavailable";
+        const limited = ref.availability_status === "limited";
+
+        const overPreferred =
+          ref.preferred_number_of_uses != null &&
+          ref.usage_count != null &&
+          ref.usage_count >= ref.preferred_number_of_uses;
+
+        let score = 0;
+        if (matchesType) score += 3;
+        if (!unavailable && !overPreferred) score += 2;
+        if (limited) score -= 1;
+        if (unavailable || overPreferred) score -= 5;
+
+        return {
+          ref,
+          matchesType,
+          unavailable,
+          overPreferred,
+          score,
+        };
+      });
+
+      // 2) sort by score (higher = more recommended)
+      const sorted = scoredRefs.sort((a, b) => b.score - a.score);
+
+      // 3) render sorted cards
+      return (
+        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+          {sorted.map(({ ref, matchesType, unavailable, overPreferred }) => {
+            const id = ref._id;
+            const isSelected = refSelection.includes(id);
+
+            const isRecommended =
+              matchesType && !unavailable && !overPreferred;
+
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => toggleRefSelection(id)}
+                className={`w-full text-left border rounded px-3 py-2 text-sm flex justify-between items-center
+                  ${
+                    isSelected
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+              >
+                {/* left side: details + pills */}
+                <div>
+                  <div className="font-medium">
+                    {ref.full_name || "Unnamed reference"}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    {ref.title}
+                    {ref.organization && ` • ${ref.organization}`}
+                  </div>
+                  {ref.relationship && (
+                    <div className="text-[11px] text-indigo-700">
+                      {ref.relationship}
+                    </div>
+                  )}
+
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {isRecommended && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] border border-emerald-200">
+                        Recommended
+                      </span>
+                    )}
+                    {unavailable && (
+                      <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[11px] border border-red-200">
+                        Not available
+                      </span>
+                    )}
+                    {!unavailable && overPreferred && (
+                      <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[11px] border border-red-200">
+                        Over preferred use
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* right side: stats */}
+                <div className="text-[11px] text-gray-500 text-right">
+                  {ref.usage_count != null && (
+                    <div>
+                      Used in {ref.usage_count}{" "}
+                      {ref.usage_count === 1
+                        ? "application"
+                        : "applications"}
+                    </div>
+                  )}
+                  {ref.preferred_number_of_uses != null && (
+                    <div>Pref: {ref.preferred_number_of_uses} uses</div>
+                  )}
+                  {ref.last_used_at && (
+                    <div>Last used: {ref.last_used_at}</div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      );
+    })()}
+
+    <div className="flex justify-end gap-2 mt-4">
+      <Button
+        variant="secondary"
+        onClick={() => {
+          setShowRefModal(false);
+          setRefSelection([]);
+        }}
+      >
+        Cancel
+      </Button>
+      <Button
+        variant="primary"
+        onClick={handleAttachReferences}
+        disabled={refSelection.length === 0}
+      >
+        Attach {refSelection.length || ""} selected
+      </Button>
+    </div>
+  </div>
+)}
+
+          </Card>
+        </div>
+      )}
+
       </Card>
 
 
