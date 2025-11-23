@@ -269,4 +269,15 @@ export interface JobReferenceUsage {
   requested_at?: string;
   responded_at?: string;
   notes?: string;
+  feedback_rating: {
+    type: String,
+    enum: ["strong_positive", "positive", "neutral", "mixed", "negative"],
+  },
+  feedback_summary: { type: String },        // short 1–2 sentence summary
+  feedback_notes: { type: String },          // longer internal notes
+  feedback_source: {
+    type: String,
+    enum: ["recruiter", "hiring_manager", "other"],
+  },
+  feedback_collected_at: { type: Date },
 }

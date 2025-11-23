@@ -59,7 +59,7 @@ export default function JobDetails({
   // New state for adding application history
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);
-
+  // For References 
   const [allReferences, setAllReferences] = useState<GetRefereeResponse[]>([]);
   const [refsLoading, setRefsLoading] = useState(false);
   const [refsError, setRefsError] = useState<string | null>(null);
@@ -71,6 +71,22 @@ export default function JobDetails({
   const [prepNotes, setPrepNotes] = useState("");
   const [requestLoading, setRequestLoading] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [activeFeedbackUsage, setActiveFeedbackUsage] = useState<any | null>(null);
+  const [feedbackForm, setFeedbackForm] = useState({
+    feedback_rating: "" as
+      | ""
+      | "strong_positive"
+      | "positive"
+      | "neutral"
+      | "mixed"
+      | "negative",
+    feedback_source: "" as "" | "recruiter" | "hiring_manager" | "other",
+    feedback_summary: "",
+    feedback_notes: "",
+  });
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   // New state for editing application history
   const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(
     null
@@ -286,6 +302,71 @@ export default function JobDetails({
       alert("Failed to update reference status. Please try again.");
     }
   };
+
+    const openFeedbackModal = (usage: any) => {
+    setActiveFeedbackUsage(usage);
+
+    setFeedbackForm({
+      feedback_rating: usage.feedback_rating || "",
+      feedback_source: usage.feedback_source || "",
+      feedback_summary: usage.feedback_summary || "",
+      feedback_notes: usage.feedback_notes || "",
+    });
+
+    setFeedbackError(null);
+    setShowFeedbackModal(true);
+  };
+
+  const handleSaveFeedback = async () => {
+    if (!job?._id || !activeFeedbackUsage) return;
+
+    try {
+      setFeedbackSaving(true);
+      setFeedbackError(null);
+        const raw = localStorage.getItem("authUser");
+        const u = raw ? JSON.parse(raw) : null;
+        const uid = u?.user?._id ?? u?._id ?? null;
+      const response = await fetch(`${REFERENCE_ENDPOINT}/update-feedback`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          job_id: job._id,
+          referenceId: activeFeedbackUsage.reference_id,
+          feedback: {
+            feedback_rating: feedbackForm.feedback_rating || undefined,
+            feedback_source: feedbackForm.feedback_source || undefined,
+            feedback_summary: feedbackForm.feedback_summary || undefined,
+            feedback_notes: feedbackForm.feedback_notes || undefined,
+          },
+          user_id: uid
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        console.error("update-feedback error:", err);
+        throw new Error("Failed to save feedback");
+      }
+
+      const updatedJob = await response.json();
+      setJob(updatedJob);
+      setShowFeedbackModal(false);
+      setActiveFeedbackUsage(null);
+
+      if (onUpdate) onUpdate();
+    } catch (err: any) {
+      console.error("Error saving reference feedback:", err);
+      setFeedbackError(
+        err?.message || "Failed to save feedback. Please try again."
+      );
+    } finally {
+      setFeedbackSaving(false);
+    }
+  };
+
     const openRefRequestModal = async (usage: any) => {
     if (!job?._id) return;
 
@@ -842,39 +923,65 @@ export default function JobDetails({
                               </span>
                             )}
                           </div>
-                                <div className="flex items-center gap-3 text-xs">
-                                  <select
-                                    value={usage.status}
-                                    onChange={(e) =>
-                                      handleUpdateReferenceStatus(
-                                        usage.reference_id,
-                                        e.target.value as any
-                                      )
-                                    }
-                                    className="border rounded px-2 py-1 bg-white"
-                                  >
-                                    <option value="planned">Planned</option>
-                                    <option value="requested">Requested</option>
-                                    <option value="confirmed">Confirmed</option>
-                                    <option value="declined">Declined</option>
-                                    <option value="completed">Completed</option>
-                                  </select>
+                                    <div className="flex flex-col items-end gap-1 text-xs">
+                                      {/* Top row: status + both actions */}
+                                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                                        <select
+                                          value={usage.status}
+                                          onChange={(e) =>
+                                            handleUpdateReferenceStatus(
+                                              usage.reference_id,
+                                              e.target.value as any
+                                            )
+                                          }
+                                          className="border rounded px-2 py-1 bg-white"
+                                        >
+                                          <option value="planned">Planned</option>
+                                          <option value="requested">Requested</option>
+                                          <option value="confirmed">Confirmed</option>
+                                          <option value="declined">Declined</option>
+                                          <option value="completed">Completed</option>
+                                        </select>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => openRefRequestModal(usage)}
-                                    className="px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
-                                  >
-                                    Generate request
-                                  </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => openRefRequestModal(usage)}
+                                          className="px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                                        >
+                                          Generate request
+                                        </button>
 
-                                  {usage.requested_at && (
-                                    <span className="text-gray-500">
-                                      Req:{" "}
-                                      {new Date(usage.requested_at).toLocaleDateString()}
-                                    </span>
-                                  )}
-                                </div>
+                                        {/* ✅ New: log feedback */}
+                                        <button
+                                          type="button"
+                                          onClick={() => openFeedbackModal(usage)}
+                                          className="px-2 py-1 rounded bg-gray-100 text-gray-800 hover:bg-gray-200 border border-gray-300"
+                                        >
+                                          Log feedback
+                                        </button>
+                                      </div>
+
+                                      {/* Second row: requested date + feedback pill */}
+                                      <div className="flex items-center gap-2">
+                                        {usage.requested_at && (
+                                          <span className="text-gray-500">
+                                            Req:{" "}
+                                            {new Date(usage.requested_at).toLocaleDateString()}
+                                          </span>
+                                        )}
+
+                                        {renderFeedbackPill(usage.feedback_rating)}
+                                      </div>
+
+                                      {/* Optional: one-line summary under pill */}
+                                      {usage.feedback_summary && (
+                                        <p className="text-[11px] text-gray-600 italic max-w-xs text-right">
+                                          {usage.feedback_summary}
+                                        </p>
+                                      )}
+                                    </div>
+
+
 
                         </li>
                       );
@@ -1484,11 +1591,12 @@ export default function JobDetails({
                     {/* Prep notes / talking points */}
                     <section className="mb-4">
                       <h4 className="font-semibold text-sm mb-1">
-                        Preparation notes for your reference
+                        Role-specific talking points for this reference
                       </h4>
                       <p className="text-xs text-gray-600 mb-1">
-                        Share this so they know which projects, skills, and outcomes to
-                        emphasize.
+                        Share this with your reference so they know how to talk about you for this
+                        specific role: which projects to mention, which skills to highlight, and
+                        what outcomes to emphasize.
                       </p>
                       <textarea
                         value={prepNotes}
@@ -1521,6 +1629,160 @@ export default function JobDetails({
                   </Card>
                 </div>
               )}
+      {showFeedbackModal && activeFeedbackUsage && (
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-[10002]">
+          <Card className="w-full max-w-xl max-h-[80vh] overflow-y-auto p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg">
+                Log Reference Feedback
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setActiveFeedbackUsage(null);
+                }}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Who is this for */}
+            <div className="mb-3 text-sm text-gray-700">
+              {(() => {
+                const ref = allReferences.find(
+                  (r) => r._id === activeFeedbackUsage.reference_id
+                );
+                return (
+                  <>
+                    <div>
+                      Reference:{" "}
+                      <span className="font-medium">
+                        {ref?.full_name || "Unknown reference"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {ref?.title}
+                      {ref?.organization && ` • ${ref.organization}`}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {feedbackError && (
+              <p className="text-sm text-red-600 mb-2">{feedbackError}</p>
+            )}
+
+            <div className="space-y-3 text-sm">
+              {/* Rating */}
+              <div>
+                <label className="form-label text-sm">
+                  Overall feedback rating
+                </label>
+                <select
+                  value={feedbackForm.feedback_rating}
+                  onChange={(e) =>
+                    setFeedbackForm((prev) => ({
+                      ...prev,
+                      feedback_rating: e.target.value as any,
+                    }))
+                  }
+                  className="w-full form-input"
+                >
+                  <option value="">Select rating</option>
+                  <option value="strong_positive">Strong positive</option>
+                  <option value="positive">Positive</option>
+                  <option value="neutral">Neutral</option>
+                  <option value="mixed">Mixed / unclear</option>
+                  <option value="negative">Negative</option>
+                </select>
+              </div>
+
+              {/* Source */}
+              <div>
+                <label className="form-label text-sm">
+                  Who shared this feedback?
+                </label>
+                <select
+                  value={feedbackForm.feedback_source}
+                  onChange={(e) =>
+                    setFeedbackForm((prev) => ({
+                      ...prev,
+                      feedback_source: e.target.value as any,
+                    }))
+                  }
+                  className="w-full form-input"
+                >
+                  <option value="">Select source</option>
+                  <option value="recruiter">Recruiter</option>
+                  <option value="hiring_manager">Hiring manager</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Summary */}
+              <div>
+                <label className="form-label text-sm">
+                  Short summary (what did they say?)
+                </label>
+                <input
+                  type="text"
+                  value={feedbackForm.feedback_summary}
+                  onChange={(e) =>
+                    setFeedbackForm((prev) => ({
+                      ...prev,
+                      feedback_summary: e.target.value,
+                    }))
+                  }
+                  maxLength={180}
+                  className="w-full form-input"
+                  placeholder='e.g. "Strong team player, great communication and initiative."'
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="form-label text-sm">
+                  Detailed notes (optional)
+                </label>
+                <textarea
+                  value={feedbackForm.feedback_notes}
+                  onChange={(e) =>
+                    setFeedbackForm((prev) => ({
+                      ...prev,
+                      feedback_notes: e.target.value,
+                    }))
+                  }
+                  rows={4}
+                  className="w-full form-input"
+                  placeholder="Any specific comments or quotes you want to remember..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowFeedbackModal(false);
+                  setActiveFeedbackUsage(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSaveFeedback}
+                disabled={feedbackSaving}
+              >
+                {feedbackSaving ? "Saving..." : "Save feedback"}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
                         
 
@@ -1799,4 +2061,38 @@ function ContactFields({
       </div>
     </div>
   );
+}
+
+function renderFeedbackPill(rating?: string) {
+  if (!rating) return null;
+
+  let label = "";
+  let classes = "px-2 py-0.5 rounded-full text-[11px] border ";
+
+  switch (rating) {
+    case "strong_positive":
+      label = "Strong positive";
+      classes += "bg-emerald-50 text-emerald-700 border-emerald-200";
+      break;
+    case "positive":
+      label = "Positive";
+      classes += "bg-green-50 text-green-700 border-green-200";
+      break;
+    case "neutral":
+      label = "Neutral";
+      classes += "bg-gray-50 text-gray-700 border-gray-200";
+      break;
+    case "mixed":
+      label = "Mixed";
+      classes += "bg-amber-50 text-amber-700 border-amber-200";
+      break;
+    case "negative":
+      label = "Negative";
+      classes += "bg-red-50 text-red-700 border-red-200";
+      break;
+    default:
+      return null;
+  }
+
+  return <span className={classes}>{label}</span>;
 }

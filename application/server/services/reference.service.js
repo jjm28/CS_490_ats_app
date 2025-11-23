@@ -138,6 +138,58 @@ const Jobresult = await db
 }
 
 
+export async function updatefeedback({job_id, referenceId, feedback , user_id}) {
+  const db = getDb();
+
+
+    const setUpdate = {};
+
+    if (feedback.feedback_rating !== undefined) {
+      setUpdate["references.$.feedback_rating"] = feedback.feedback_rating;
+    }
+    if (feedback.feedback_summary !== undefined) {
+      setUpdate["references.$.feedback_summary"] = feedback.feedback_summary;
+    }
+    if (feedback.feedback_notes !== undefined) {
+      setUpdate["references.$.feedback_notes"] = feedback.feedback_notes;
+    }
+    if (feedback.feedback_source !== undefined) {
+      setUpdate["references.$.feedback_source"] = feedback.feedback_source;
+    }
+
+    // If caller passes a specific timestamp, use it; otherwise set "now"
+    if (feedback.feedback_collected_at !== undefined) {
+      setUpdate["references.$.feedback_collected_at"] = feedback.feedback_collected_at
+        ? new Date(feedback.feedback_collected_at)
+        : null;
+    } else {
+      // if never set before, set now
+      setUpdate["references.$.feedback_collected_at"] = new Date();
+    }
+
+    // Find the job that has this reference usage and update that one usage
+    const updatedJob = await  db
+            .collection("jobs")
+            .findOneAndUpdate(
+      {
+        _id: new ObjectId(job_id),
+        "references.reference_id": referenceId, // mongoose will cast string -> ObjectId
+      },
+      {
+        $set: setUpdate,
+      },
+      {
+        new: true, // return the updated document
+      }
+    );
+
+    if (!updatedJob) {
+      return { message: "Referee not found" };
+    }
+    return updatedJob
+}
+
+
 
 export async function generateReferenceRequest({ job, referee }) {
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);

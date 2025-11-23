@@ -1,5 +1,5 @@
 import express from 'express';
-import { createReferee ,getReferee, getALLReferee,deleteReferees, updateReferee, updateJobandReferee, updateJobReferencestat,generateReferenceRequest} from '../services/reference.service.js';
+import { createReferee ,getReferee, getALLReferee,deleteReferees, updateReferee, updateJobandReferee, updateJobReferencestat,generateReferenceRequest, updatefeedback} from '../services/reference.service.js';
 import { getJob } from '../services/jobs.service.js';
 import { verifyJWT } from '../middleware/auth.js';
 import 'dotenv/config';
@@ -177,4 +177,27 @@ router.post('/generate-request', async (req, res) => {
     });
   }
 });
+
+
+// PATCH /api/reference/update-feedback
+router.patch("/update-feedback", async (req, res) => {
+  try {
+    const { job_id, referenceId, feedback , user_id} = req.body;
+
+    if (!job_id || !referenceId || !feedback || !user_id) {
+      return res
+        .status(400)
+        .json({ error: "Missing required fields." });
+    }
+    const response =  await updatefeedback({job_id, referenceId, feedback , user_id})
+    // Build the $set update object for only the fields provided
+
+
+    return res.status(200).json(response);
+  } catch (err) {
+    console.error("Error in /reference/update-feedback:", err);
+    return res.status(500).json({ error: "Failed to update feedback." });
+  }
+});
+
 export default router;
