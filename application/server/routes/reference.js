@@ -1,7 +1,9 @@
 import express from 'express';
-import { createReferee ,getReferee, getALLReferee,deleteReferees, updateReferee, updateJobandReferee, updateJobReferencestat} from '../services/reference.service.js';
+import { createReferee ,getReferee, getALLReferee,deleteReferees, updateReferee, updateJobandReferee, updateJobReferencestat,generateReferenceRequest} from '../services/reference.service.js';
+import { getJob } from '../services/jobs.service.js';
 import { verifyJWT } from '../middleware/auth.js';
 import 'dotenv/config';
+import { ObjectId } from 'mongodb';
 
 
 //const genAI_rewrite = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
@@ -114,7 +116,7 @@ router.put('/addtojob/', async (req, res) => {
 });
 
 
-// PUT /api/reference/addtojob/
+// Patch /api/reference/updaterefstat/
 router.patch('/updaterefstat', async (req, res) => {
   
  try {
@@ -129,6 +131,50 @@ router.patch('/updaterefstat', async (req, res) => {
   } catch (err) {
     console.log(err)
     return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+
+// POST /api/reference/generate-request
+router.post('/generate-request', async (req, res) => {
+  
+  try {
+
+    const {job_id,referenceId, user_id} = req.body || {} ;
+    if (!job_id || !referenceId || !user_id) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+  
+    const job =  await getJob({userId: user_id, id: new ObjectId(job_id) })
+    if (!job) {
+      return res.status(404).json({ error: "Job not found." });
+    }
+    const referee = await getReferee({userid: user_id, referee_id: referenceId})
+    if (!referee) {
+      return res.status(404).json({ error: "Reference not found." });
+    }
+    const { emailTemplate, prepNotes } =
+      await generateReferenceRequest({ job, referee });
+
+    return res.status(200).json({
+      emailTemplate,
+      prepNotes,
+    });
+  
+  } catch (err) {
+    console.error("Error in /reference/generate-request:", err);
+
+    if (err.status === 429) {
+      return res.status(429).json({
+        error:
+          "The AI service is currently rate-limited. Please wait a bit and try again.",
+      });
+    }
+
+    return res.status(500).json({
+      error: "Failed to generate reference request.",
+    });
   }
 });
 export default router;

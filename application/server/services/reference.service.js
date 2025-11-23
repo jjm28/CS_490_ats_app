@@ -1,5 +1,8 @@
 import { getDb } from '../db/connection.js';
 import { ObjectId, ReturnDocument, Timestamp } from "mongodb";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import 'dotenv/config';
+import { SchemaType } from '@google/generative-ai';
 
 
 
@@ -133,3 +136,103 @@ const Jobresult = await db
 
   return Jobresult
 }
+
+
+
+export async function generateReferenceRequest({ job, referee }) {
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
+  
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  // safety: don’t send insanely long descriptions
+  const description =
+    (job.description || "").slice(0, 2500); // trim if needed
+
+  const company = job.company || "the company";
+  const jobTitle = job.jobTitle || "the role";
+  const jobLocation = job.location || "";
+  const jobType = job.type || ""; // internship, full-time, etc.
+
+  const refName = referee.full_name || "your reference";
+  const relationship = referee.relationship || "";
+  const refTitle = referee.title || "";
+  const refOrg = referee.organization || "";
+
+  const prompt = `
+You are a career assistant helping a candidate request a professional reference.
+
+Return ONLY valid JSON (no markdown, no backticks) with exactly this shape:
+
+{
+  "emailTemplate": "string",
+  "prepNotes": "string"
+}
+
+Context:
+
+Candidate is applying to a role:
+- Company: ${company}
+- Job title: ${jobTitle}
+- Location: ${jobLocation}
+- Opportunity type: ${jobType}
+
+Job description (may be truncated):
+${description || "(no description provided)"}
+
+Reference details:
+- Name: ${refName}
+- Relationship: ${relationship}
+- Reference title: ${refTitle}
+- Reference organization: ${refOrg}
+
+Requirements for "emailTemplate":
+- Salutation to ${refName}
+- 2–4 short paragraphs
+- Remind them who the candidate is and how you know each other
+- Briefly describe the role and why you think you’re a good fit
+- Ask if they’d be comfortable serving as a reference for this specific role
+- Offer to send resume + job description
+- Close politely
+
+Requirements for "prepNotes":
+- Bullet-style text (but as plain text, no markdown bullets) the candidate can send
+- Include:
+  - 3–5 key skills or experiences to emphasize (based on the role)
+  - 1–3 specific projects or achievements they could mention
+  - Any culture/values angle if obvious from the context
+  - Suggested tone: professional, supportive, specific
+`;
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 800,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT,
+        properties: {
+          emailTemplate: { type: SchemaType.STRING },
+          prepNotes: { type: SchemaType.STRING },
+        },
+        required: ["emailTemplate", "prepNotes"],
+      }
+    },
+  });
+
+  const text = result.response.text().trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    console.error("Failed to parse JSON from Gemini for reference request:", text);
+    throw new Error("AI returned invalid JSON for reference request.");
+  }
+
+  return {
+    emailTemplate: parsed.emailTemplate || "",
+    prepNotes: parsed.prepNotes || "",
+  };
+}
+
