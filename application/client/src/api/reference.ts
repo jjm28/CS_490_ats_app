@@ -172,3 +172,33 @@ export async function generateAppreciationMessage(opts: {
 
   return res.json() as Promise<{ generated_message: string }>;
 }
+
+export interface ReferenceImpact {
+  reference_id: string;
+  applications: number;
+  interviews: number;
+  offers: number;
+  success_rate: number; // 0–1
+}
+
+export async function getReferenceImpact(opts: {
+  user_id: string;
+}): Promise<ReferenceImpact[]> {
+  const res = await fetch(
+    `${API_URL}impact?user_id=${encodeURIComponent(opts.user_id)}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        // add Authorization if your routes are protected
+      },
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || "Failed to load reference impact");
+  }
+
+  return res.json();
+}

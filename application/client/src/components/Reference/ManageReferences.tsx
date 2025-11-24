@@ -2,8 +2,8 @@ import { Edit } from "lucide-react";
 import Button from "../StyledComponents/Button"
 import Card  from "../StyledComponents/Card"
 import React, { useState, useEffect, useMemo } from "react";
-import type { RefereeFormData,GetRefereeResponse} from "../../api/reference";
-import { addnewReferee,getReferee,getAllReferee ,DeleteThisReferees ,logReferenceRelationship,  generateAppreciationMessage,} from "../../api/reference";
+import type { RefereeFormData,GetRefereeResponse,ReferenceImpact } from "../../api/reference";
+import { addnewReferee,getReferee,getAllReferee ,DeleteThisReferees ,logReferenceRelationship,  generateAppreciationMessage,getReferenceImpact} from "../../api/reference";
 import { validateFields } from "../../utils/helpers";
 import type { ValidationErrors } from "../../utils/helpers";
 type OpportunityType =
@@ -55,6 +55,10 @@ export default function ManageReferences(){
 
     const [relSaving, setRelSaving] = useState(false);
     const [relError, setRelError] = useState<string | null>(null);
+    const [impactByRefId, setImpactByRefId] = useState<
+    Record<string, ReferenceImpact>
+  >({});
+  const [impactError, setImpactError] = useState<string | null>(null);
 
     // For AI-generated appreciation
     const [generatedMessage, setGeneratedMessage] = useState("");
@@ -121,31 +125,45 @@ export default function ManageReferences(){
     }
   }
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setFetchError(null);
+            useEffect(() => {
+              let alive = true;
+              (async () => {
+                try {
+                  setLoading(true);
+                  setFetchError(null);
+                  setImpactError(null);
 
-        const raw = localStorage.getItem("authUser");
-        const user = raw ? JSON.parse(raw).user : null;
-        if (!user?._id) throw new Error("Missing user session");
+                  const raw = localStorage.getItem("authUser");
+                  const user = raw ? JSON.parse(raw).user : null;
+                  if (!user?._id) throw new Error("Missing user session");
 
-        const res = await getAllReferee({ user_id: user._id }); 
-        if (!alive) return;
-        setReferees(res.referees ?? []);
-      } catch (e: any) {
-        if (!alive) return;
-        setFetchError(e?.message ?? "Failed to load references.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+                  const [refRes, impactRes] = await Promise.all([
+                    getAllReferee({ user_id: user._id }),
+                    getReferenceImpact({ user_id: user._id }),
+                  ]);
+
+                  if (!alive) return;
+
+                  setReferees(refRes.referees ?? []);
+
+                  const map: Record<string, ReferenceImpact> = {};
+                  (impactRes || []).forEach((item) => {
+                    map[item.reference_id] = item;
+                  });
+                  setImpactByRefId(map);
+                } catch (e: any) {
+                  if (!alive) return;
+                  setFetchError(e?.message ?? "Failed to load references.");
+                  setImpactError(e?.message ?? "Failed to load reference impact.");
+                } finally {
+                  if (alive) setLoading(false);
+                }
+              })();
+              return () => {
+                alive = false;
+              };
+            }, []);
+
 
     const resetForm = () => {
         setShowAddrefForm(false)
@@ -438,6 +456,7 @@ return (
       {filteredReferees.map((ref) => {
         const id = ref._id;
         const isSelected = selectedRefIds.includes(id);
+        const impact = impactByRefId[id]; 
         const lastRel =
           Array.isArray(ref.relationship_history) &&
           ref.relationship_history.length > 0
@@ -597,6 +616,22 @@ return (
                             Needs check-in
                           </span>
                         )}
+
+                                {impact ? (
+                                <div className="flex justify-between">
+                                  <span>
+                                    Impact: {impact.applications} apps, {impact.interviews} interviews,{" "}
+                                    {impact.offers} offers
+                                  </span>
+                                  <span>
+                                    Offer rate: {Math.round((impact.success_rate || 0) * 100)}%
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex justify-between">
+                                  <span>No outcome data yet</span>
+                                </div>
+                              )}
                       </div>
                     </div>
           </Card>

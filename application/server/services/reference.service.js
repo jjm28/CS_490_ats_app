@@ -318,3 +318,23 @@ export async function addRelationtoReferee({referenceId,action,message_content})
 
     return updatedRef
 }
+
+
+export async function getAlljobs({userId}) {
+  const db = getDb();
+
+
+const Jobresult = await db
+    .collection("jobs")
+    .find(
+      { userId: userId },
+      { projection: { status: 1, references: 1 } }
+    )
+    .toArray();
+
+    if (Jobresult === null) {
+    return { message: "Referee not found" };
+  }
+
+  return Jobresult
+}

@@ -1,5 +1,7 @@
 import express from 'express';
-import { createReferee ,getReferee, getALLReferee,deleteReferees, updateReferee, updateJobandReferee, updateJobReferencestat,generateReferenceRequest, updatefeedback,addRelationtoReferee} from '../services/reference.service.js';
+import { createReferee ,getReferee, getALLReferee,deleteReferees, updateReferee, updateJobandReferee, updateJobReferencestat,generateReferenceRequest, updatefeedback,addRelationtoReferee,
+  getAlljobs
+} from '../services/reference.service.js';
 import { getJob } from '../services/jobs.service.js';
 import { verifyJWT } from '../middleware/auth.js';
 import 'dotenv/config';
@@ -48,7 +50,81 @@ router.get("/all", async (req, res) => {
 });
 
 
+// GET /api/reference/impact?user_id=...
+router.get("/impact", async (req, res) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id) {
+      return res.status(400).json({ error: "user_id is required" });
+    }
 
+    // 1) get all jobs for this user that have references
+    const jobs = await getAlljobs({ userId: user_id })
+
+    // 2) aggregate per reference_id
+    const statsByRef = {}; // { [refId]: { applications, interviews, offers } }
+
+    const isInterviewStage = (status) =>
+      status === "phone_screen" ||
+      status === "interview" ||
+      status === "offer";
+
+    for (const job of jobs) {
+      const jobStatus = job.status;
+      const refs = Array.isArray(job.references) ? job.references : [];
+
+      for (const usage of refs) {
+        const refId = usage.reference_id?.toString();
+        if (!refId) continue;
+
+        if (!statsByRef[refId]) {
+          statsByRef[refId] = {
+            reference_id: refId,
+            applications: 0,
+            interviews: 0,
+            offers: 0,
+          };
+        }
+
+        statsByRef[refId].applications += 1;
+
+        if (isInterviewStage(jobStatus)) {
+          statsByRef[refId].interviews += 1;
+        }
+
+        if (jobStatus === "offer") {
+          statsByRef[refId].offers += 1;
+        }
+      }
+    }
+
+    // 3) compute success_rate and return as an array
+    const result = Object.values(statsByRef).map((entry) => {
+      const apps = entry.applications || 0;
+      const offers = entry.offers || 0;
+      const successRate = apps > 0 ? offers / apps : 0;
+console.log({ reference_id: entry.reference_id,
+        applications: apps,
+        interviews: entry.interviews,
+        offers: entry.offers,
+        success_rate: successRate,})
+      return {
+        reference_id: entry.reference_id,
+        applications: apps,
+        interviews: entry.interviews,
+        offers: entry.offers,
+        success_rate: successRate, // 0–1, frontend can turn into %
+      };
+    });
+
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("Error in /reference/impact:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to compute reference impact." });
+  }
+});
 
 // POST /api/reference/addnew
 router.post('/addnew', async (req, res) => {
