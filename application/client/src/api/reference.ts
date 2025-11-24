@@ -248,3 +248,142 @@ export async function getReferencePortfolio(opts: {
 
   return res.json();
 }
+
+
+export async function attachReferencesToJob(params: {
+  job_id: string;
+  referenceIds: string[];
+  token: string;
+}) {
+  const res = await fetch(`${API_URL}addtojob`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${params.token}`,
+    },
+    body: JSON.stringify({ job_id: params.job_id, referenceIds: params.referenceIds }),
+  });
+  if (!res.ok) throw new Error("Failed to attach references");
+  return res.json();
+}
+
+export async function detachReferenceFromJob(params: {
+  job_id: string;
+  referenceId: string;
+  token: string;
+}) {
+  const res = await fetch(`${API_URL}removetojob`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${params.token}`,
+    },
+    body: JSON.stringify({ job_id: params.job_id, referenceId: params.referenceId }),
+  });
+  if (!res.ok) throw new Error("Failed to detach reference");
+  return res.json();
+}
+
+export async function updateReferenceStatus(params: {
+  job_id: string;
+  referenceId: string;
+  status: "planned" | "requested" | "confirmed" | "declined" | "completed";
+  token: string;
+}) {
+  const res = await fetch(`${API_URL}updaterefstat`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${params.token}`,
+    },
+    body: JSON.stringify({
+      job_id: params.job_id,
+      referenceId: params.referenceId,
+      status: params.status,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to update reference status");
+  return res.json();
+}
+
+export async function generateReferenceRequest(params: {
+  job_id: string;
+  referenceId: string;
+  user_id: string;
+  token: string;
+}) {
+  const res = await fetch(`${API_URL}generate-request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${params.token}`,
+    },
+    body: JSON.stringify({
+      job_id: params.job_id,
+      referenceId: params.referenceId,
+      user_id: params.user_id,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || "Failed to generate reference request");
+  }
+  return res.json();
+}
+
+export async function generateReferencePrep(params: {
+  job_id: string;
+  referenceId: string;
+  user_id: string;
+  token: string;
+}) {
+  const res = await fetch(`${API_URL}generate-prep`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${params.token}`,
+    },
+    body: JSON.stringify({
+      job_id: params.job_id,
+      referenceId: params.referenceId,
+      user_id: params.user_id,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || "Failed to generate prep");
+  }
+  return res.json();
+}
+
+export async function updateReferenceFeedback(params: {
+  job_id: string;
+  referenceId: string;
+  user_id: string;
+  token: string;
+  feedback: {
+    feedback_rating?: "strong_positive" | "positive" | "neutral" | "mixed" | "negative";
+    feedback_source?: "recruiter" | "hiring_manager" | "other";
+    feedback_summary?: string;
+    feedback_notes?: string;
+  };
+}) {
+  const res = await fetch(`${API_URL}update-feedback`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${params.token}`,
+    },
+    body: JSON.stringify({
+      job_id: params.job_id,
+      referenceId: params.referenceId,
+      user_id: params.user_id,
+      feedback: params.feedback,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || "Failed to save feedback");
+  }
+  return res.json();
+}

@@ -158,6 +158,12 @@ function Navbar() {
                 >
                   Company Search
                 </NavLink>
+                  <NavLink
+                  to="/manage-References"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  References
+                </NavLink>
               </PopoverPanel>
             </Popover>
           </div>

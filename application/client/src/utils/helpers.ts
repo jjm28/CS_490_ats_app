@@ -71,7 +71,11 @@ export function validateFields(name: string, value: string) {
         error = "Relationship is required.";
       }
       break;
-
+    case "availability_status":
+          if (!value.trim()) {
+            error = "Availability is required.";
+          }
+          break;
     case "phone":
       if (value && !/^\+?[0-9()\-\s]{7,20}$/.test(value)) {
         error = "Please enter a valid phone number.";

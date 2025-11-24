@@ -1,4 +1,4 @@
-import { Edit } from "lucide-react";
+import { Edit, Mail, Phone, Briefcase, BarChart3, HeartHandshake } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "../StyledComponents/Button"
 import Card  from "../StyledComponents/Card"
@@ -31,9 +31,9 @@ export default function ManageReferences(){
         tags: [],
         last_used_at: "",
         usage_count: 0,
-        preferred_opportunity_types: []
-        
-
+        preferred_opportunity_types: [],
+        availability_other_note: "",          
+        preferred_number_of_uses: null, 
       });
     const [formerros,setformerros] = useState<ValidationErrors>({});
     const [tagInput, setTagInput] = useState("");
@@ -80,6 +80,8 @@ export default function ManageReferences(){
     if (phoneerror) return  setformerros((prev) => ({ ...prev, ["phone"]: phoneerror }));}
     const preferreerror = validateFields("preferred_contact_method", formData.preferred_contact_method);
     if (preferreerror) return  setformerros((prev) => ({ ...prev, ["preferred_contact_method"]: preferreerror }));
+    const availabilityError = validateFields( "availability_status",  formData.availability_status);
+  if (availabilityError) {   return setformerros((prev) => ({    ...prev,    ["availability_status"]: availabilityError,  }));}
     setformerros({})
     const payload: any = {...formData}
     const user = JSON.parse(localStorage.getItem("authUser") ?? "").user
@@ -171,20 +173,23 @@ export default function ManageReferences(){
     const resetForm = () => {
         setShowAddrefForm(false)
         setEditing(false)
-        setFormData({
-        full_name: "",
-        title: "",
-        organization: "",
-        relationship: "",
-        email: "",
-        phone: "",
-        preferred_contact_method: "",
-        availability_status: "",
-        preferred_opportunity_types: [],
-        tags: [],
-        last_used_at: "",
-        usage_count: 0,
-      })
+       setFormData({
+          full_name: "",
+          title: "",
+          organization: "",
+          relationship: "",
+          email: "",
+          phone: "",
+          preferred_contact_method: "",
+          availability_status: "",
+          availability_other_note: "",
+          preferred_opportunity_types: [],
+          preferred_number_of_uses: null,
+          tags: [],
+          last_used_at: "",
+          usage_count: 0,
+        });
+
       setEditRefId("")
     }
       const handleInputChange = (   e: React.ChangeEvent<     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement    >   ) => {
@@ -473,179 +478,261 @@ return (
             ? ref.relationship_history[ref.relationship_history.length - 1]
             : null;
         return (
-          <Card
-            key={id}
-            className={`p-4 flex flex-col justify-between rounded-lg border transition
+  <Card
+    key={id}
+    className={`relative flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm transition
+      ${
+        isSelected
+          ? "border-red-500 ring-1 ring-red-200"
+          : "border-gray-200 hover:border-gray-300 hover:shadow-md"
+      }
+    `}
+  >
+    {/* Top row: selector + name + actions */}
+    <div className="flex items-start justify-between gap-3">
+      {/* Selector + identity */}
+      <div className="flex items-start gap-3">
+        {/* custom selector */}
+        <button
+          type="button"
+          onClick={() => toggleSelectRef(id)}
+          className={`mt-1 h-4 w-4 rounded-full border-2 flex items-center justify-center transition
+            ${
+              isSelected
+                ? "border-red-500 bg-red-500"
+                : "border-gray-300 bg-white hover:border-red-300"
+            }
+          `}
+          aria-pressed={isSelected}
+        >
+          {isSelected && (
+            <span className="block h-2 w-2 rounded-full bg-white" />
+          )}
+        </button>
+
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-900">
+              {ref.full_name || "Unnamed reference"}
+            </h3>
+            {ref.relationship && (
+              <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
+                {ref.relationship}
+              </span>
+            )}
+          </div>
+
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-600">
+            <Briefcase className="h-3 w-3" />
+            <span>
+              {ref.title || "Title not set"}
+              {ref.organization && ` • ${ref.organization}`}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col items-end gap-1">
+        <button
+          type="button"
+          className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+          onClick={() => {
+            setFormData({
+              full_name: ref.full_name ?? "",
+              title: ref.title ?? "",
+              organization: ref.organization ?? "",
+              relationship: ref.relationship ?? "",
+              email: ref.email ?? "",
+              phone: ref.phone ?? "",
+              preferred_contact_method: ref.preferred_contact_method ?? "",
+              tags: ref.tags ?? [],
+              last_used_at: ref.last_used_at ?? "",
+              usage_count: ref.usage_count ?? 0,
+              availability_status: ref.availability_status ?? "",
+              availability_other_note: ref.availability_other_note ?? "",
+              preferred_opportunity_types: ref.preferred_opportunity_types ?? [],
+              preferred_number_of_uses:
+                ref.preferred_number_of_uses ?? null,
+            });
+            setEditing(true);
+            setShowAddrefForm(true);
+            setEditRefId(ref._id);
+          }}
+        >
+          <Edit className="mr-1 h-3 w-3" />
+          Edit
+        </button>
+
+        <button
+          type="button"
+          className="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+          onClick={() => {
+            setActiveRefForRelationship(ref);
+            setRelationshipMode("log");
+            setRelationshipForm({
+              action: "sent_thank_you",
+              message_content: "",
+            });
+            setGeneratedMessage("");
+            setRelError(null);
+            setShowRelationshipModal(true);
+          }}
+        >
+          <HeartHandshake className="mr-1 h-3 w-3" />
+          Maintain
+        </button>
+      </div>
+    </div>
+
+    {/* Contact & meta */}
+    <div className="grid grid-cols-1 gap-2 text-xs text-gray-600">
+      <div className="flex flex-wrap items-center gap-3">
+        {ref.email && (
+          <span className="inline-flex items-center gap-1">
+            <Mail className="h-3 w-3" />
+            {ref.email}
+          </span>
+        )}
+        {ref.phone && (
+          <span className="inline-flex items-center gap-1">
+            <Phone className="h-3 w-3" />
+            {ref.phone}
+          </span>
+        )}
+        {ref.preferred_contact_method && (
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700">
+            Prefers{" "}
+            {ref.preferred_contact_method === "email"
+              ? "email"
+              : ref.preferred_contact_method === "phone"
+              ? "phone"
+              : ref.preferred_contact_method}
+          </span>
+        )}
+      </div>
+
+      {/* Availability + “best suited for” */}
+      <div className="flex flex-wrap items-center gap-2">
+        {ref.availability_status && (
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border
               ${
-                isSelected
-                  ? "border-red-500 bg-red-50 ring-1 ring-red-200"
-                  : "border-gray-200 hover:border-gray-300"
+                ref.availability_status === "available"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : ref.availability_status === "limited"
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : ref.availability_status === "unavailable"
+                  ? "bg-red-50 text-red-700 border-red-200"
+                  : "bg-gray-50 text-gray-600 border-gray-200"
               }
             `}
           >
-            <div className="flex items-start justify-between gap-2">
-              {/* custom selection dot + info */}
-              <div className="flex items-start gap-2">
-                {/* custom red selector instead of native checkbox */}
-                <button
-                  type="button"
-                  onClick={() => toggleSelectRef(id)}
-                  className={`mt-1 h-4 w-4 rounded-full border-2 flex items-center justify-center transition
-                    ${
-                      isSelected
-                        ? "border-red-500 bg-red-500"
-                        : "border-gray-300 bg-white hover:border-red-300"
-                    }
-                  `}
-                  aria-pressed={isSelected}
+            {ref.availability_status === "available"
+              ? "Available"
+              : ref.availability_status === "limited"
+              ? "Limited / case-by-case"
+              : ref.availability_status === "unavailable"
+              ? "Not available"
+              : "Availability: other"}
+          </span>
+        )}
+
+        {Array.isArray(ref.preferred_opportunity_types) &&
+          ref.preferred_opportunity_types.length > 0 && (
+            <span className="inline-flex flex-wrap items-center gap-1 text-[10px] text-gray-600">
+              <span className="font-medium">Best for:</span>
+              {ref.preferred_opportunity_types.map((t, i) => (
+                <span
+                  key={i}
+                  className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700"
                 >
-                  {isSelected && (
-                    <span className="block h-2 w-2 rounded-full bg-white" />
-                  )}
-                </button>
+                  {t}
+                </span>
+              ))}
+            </span>
+          )}
 
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900">
-                    {ref.full_name || "Unnamed reference"}
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    {ref.title || "Title not set"}
-                    {ref.organization && ` • ${ref.organization}`}
-                  </p>
-                  {ref.relationship && (
-                    <span className="mt-1 inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
-                      {ref.relationship}
-                    </span>
-                  )}
-                </div>
-              </div>
+        {ref.preferred_number_of_uses != null && (
+          <span className="text-[10px] text-gray-500">
+            Prefers ~{ref.preferred_number_of_uses} uses / year
+          </span>
+        )}
+      </div>
 
-              {/* Edit + delete actions */}
-              <div className="flex flex-col gap-1 items-end">
-                <button
-                  type="button"
-                  className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-                  onClick={() => {
-                    setFormData({
-                      full_name: ref.full_name ?? "",
-                      title: ref.title ?? "",
-                      organization: ref.organization ?? "",
-                      relationship: ref.relationship ?? "",
-                      email: ref.email ?? "",
-                      phone: ref.phone ?? "",
-                      preferred_contact_method:
-                      ref.preferred_contact_method ?? "",
-                      tags: ref.tags ?? [],
-                      last_used_at: ref.last_used_at ?? "",
-                      usage_count: ref.usage_count ?? 0,
-                      availability_status: ref.availability_status ?? "",
-                      preferred_opportunity_types:ref.preferred_opportunity_types ?? [],
-                      preferred_number_of_uses: ref.preferred_number_of_uses ?? 0
-                    });
-                    setEditing(true);
-                    setShowAddrefForm(true);
-                    setEditRefId(ref._id);
-                  }}
-                >
-                  <Edit className="h-3 w-3 mr-1" />
-                  Edit
-                </button>
-                      <button
-                        type="button"
-                        className="mt-1 inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs text-indigo-700 hover:bg-indigo-100"
-                        onClick={() => {
-                          setActiveRefForRelationship(ref);
-                          setRelationshipMode("log");
-                          setRelationshipForm({
-                            action: "sent_thank_you",
-                            message_content: "",
-                          });
-                          setGeneratedMessage("");
-                          setRelError(null);
-                          setShowRelationshipModal(true);
-                        }}
-                      >
-                        Maintain
-                      </button>
+      {/* Tags */}
+      {Array.isArray(ref.tags) && ref.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {ref.tags.map((t, i) => (
+            <span
+              key={i}
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-700"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
 
-              </div>
+    {/* Impact + usage row */}
+    <div className="mt-1 rounded-lg bg-gray-50 p-2 text-[11px] text-gray-600">
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col">
+          <span>
+            Used in {ref.usage_count ?? 0}{" "}
+            {ref.usage_count === 1 ? "application" : "applications"}
+          </span>
+          {ref.last_used_at && (
+            <span className="text-gray-500">
+              Last used: {ref.last_used_at}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col items-end text-right">
+          {lastRel ? (
+            <>
+              <span>
+                Last contact:{" "}
+                {new Date(lastRel.created_at).toLocaleDateString()}
+              </span>
+              <span className="mt-1 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                Relationship active
+              </span>
+            </>
+          ) : (
+           <span className="inline-flex whitespace-nowrap items-center rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 border border-amber-200">
+              No recent contact
+            </span>
+
+          )}
+        </div>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between border-t border-gray-200 pt-2">
+        {impact ? (
+          <>
+            <div className="flex items-center gap-1">
+              <BarChart3 className="h-3 w-3" />
+              <span>
+                {impact.applications} apps • {impact.interviews} interviews •{" "}
+                {impact.offers} offers
+              </span>
             </div>
+            <span className="font-medium text-gray-700">
+              {Math.round((impact.success_rate || 0) * 100)}% offer rate
+            </span>
+          </>
+        ) : (
+          <span className="text-gray-500">No outcome data yet</span>
+        )}
+      </div>
+    </div>
+  </Card>
+);
 
-            <div className="mt-3 space-y-1 text-xs text-gray-600">
-              {ref.email && <p>Email: {ref.email}</p>}
-              {ref.phone && <p>Phone: {ref.phone}</p>}
-              {ref.preferred_contact_method && (
-                <p>
-                  Preferred:{" "}
-                  {ref.preferred_contact_method === "email"
-                    ? "Email"
-                    : ref.preferred_contact_method === "phone"
-                    ? "Phone"
-                    : ref.preferred_contact_method}
-                </p>
-              )}
-            </div>
-
-            {Array.isArray(ref.tags) && ref.tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1">
-                {ref.tags.map((t, i) => (
-                  <span
-                    key={i}
-                    className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            )}
-
-                    <div className="mt-3 flex flex-col gap-1 text-[11px] text-gray-500">
-                      <div className="flex justify-between">
-                        <span>
-                          Used in {ref.usage_count ?? 0}{" "}
-                          {ref.usage_count === 1 ? "application" : "applications"}
-                        </span>
-                        {ref.last_used_at && <span>Last used: {ref.last_used_at}</span>}
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span>
-                          Last contact:{" "}
-                          {lastRel
-                            ? new Date(lastRel.created_at).toLocaleDateString()
-                            : "No contact logged yet"}
-                        </span>
-
-                        {/* simple “health” chip */}
-                        {lastRel ? (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Relationship active
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            Needs check-in
-                          </span>
-                        )}
-
-                                {impact ? (
-                                <div className="flex justify-between">
-                                  <span>
-                                    Impact: {impact.applications} apps, {impact.interviews} interviews,{" "}
-                                    {impact.offers} offers
-                                  </span>
-                                  <span>
-                                    Offer rate: {Math.round((impact.success_rate || 0) * 100)}%
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="flex justify-between">
-                                  <span>No outcome data yet</span>
-                                </div>
-                              )}
-                      </div>
-                    </div>
-          </Card>
-        );
+       
       })}
     </div>
   </>
