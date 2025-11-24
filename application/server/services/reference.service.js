@@ -320,7 +320,7 @@ export async function addRelationtoReferee({referenceId,action,message_content})
 }
 
 
-export async function getAlljobs({userId}) {
+export async function getAlljobs({userId,projections}) {
   const db = getDb();
 
 
@@ -328,7 +328,7 @@ const Jobresult = await db
     .collection("jobs")
     .find(
       { userId: userId },
-      { projection: { status: 1, references: 1 } }
+      { projection: projections }
     )
     .toArray();
 

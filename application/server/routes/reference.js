@@ -59,7 +59,7 @@ router.get("/impact", async (req, res) => {
     }
 
     // 1) get all jobs for this user that have references
-    const jobs = await getAlljobs({ userId: user_id })
+    const jobs = await getAlljobs({ userId: user_id ,projections: { status: 1, references: 1 }})
 
     // 2) aggregate per reference_id
     const statsByRef = {}; // { [refId]: { applications, interviews, offers } }
@@ -346,5 +346,165 @@ Best,
       .json({ error: "Failed to generate appreciation message." });
   }
 });
+
+
+// POST /api/reference/portfolio
+// Body: { user_id: string, goal: string, limit?: number }
+router.post("/portfolio", async (req, res) => {
+  try {
+    const { user_id, goal, limit = 5 } = req.body || {};
+    if (!user_id || !goal) {
+      return res
+        .status(400)
+        .json({ error: "user_id and goal are required." });
+    }
+
+    const normalizedGoal = goal.toLowerCase().trim();
+
+    // 1) Load all references for this user
+    const refs = await getALLReferee({user_id})
+
+    if (!refs || refs.length === 0) {
+      return res.status(200).json({
+        goal,
+        generated_at: new Date().toISOString(),
+        references: [],
+      });
+    }
+
+    // 2) Load all jobs for this user that have references
+    const jobs = await getAlljobs({userId: user_id,projections: {status: 1, jobTitle: 1, type:1, industry:1, references:1}})
+
+    // helper: map refId -> stats from jobs
+    const statsByRef = {}; // { [refId]: { applications, offers, titles: string[], industries: string[] } }
+
+    const isOffer = (status) => status === "offer";
+
+    for (const job of jobs) {
+      const jobStatus = job.status;
+      const jobTitle = (job.jobTitle || "").toLowerCase();
+      const jobType = (job.type || "").toLowerCase();
+      const jobIndustry = (job.industry || "").toLowerCase();
+
+      const usages = Array.isArray(job.references) ? job.references : [];
+
+      for (const usage of usages) {
+        const refId = usage.reference_id?.toString();
+        if (!refId) continue;
+
+        if (!statsByRef[refId]) {
+          statsByRef[refId] = {
+            applications: 0,
+            offers: 0,
+            titles: new Set(),
+            industries: new Set(),
+          };
+        }
+
+        statsByRef[refId].applications += 1;
+        if (isOffer(jobStatus)) {
+          statsByRef[refId].offers += 1;
+        }
+        if (jobTitle) statsByRef[refId].titles.add(jobTitle);
+        if (jobIndustry) statsByRef[refId].industries.add(jobIndustry);
+      }
+    }
+
+    // 3) Score each reference for this goal
+    const scored = refs.map((ref) => {
+      const refId = ref._id.toString();
+      const stats = statsByRef[refId] || {
+        applications: 0,
+        offers: 0,
+        titles: new Set(),
+        industries: new Set(),
+      };
+
+      const tags = Array.isArray(ref.tags)
+        ? ref.tags.map((t) => (t || "").toLowerCase())
+        : [];
+
+      const relationship = (ref.relationship || "").toLowerCase();
+      const title = (ref.title || "").toLowerCase();
+      const org = (ref.organization || "").toLowerCase();
+
+      let score = 0;
+
+      // base: used more = higher
+      score += stats.applications * 2;
+      score += stats.offers * 5;
+
+      // tag / text matches on goal
+      const haystack = [
+        ...tags,
+        relationship,
+        title,
+        org,
+        ...Array.from(stats.titles),
+      ];
+
+      haystack.forEach((s) => {
+        if (!s) return;
+        if (s.includes(normalizedGoal)) score += 5;
+        // loose match on "software" / "engineer" etc.
+        const tokens = normalizedGoal.split(/\s+/);
+        tokens.forEach((tok) => {
+          if (tok.length > 2 && s.includes(tok)) {
+            score += 1;
+          }
+        });
+      });
+
+      // success rate
+      const apps = stats.applications || 0;
+      const offers = stats.offers || 0;
+      const successRate = apps > 0 ? offers / apps : 0;
+
+      return {
+        reference_id: refId,
+        full_name: ref.full_name,
+        title: ref.title,
+        organization: ref.organization,
+        relationship: ref.relationship,
+        email: ref.email,
+        tags: ref.tags || [],
+        stats: {
+          applications: apps,
+          offers,
+          success_rate: successRate,
+        },
+        score,
+        // quick deterministic summary (you can later swap this with Gemini)
+        summary: apps
+          ? `Used in ${apps} application${apps === 1 ? "" : "s"} with ${
+              offers
+                ? `${offers} offer${offers === 1 ? "" : "s"}`
+                : "no offers yet"
+            } for roles like ${Array.from(stats.titles).slice(0, 3).join(", ") ||
+            "various positions"}.`
+          : "Not yet used in tracked applications.",
+      };
+    });
+
+    // 4) sort and trim
+    scored.sort((a, b) => b.score - a.score);
+
+    const top = scored
+      .filter((r) => r.score > 0 || r.stats.applications > 0) // skip truly unused unless everything empty
+      .slice(0, limit);
+
+    return res.status(200).json({
+      goal,
+      generated_at: new Date().toISOString(),
+      references: top,
+    });
+  } catch (err) {
+    console.error("Error in /reference/portfolio:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to generate reference portfolio." });
+  }
+});
+
 
 export default router;

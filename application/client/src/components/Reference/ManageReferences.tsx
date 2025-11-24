@@ -1,9 +1,10 @@
 import { Edit } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Button from "../StyledComponents/Button"
 import Card  from "../StyledComponents/Card"
 import React, { useState, useEffect, useMemo } from "react";
-import type { RefereeFormData,GetRefereeResponse,ReferenceImpact } from "../../api/reference";
-import { addnewReferee,getReferee,getAllReferee ,DeleteThisReferees ,logReferenceRelationship,  generateAppreciationMessage,getReferenceImpact} from "../../api/reference";
+import type { RefereeFormData,GetRefereeResponse,ReferenceImpact, ReferencePortfolioResponse, PortfolioReference } from "../../api/reference";
+import { addnewReferee,getReferee,getAllReferee ,DeleteThisReferees ,logReferenceRelationship,  generateAppreciationMessage,getReferenceImpact,getReferencePortfolio } from "../../api/reference";
 import { validateFields } from "../../utils/helpers";
 import type { ValidationErrors } from "../../utils/helpers";
 type OpportunityType =
@@ -14,6 +15,8 @@ type OpportunityType =
   | "grad-school";
 
 export default function ManageReferences(){
+  const navigate = useNavigate();
+
     const [ShowFormRef, setShowAddrefForm] = useState(false);
     const [Editing,setEditing] = useState(false);
     const [formData, setFormData] = useState<RefereeFormData>({
@@ -387,11 +390,18 @@ return (
                             onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                            <Button
-                            onClick={() => setShowAddrefForm(true)}
-                            >
-                            Add Reference
-                            </Button>
+                              <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => navigate("/references/portfolio")}
+                              >
+                                View Portfolio
+                              </Button>
+                              <Button onClick={() => setShowAddrefForm(true)}>
+                                Add Reference
+                              </Button>
+                            </div>
                 </div> 
             {fetchError && (
           <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

@@ -202,3 +202,49 @@ export async function getReferenceImpact(opts: {
 
   return res.json();
 }
+
+
+export interface PortfolioReference {
+  reference_id: string;
+  full_name: string;
+  title?: string;
+  organization?: string;
+  relationship?: string;
+  email?: string;
+  tags: string[];
+  stats: {
+    applications: number;
+    offers: number;
+    success_rate: number; // 0–1
+  };
+  score: number;
+  summary: string;
+}
+
+export interface ReferencePortfolioResponse {
+  goal: string;
+  generated_at: string;
+  references: PortfolioReference[];
+}
+
+export async function getReferencePortfolio(opts: {
+  user_id: string;
+  goal: string;
+  limit?: number;
+}): Promise<ReferencePortfolioResponse> {
+  const res = await fetch(`${API_URL}portfolio`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // optionally Authorization if needed
+    },
+    body: JSON.stringify(opts),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || "Failed to generate reference portfolio");
+  }
+
+  return res.json();
+}
