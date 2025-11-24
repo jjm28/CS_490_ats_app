@@ -172,40 +172,40 @@ export default function SalaryResearchPage() {
         
         return (
           <div
-            key={job._id}
-            className="bg-white shadow-lg p-6 rounded-xl border border-gray-200 hover:shadow-xl transition-shadow"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-800">
-                  {job.jobTitle}
-                </h2>
-                <p className="text-gray-600">{job.company}</p>
-                {job.location && (
-                  <p className="text-sm text-gray-500 mt-1">📍 {job.location}</p>
-                )}
+              key={job._id}
+              className="bg-white shadow-lg p-6 rounded-xl border border-gray-200 hover:shadow-xl transition-shadow"
+            >
+              <div className="flex justify-center items-start mb-4">
+                <div className="text-center">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    {job.jobTitle}
+                  </h2>
+                  <p className="text-gray-600">{job.company}</p>
+                  {job.location && (
+                    <p className="text-sm text-gray-500 mt-1">📍 {job.location}</p>
+                  )}
+                  
+                  <div className="flex gap-2 justify-center mt-2">
+                    {isIntern && (
+                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-medium">
+                        Internship
+                      </span>
+                    )}
+                    {salary?.cached && (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        Cached
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              
-              <div className="flex gap-2">
-                {isIntern && (
-                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-medium">
-                    Internship
-                  </span>
-                )}
-                {salary?.cached && (
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                    Cached
-                  </span>
-                )}
-              </div>
-            </div>
 
-            {hasData ? (
+                      {hasData ? (
               <div className="space-y-4">
                 {/* Average Salary - Large Display */}
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-lg border border-green-200">
-                  <div className="flex items-baseline justify-between">
-                    <div>
+                  <div className="flex items-baseline justify-center">
+                    <div className="text-center">
                       <p className="text-sm text-gray-600 mb-1">💰 Average {isIntern ? 'Hourly Rate' : 'Salary'}</p>
                       <p className="text-4xl font-bold text-green-700">
                         ${isIntern 
@@ -216,7 +216,7 @@ export default function SalaryResearchPage() {
                       </p>
                         
                       {/* 🆕 Add MIN & MAX */}
-                      <div className="mt-2 text-sm text-gray-600 flex gap-4">
+                      <div className="mt-2 text-sm text-gray-600 flex gap-4 justify-center">
                         <span>
                           <strong>Min:</strong> $
                           {isIntern
@@ -224,7 +224,6 @@ export default function SalaryResearchPage() {
                             : Math.round(salary.min!).toLocaleString()}
                           {isIntern && "/hr"}
                         </span>
-
                         <span>
                           <strong>Max:</strong> $
                           {isIntern
@@ -234,14 +233,6 @@ export default function SalaryResearchPage() {
                         </span>
                       </div>
                     </div>
-                    {isIntern && (
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">Annual equivalent</p>
-                        <p className="text-lg font-semibold text-gray-700">
-                          ${salary.average.toLocaleString()}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
 
