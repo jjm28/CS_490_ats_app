@@ -48,6 +48,9 @@ import RuleForm from "./components/AutomationRules/RuleForm";
 
 import SalaryResearch from './components/Job_Tools/SalaryResearchPage';
 
+import ManageReferences from './components/Reference/ManageReferences';
+import ReferencePortfolio from './components/Reference/ReferencePortfolio';
+
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -129,6 +132,10 @@ function App() {
 
 
           <Route path="/Notifications" element={<PrivateRoute><NotificationSettings /></PrivateRoute>} />
+          <Route path="/manage-references" element={<PrivateRoute><ManageReferences /></PrivateRoute>} />
+          <Route path="/references/portfolio" element={<PrivateRoute><ReferencePortfolio /></PrivateRoute>} />
+
+
         </Routes>
       </div>
     </>

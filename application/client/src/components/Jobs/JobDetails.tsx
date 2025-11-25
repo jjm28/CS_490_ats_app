@@ -16,7 +16,7 @@ import InterviewScheduler from "./InterviewScheduler";
 import { listResumes } from "../../api/resumes";
 import { listCoverletters } from "../../api/coverletter";
 import CompanyResearchInline from "./CompanyResearchInline";
-
+import ReferencesPanel from "./ReferencesPanel";
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 const RESUME_VERSIONS_ENDPOINT = `${API_BASE}/api/resume-versions`; // NEW
 
@@ -56,6 +56,7 @@ export default function JobDetails({
   // New state for adding application history
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);
+  
 
   // New state for editing application history
   const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(
@@ -70,6 +71,7 @@ export default function JobDetails({
       localStorage.getItem("authToken") || localStorage.getItem("token") || "",
     []
   );
+
 
 
 
@@ -130,7 +132,7 @@ export default function JobDetails({
     }
   };
 
-  // 🔥 NEW: fetch resume versions that are linked to this job
+  // fetch resume versions that are linked to this job
   useEffect(() => {
     const fetchLinkedResumes = async () => {
       if (!jobId) return;
@@ -177,6 +179,18 @@ export default function JobDetails({
 
     fetchLinkedResumes();
   }, [jobId, token]);
+
+   
+
+
+
+
+
+
+
+
+
+  
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -607,6 +621,13 @@ export default function JobDetails({
               />
             </div>
           </section>
+          {/* References for this application */}
+<ReferencesPanel
+  job={job}
+  token={token}
+  onJobChange={(updated) => setJob(updated)}
+  onUpdate={onUpdate}
+/>
 
           {/* Notes Sections */}
           <TextArea
@@ -974,9 +995,8 @@ export default function JobDetails({
           </Card>
         </div>
       )}
+
       </Card>
-
-
 
     </div>
   );
@@ -1250,3 +1270,4 @@ function ContactFields({
     </div>
   );
 }
+

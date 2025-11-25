@@ -31,7 +31,7 @@ import automationRoutes from "./routes/automation.js";
 import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from './jobs/notificationcron.js';
 import notificationRoutes from './routes/notifications.js';
-
+import reference from './routes/reference.js'
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -104,6 +104,8 @@ try {
   // With routes (protected by auth):
   app.use('/api/notifications', notificationRoutes);
 
+  // References Routes
+  app.use('/api/reference', reference)
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
