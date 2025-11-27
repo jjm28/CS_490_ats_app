@@ -3,8 +3,46 @@ const router = express.Router();
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyJWT } from "../middleware/auth.js"; 
 import Job from "../models/jobs.js";
+import InterviewInsights from "../models/interviewInsights.js"; // ✅ New model
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// ✅ RATE LIMITER: Queue to prevent API spam
+class RequestQueue {
+  constructor(delayMs = 2000) {
+    this.queue = [];
+    this.processing = false;
+    this.delayMs = delayMs;
+  }
+
+  async add(fn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ fn, resolve, reject });
+      this.process();
+    });
+  }
+
+  async process() {
+    if (this.processing || this.queue.length === 0) return;
+    
+    this.processing = true;
+    const { fn, resolve, reject } = this.queue.shift();
+
+    try {
+      const result = await fn();
+      resolve(result);
+    } catch (error) {
+      reject(error);
+    }
+
+    await new Promise(r => setTimeout(r, this.delayMs));
+    this.processing = false;
+    this.process();
+  }
+}
+
+const geminiQueue = new RequestQueue(2000);
+
 router.use(verifyJWT);
 
 router.get("/:jobId", async (req, res) => {
@@ -17,105 +55,131 @@ router.get("/:jobId", async (req, res) => {
     }
 
     const { jobId } = req.params;
-    console.log(`🔍 Fetching job with ID: ${jobId} for user: ${userId}`);
+    console.log(`🔍 Fetching insights for job: ${jobId}`);
 
+    // ✅ CHECK IF INSIGHTS ALREADY EXIST IN SEPARATE COLLECTION
+    let cachedInsights = await InterviewInsights.findOne({ jobId, userId });
+    
+    if (cachedInsights) {
+      console.log("💾 Returning cached insights from database");
+      return res.json({
+        processStages: cachedInsights.processStages,
+        commonQuestions: cachedInsights.commonQuestions,
+        interviewFormat: cachedInsights.interviewFormat,
+        timeline: cachedInsights.timeline,
+        preparationTips: cachedInsights.preparationTips,
+        successTips: cachedInsights.successTips,
+        interviewerInfo: cachedInsights.interviewerInfo,
+        generatedAt: cachedInsights.generatedAt
+      });
+    }
+
+    // ✅ FETCH JOB DETAILS FOR GENERATION
     const job = await Job.findOne({ _id: jobId, userId });
     if (!job) {
       console.log(`❌ Job not found: ${jobId}`);
       return res.status(404).json({ error: "Job not found for this user" });
     }
 
-    // ✅ CHECK IF INSIGHTS ALREADY EXIST IN DATABASE
-    if (job.insights) {
-      console.log("💾 Returning cached insights from database");
-      return res.json(job.insights);
-    }
-
     const { jobTitle, company } = job;
     console.log(`🎯 Generating NEW insights for: ${jobTitle} at ${company}`);
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
-      generationConfig: {
-        temperature: 0.7,
-        topP: 0.95,
-        topK: 40,
-        maxOutputTokens: 2048,
-      }
-    });
-
-    const prompt = `Research comprehensive interview preparation information for a ${jobTitle} position at ${company}.
-
-Return ONLY a valid JSON object (no markdown, no explanations) with these exact keys:
-
-{
-  "processStages": ["stage 1", "stage 2", ...],
-  "commonQuestions": ["question 1", "question 2", ...],
-  "interviewFormat": "description of format",
-  "timeline": "expected timeline description",
-  "preparationTips": ["tip 1", "tip 2", ...],
-  "successTips": ["tip 1", "tip 2", ...],
-  "interviewerInfo": "information about interviewers"
-}
-
-Focus on:
-- Specific interview stages for this company
-- Real questions asked at ${company}
-- Their specific interview format and culture
-- Realistic timeline expectations
-- Actionable preparation advice`;
-
-    console.log("🚀 Generating content with Gemini...");
-    
-    const result = await model.generateContent(prompt);
-    const rawText = result.response.text();
-    console.log("📝 RAW GEMINI RESPONSE:\n", rawText.substring(0, 500));
-
-    // Clean and parse JSON
-    let cleaned = rawText.replace(/```json|```/g, "").trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      cleaned = jsonMatch[0];
-    }
-
-    let insights;
-    try {
-      insights = JSON.parse(cleaned);
-      console.log("✅ Successfully parsed JSON");
-    } catch (parseErr) {
-      console.error("❌ Failed to parse JSON:", parseErr);
-      return res.status(500).json({
-        error: "Failed to parse AI response",
-        rawResponse: rawText.substring(0, 500)
+    // ✅ ADD TO QUEUE TO RESPECT RATE LIMITS
+    const insights = await geminiQueue.add(async () => {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash', // ✅ Use the latest stable version
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2096, // Reduced to save tokens
+        }
       });
-    }
 
-    // Validate and set defaults
-    const requiredKeys = [
-      "processStages", "commonQuestions", "interviewFormat",
-      "timeline", "preparationTips", "successTips", "interviewerInfo"
-    ];
-    
-    for (const key of requiredKeys) {
-      if (!(key in insights)) {
-        console.warn(`⚠️ Missing key: ${key}`);
-        if (key === "interviewFormat" || key === "timeline" || key === "interviewerInfo") {
-          insights[key] = "Information not available";
-        } else {
-          insights[key] = [];
+      const prompt = `Interview prep for ${jobTitle} at ${company}. Return JSON only:
+{
+  "processStages": ["stage1","stage2",...],
+  "commonQuestions": ["q1","q2",...],
+  "interviewFormat": "format description",
+  "timeline": "timeline",
+  "preparationTips": ["tip1","tip2",...],
+  "successTips": ["tip1","tip2",...],
+  "interviewerInfo": "interviewer info"
+}`;
+
+      console.log("🚀 Generating content with Gemini (via queue)...");
+      
+      const result = await model.generateContent(prompt);
+      const rawText = result.response.text();
+      console.log("📝 RAW GEMINI RESPONSE:\n", rawText.substring(0, 500));
+
+      // Clean and parse JSON
+      let cleaned = rawText.replace(/```json|```/g, "").trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleaned = jsonMatch[0];
+      }
+
+      let parsedInsights;
+      try {
+        parsedInsights = JSON.parse(cleaned);
+        console.log("✅ Successfully parsed JSON");
+      } catch (parseErr) {
+        console.error("❌ Failed to parse JSON:", parseErr);
+        throw new Error("Failed to parse AI response");
+      }
+
+      // Validate and set defaults
+      const requiredKeys = [
+        "processStages", "commonQuestions", "interviewFormat",
+        "timeline", "preparationTips", "successTips", "interviewerInfo"
+      ];
+      
+      for (const key of requiredKeys) {
+        if (!(key in parsedInsights)) {
+          console.warn(`⚠️ Missing key: ${key}`);
+          if (key === "interviewFormat" || key === "timeline" || key === "interviewerInfo") {
+            parsedInsights[key] = "Information not available";
+          } else {
+            parsedInsights[key] = [];
+          }
         }
       }
-    }
 
-    // ✅ SAVE INSIGHTS TO DATABASE FOR FUTURE USE
-    job.insights = insights;
-    await job.save();
-    console.log("💾 Insights saved to database");
+      return parsedInsights;
+    });
 
-    return res.json(insights);
+    // ✅ SAVE TO SEPARATE INSIGHTS COLLECTION
+    const savedInsights = await InterviewInsights.create({
+      jobId,
+      userId,
+      jobTitle,
+      company,
+      ...insights
+    });
+    
+    console.log("💾 Insights saved to separate collection");
+
+    return res.json({
+      processStages: savedInsights.processStages,
+      commonQuestions: savedInsights.commonQuestions,
+      interviewFormat: savedInsights.interviewFormat,
+      timeline: savedInsights.timeline,
+      preparationTips: savedInsights.preparationTips,
+      successTips: savedInsights.successTips,
+      interviewerInfo: savedInsights.interviewerInfo,
+      generatedAt: savedInsights.generatedAt
+    });
 
   } catch (err) {
     console.error("🔥 FULL ERROR:", err);
+    
+    // Handle rate limit errors specifically
+    if (err.message?.includes("429") || err.message?.includes("quota")) {
+      return res.status(429).json({
+        error: "API rate limit reached. Please try again in a few moments.",
+        retryAfter: 60
+      });
+    }
+
     res.status(500).json({
       error: "Failed to generate insights",
       details: err.message || "Unknown error"
@@ -123,28 +187,34 @@ Focus on:
   }
 });
 
-// ✅ NEW ENDPOINT: Force regenerate insights
-router.post("/:jobId/regenerate", async (req, res) => {
+// ✅ DELETE CACHED INSIGHTS (Force Regenerate)
+router.delete("/:jobId", async (req, res) => {
   try {
     const userId = req.user?._id;
     const { jobId } = req.params;
 
-    const job = await Job.findOne({ _id: jobId, userId });
-    if (!job) {
-      return res.status(404).json({ error: "Job not found" });
+    const deleted = await InterviewInsights.findOneAndDelete({ jobId, userId });
+    
+    if (!deleted) {
+      return res.status(404).json({ error: "No cached insights found" });
     }
 
-    // Clear existing insights to force regeneration
-    job.insights = null;
-    await job.save();
-
-    console.log("🔄 Insights cleared, will regenerate on next request");
-    return res.json({ message: "Insights cleared successfully" });
+    console.log("🗑️ Cached insights deleted");
+    res.json({ message: "Insights cleared. Will regenerate on next request." });
 
   } catch (err) {
-    console.error("Error clearing insights:", err);
-    res.status(500).json({ error: "Failed to clear insights" });
+    console.error("Error deleting insights:", err);
+    res.status(500).json({ error: "Failed to delete insights" });
   }
+});
+
+// ✅ GET QUEUE STATUS
+router.get("/queue/status", (req, res) => {
+  res.json({
+    queueLength: geminiQueue.queue.length,
+    processing: geminiQueue.processing,
+    estimatedWaitTime: geminiQueue.queue.length * 2
+  });
 });
 
 export default router;
