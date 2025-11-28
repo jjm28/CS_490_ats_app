@@ -27,6 +27,8 @@ export interface Job {
   description?: string;
   industry: string;
   type: string;
+  applicationMethod?: string;
+  applicationSource?: string;
   autoArchiveDays?: string;
   autoArchiveDate?: string | Date;
 
@@ -64,7 +66,7 @@ export interface Job {
 
   applicationPackage?: ApplicationPackage | null;
   // To store or edit references used in an application
-  references?: JobReferenceUsage[]; 
+  references?: JobReferenceUsage[];
 }
 
 // Job status enum
@@ -161,7 +163,9 @@ export interface JobFormData {
   description: string;
   industry: string;
   type: string;
-  autoArchiveDays?: string;
+  applicationMethod: string;
+  applicationSource: string;
+  autoArchiveDays: string;
 }
 
 // ============================================
@@ -243,6 +247,27 @@ export const extractDecimal = (value: any): string => {
   return value.toString();
 };
 
+// ============================================
+// JOB STAGE FLOW RULES
+// ============================================
+
+export const STAGE_FLOW: Record<JobStatus, JobStatus[]> = {
+  interested: ["applied", "rejected"],
+  applied: ["phone_screen", "rejected"],
+  phone_screen: ["interview", "rejected"],
+  interview: ["offer", "rejected"],
+  offer: ["rejected"],
+  rejected: [],
+};
+
+/** 
+ * Returns true if moving from oldStatus → newStatus is allowed.
+ */
+export function canMove(oldStatus: JobStatus, newStatus: JobStatus): boolean {
+  if (newStatus === "rejected") return true;
+  return STAGE_FLOW[oldStatus]?.includes(newStatus) ?? false;
+}
+
 // DeadlineInfo interface for deadline utilities
 export interface DeadlineInfo {
   daysRemaining: number;
@@ -261,7 +286,7 @@ export type JobReferenceStatus =
   | "declined"
   | "completed";
 
-  
+
 export interface JobReferenceUsage {
   _id: string;               // subdoc id 
   reference_id: string;      // ObjectId of the referee

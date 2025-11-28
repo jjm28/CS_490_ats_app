@@ -57,7 +57,6 @@ export default function JobDetails({
   const [newHistoryEntry, setNewHistoryEntry] = useState("");
   const [isAddingHistory, setIsAddingHistory] = useState(false);
   
-
   // New state for editing application history
   const [editingHistoryIndex, setEditingHistoryIndex] = useState<number | null>(
     null
@@ -71,9 +70,6 @@ export default function JobDetails({
       localStorage.getItem("authToken") || localStorage.getItem("token") || "",
     []
   );
-
-
-
 
   useEffect(() => {
     const loadNames = async () => {

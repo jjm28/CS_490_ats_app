@@ -143,28 +143,39 @@ export async function validateJobCreate(input) {
     company: input.company.trim(),
     industry: input.industry.trim(),
     type: input.type.trim(),
-    location: input.location?.trim() || '',
-    description: input.description?.trim() || '',
-    jobPostingUrl: input.jobPostingUrl?.trim() || '',
+    location: input.location?.trim() || "",
+    description: input.description?.trim() || "",
+    jobPostingUrl: input.jobPostingUrl?.trim() || "",
     salaryMin: input.salaryMin ?? null,
     salaryMax: input.salaryMax ?? null,
-    applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null,
-    status: input.status || 'interested',
+    applicationDeadline: input.applicationDeadline
+      ? new Date(input.applicationDeadline)
+      : null,
+    status: input.status || "interested",
     recruiter: input.recruiter || null,
     hiringManager: input.hiringManager || null,
-    notes: input.notes?.trim() || '',
-    salaryNotes: input.salaryNotes?.trim() || '',
-    interviewNotes: input.interviewNotes?.trim() || '',
+    notes: input.notes?.trim() || "",
+    salaryNotes: input.salaryNotes?.trim() || "",
+    interviewNotes: input.interviewNotes?.trim() || "",
     autoArchiveDays: input.autoArchiveDays
       ? Number(input.autoArchiveDays)
       : 60,
     autoArchiveDate: input.createdAt
       ? new Date(
         new Date(input.createdAt).getTime() +
-        (input.autoArchiveDays || 60) * 24 * 60 * 60 * 1000
+        (input.autoArchiveDays || 60) * 86400000
       )
       : undefined,
 
+    applicationMethod:
+      input.applicationMethod !== undefined
+        ? input.applicationMethod
+        : "Other",
+
+    applicationSource:
+      input.applicationSource !== undefined
+        ? input.applicationSource
+        : "Other",
   };
 
   return { ok: true, value };
@@ -349,4 +360,3 @@ export async function validateBulkStatusUpdate(input) {
 
   return { ok: true, value };
 }
-
