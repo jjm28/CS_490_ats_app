@@ -46,7 +46,7 @@ import CompanyResearch from './components/Job_Tools/CompanyResearch';
 import AutomationRules from "./components/AutomationRules/AutomationRules";
 import RuleForm from "./components/AutomationRules/RuleForm";
 
-
+import InterviewHome from './components/Interviews/Interview';
 import InterviewInsightsPage from './components/Interviews/InterviewInsights';
 
 import SalaryResearch from './components/Job_Tools/SalaryResearchPage';
@@ -135,6 +135,10 @@ function App() {
           <Route
             path="/interview-insights"
             element={<InterviewInsightsPage/>}
+          />/
+          <Route
+            path="/interviews"
+            element={<InterviewHome/>}
           />
         </Routes>
       </div>
