@@ -139,7 +139,9 @@ function Navbar() {
                 Job Search
                 <ChevronDown size={16} />
               </PopoverButton>
-              <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
+
+              {/* MAIN MENU */}
+              <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
                 <NavLink
                   to="/Jobs"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -158,11 +160,63 @@ function Navbar() {
                 >
                   Company Search
                 </NavLink>
-                  <NavLink
-                  to="/manage-References"
+                <NavLink
+                  to="/manage-references"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >
                   References
+                </NavLink>
+
+                {/* DIVIDER */}
+                <div className="border-t border-gray-200 my-2"></div>
+
+                {/* ANALYTICS SUBMENU HEADER */}
+                <div className="px-4 py-2 text-gray-500 text-sm font-semibold select-none">
+                  Analytics
+                </div>
+
+                {/* ANALYTICS SUB PAGES */}
+                <NavLink
+                  to="/analytics/overview"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Overview Dashboard
+                </NavLink>
+                <NavLink
+                  to="/analytics/application-success"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Application Success
+                </NavLink>
+                <NavLink
+                  to="/analytics/interview-insights"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Interview Insights
+                </NavLink>
+                <NavLink
+                  to="/analytics/networking-roi"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Networking ROI
+                </NavLink>
+                <NavLink
+                  to="/analytics/salary-market"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Salary & Market
+                </NavLink>
+                <NavLink
+                  to="/analytics/goal-tracking"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Goal Tracking
+                </NavLink>
+                <NavLink
+                  to="/analytics/market-trends"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Market Trends
                 </NavLink>
               </PopoverPanel>
             </Popover>

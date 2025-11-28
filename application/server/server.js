@@ -25,13 +25,16 @@ import templatesRoute from "./routes/templates.js";
 import interviewRoutes from "./routes/interview-insights.js";            
 import { ensureSystemTemplates } from './services/templates.service.js';
 import resumeVersionsRouter from "./routes/resume-versions.js";
-
-
 import automationRoutes from "./routes/automation.js";
 import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from './jobs/notificationcron.js';
 import notificationRoutes from './routes/notifications.js';
 import reference from './routes/reference.js'
+import goalsRoutes from "./routes/goals.js";
+import successAnalysisRouter from "./routes/success-analysis.js";
+import successPatternsRouter from "./routes/success-patterns.js";
+import interviewAnalyticsRoutes from "./routes/interviews.js";
+
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -106,6 +109,14 @@ try {
 
   // References Routes
   app.use('/api/reference', reference)
+
+  app.use("/api/goals", attachDevUser, goalsRoutes);
+
+  app.use("/api/success-analysis", successAnalysisRouter);
+  app.use("/api/success-patterns", successPatternsRouter);
+
+  app.use("/api/interviews", interviewAnalyticsRoutes);
+
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
