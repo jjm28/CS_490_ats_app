@@ -51,6 +51,17 @@ import InterviewInsightsPage from './components/Interviews/InterviewInsights';
 
 import SalaryResearch from './components/Job_Tools/SalaryResearchPage';
 
+import ManageReferences from './components/Reference/ManageReferences';
+import ReferencePortfolio from './components/Reference/ReferencePortfolio';
+
+import ApplicationSuccess from './components/Analytics/ApplicationSuccess';
+import GoalTracking from './components/Analytics/GoalTracking';
+import InterviewInsights from './components/Analytics/Interview/InterviewInsights';
+import MarketTrends from './components/Analytics/MarketTrends';
+import NetworkingROI from './components/Analytics/NetworkingROI';
+import Overview from './components/Analytics/Overview';
+import SalaryMarket from './components/Analytics/SalaryMarket';
+
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -130,7 +141,6 @@ function App() {
             element={<PrivateRoute><RuleForm /></PrivateRoute>}
           />
 
-
           <Route path="/Notifications" element={<PrivateRoute><NotificationSettings /></PrivateRoute>} />
           <Route
             path="/interview-insights"
@@ -139,6 +149,37 @@ function App() {
           <Route
             path="/interviews"
             element={<InterviewHome/>}
+          />/
+          <Route path="/manage-references" element={<PrivateRoute><ManageReferences /></PrivateRoute>} />
+          <Route path="/references/portfolio" element={<PrivateRoute><ReferencePortfolio /></PrivateRoute>} />
+
+          <Route
+            path="/analytics/overview"
+            element={<PrivateRoute><Overview /></PrivateRoute>}
+          />
+          <Route
+            path="/analytics/application-success"
+            element={<PrivateRoute><ApplicationSuccess /></PrivateRoute>}
+          />
+          <Route
+            path="/analytics/interview-insights"
+            element={<PrivateRoute><InterviewInsights /></PrivateRoute>}
+          />
+          <Route
+            path="/analytics/networking-roi"
+            element={<PrivateRoute><NetworkingROI /></PrivateRoute>}
+          />
+          <Route
+            path="/analytics/salary-market"
+            element={<PrivateRoute><SalaryMarket /></PrivateRoute>}
+          />
+          <Route
+            path="/analytics/goal-tracking"
+            element={<PrivateRoute><GoalTracking /></PrivateRoute>}
+          />
+          <Route
+            path="/analytics/market-trends"
+            element={<PrivateRoute><MarketTrends /></PrivateRoute>}
           />
         </Routes>
       </div>
