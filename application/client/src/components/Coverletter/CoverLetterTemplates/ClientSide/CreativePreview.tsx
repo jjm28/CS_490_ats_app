@@ -113,7 +113,7 @@ export default function CreativePreview({ data, onEdit, className }: PreviewProp
             </p>
           ))}
 
-          {/* Optional bullets (if you add data.bullets: string[]) */}
+          
           {(data as any).bullets?.length ? (
             <ul className="list-disc pl-6 my-4 space-y-2">
               {(data as any).bullets.map((b: string, i: number) => (

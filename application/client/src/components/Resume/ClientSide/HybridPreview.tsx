@@ -1,153 +1,356 @@
+// src/components/Resume/ClientSide/HybridPreview.tsx
 import React from "react";
 import type { ResumePreviewProps, SectionId } from "..";
+import type { ResumeTheme } from "../resumeThemes";
 
-function toNameList(arr: any): string {
-  if (!Array.isArray(arr)) return "";
-  return arr
-    .map((x) => (typeof x === "string" ? x : x?.name))
-    .filter(Boolean)
-    .join(", ");
+type Props = ResumePreviewProps & {
+  visibleSections?: SectionId[];
+  sectionOrder?: SectionId[];
+  theme?: ResumeTheme;
+};
+
+const DEFAULT_THEME: ResumeTheme = {
+  primary: "#38bdf8",
+  text: "#e5e7eb",
+  muted: "#9ca3af",
+  bg: "#020617",
+  border: "#1f2937",
+  label: "Hybrid",
+};
+
+const ALL_SECTIONS: SectionId[] = [
+  "header",
+  "contact",
+  "summary",
+  "experience",
+  "education",
+  "projects",
+  "skills",
+];
+
+function isVisible(id: SectionId, visible?: SectionId[]) {
+  return !visible || visible.includes(id);
 }
 
-export default function HybridPreview({
-  data,
-  onEdit,
-  className,
-  visibleSections,
-  sectionOrder,
-}: ResumePreviewProps) {
-  const exp = Array.isArray(data.experience) ? data.experience : [];
-  const skills = toNameList(data.skills);
-  const edu = Array.isArray(data.education) ? data.education : [];
+export default function HybridPreview(props: Props) {
+  const { data, className, visibleSections, sectionOrder, theme } = props;
+  const t = theme || DEFAULT_THEME;
 
-  const contactBits = [
-    data.contact?.email,
-    data.contact?.phone,
-    data.contact?.location,
-    data.contact?.website,
-    data.contact?.linkedin,
-    data.contact?.github,
-  ].filter(Boolean);
-  const contactLine = contactBits.join(" | ");
+  const contact: any = (data as any).contact || {};
+  const experience = Array.isArray((data as any).experience)
+    ? (data as any).experience
+    : [];
+  const education = Array.isArray((data as any).education)
+    ? (data as any).education
+    : [];
+  const projects = Array.isArray((data as any).projects)
+    ? (data as any).projects
+    : [];
+  const skills = Array.isArray((data as any).skills)
+    ? (data as any).skills
+    : [];
 
-  // ---- visibility + ordering helpers ----
-  const isVisible = (id: SectionId) => {
-    if (!visibleSections) return true;
-    return visibleSections.includes(id);
-  };
-
-  const defaultOrder: SectionId[] = [
-    "summary",
-    "experience",
-    "education",
-    "skills",
-  ];
-
-  const order: SectionId[] = (
-    sectionOrder && sectionOrder.length ? sectionOrder : defaultOrder
-  ).filter((id: SectionId) => isVisible(id));
+  const order =
+    (sectionOrder && sectionOrder.length ? sectionOrder : ALL_SECTIONS).filter(
+      (id) =>
+        id !== "header" &&
+        id !== "contact" &&
+        isVisible(id as SectionId, visibleSections)
+    ) as SectionId[];
 
   return (
-    <div className={className}>
-      {/* Header always visible */}
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-xl font-semibold">{data.name || "Your Name"}</h2>
-        <button
-          onClick={() => onEdit("header")}
-          className="text-xs underline"
+    <article
+      className={`rounded-2xl border shadow-sm text-sm leading-relaxed ${
+        className ?? ""
+      }`}
+      style={{ backgroundColor: t.bg, color: t.text, borderColor: t.border }}
+    >
+      {/* HEADER */}
+      {isVisible("header", visibleSections ?? undefined) && (
+        <header
+          className="border-b px-6 pt-5 pb-3"
+          style={{ borderColor: t.border }}
         >
-          Edit name
-        </button>
-      </div>
-      {contactLine && (
-        <div className="text-xs text-gray-600 mb-2">{contactLine}</div>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2
+                className="text-xl font-semibold tracking-tight"
+                style={{ color: t.primary }}
+              >
+                {data.name || "Your Name"}
+              </h2>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <span
+                className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide"
+                style={{ borderColor: t.border, color: t.muted }}
+              >
+                {t.label}
+              </span>
+            </div>
+          </div>
+
+          {isVisible("contact", visibleSections ?? undefined) && (
+            <div
+              className="mt-3 flex flex-wrap gap-2 text-[11px]"
+              style={{ color: t.muted }}
+            >
+              {contact.email && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5">
+                  <span className="font-medium">@</span>
+                  <span>{contact.email}</span>
+                </span>
+              )}
+              {contact.phone && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5">
+                  <span className="font-medium">☎</span>
+                  <span>{contact.phone}</span>
+                </span>
+              )}
+              {contact.location && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5">
+                  <span className="font-medium">📍</span>
+                  <span>{contact.location}</span>
+                </span>
+              )}
+              {contact.website && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5">
+                  <span className="font-medium">🌐</span>
+                  <span>{contact.website}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </header>
       )}
 
-      {/* Render sections in chosen order */}
-      {order.map((sectionId) => {
-        switch (sectionId) {
-          case "summary":
-            return data.summary ? (
-              <p
-                key="summary"
-                className="text-sm text-gray-700 mb-4"
-              >
-                {String(data.summary)}
-              </p>
-            ) : (
-              <button
-                key="summary"
-                onClick={() => onEdit("summary")}
-                className="text-xs underline mb-4"
-              >
-                Add summary
-              </button>
-            );
-
-          case "experience":
-            if (!exp.length) return null;
+      {/* BODY – same behavior as the others */}
+      <div className="space-y-4 px-6 pb-5 pt-3">
+        {order.map((sectionId) => {
+          if (sectionId === "summary" && data.summary) {
             return (
-              <section key="experience" className="mb-4">
-                <h3 className="text-sm font-semibold uppercase text-gray-600">
+              <section key="summary">
+                <h3
+                  className="mb-1 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: t.primary }}
+                >
+                  Summary
+                </h3>
+                <p className="text-xs" style={{ color: t.muted }}>
+                  {data.summary}
+                </p>
+              </section>
+            );
+          }
+
+          if (sectionId === "experience" && experience.length) {
+            return (
+              <section key="experience">
+                <h3
+                  className="mb-1 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: t.primary }}
+                >
                   Experience
                 </h3>
-                <ul className="mt-1 space-y-1">
-                  {exp.slice(0, 3).map((e: any, i: number) => (
-                    <li key={i} className="text-sm">
-                      <div className="font-medium">
-                        {(e?.jobTitle || "Title")} •{" "}
-                        {(e?.company || "Company")}
+                <div className="space-y-2 text-xs">
+                  {experience.map((exp: any, idx: number) => (
+                    <div key={idx}>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div>
+                          <div className="font-semibold">
+                            {exp.title || exp.position || "Job Title"}
+                          </div>
+                          {(exp.company || exp.employer) && (
+                            <div
+                              className="text-[11px]"
+                              style={{ color: t.muted }}
+                            >
+                              {exp.company || exp.employer}
+                            </div>
+                          )}
+                        </div>
+                        {(exp.startDate || exp.endDate || exp.location) && (
+                          <div
+                            className="text-[10px] text-right"
+                            style={{ color: t.muted }}
+                          >
+                            <div>
+                              {exp.startDate || "Start"} –{" "}
+                              {exp.endDate || "Present"}
+                            </div>
+                            {exp.location && <div>{exp.location}</div>}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {(e?.startDate || "")} –{" "}
-                        {(e?.endDate || "Present")}
-                        {e?.location ? ` • ${e.location}` : ""}
-                      </div>
-                    </li>
+                      {exp.highlights && Array.isArray(exp.highlights) && (
+                        <ul className="mt-1 list-disc pl-4 text-[11px]">
+                          {exp.highlights
+                            .slice(0, 3)
+                            .map((h: string, i: number) => (
+                              <li key={i}>{h}</li>
+                            ))}
+                        </ul>
+                      )}
+                    </div>
                   ))}
-                </ul>
+                </div>
               </section>
             );
+          }
 
-          case "education":
-            if (!edu.length) return null;
+          if (sectionId === "education" && education.length) {
             return (
-              <section key="education" className="mb-4">
-                <h3 className="text-sm font-semibold uppercase text-gray-600">
+              <section key="education">
+                <h3
+                  className="mb-1 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: t.primary }}
+                >
                   Education
                 </h3>
-                <ul className="mt-1 space-y-1">
-                  {edu.slice(0, 2).map((ed: any, i: number) => (
-                    <li key={i} className="text-sm">
-                      <div className="font-medium">
-                        {(ed?.degree || "Degree")}
-                        {ed?.fieldOfStudy ? `, ${ed.fieldOfStudy}` : ""}
+                <div className="space-y-1.5 text-xs">
+                  {education.map((ed: any, idx: number) => {
+                    const line1 = [ed.degree, ed.fieldOfStudy]
+                      .filter(Boolean)
+                      .join(", ");
+                    const institution =
+                      ed.institution || ed.school || "School Name";
+                    return (
+                      <div key={idx}>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <div className="font-semibold">{institution}</div>
+                          {ed.graduationDate && (
+                            <div
+                              className="text-[10px]"
+                              style={{ color: t.muted }}
+                            >
+                              {ed.graduationDate}
+                            </div>
+                          )}
+                        </div>
+                        {line1 && (
+                          <div
+                            className="text-[11px]"
+                            style={{ color: t.muted }}
+                          >
+                            {line1}
+                          </div>
+                        )}
+                        {ed.gpa && (
+                          <div
+                            className="text-[11px]"
+                            style={{ color: t.muted }}
+                          >
+                            GPA: {ed.gpa}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {(ed?.institution || "School")}
-                        {ed?.graduationDate ? ` • ${ed.graduationDate}` : ""}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                    );
+                  })}
+                </div>
               </section>
             );
+          }
 
-          case "skills":
-            if (!skills) return null;
+          if (sectionId === "projects" && projects.length) {
             return (
-              <section key="skills" className="mb-4">
-                <h3 className="text-sm font-semibold uppercase text-gray-600">
+              <section key="projects">
+                <h3
+                  className="mb-1 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: t.primary }}
+                >
+                  Projects
+                </h3>
+                <div className="space-y-1.5 text-xs">
+                  {projects.map((proj: any, idx: number) => {
+                    const techList = Array.isArray(proj.technologies)
+                      ? proj.technologies.join(", ")
+                      : proj.technologies || "";
+                    return (
+                      <div key={idx}>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <div className="font-semibold">
+                            {proj.name || "Project Name"}
+                          </div>
+                          {proj.link && (
+                            <a
+                              href={proj.link}
+                              className="text-[10px] underline"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: t.muted }}
+                            >
+                              {proj.link}
+                            </a>
+                          )}
+                        </div>
+                        {proj.role && (
+                          <div
+                            className="text-[11px]"
+                            style={{ color: t.muted }}
+                          >
+                            Role: {proj.role}
+                          </div>
+                        )}
+                        {techList && (
+                          <div
+                            className="text-[11px]"
+                            style={{ color: t.muted }}
+                          >
+                            Technologies: {techList}
+                          </div>
+                        )}
+                        {proj.outcomes && (
+                          <p
+                            className="mt-0.5 text-[11px]"
+                            style={{ color: t.muted }}
+                          >
+                            {proj.outcomes}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          }
+
+          if (sectionId === "skills" && skills.length) {
+            const flatSkills: string[] = skills.flatMap((s: any) =>
+              Array.isArray(s.items)
+                ? s.items
+                : s.name
+                ? [s.name]
+                : []
+            );
+            if (!flatSkills.length) return null;
+
+            return (
+              <section key="skills">
+                <h3
+                  className="mb-1 text-xs font-semibold uppercase tracking-wide"
+                  style={{ color: t.primary }}
+                >
                   Skills
                 </h3>
-                <p className="text-sm mt-1">{skills || "—"}</p>
+                <div className="flex flex-wrap gap-1.5 text-[11px]">
+                  {flatSkills.map((skill, idx) => (
+                    <span
+                      key={`${skill}-${idx}`}
+                      className="rounded-full border px-2 py-0.5"
+                      style={{ borderColor: t.border }}
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </section>
             );
+          }
 
-          default:
-            return null;
-        }
-      })}
-    </div>
+          return null;
+        })}
+      </div>
+    </article>
   );
 }
