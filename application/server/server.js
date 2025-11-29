@@ -19,7 +19,7 @@ import projectsRoutes from "./routes/projects.js";
 import companyResearch from './routes/company-research.js';
 import coverletter from './routes/coverletter.js'
 import jobRoutes from './routes/jobs.js'
-import salaryRoutes from "./routes/salary.js";
+import salaryRouter from "./routes/salary.js";
 import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";   
 import interviewRoutes from "./routes/interview-insights.js";            
@@ -52,10 +52,9 @@ app.use(cors({
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-dev-user-id'],
 }));
-
 app.use(express.json());
 app.use(cookieParser());
-app.use(companyResearch);
+
 
 // Start after DB connects
 try {
@@ -80,8 +79,9 @@ try {
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/api/jobs', jobRoutes);
 
- app.use("/api/salary", salaryRoutes);
  app.use("/api/interview-insights", attachDevUser, interviewRoutes);
+  app.use(companyResearch);
+  app.use('/api/salary', salaryRouter);
   // for picture uploads
   app.use(
     '/uploads',

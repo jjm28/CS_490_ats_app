@@ -347,3 +347,123 @@
 .news-keypoints li {
   margin-bottom: 0.25rem;
 }
+/* Search History Styles */
+.search-history {
+  margin-top: 2rem;
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.history-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.history-clear-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.history-clear-btn:hover {
+  background: #fee2e2;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.history-item:hover {
+  background: #f3f4f6;
+  transform: translateX(4px);
+}
+
+.history-item-content {
+  flex: 1;
+}
+
+.history-item-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 0.25rem;
+}
+
+.history-item-industry {
+  font-size: 0.875rem;
+  color: var(--brand-navy);
+  margin-bottom: 0.25rem;
+}
+
+.history-item-description {
+  font-size: 0.875rem;
+  color: var(--brand-navy);
+  margin-bottom: 0.5rem;
+}
+
+.history-item-date {
+  font-size: 0.75rem;
+  color: var(--brand-navy);
+}
+
+.history-item-delete {
+  background: none;
+  border: none;
+  color: var(--brand-navy);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  margin-left: 1rem;
+}
+
+.history-item-delete:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.history-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--brand-navy);
+}
+
+.history-empty-icon {
+  margin: 0 auto 1rem;
+  opacity: 0.5;
+}
+
+.history-empty-subtitle {
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
