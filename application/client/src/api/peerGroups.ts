@@ -170,6 +170,8 @@ export interface GroupPost {
   createdAt: string;
   updatedAt: string;
   persona: PostPersona;
+    highlightType?: "success" | "learning" | null;
+  isMine?: boolean;
 }
 
 
@@ -344,4 +346,27 @@ export async function fetchChallengeLeaderboard(challengeId: string,userId: stri
   const data = (await res.json()) as { entries: ChallengeLeaderboardEntry[] };
     console.log(data)
   return data.entries;
+}
+
+export async function updatePostHighlight(
+  groupId: string,
+  postId: string,
+  userId: string,
+  highlightType: "success" | "learning" | null
+) {
+  const res = await fetch(
+    `${API_BASE}/posts/highlight?groupId=${groupId}&userId=${userId}&postId=${postId}`,
+    {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ highlightType }),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to update post highlight");
+  return (await res.json()) as {
+    _id: string;
+    groupId: string;
+    highlightType: "success" | "learning" | null;
+  };
 }

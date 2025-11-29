@@ -25,7 +25,11 @@ const PeerGroupPostSchema = new mongoose.Schema(
       enum: ["insight", "question", "strategy", "other"],
       default: "insight",
     },
-
+        highlightType: {
+              type: String,
+              enum: ["success", "learning", null],
+              default: null,
+            },
     // soft delete toggle if you want later
     isDeleted: { type: Boolean, default: false },
   },

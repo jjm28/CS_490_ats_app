@@ -182,7 +182,7 @@ export async function latestposts( { groupId,limit }) {
 }
 
 
-export async function fetchposts( { groupId ,limit}) {
+export async function fetchposts( { groupId ,limit, userId}) {
 const db = getDb()
   const group = await fetchAllPeerGroups({_id: new ObjectId(groupId)})
     if (!group) {
@@ -270,6 +270,8 @@ const db = getDb()
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
         persona,
+        highlightType: p.highlightType || null,  
+          isMine: String(p.authorId) === String(userId),
       };
     });
 
@@ -512,4 +514,48 @@ export async function fetchleaderboard({challengeId,userId}) {
     });
     
     return entries
+}
+
+
+export async function clearHighlight({groupId,postId,highlightType,userId}) {
+    
+            const group = await PeerGroup.findById(groupId);
+      if (!group) {
+         throw new Error( "Group not found" );
+      }
+
+      const post = await PeerGroupPost.findOne({ _id: new ObjectId(postId), groupId });
+      if (!post) {
+        throw new Error("Post not found" );
+      }
+    
+      // Only group owner OR post author can change highlight
+      const isOwner = String(group.createdBy) === String(userId);
+      const isAuthor = String(post.authorId) === String(userId);
+
+      if (!isOwner && !isAuthor) {
+        throw new Error( "You are not allowed to highlight this post" );
+      }
+
+      if (
+        highlightType !== "success" &&
+        highlightType !== "learning" &&
+        highlightType !== null
+      ) {
+        throw new Error( "Invalid highlight type" );
+      }
+      console.log("working")
+      post.highlightType = highlightType;
+      await post.save();
+     
+      return {
+        _id: post._id,
+        groupId: post.groupId,
+        content: post.content,
+        type: post.type,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+        highlightType: post.highlightType,
+      };
+
 }

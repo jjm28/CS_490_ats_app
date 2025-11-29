@@ -16,7 +16,7 @@ import {
   joinGroupChallenge,
   updateGroupChallengeProgress,
   leaveGroupChallenge,
-  fetchChallengeLeaderboard,
+   updatePostHighlight, 
   type PeerGroup,
   type PeerGroupMembership,
   type GroupPost,
@@ -62,9 +62,16 @@ const [newChallengeUnit, setNewChallengeUnit] = useState("applications");
 const [newChallengeStart, setNewChallengeStart] = useState<string>("");
 const [newChallengeEnd, setNewChallengeEnd] = useState<string>("");
 const [newChallengeDescription, setNewChallengeDescription] = useState("");
-const [leaderboards, setLeaderboards] = useState<
-  Record<string, ChallengeLeaderboardEntry[]>
->({});
+
+const successPosts = useMemo(
+  () => posts.filter((p) => p.highlightType === "success").slice(0, 3),
+  [posts]
+);
+
+const learningPosts = useMemo(
+  () => posts.filter((p) => p.highlightType === "learning").slice(0, 3),
+  [posts]
+);
 
 
   // Privacy modal state
@@ -165,14 +172,6 @@ const handleCreateChallenge = async () => {
   }
 };
 
-const loadLeaderboard = async (challengeId: string) => {
-  try {
-    const entries = await fetchChallengeLeaderboard(challengeId,currentUserId);
-    setLeaderboards((prev) => ({ ...prev, [challengeId]: entries }));
-  } catch (e) {
-    console.error("Failed to load leaderboard", e);
-  }
-};
 
   const membership = useMemo(() => {
     if (!groupId) return null;
@@ -245,6 +244,26 @@ const handleJoinChallenge = async (challenge: GroupChallenge) => {
   } catch (e) {
     console.error(e);
     setChallengeError("Failed to join challenge.");
+  }
+};
+const handleHighlightPost = async (
+  postId: string,
+  highlightType: "success" | "learning" | null
+) => {
+  if (!groupId) return;
+
+  try {
+    await updatePostHighlight(groupId, postId, currentUserId, highlightType);
+
+    // Update local posts array
+    setPosts((prev) =>
+      prev.map((p) =>
+        p._id === postId ? { ...p, highlightType } : p
+      )
+    );
+  } catch (e) {
+    console.error(e);
+    setError("Failed to update post highlight.");
   }
 };
 
@@ -357,6 +376,47 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
         membership={membership}
         onSubmit={handleSubmitPrivacy}
       />
+{(successPosts.length > 0 || learningPosts.length > 0) && (
+  <Card className="p-3 space-y-2">
+    <h2 className="text-sm font-medium">Success stories & learning</h2>
+
+    {successPosts.length > 0 && (
+      <div>
+        <div className="text-[11px] font-semibold text-green-700 mb-1">
+          Recent success stories
+        </div>
+        <ul className="space-y-1">
+          {successPosts.map((p) => (
+            <li key={p._id} className="text-[11px] text-gray-800">
+              <span className="font-medium">{p.persona.displayName}:</span>{" "}
+              {p.content.length > 120
+                ? p.content.slice(0, 117) + "..."
+                : p.content}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    {learningPosts.length > 0 && (
+      <div>
+        <div className="text-[11px] font-semibold text-blue-700 mb-1 mt-2">
+          Learning resources
+        </div>
+        <ul className="space-y-1">
+          {learningPosts.map((p) => (
+            <li key={p._id} className="text-[11px] text-gray-800">
+              <span className="font-medium">{p.persona.displayName}:</span>{" "}
+              {p.content.length > 120
+                ? p.content.slice(0, 117) + "..."
+                : p.content}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </Card>
+)}
 
       {/* Header */}
       <div className="flex justify-between items-center gap-2">
@@ -466,6 +526,43 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
             <div className="text-xs inline-block rounded-full bg-gray-100 px-2 py-0.5 mt-1">
               {post.type}
             </div>
+             {post.highlightType === "success" && (
+                <span className="text-[10px] inline-block rounded-full bg-green-100 px-2 py-0.5 text-green-800">
+                  Success story
+                </span>
+              )}
+              {post.highlightType === "learning" && (
+                <span className="text-[10px] inline-block rounded-full bg-blue-100 px-2 py-0.5 text-blue-800">
+                  Learning resource
+                </span>
+              )}
+              {(isGroupOwner || post.isMine) && (
+                  <div className="ml-auto flex gap-1">
+                    <button
+                      type="button"
+                      className="text-[10px] underline text-gray-500"
+                      onClick={() => handleHighlightPost(post._id, "success")}
+                    >
+                      Mark success
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[10px] underline text-gray-500"
+                      onClick={() => handleHighlightPost(post._id, "learning")}
+                    >
+                      Mark learning
+                    </button>
+                    {post.highlightType && (
+                      <button
+                        type="button"
+                        className="text-[10px] underline text-gray-400"
+                        onClick={() => handleHighlightPost(post._id, null)}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                )}
             <p className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">
               {post.content}
             </p>

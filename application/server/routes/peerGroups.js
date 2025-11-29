@@ -16,7 +16,8 @@ createChallenge,
 joinChallenge,
 incrementprogress,
 leaveChallenge,
-fetchleaderboard} from '../services/peerGroups.service.js';
+fetchleaderboard,clearHighlight
+} from '../services/peerGroups.service.js';
 import { ObjectId } from 'mongodb';
 import { file } from 'zod';
 import { getAllJobs } from '../services/jobs.service.js';
@@ -73,9 +74,10 @@ router.get("/my", async (req, res) => {
 router.get("/posts",  async (req, res) => {
   try {
     const { groupId } = req.query;
+     const { userId } = req.query
     const limit = Math.min(parseInt(req.query.limit || "30", 10), 100);
 
-  const result = await fetchposts({groupId, limit})
+  const result = await fetchposts({groupId, limit,userId})
 
     res.json({ posts: result });
   } catch (err) {
@@ -413,3 +415,23 @@ router.get("/challenges/leaderboard",  async (req, res) => {
     res.status(500).json({ error: "Server error fetching leaderboard" });
   }
 });
+
+
+// PATCH /api/peer-groups/:groupId/posts/:postId/highlight
+router.patch(  "/posts/highlight",  async (req, res) => {
+    try {
+      const { groupId, postId } = req.query;
+      const { highlightType } = req.body; // "success" | "learning" | null
+          const {userId} = req.query;
+
+      const response = await clearHighlight({groupId,postId,highlightType,userId})
+      console.log(response)
+      res.json(response)
+    } catch (err) {
+      console.error("Error updating post highlight:", err);
+      res.status(500).json({ error: "Server error updating highlight" });
+    }
+  }
+);
+
+
