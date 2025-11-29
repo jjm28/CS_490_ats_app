@@ -16,6 +16,10 @@ import {
   type PeerGroupMembership,
   type UserProfileForGroups,
 } from "../../../api/peerGroups";
+import GroupPrivacyModal, {
+  type GroupPrivacyFormValues,
+} from "./GroupPrivacyModal";
+import { updateMembershipPrivacy } from "../../../api/peerGroups";
 
 export default function PeerGroupsPage() {
   const [groups, setGroups] = useState<PeerGroup[]>([]);
@@ -35,6 +39,36 @@ export default function PeerGroupsPage() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<PeerGroup | null>(null);
+
+
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+const [privacyGroup, setPrivacyGroup] = useState<PeerGroup | null>(null);
+const [privacyMembership, setPrivacyMembership] =
+  useState<PeerGroupMembership | null>(null);
+
+  const openPrivacyModal = (group: PeerGroup) => {
+  const membership = membershipByGroupId[group._id];
+  if (!membership) return;
+  setPrivacyGroup(group);
+  setPrivacyMembership(membership);
+  setIsPrivacyModalOpen(true);
+};
+const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
+  if (!privacyGroup || !privacyMembership) return;
+
+  const updated = await updateMembershipPrivacy(privacyGroup._id,currentUserId, {
+    interactionLevel: values.interactionLevel,
+    alias: values.alias,
+    allowDirectMessages: values.allowDirectMessages,
+    showProfileLink: values.showProfileLink,
+    showRealNameInGroup: values.showRealNameInGroup,
+  });
+
+  // update local membership cache
+  setMyMemberships((prev) =>
+    prev.map((m) => (m._id === updated._id ? { ...m, ...updated } : m))
+  );
+};
 
   const membershipByGroupId = useMemo(() => {
     const map: Record<string, PeerGroupMembership> = {};
@@ -229,7 +263,20 @@ export default function PeerGroupsPage() {
   }
 
   return (
+    
     <div className="p-4 space-y-4">
+        <GroupPrivacyModal
+  open={isPrivacyModalOpen}
+  onClose={() => {
+    setIsPrivacyModalOpen(false);
+    setPrivacyGroup(null);
+    setPrivacyMembership(null);
+  }}
+  group={privacyGroup}
+  membership={privacyMembership}
+  onSubmit={handleSubmitPrivacy}
+/>
+
       {/* Create/Edit Modal */}
       <PeerGroupFormModal
         open={isModalOpen}
@@ -356,34 +403,30 @@ export default function PeerGroupsPage() {
                 )}
               </div>
 
-              <div className="flex flex-col items-end gap-2">
-                <Button
-                  onClick={() => handleJoinLeave(group)}
-                  disabled={joiningId === group._id}
-                >
-                  {member ? "Leave" : "Join"}
-                </Button>
+<div className="flex flex-col items-end gap-2">
+  <Button
+    onClick={() => handleJoinLeave(group)}
+    disabled={joiningId === group._id}
+  >
+    {member ? "Leave" : "Join"}
+  </Button>
 
-                {owner && (
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setEditingGroup(group);
-                        setIsModalOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => handleDeleteGroup(group)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                )}
-              </div>
+  {member && (
+    <Button
+      type="button"
+      onClick={() => openPrivacyModal(group)}
+    >
+      Privacy
+    </Button>
+  )}
+
+  {owner && (
+    <div className="flex gap-1">
+      {/* Edit / Delete buttons here */}
+    </div>
+  )}
+</div>
+
             </Card>
           );
         })}

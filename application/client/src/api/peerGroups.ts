@@ -17,6 +17,7 @@ export interface PeerGroup {
   createdAt: string;
   updatedAt: string;
   createdBy?: string; 
+  
 }
 
 export interface PeerGroupMembership {
@@ -29,6 +30,10 @@ export interface PeerGroupMembership {
   joinedAt: string;
   createdAt: string;
   updatedAt: string;
+    interactionLevel?: "public" | "alias" | "anonymous";
+  alias?: string;
+  allowDirectMessages?: boolean;
+  showProfileLink?: boolean;
 }
 
 export interface UserProfileForGroups {
@@ -121,4 +126,30 @@ export async function deletePeerGroup(groupId: string, userId: string) {
   });
   if (!res.ok) throw new Error("Failed to delete group");
   return await res.json(); // { ok: true }
+}
+
+
+export async function updateMembershipPrivacy(
+  groupId: string,
+  userId: string,
+  payload: {
+    interactionLevel?: "public" | "alias" | "anonymous";
+    alias?: string;
+    allowDirectMessages?: boolean;
+    showProfileLink?: boolean;
+    showRealNameInGroup?: boolean;
+  }
+) {
+  const res = await fetch(
+    `${API_BASE}/membership/privacy?groupId=${groupId}&userId=${userId}`,
+    {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) throw new Error("Failed to update membership privacy");
+  return (await res.json()) as PeerGroupMembership;
 }

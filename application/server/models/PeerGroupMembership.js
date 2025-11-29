@@ -23,10 +23,26 @@ const PeerGroupMembershipSchema = new mongoose.Schema(
       default: "member",
     },
 
-    // privacy & alerts (used heavily in later requirements)
+    
     showRealNameInGroup: { type: Boolean, default: true },
     receiveOpportunityAlerts: { type: Boolean, default: true },
-
+    interactionLevel: {
+      type: String,
+      enum: ["public", "alias", "anonymous"],
+      default: "public",
+    },
+    alias: {
+      type: String,
+      default: "",
+    },
+    allowDirectMessages: {
+      type: Boolean,
+      default: true,
+    },
+    showProfileLink: {
+      type: Boolean,
+      default: true,
+    },
     joinedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

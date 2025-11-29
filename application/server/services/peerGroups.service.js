@@ -15,6 +15,8 @@ export async function fetchAllPeerGroups(filter) {
     .lean()
   return result ;
 }
+
+
 export async function fetchAllPeerGroupMembership(filter) {
     
   let result;
@@ -34,16 +36,14 @@ export async function updatePeerGroup(filter,set=undefined,inc=undefined,options
     return membership
 }
 
-export async function updatePeerGroupMembership(filter,set,options) {
-  const db = getDb();
+export async function updatePeerGroupMembership(filter,set=undefined,inc=undefined,options=undefined) {
     const membership = await PeerGroupMembership
     .findOneAndUpdate(
       filter,
-      { $set: set},
-    options
+      { $set: set || {}, $inc: inc|| {}},
+    options || {}
     );
-
-  return membership ;
+    return membership
 }
 
 export async function fetchAllmyPeerGroupMembership(userId) {

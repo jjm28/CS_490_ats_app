@@ -1,7 +1,14 @@
 import express from 'express';
 import { verifyJWT } from '../middleware/auth.js';
 import 'dotenv/config';
-import { fetchAllPeerGroups,fetchAllmyPeerGroupMembership, JoinPeerGroup,LeavePeerGroup, canManageGroup,createGroup,updatePeerGroup,DeleteGroup} from '../services/peerGroups.service.js';
+import { 
+  fetchAllPeerGroups,
+  fetchAllmyPeerGroupMembership, 
+  JoinPeerGroup,
+  LeavePeerGroup, 
+  canManageGroup,
+  createGroup,updatePeerGroup,DeleteGroup,fetchAllPeerGroupMembership,
+  updatePeerGroupMembership} from '../services/peerGroups.service.js';
 import { ObjectId } from 'mongodb';
 import { file } from 'zod';
 import { getAllJobs } from '../services/jobs.service.js';
@@ -110,7 +117,7 @@ router.post("/leave",  async (req, res) => {
   }
 });
 
-// PATCH /api/peer-groups/:groupId
+// PATCH /api/peer-groups/
 router.patch("/",  async (req, res) => {
   try {
       const { groupId } = req.query;
@@ -136,6 +143,41 @@ console.log(response)
   } catch (err) {
     console.error("Error updating peer group:", err);
     res.status(500).json({ error: "Server error updating group" });
+  }
+});
+
+router.patch("/membership/privacy",  async (req, res) => {
+  try {
+      const { groupId } = req.query;
+    const {userId} = req.query;
+    const {
+      interactionLevel,
+      alias,
+      allowDirectMessages,
+      showProfileLink,
+      showRealNameInGroup,
+    } = req.body;
+
+    const memberships = await fetchAllPeerGroupMembership({ userId, groupId })
+    const membership = memberships[0]
+    if (!membership) {
+      return res.status(404).json({ error: "Membership not found for this group" });
+    }
+
+    if (interactionLevel !== undefined) membership.interactionLevel = interactionLevel;
+    if (alias !== undefined) membership.alias = alias;
+    if (allowDirectMessages !== undefined)
+      membership.allowDirectMessages = !!allowDirectMessages;
+    if (showProfileLink !== undefined)
+      membership.showProfileLink = !!showProfileLink;
+    if (showRealNameInGroup !== undefined)
+      membership.showRealNameInGroup = !!showRealNameInGroup;
+ const response = await updatePeerGroupMembership({ userId, groupId },membership,undefined,    { returnDocument: "after" })
+
+    res.json(response);
+  } catch (err) {
+    console.error("Error updating membership privacy:", err);
+    res.status(500).json({ error: "Server error updating membership privacy" });
   }
 });
 
