@@ -75,7 +75,37 @@ const JobSchema = new Schema({
     applicationDeadline: { type: Date },
     description: { type: String, default: '', maxlength: 2000 },
     industry: { type: String, index: true },
+    companySize: { type: String, default: "Unknown", index: true },
     type: { type: String, index: true },
+    applicationMethod: {
+        type: String,
+        enum: [
+            "Easy Apply",
+            "Company Portal",
+            "Referral",
+            "Recruiter",
+            "Email",
+            "Internal",
+            "Other",
+        ],
+        default: "Other",
+        index: true,
+    },
+
+    applicationSource: {
+        type: String,
+        enum: [
+            "LinkedIn",
+            "Indeed",
+            "Company Site",
+            "Handshake",
+            "Glassdoor",
+            "ZipRecruiter",
+            "Other",
+        ],
+        default: "Other",
+        index: true,
+    },
 
     // Status tracking fields
     status: {
@@ -127,10 +157,6 @@ const JobSchema = new Schema({
         },
         default: null,
     },
-
-
-
-
 
     archived: { type: Boolean, default: false },
     archiveReason: { type: String, default: null },

@@ -86,6 +86,8 @@ function JobsEntry() {
     description: "",
     industry: "",
     type: "",
+    applicationMethod: "Other",
+    applicationSource: "Other",
     autoArchiveDays: "60",
   });
   const { showToast, Toast } = useToast();
@@ -168,15 +170,15 @@ function JobsEntry() {
           typeof job.salaryMin === "object" && job.salaryMin?.$numberDecimal
             ? parseFloat(job.salaryMin.$numberDecimal)
             : job.salaryMin
-            ? Number(job.salaryMin)
-            : 0;
+              ? Number(job.salaryMin)
+              : 0;
 
         const jobSalaryMax =
           typeof job.salaryMax === "object" && job.salaryMax?.$numberDecimal
             ? parseFloat(job.salaryMax.$numberDecimal)
             : job.salaryMax
-            ? Number(job.salaryMax)
-            : Infinity;
+              ? Number(job.salaryMax)
+              : Infinity;
 
         const filterMin = salaryMinFilter ? parseFloat(salaryMinFilter) : 0;
         const filterMax = salaryMaxFilter
@@ -227,14 +229,14 @@ function JobsEntry() {
             typeof a.salaryMax === "object" && a.salaryMax?.$numberDecimal
               ? parseFloat(a.salaryMax.$numberDecimal)
               : a.salaryMax
-              ? Number(a.salaryMax)
-              : 0;
+                ? Number(a.salaryMax)
+                : 0;
           const bSalaryMax =
             typeof b.salaryMax === "object" && b.salaryMax?.$numberDecimal
               ? parseFloat(b.salaryMax.$numberDecimal)
               : b.salaryMax
-              ? Number(b.salaryMax)
-              : 0;
+                ? Number(b.salaryMax)
+                : 0;
           return bSalaryMax - aSalaryMax;
 
         case "company":
@@ -790,6 +792,18 @@ function JobsEntry() {
         }
         break;
 
+      case "applicationMethod":
+        if (!value) {
+          error = "Application method is required";
+        }
+        break;
+
+      case "applicationSource":
+        if (!value) {
+          error = "Application source is required";
+        }
+        break;
+
       case "description":
         if (value.length > 2000) {
           error = "Description must be 2000 characters or less";
@@ -863,6 +877,9 @@ function JobsEntry() {
       description: "",
       industry: "",
       type: "",
+      applicationMethod: "Other",
+      applicationSource: "Other",
+      autoArchiveDays: "60"
     });
     setErrors({});
     setEditingJob(null);
@@ -872,12 +889,13 @@ function JobsEntry() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-
     const payload: any = {
       jobTitle: formData.jobTitle,
       company: formData.company,
       industry: formData.industry,
       type: formData.type,
+      applicationMethod: formData.applicationMethod,
+      applicationSource: formData.applicationSource,
     };
 
     if (formData.location) payload.location = formData.location;
@@ -964,8 +982,11 @@ function JobsEntry() {
       description: job.description || "",
       industry: job.industry,
       type: job.type,
+      applicationMethod: job.applicationMethod || "Other",
+      applicationSource: job.applicationSource || "Other",
       autoArchiveDays: job.autoArchiveDays?.toString() || "60",
     });
+
     setShowForm(true);
   };
 
@@ -1232,9 +1253,8 @@ function JobsEntry() {
                         name="jobTitle"
                         value={formData.jobTitle}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.jobTitle ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.jobTitle ? "!border-red-500" : ""
+                          }`}
                         placeholder="e.g. Senior Software Engineer"
                       />
                       {errors.jobTitle && (
@@ -1251,9 +1271,8 @@ function JobsEntry() {
                         name="company"
                         value={formData.company}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.company ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.company ? "!border-red-500" : ""
+                          }`}
                         placeholder="e.g. TechCorp"
                       />
                       {errors.company && (
@@ -1269,9 +1288,8 @@ function JobsEntry() {
                         name="industry"
                         value={formData.industry}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.industry ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.industry ? "!border-red-500" : ""
+                          }`}
                       >
                         <option value="">Select industry</option>
                         <option value="Technology">Technology</option>
@@ -1300,9 +1318,8 @@ function JobsEntry() {
                         name="type"
                         value={formData.type}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.type ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.type ? "!border-red-500" : ""
+                          }`}
                       >
                         <option value="">Select type</option>
                         <option value="Full-time">Full-time</option>
@@ -1337,9 +1354,8 @@ function JobsEntry() {
                         name="salaryMin"
                         value={formData.salaryMin}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.salaryMin ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.salaryMin ? "!border-red-500" : ""
+                          }`}
                         placeholder="e.g. 100000"
                       />
                       {errors.salaryMin && (
@@ -1356,9 +1372,8 @@ function JobsEntry() {
                         name="salaryMax"
                         value={formData.salaryMax}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.salaryMax ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.salaryMax ? "!border-red-500" : ""
+                          }`}
                         placeholder="e.g. 150000"
                       />
                       {errors.salaryMax && (
@@ -1382,13 +1397,11 @@ function JobsEntry() {
                         name="jobPostingUrl"
                         value={formData.jobPostingUrl}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.jobPostingUrl ? "!border-red-500" : ""
-                        } ${
-                          formData.jobPostingUrl && !errors.jobPostingUrl
+                        className={`form-input ${errors.jobPostingUrl ? "!border-red-500" : ""
+                          } ${formData.jobPostingUrl && !errors.jobPostingUrl
                             ? "bg-green-50"
                             : ""
-                        }`}
+                          }`}
                         placeholder="https://example.com/job/123"
                       />
                       {errors.jobPostingUrl && (
@@ -1410,6 +1423,40 @@ function JobsEntry() {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="form-label">Application Method *</label>
+                    <select
+                      name="applicationMethod"
+                      value={formData.applicationMethod}
+                      onChange={handleInputChange}
+                      className="form-input"
+                    >
+                      <option value="Easy Apply">Easy Apply</option>
+                      <option value="Company Portal">Company Portal</option>
+                      <option value="Referral">Referral</option>
+                      <option value="Recruiter">Recruiter</option>
+                      <option value="Email">Email</option>
+                      <option value="Internal">Internal</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Application Source *</label>
+                    <select
+                      name="applicationSource"
+                      value={formData.applicationSource}
+                      onChange={handleInputChange}
+                      className="form-input"
+                    >
+                      <option value="LinkedIn">LinkedIn</option>
+                      <option value="Indeed">Indeed</option>
+                      <option value="Company Site">Company Site</option>
+                      <option value="Handshake">Handshake</option>
+                      <option value="Glassdoor">Glassdoor</option>
+                      <option value="ZipRecruiter">ZipRecruiter</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="form-label">
                       Auto-Archive After (Days)
@@ -1436,9 +1483,8 @@ function JobsEntry() {
                       value={formData.description}
                       onChange={handleInputChange}
                       rows={4}
-                      className={`form-input ${
-                        errors.description ? "!border-red-500" : ""
-                      }`}
+                      className={`form-input ${errors.description ? "!border-red-500" : ""
+                        }`}
                       placeholder="Job description, notes, or requirements..."
                     />
                     {errors.description && (
@@ -1856,24 +1902,23 @@ function JobsEntry() {
               {filteredAndSortedJobs.map((job) => (
                 <li key={job._id}>
                   <Card
-                    className={`${
-                      job.applicationDeadline
-                        ? (() => {
-                            const info = getDeadlineInfo(
-                              job.applicationDeadline
-                            );
-                            if (info.urgency === "overdue")
-                              return "border-l-4 border-l-red-500";
-                            if (info.urgency === "critical")
-                              return "border-l-4 border-l-orange-500";
-                            if (info.urgency === "warning")
-                              return "border-l-4 border-l-yellow-500";
-                            return "";
-                          })()
-                        : ""
-                    }`}
+                    className={`${job.applicationDeadline
+                      ? (() => {
+                        const info = getDeadlineInfo(
+                          job.applicationDeadline
+                        );
+                        if (info.urgency === "overdue")
+                          return "border-l-4 border-l-red-500";
+                        if (info.urgency === "critical")
+                          return "border-l-4 border-l-orange-500";
+                        if (info.urgency === "warning")
+                          return "border-l-4 border-l-yellow-500";
+                        return "";
+                      })()
+                      : ""
+                      }`}
                   >
-                    <div 
+                    <div
                       className="flex items-start justify-between gap-4 cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => setSelectedJobId(job._id)}                    >
                       <div className="flex items-start gap-3 flex-1">
@@ -1885,9 +1930,9 @@ function JobsEntry() {
                             e.stopPropagation();
                             handleToggleSelect(job._id);
                           }}
-                            onClick={(e) => {
-                              e.stopPropagation(); // ← Add this
-                            }}
+                          onClick={(e) => {
+                            e.stopPropagation(); // ← Add this
+                          }}
                           className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                         />
 
@@ -1964,34 +2009,34 @@ function JobsEntry() {
                               View posting →
                             </a>
                           )}
-                        {job.matchScore != null && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                          <p className="text-sm">
-                            <span className="font-medium">Match Score:</span>{" "}
-                            <span
-                              className={
-                                job.matchScore >= 80
-                                  ? "text-green-700 font-bold"
-                                  : job.matchScore >= 60
-                                  ? "text-yellow-600 font-bold"
-                                  : "text-red-600 font-bold"
-                              }
-                            >
-                              {Math.round(
-                              ((job.matchBreakdown?.skills ?? 0) +
-                                (job.matchBreakdown?.experience ?? 0) +
-                                (job.matchBreakdown?.education ?? 0)) / 3
-                              )}
-                              %
-                            </span>
-                          </p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            Skills {job.matchBreakdown?.skills ?? 0}% | Exp{" "}
-                            {job.matchBreakdown?.experience ?? 0}% | Edu{" "}
-                            {job.matchBreakdown?.education ?? 0}%
-                          </p>
-                        </div>
-                      )} 
+                          {job.matchScore != null && (
+                            <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              <p className="text-sm">
+                                <span className="font-medium">Match Score:</span>{" "}
+                                <span
+                                  className={
+                                    job.matchScore >= 80
+                                      ? "text-green-700 font-bold"
+                                      : job.matchScore >= 60
+                                        ? "text-yellow-600 font-bold"
+                                        : "text-red-600 font-bold"
+                                  }
+                                >
+                                  {Math.round(
+                                    ((job.matchBreakdown?.skills ?? 0) +
+                                      (job.matchBreakdown?.experience ?? 0) +
+                                      (job.matchBreakdown?.education ?? 0)) / 3
+                                  )}
+                                  %
+                                </span>
+                              </p>
+                              <p className="text-xs text-gray-600 mt-1">
+                                Skills {job.matchBreakdown?.skills ?? 0}% | Exp{" "}
+                                {job.matchBreakdown?.experience ?? 0}% | Edu{" "}
+                                {job.matchBreakdown?.education ?? 0}%
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1999,7 +2044,7 @@ function JobsEntry() {
                       <Popover className="relative">
                         {({ close }) => (
                           <>
-                            <PopoverButton 
+                            <PopoverButton
                               onClick={(e: React.MouseEvent) => e.stopPropagation()}
                               className="p-2 hover:bg-gray-100 rounded-md"
                             >

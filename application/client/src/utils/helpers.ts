@@ -42,3 +42,55 @@ export function isValidPassword(password: string): boolean {
   const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
   return regex.test(password);
 }
+
+export interface ValidationErrors {
+  [key: string]: string;
+}
+export function validateFields(name: string, value: string) {
+  let error = "";
+
+  switch (name) {
+
+    case "full_name":
+      if (!value.trim()) {
+        error = "Full name is required.";
+      }
+      break;
+
+    case "email":
+      if (!value.trim()) {
+        error = "Email is required.";
+      } else if (!/^\S+@\S+\.\S+$/.test(value)) {
+        error = "Please enter a valid email address.";
+      }
+      break;
+
+
+    case "relationship":
+      if (!value.trim()) {
+        error = "Relationship is required.";
+      }
+      break;
+    case "availability_status":
+          if (!value.trim()) {
+            error = "Availability is required.";
+          }
+          break;
+    case "phone":
+      if (value && !/^\+?[0-9()\-\s]{7,20}$/.test(value)) {
+        error = "Please enter a valid phone number.";
+      }
+      break;
+
+    case "preferred_contact_method":
+      if (!value.trim()) {
+        error = "Preferred contact method is required.";
+      }
+      break;
+
+    default:
+      break;
+  }
+
+  return error;
+}

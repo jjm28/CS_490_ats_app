@@ -7,8 +7,8 @@ import {
   isSignedIn,
   createCalendarEvent,
   checkCalendarConflicts,
-  updateCalendarEvent,   // ✅ add this
-  deleteCalendarEvent,   // ✅ add this
+  updateCalendarEvent,
+  deleteCalendarEvent,
 } from "../../utils/gcalService";
 interface Interview {
   _id?: string;
@@ -19,7 +19,23 @@ interface Interview {
   outcome?: string;
   interviewer?: string;
   contactInfo?: string;
-  eventId?: string; // ✅ Add this line
+  eventId?: string;
+}
+
+async function moveJobToInterviewStage(jobId: string, token: string) {
+  try {
+    await fetch(`${API_BASE}/api/jobs/${jobId}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status: "interview" }),
+    });
+    console.log("✅ Job automatically moved to interview stage");
+  } catch (err) {
+    console.error("❌ Failed to auto-move job:", err);
+  }
 }
 
 export default function InterviewScheduler({ jobId }: { jobId: string }) {
@@ -124,10 +140,10 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         return;
       }
 
-      // ✅ Refresh after saving
       await fetchInterviews();
 
-      // ✅ Prep checklist
+      await moveJobToInterviewStage(jobId, token);
+
       const tasks = [
         "Research the company background",
         "Review your resume and projects",
@@ -137,10 +153,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       ];
       setPrepTasks(tasks);
 
-      // ✅ Calendar sync
       if (gcalSignedIn) {
         if (editingId) {
-          // Find this interview to get its eventId
           const currentInterview = interviews.find((i) => i._id === editingId);
           if (currentInterview && (currentInterview as any).eventId) {
             await updateCalendarEvent((currentInterview as any).eventId, form);

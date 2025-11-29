@@ -10,6 +10,15 @@ export type ContactInfo = {
   github?: string;
 };
 
+export interface ProfileExperience {
+  company: string;
+  jobTitle: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  highlights?: string[];
+}
+
 export type ResumeData = {
   name: string;
   contact?: ContactInfo;
@@ -203,6 +212,9 @@ export type AiResumeCandidate = {
     company: string;
     jobTitle: string;
     bullets: string[];
+    startDate?: string;
+    endDate?: string;
+    location?: string;
   }>;
 };
 
@@ -493,4 +505,124 @@ export async function compareResumeVersionsAPI(params: {
 
   // will look like: { meta: { left, right }, fields: { summary, skills, experience } }
   return res.json();
+}
+
+export async function getProfileContact(): Promise<{
+  name?: string;
+  contact: ContactInfo;
+}> {
+  const res = await fetch(`${API}/profile`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load profile");
+  }
+
+  const json: any = await res.json();
+
+  console.log("PROFILE FROM /profile (raw):", json);
+
+  const profile: any = Array.isArray(json) ? json[0] : json;
+
+  console.log("PROFILE used for mapping:", profile);
+
+  // ----- EMAIL -----
+  const email =
+    profile.email ??
+    profile.user?.email ??
+    profile.contact?.email ??
+    profile.profile?.email;
+
+  // ----- PHONE -----
+  const phoneCandidates = [
+    profile.phone,
+    profile.phoneNumber,
+    profile.phonenumber,
+    profile.mobile,
+    profile.mobilePhone,
+    profile.contact?.phone,
+    profile.profile?.phone,
+    profile.user?.phone,
+  ];
+
+  const phone: string | undefined =
+    phoneCandidates.find(
+      (v) => typeof v === "string" && v.trim().length > 0
+    ) ?? undefined;
+
+  // ----- LOCATION (fix is here) -----
+  let location: string | undefined;
+
+  // If backend already gives a string, just use it
+  if (typeof profile.location === "string") {
+    location = profile.location;
+  } else {
+    // Otherwise, try to build "City, ST" from object fields
+    const city =
+      profile.city ??
+      profile.town ??
+      profile.address?.city ??
+      profile.location?.city;
+
+    const state =
+      profile.state ??
+      profile.region ??
+      profile.address?.state ??
+      profile.location?.state;
+
+    const country =
+      profile.country ??
+      profile.address?.country ??
+      profile.location?.country;
+
+    const parts = [city, state || country].filter(
+      (p) => typeof p === "string" && p.trim().length > 0
+    );
+
+    if (parts.length) {
+      location = parts.join(", "); // e.g. "Newark, NJ"
+    }
+  }
+
+  // ----- NAME -----
+  const nameCandidates = [
+    profile.fullName,
+    profile.name,
+    profile.displayName,
+    profile.username,
+    profile.user?.name,
+    profile.profile?.name,
+    profile.profile?.fullName,
+  ];
+
+  const name: string | undefined =
+    nameCandidates.find(
+      (v) => typeof v === "string" && v.trim().length > 0
+    ) ?? undefined;
+
+  const contact: ContactInfo = {
+    email: email ?? undefined,
+    phone: phone ?? undefined,
+    location: location ?? undefined, // <-- now always string or undefined
+    website:
+      profile.website ??
+      profile.profile?.website ??
+      profile.contact?.website ??
+      undefined,
+    linkedin:
+      profile.linkedin ??
+      profile.profile?.linkedin ??
+      profile.contact?.linkedin ??
+      undefined,
+    github:
+      profile.github ??
+      profile.profile?.github ??
+      profile.contact?.github ??
+      undefined,
+  };
+
+  console.log("getProfileContact mapped contact:", { name, contact });
+
+  return { name, contact };
 }
