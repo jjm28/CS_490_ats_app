@@ -16,6 +16,7 @@ export interface PeerGroup {
   memberCount: number;
   createdAt: string;
   updatedAt: string;
+  createdBy?: string; 
 }
 
 export interface PeerGroupMembership {
@@ -30,6 +31,11 @@ export interface PeerGroupMembership {
   updatedAt: string;
 }
 
+export interface UserProfileForGroups {
+  targetRole: string | null;
+  targetIndustry: string | null;
+}
+
 export async function listPeerGroups(params?: {
   industry?: string;
   role?: string;
@@ -42,12 +48,14 @@ export async function listPeerGroups(params?: {
   return (await res.json()) as PeerGroup[];
 }
 
-export async function listMyPeerGroups() {
-  const res = await fetch(`${API_BASE}/my`,  {    headers: authHeaders() ,  });
+export async function listMyPeerGroups(userId: string) {
+  const res = await fetch(`${API_BASE}/my?userId=${userId}`,  {    headers: authHeaders() ,  });
   if (!res.ok) throw new Error("Failed to fetch my peer groups");
   return (await res.json()) as {
     groups: PeerGroup[];
     memberships: PeerGroupMembership[];
+    userProfile?: UserProfileForGroups;
+
   };
 }
 
@@ -61,10 +69,56 @@ export async function joinPeerGroup(groupId: string, userId: string) {
 }
 
 export async function leavePeerGroup(groupId: string, userId: string) {
-  const res = await fetch(`${API_BASE}/${groupId}&userId:${userId}/leave`, {
+  const res = await fetch(`${API_BASE}/leave?groupId=${groupId}&userId=${userId}`, {
     method: "POST",
      headers: authHeaders()
   });
   if (!res.ok) throw new Error("Failed to leave group");
   return await res.json();
+}
+
+export async function createPeerGroup(payload: {
+    userId: string;
+  name: string;
+  description?: string;
+  industry?: string | null;
+  role?: string | null;
+  tags?: string[];
+}) {
+  const res = await fetch(`${API_BASE}/`, {
+    method: "POST",
+     headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create group");
+  return await res.json(); // { group, membership }
+}
+
+export async function updatePeerGroup(
+  groupId: string,
+  userId: string,
+  payload: {
+    name?: string;
+    description?: string;
+    industry?: string | null;
+    role?: string | null;
+    tags?: string[];
+  }
+) {
+  const res = await fetch(`${API_BASE}?groupId=${groupId}&userId=${userId}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to update group");
+  return (await res.json()) as PeerGroup;
+}
+
+export async function deletePeerGroup(groupId: string, userId: string) {
+  const res = await fetch(`${API_BASE}?groupId=${groupId}&userId=${userId}`, {
+    method: "DELETE",
+     headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to delete group");
+  return await res.json(); // { ok: true }
 }
