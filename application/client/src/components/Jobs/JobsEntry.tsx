@@ -1957,15 +1957,32 @@ function JobsEntry() {
                           </div>
                           <div className="mt-2 space-y-1 text-sm text-gray-600">
                             {job.location && <div>📍 {job.location}</div>}
-                            <div className="flex items-center">
-                              💰 {formatSalary(job.salaryMin, job.salaryMax)}
+                            <div className="text-gray-600 text-sm">
+                              <div>💰 {formatSalary(job.salaryMin, job.salaryMax)}</div>
+
                               <a
-                                onClick={() => navigate(`/SalaryResearch`)}
-                                className="ml-2 text-blue-600 hover:underline cursor-pointer text-sm font-medium"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/SalaryResearch`);
+                                }}
+                                className="text-blue-600 hover:underline cursor-pointer text-xs font-medium"
                               >
                                 Research salary →
                               </a>
                             </div>
+                            {job.status === "offer" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/jobs/${job._id}/salary`, {
+                                    state: { from: "/Jobs" },
+                                  });
+                                }}
+                                className="text-blue-600 hover:underline text-xs font-medium mt-1"
+                              >
+                                Salary details →
+                              </button>
+                            )}
                             <div className="mt-2">
                               <DeadlineIndicator
                                 applicationDeadline={job.applicationDeadline}

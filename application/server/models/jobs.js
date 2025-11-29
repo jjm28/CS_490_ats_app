@@ -64,7 +64,6 @@ const StatusHistorySchema = new Schema({
 
 const JobSchema = new Schema({
     userId: { type: String, ref: 'User', required: true, index: true },
-
     // Basic job info
     jobTitle: { type: String, required: true, maxlength: 150 },
     company: { type: String, required: true, maxlength: 150 },
@@ -200,6 +199,69 @@ const JobSchema = new Schema({
     offerDate: { type: Date, default: null },
     stageDurations: { type: Map, of: Number, default: {} },
 
+    // UC-100 Salary & Compensation analytics (all optional)
+    salaryAnalysis: {
+        type: {
+            base: { type: Number, default: null },
+            bonus: { type: Number, default: null },
+            equity: { type: Number, default: null },
+            otherComp: { type: Number, default: null },
+            totalComp: { type: Number, default: null },
+
+            negotiation: {
+                attempted: { type: Boolean, default: false },
+                outcome: {
+                    type: String,
+                    enum: ["accepted-as-is", "improved-offer", "rejected-offer", "pending"],
+                    default: "pending"
+                },
+                initialOffer: { type: Number, default: null },
+                finalOffer: { type: Number, default: null },
+                improvedAmount: { type: Number, default: null }
+            },
+
+            market: {
+                role: { type: String, default: null },
+                level: { type: String, default: null },
+                benchmarkMedian: { type: Number, default: null },
+                benchmarkTop: { type: Number, default: null },
+                benchmarkRange: { type: [Number], default: [] },
+                location: { type: String, default: null },
+                industry: { type: String, default: null }
+            }
+        },
+        default: {}
+    },
+
+    salaryBonus: { type: Number, default: null },
+    salaryEquity: { type: Number, default: null },
+    benefitsValue: { type: Number, default: null },
+
+    offerStage: {
+        type: String,
+        enum: [
+            "Applied",
+            "Interviewing",
+            "Offer Received",
+            "Offer Accepted",
+            "Offer Declined"
+        ],
+        default: "Applied"
+    },
+
+    negotiationOutcome: {
+        type: String,
+        enum: [
+            "Not attempted",
+            "Improved",
+            "No change",
+            "Worse",
+            "Lost offer"
+        ],
+        default: "Not attempted"
+    },
+
+    offerDate: { type: Date, default: null },
 }, { timestamps: true });
 
 // Compound index for efficient status queries

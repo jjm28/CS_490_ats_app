@@ -58,6 +58,7 @@ import MarketTrends from './components/Analytics/MarketTrends';
 import NetworkingROI from './components/Analytics/NetworkingROI';
 import Overview from './components/Analytics/Overview';
 import SalaryMarket from './components/Analytics/SalaryMarket';
+import JobSalaryDetails from "./components/JobSalaryDetails";
 
 function App() {
   const location = useLocation();
@@ -170,6 +171,7 @@ function App() {
             path="/analytics/market-trends"
             element={<PrivateRoute><MarketTrends /></PrivateRoute>}
           />
+          <Route path="/jobs/:jobId/salary" element={<JobSalaryDetails />} />
         </Routes>
       </div>
     </>
