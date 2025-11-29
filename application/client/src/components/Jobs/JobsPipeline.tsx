@@ -4,6 +4,7 @@ import PipelineColumn from "./PipelineColumn";
 import API_BASE from "../../utils/apiBase";
 import Button from "../StyledComponents/Button";
 import { useNavigate } from "react-router-dom";
+import { canMove } from "../../types/jobs.types";
 import {
   type Job,
   STATUS_ORDER,
@@ -45,6 +46,23 @@ const JobsPipeline: React.FC = () => {
       if (!res.ok) throw new Error("Failed to fetch jobs");
       const data: Job[] = await res.json();
       setJobs(data);
+      const analysisPromises = data.map(async (job) => {
+        if (job._id && (job.matchScore === undefined || job.matchScore === null)) {
+          try {
+            await fetch(`${API_BASE}/api/jobs/${job._id}/analyze-match`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            });
+          } catch (err) {
+            console.warn("Match analysis failed for job:", job._id, err);
+          }
+        }
+      });
+
+      await Promise.all(analysisPromises)
     } catch (error: any) {
       setErr(error.message || "Error fetching jobs");
     } finally {
@@ -98,38 +116,44 @@ const JobsPipeline: React.FC = () => {
   );
 
   const handleDragEnd = async (event: any) => {
-  const { active, over } = event;
-  if (!over) return;
+    const { active, over } = event;
+    if (!over) return;
 
-  const draggedJobId = active.id;
-  const targetStatus = over.id as JobStatus;
+    const draggedJobId = active.id;
+    const targetStatus = over.id as JobStatus;
 
-  // 🛑 If job not found or already in same column, do nothing
-  const job = jobs.find((j) => j._id === draggedJobId);
-  if (!job || job.status === targetStatus) return;
+    const job = jobs.find((j) => j._id === draggedJobId);
+    if (!job) return;
 
-  // ✅ Update local state immediately for smooth UX
-  setJobs((prev) =>
-    prev.map((j) =>
-      j._id === draggedJobId ? { ...j, status: targetStatus } : j
-    )
-  );
+    // 🟡 Do nothing if dropped back into same column
+    if (job.status === targetStatus) return;
 
-  try {
-    // 🧠 Double-call prevention: Check backend won't double write
-    await fetch(`${API_BASE}/api/jobs/${draggedJobId}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status: targetStatus }),
-    });
-  } catch (err) {
-    console.error("Failed to update job status:", err);
-  }
-};
+    // 🛑 Prevent illegal moves (stage skipping or backward moves)
+    if (!canMove(job.status, targetStatus)) {
+      console.warn(`Blocked illegal move: ${job.status} → ${targetStatus}`);
+      return;
+    }
 
+    // 🟢 Optimistic update for smoother UI
+    setJobs((prev) =>
+      prev.map((j) =>
+        j._id === draggedJobId ? { ...j, status: targetStatus } : j
+      )
+    );
+
+    try {
+      await fetch(`${API_BASE}/api/jobs/${draggedJobId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: targetStatus }),
+      });
+    } catch (err) {
+      console.error("Failed to update job status:", err);
+    }
+  };
 
   if (loading) return <p className="p-6">Loading...</p>;
   if (err) return <p className="p-6 text-red-600">{err}</p>;

@@ -13,13 +13,23 @@ const ApplicationsPage: React.FC = () => {
           Application Pipeline
         </h1>
 
-        <Button
-          variant="secondary"
-          onClick={() => navigate("/Applications/Analytics")}
-        >
-          View Analytics
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => navigate("/Applications/Analytics")}
+          >
+            View Analytics
+          </Button>
+
+          <Button
+            variant="primary"
+            onClick={() => navigate("/automation")}
+          >
+            Automation Rules
+          </Button>
+        </div>
       </div>
+
 
       <JobsPipeline />
     </div>

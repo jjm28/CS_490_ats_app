@@ -7,6 +7,8 @@ import "../../App.css";
 import "../../styles/StyledComponents/FormInput.css";
 import JobDetails from "./JobDetails";
 import { useToast } from "../../hooks/useToast";
+import Icon from "../StyledComponents/Icon";
+import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 
 import {
   type Job,
@@ -84,6 +86,8 @@ function JobsEntry() {
     description: "",
     industry: "",
     type: "",
+    applicationMethod: "Other",
+    applicationSource: "Other",
     autoArchiveDays: "60",
   });
   const { showToast, Toast } = useToast();
@@ -166,15 +170,15 @@ function JobsEntry() {
           typeof job.salaryMin === "object" && job.salaryMin?.$numberDecimal
             ? parseFloat(job.salaryMin.$numberDecimal)
             : job.salaryMin
-            ? Number(job.salaryMin)
-            : 0;
+              ? Number(job.salaryMin)
+              : 0;
 
         const jobSalaryMax =
           typeof job.salaryMax === "object" && job.salaryMax?.$numberDecimal
             ? parseFloat(job.salaryMax.$numberDecimal)
             : job.salaryMax
-            ? Number(job.salaryMax)
-            : Infinity;
+              ? Number(job.salaryMax)
+              : Infinity;
 
         const filterMin = salaryMinFilter ? parseFloat(salaryMinFilter) : 0;
         const filterMax = salaryMaxFilter
@@ -225,14 +229,14 @@ function JobsEntry() {
             typeof a.salaryMax === "object" && a.salaryMax?.$numberDecimal
               ? parseFloat(a.salaryMax.$numberDecimal)
               : a.salaryMax
-              ? Number(a.salaryMax)
-              : 0;
+                ? Number(a.salaryMax)
+                : 0;
           const bSalaryMax =
             typeof b.salaryMax === "object" && b.salaryMax?.$numberDecimal
               ? parseFloat(b.salaryMax.$numberDecimal)
               : b.salaryMax
-              ? Number(b.salaryMax)
-              : 0;
+                ? Number(b.salaryMax)
+                : 0;
           return bSalaryMax - aSalaryMax;
 
         case "company":
@@ -681,6 +685,7 @@ function JobsEntry() {
   }, [isLoggedIn]);
 
   const fetchJobs = async () => {
+    console.log("Output");
     setLoading(true);
     setErr(null);
     try {
@@ -690,7 +695,6 @@ function JobsEntry() {
           Authorization: `Bearer ${token}`,
         },
       });
-
       if (response.status === 401) {
         localStorage.removeItem("token");
         localStorage.removeItem("authToken");
@@ -788,6 +792,18 @@ function JobsEntry() {
         }
         break;
 
+      case "applicationMethod":
+        if (!value) {
+          error = "Application method is required";
+        }
+        break;
+
+      case "applicationSource":
+        if (!value) {
+          error = "Application source is required";
+        }
+        break;
+
       case "description":
         if (value.length > 2000) {
           error = "Description must be 2000 characters or less";
@@ -861,6 +877,9 @@ function JobsEntry() {
       description: "",
       industry: "",
       type: "",
+      applicationMethod: "Other",
+      applicationSource: "Other",
+      autoArchiveDays: "60"
     });
     setErrors({});
     setEditingJob(null);
@@ -870,12 +889,13 @@ function JobsEntry() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-
     const payload: any = {
       jobTitle: formData.jobTitle,
       company: formData.company,
       industry: formData.industry,
       type: formData.type,
+      applicationMethod: formData.applicationMethod,
+      applicationSource: formData.applicationSource,
     };
 
     if (formData.location) payload.location = formData.location;
@@ -962,8 +982,11 @@ function JobsEntry() {
       description: job.description || "",
       industry: job.industry,
       type: job.type,
+      applicationMethod: job.applicationMethod || "Other",
+      applicationSource: job.applicationSource || "Other",
       autoArchiveDays: job.autoArchiveDays?.toString() || "60",
     });
+
     setShowForm(true);
   };
 
@@ -1163,6 +1186,51 @@ function JobsEntry() {
 
       {isLoggedIn && (
         <>
+          {/* Quick Actions Bar */}
+          <div className="flex gap-2 mb-6 justify-between items-center">
+            <Button onClick={() => setShowForm(!showForm)}>
+              <Icon name="add" size={18} className="inline mr-2" />
+              {showForm ? "Cancel" : "Add New Opportunity"}
+            </Button>
+
+            <Popover className="relative">
+              <PopoverButton className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 font-medium text-gray-700">
+                <Icon name="menu" size={16} />
+                View Options
+              </PopoverButton>
+              <PopoverPanel className="absolute right-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50 border border-gray-200">
+                <button
+                  onClick={() => navigate("/Jobs/Calendar")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                >
+                  <Icon name="home" size={18} className="icon-teal" />
+                  <span>Calendar View</span>
+                </button>
+                <button
+                  onClick={() => navigate("/Jobs/Pipeline")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                >
+                  <Icon name="search" size={18} className="icon-teal" />
+                  <span>Application Pipeline</span>
+                </button>
+                <button
+                  onClick={() => navigate("/Jobs/Archived")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                >
+                  <Icon name="save" size={18} className="icon-sage" />
+                  <span>Archived Jobs</span>
+                </button>
+                <button
+                  onClick={() => navigate("/Jobs/Stats")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 border-t border-gray-200"
+                >
+                  <Icon name="success" size={18} className="icon-teal" />
+                  <span>Job Statistics</span>
+                </button>
+              </PopoverPanel>
+            </Popover>
+          </div>
+
           {/* Add/Edit Form Modal */}
           {showForm && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1185,9 +1253,8 @@ function JobsEntry() {
                         name="jobTitle"
                         value={formData.jobTitle}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.jobTitle ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.jobTitle ? "!border-red-500" : ""
+                          }`}
                         placeholder="e.g. Senior Software Engineer"
                       />
                       {errors.jobTitle && (
@@ -1204,9 +1271,8 @@ function JobsEntry() {
                         name="company"
                         value={formData.company}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.company ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.company ? "!border-red-500" : ""
+                          }`}
                         placeholder="e.g. TechCorp"
                       />
                       {errors.company && (
@@ -1222,9 +1288,8 @@ function JobsEntry() {
                         name="industry"
                         value={formData.industry}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.industry ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.industry ? "!border-red-500" : ""
+                          }`}
                       >
                         <option value="">Select industry</option>
                         <option value="Technology">Technology</option>
@@ -1253,9 +1318,8 @@ function JobsEntry() {
                         name="type"
                         value={formData.type}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.type ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.type ? "!border-red-500" : ""
+                          }`}
                       >
                         <option value="">Select type</option>
                         <option value="Full-time">Full-time</option>
@@ -1290,9 +1354,8 @@ function JobsEntry() {
                         name="salaryMin"
                         value={formData.salaryMin}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.salaryMin ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.salaryMin ? "!border-red-500" : ""
+                          }`}
                         placeholder="e.g. 100000"
                       />
                       {errors.salaryMin && (
@@ -1309,9 +1372,8 @@ function JobsEntry() {
                         name="salaryMax"
                         value={formData.salaryMax}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.salaryMax ? "!border-red-500" : ""
-                        }`}
+                        className={`form-input ${errors.salaryMax ? "!border-red-500" : ""
+                          }`}
                         placeholder="e.g. 150000"
                       />
                       {errors.salaryMax && (
@@ -1335,13 +1397,11 @@ function JobsEntry() {
                         name="jobPostingUrl"
                         value={formData.jobPostingUrl}
                         onChange={handleInputChange}
-                        className={`form-input ${
-                          errors.jobPostingUrl ? "!border-red-500" : ""
-                        } ${
-                          formData.jobPostingUrl && !errors.jobPostingUrl
+                        className={`form-input ${errors.jobPostingUrl ? "!border-red-500" : ""
+                          } ${formData.jobPostingUrl && !errors.jobPostingUrl
                             ? "bg-green-50"
                             : ""
-                        }`}
+                          }`}
                         placeholder="https://example.com/job/123"
                       />
                       {errors.jobPostingUrl && (
@@ -1363,6 +1423,40 @@ function JobsEntry() {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="form-label">Application Method *</label>
+                    <select
+                      name="applicationMethod"
+                      value={formData.applicationMethod}
+                      onChange={handleInputChange}
+                      className="form-input"
+                    >
+                      <option value="Easy Apply">Easy Apply</option>
+                      <option value="Company Portal">Company Portal</option>
+                      <option value="Referral">Referral</option>
+                      <option value="Recruiter">Recruiter</option>
+                      <option value="Email">Email</option>
+                      <option value="Internal">Internal</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Application Source *</label>
+                    <select
+                      name="applicationSource"
+                      value={formData.applicationSource}
+                      onChange={handleInputChange}
+                      className="form-input"
+                    >
+                      <option value="LinkedIn">LinkedIn</option>
+                      <option value="Indeed">Indeed</option>
+                      <option value="Company Site">Company Site</option>
+                      <option value="Handshake">Handshake</option>
+                      <option value="Glassdoor">Glassdoor</option>
+                      <option value="ZipRecruiter">ZipRecruiter</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="form-label">
                       Auto-Archive After (Days)
@@ -1389,9 +1483,8 @@ function JobsEntry() {
                       value={formData.description}
                       onChange={handleInputChange}
                       rows={4}
-                      className={`form-input ${
-                        errors.description ? "!border-red-500" : ""
-                      }`}
+                      className={`form-input ${errors.description ? "!border-red-500" : ""
+                        }`}
                       placeholder="Job description, notes, or requirements..."
                     />
                     {errors.description && (
@@ -1417,10 +1510,6 @@ function JobsEntry() {
               </Card>
             </div>
           )}
-
-          {/* ========================================
-                          SEARCH AND FILTER UI
-                          ======================================== */}
           <div className="mb-6">
             <Card>
               {/* Search Bar & Saved Searches Toggle */}
@@ -1813,27 +1902,25 @@ function JobsEntry() {
               {filteredAndSortedJobs.map((job) => (
                 <li key={job._id}>
                   <Card
-                    className={`${
-                      job.applicationDeadline
-                        ? (() => {
-                            const info = getDeadlineInfo(
-                              job.applicationDeadline
-                            );
-                            if (info.urgency === "overdue")
-                              return "border-l-4 border-l-red-500";
-                            if (info.urgency === "critical")
-                              return "border-l-4 border-l-orange-500";
-                            if (info.urgency === "warning")
-                              return "border-l-4 border-l-yellow-500";
-                            return "";
-                          })()
-                        : ""
-                    }`}
+                    className={`${job.applicationDeadline
+                      ? (() => {
+                        const info = getDeadlineInfo(
+                          job.applicationDeadline
+                        );
+                        if (info.urgency === "overdue")
+                          return "border-l-4 border-l-red-500";
+                        if (info.urgency === "critical")
+                          return "border-l-4 border-l-orange-500";
+                        if (info.urgency === "warning")
+                          return "border-l-4 border-l-yellow-500";
+                        return "";
+                      })()
+                      : ""
+                      }`}
                   >
                     <div
                       className="flex items-start justify-between gap-4 cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => setSelectedJobId(job._id)}
-                    >
+                      onClick={() => setSelectedJobId(job._id)}                    >
                       <div className="flex items-start gap-3 flex-1">
                         {/* Selection Checkbox */}
                         <input
@@ -1842,6 +1929,9 @@ function JobsEntry() {
                           onChange={(e) => {
                             e.stopPropagation();
                             handleToggleSelect(job._id);
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation(); // ← Add this
                           }}
                           className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                         />
@@ -1867,8 +1957,14 @@ function JobsEntry() {
                           </div>
                           <div className="mt-2 space-y-1 text-sm text-gray-600">
                             {job.location && <div>📍 {job.location}</div>}
-                            <div>
+                            <div className="flex items-center">
                               💰 {formatSalary(job.salaryMin, job.salaryMax)}
+                              <a
+                                onClick={() => navigate(`/SalaryResearch`)}
+                                className="ml-2 text-blue-600 hover:underline cursor-pointer text-sm font-medium"
+                              >
+                                Research salary →
+                              </a>
                             </div>
                             <div className="mt-2">
                               <DeadlineIndicator
@@ -1913,82 +2009,104 @@ function JobsEntry() {
                               View posting →
                             </a>
                           )}
+                          {job.matchScore != null && (
+                            <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                              <p className="text-sm">
+                                <span className="font-medium">Match Score:</span>{" "}
+                                <span
+                                  className={
+                                    job.matchScore >= 80
+                                      ? "text-green-700 font-bold"
+                                      : job.matchScore >= 60
+                                        ? "text-yellow-600 font-bold"
+                                        : "text-red-600 font-bold"
+                                  }
+                                >
+                                  {Math.round(
+                                    ((job.matchBreakdown?.skills ?? 0) +
+                                      (job.matchBreakdown?.experience ?? 0) +
+                                      (job.matchBreakdown?.education ?? 0)) / 3
+                                  )}
+                                  %
+                                </span>
+                              </p>
+                              <p className="text-xs text-gray-600 mt-1">
+                                Skills {job.matchBreakdown?.skills ?? 0}% | Exp{" "}
+                                {job.matchBreakdown?.experience ?? 0}% | Edu{" "}
+                                {job.matchBreakdown?.education ?? 0}%
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex gap-2">
-                        {job.applicationDeadline && (
-                          <Button
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation();
-                              setExtendingJob(job);
-                            }}
-                            variant="secondary"
-                          >
-                            📅 Extend
-                          </Button>
+                      <Popover className="relative">
+                        {({ close }) => (
+                          <>
+                            <PopoverButton
+                              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              className="p-2 hover:bg-gray-100 rounded-md"
+                            >
+                              <Icon name="menu" size={20} />
+                            </PopoverButton>
+                            <PopoverPanel className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50 border border-gray-200">
+                              {job.applicationDeadline && (
+                                <button
+                                  onClick={(e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    setExtendingJob(job);
+                                    close();
+                                  }}
+                                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Icon name="clock" size={16} />
+                                  <span>Extend</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  handleEdit(job);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                              >
+                                <Icon name="edit" size={16} />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  setArchivingJob(job);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50"
+                              >
+                                <Icon name="archive" size={16} />
+                                <span>Archive</span>
+                              </button>
+                              <button
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  handleDelete(job._id);
+                                  close();
+                                }}
+                                className="flex items-center gap-3 w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 border-t border-gray-200"
+                              >
+                                <Icon name="delete" size={16} />
+                                <span>Delete</span>
+                              </button>
+                            </PopoverPanel>
+                          </>
                         )}
-                        <Button
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            handleEdit(job);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation();
-                            handleDelete(job._id);
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                      <Button
-                        variant="secondary"
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          setArchivingJob(job); // you'll add this state next
-                        }}
-                      >
-                        📦 Archive
-                      </Button>
+                      </Popover>
                     </div>
                   </Card>
                 </li>
               ))}
             </ul>
           )}
-
-          <div className="flex gap-1 mt-6 justify-between">
-            <Button onClick={() => setShowForm(!showForm)}>
-              {showForm ? "Cancel" : "Add new opportunity"}
-            </Button>
-            <div className="flex gap-2">
-              <Button onClick={() => navigate("/Jobs/Calendar")}>
-                📅 View Calendar
-              </Button>
-              <Button onClick={() => navigate("/Jobs/Pipeline")}>
-                View Application Pipeline
-              </Button>
-              <Button
-                onClick={() => navigate("/Jobs/Archived")}
-                className="bg-gray-600 hover:bg-gray-700 text-white"
-              >
-                📦 View Archived Jobs
-              </Button>
-
-              <Button
-                onClick={() => navigate("/Jobs/Stats")}
-                className="bg-teal-600 hover:bg-teal-700 text-white"
-              >
-                📈 View Job Stats
-              </Button>
-            </div>
-          </div>
         </>
       )}
       {selectedJobId && (

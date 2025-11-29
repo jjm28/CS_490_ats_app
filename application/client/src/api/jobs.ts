@@ -51,3 +51,19 @@ export async function getAllJobs() {
     if (!res.ok) throw new Error("Failed to fetch jobs");
     return res.json();
 }
+
+export async function getSuccessAnalysis() {
+  const res = await fetch(`${API_BASE}/api/success-analysis`, {
+    headers: baseHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch success analysis");
+  return res.json();
+}
+
+export async function getSuccessPatterns() {
+  const res = await fetch(`${API_BASE}/api/success-analysis/patterns`, {
+    headers: baseHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch success patterns");
+  return res.json();
+}

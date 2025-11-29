@@ -14,8 +14,8 @@ export interface Contact {
 // Main Job interface with updated contact fields
 export interface Job {
   _id: string;
-  userId?: string;
-  
+  userId: string;
+
   // Basic job info
   jobTitle: string;
   company: string;
@@ -27,33 +27,46 @@ export interface Job {
   description?: string;
   industry: string;
   type: string;
+  applicationMethod?: string;
+  applicationSource?: string;
   autoArchiveDays?: string;
   autoArchiveDate?: string | Date;
-  
+
   // Status tracking
   status: JobStatus;
   statusHistory?: StatusHistoryEntry[];
-  
+
   // UPDATED: Structured contact information
   recruiter?: Contact;
   hiringManager?: Contact;
   additionalContacts?: Contact[];
-  
+
   // Notes fields
   notes?: string;
   salaryNotes?: string;
   interviewNotes?: string;
-  
+
   // Application history
   applicationHistory?: ApplicationHistoryEntry[];
-  
-  // Timestamps
+
+  matchScore?: number | null;
+  matchBreakdown?: {
+    skills: number | null;
+    experience: number | null;
+    education: number | null;
+  };
+  skillGaps?: string[];
+
   createdAt?: string;
   updatedAt?: string;
 
   archived?: boolean;
   archiveReason?: string;
   archivedAt?: string;
+
+  applicationPackage?: ApplicationPackage | null;
+  // To store or edit references used in an application
+  references?: JobReferenceUsage[];
 }
 
 // Job status enum
@@ -76,6 +89,18 @@ export interface StatusHistoryEntry {
 export interface ApplicationHistoryEntry {
   action: string;
   timestamp: string;
+}
+
+export interface ApplicationPackage {
+  resumeId: string | null;
+  coverLetterId: string | null;
+
+  // Support both single old format + new array format
+  portfolioUrl?: string | null;
+  portfolioUrls?: string[];
+
+  generatedAt: string | null;
+  generatedByRuleId?: string | null;
 }
 
 // Status display mapping - for showing human-readable status
@@ -138,7 +163,9 @@ export interface JobFormData {
   description: string;
   industry: string;
   type: string;
-  autoArchiveDays?: string;
+  applicationMethod: string;
+  applicationSource: string;
+  autoArchiveDays: string;
 }
 
 // ============================================
@@ -186,13 +213,13 @@ export const formatSalary = (
   const minNum = min && typeof min === "object" && "$numberDecimal" in min
     ? parseFloat(min.$numberDecimal!)
     : min
-    ? Number(min)
-    : null;
+      ? Number(min)
+      : null;
   const maxNum = max && typeof max === "object" && "$numberDecimal" in max
     ? parseFloat(max.$numberDecimal!)
     : max
-    ? Number(max)
-    : null;
+      ? Number(max)
+      : null;
 
   if (minNum && maxNum)
     return `$${minNum.toLocaleString()} - $${maxNum.toLocaleString()}`;
@@ -220,6 +247,27 @@ export const extractDecimal = (value: any): string => {
   return value.toString();
 };
 
+// ============================================
+// JOB STAGE FLOW RULES
+// ============================================
+
+export const STAGE_FLOW: Record<JobStatus, JobStatus[]> = {
+  interested: ["applied", "rejected"],
+  applied: ["phone_screen", "rejected"],
+  phone_screen: ["interview", "rejected"],
+  interview: ["offer", "rejected"],
+  offer: ["rejected"],
+  rejected: [],
+};
+
+/** 
+ * Returns true if moving from oldStatus → newStatus is allowed.
+ */
+export function canMove(oldStatus: JobStatus, newStatus: JobStatus): boolean {
+  if (newStatus === "rejected") return true;
+  return STAGE_FLOW[oldStatus]?.includes(newStatus) ?? false;
+}
+
 // DeadlineInfo interface for deadline utilities
 export interface DeadlineInfo {
   daysRemaining: number;
@@ -228,4 +276,33 @@ export interface DeadlineInfo {
   color: string;
   bgColor: string;
   icon: string;
+}
+
+
+export type JobReferenceStatus =
+  | "planned"
+  | "requested"
+  | "confirmed"
+  | "declined"
+  | "completed";
+
+
+export interface JobReferenceUsage {
+  _id: string;               // subdoc id 
+  reference_id: string;      // ObjectId of the referee
+  status: JobReferenceStatus;
+  requested_at?: string;
+  responded_at?: string;
+  notes?: string;
+  feedback_rating: {
+    type: String,
+    enum: ["strong_positive", "positive", "neutral", "mixed", "negative"],
+  },
+  feedback_summary: { type: String },        // short 1–2 sentence summary
+  feedback_notes: { type: String },          // longer internal notes
+  feedback_source: {
+    type: String,
+    enum: ["recruiter", "hiring_manager", "other"],
+  },
+  feedback_collected_at: { type: Date },
 }

@@ -3,7 +3,8 @@ import { verifyJWT } from "../middleware/auth.js";
 import { GenerateResumeBasedOn } from "../services/resume_ai.service.js";
 import {
   createResume, updateResume, getResume, deleteResume,
-  createSharedResume, fetchSharedResume,
+  createSharedResume, fetchSharedResume, addSharedResumeComment,
+  updateSharedResumeComment
 } from "../services/resume.service.js";
 
 const router = express.Router();
@@ -133,10 +134,10 @@ router.delete("/:id", async (req, res) => {
 router.post("/:id/share", async (req, res) => {
   try {
     const userid = userIdFrom(req);
-    const { resumedata } = req.body || {};
+    const { resumedata,visibility,  allowComments } = req.body || {};
     if (!userid || !resumedata) return res.status(400).json({ error: "Missing fields" });
-
-    const out = await createSharedResume({ userid, resumeid: req.params.id, resumedata });
+    const out = await createSharedResume({ userid, resumeid: req.params.id, resumedata,visibility,  allowComments });
+    console.log("Ooutput",out)
     res.status(201).json(out);
   } catch {
     res.status(500).json({ error: "Server error" });
@@ -144,12 +145,82 @@ router.post("/:id/share", async (req, res) => {
 });
 
 // SHARE fetch
-router.get("/shared/:sharedid", async (req, res) => {
+router.get("/shared/:userid/:sharedid", async (req, res) => {
   try {
-    const out = await fetchSharedResume({ sharedid: req.params.sharedid });
+  const { userid, sharedid } = req.params;
+
+    const out = await fetchSharedResume({  sharedid,viewerid: userid });
     if (!out) return res.status(404).json({ error: "Share link invalid or expired" });
     res.status(200).json(out);
   } catch (e) { res.status(500).json({ error: "Server error" }); }
 });
 
 export default router;
+
+
+router.post(
+  "/shared/:sharedid/comments",
+  verifyJWT,
+  async (req, res) => {
+    try {
+      const viewerId = userIdFrom(req);
+      const { message } = req.body || {};
+      if (!viewerId || !message || !message.trim()) {
+        return res.status(400).json({ error: "Missing viewer or message" });
+      }
+
+      const updated = await addSharedResumeComment({
+        sharedid: req.params.sharedid,
+        viewerid: viewerId,
+        message: message.trim(),
+      });
+
+      if (!updated) {
+        return res
+          .status(404)
+          .json({ error: "Share link invalid or expired" });
+      }
+
+      // You can return either {comments:[...]} or {comment: {...}}.
+      res.status(201).json(updated);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  }
+);
+
+router.patch(
+  "/shared/:sharedid/comments/:commentId",
+  verifyJWT,
+  async (req, res) => {
+    try {
+      const viewerId = userIdFrom(req);
+      const { resolved } = req.body || {};
+      if (typeof resolved !== "boolean") {
+        return res.status(400).json({ error: "Missing resolved flag" });
+      }
+
+      const updated = await updateSharedResumeComment({
+        sharedid: req.params.sharedid,
+        commentId: req.params.commentId,
+        viewerid: viewerId, // service should enforce "only owner can resolve"
+        resolved,
+      });
+
+      if (updated?.error === "forbidden") {
+        return res.status(403).json({ error: "Not allowed" });
+      }
+      if (!updated) {
+        return res
+          .status(404)
+          .json({ error: "Share link or comment not found" });
+      }
+
+      res.status(200).json(updated);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Server error" });
+    }
+  }
+);

@@ -166,9 +166,9 @@ export default function Resumes() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {filtered.map((doc) => (
             <Card key={doc._id} className="overflow-hidden rounded-2xl shadow-sm bg-white flex flex-col">
-              <div className="w-full aspect-3/4 overflow-hidden bg-gray-50">
-                <div className="w-full h-full grid place-items-center text-gray-400 text-sm">No preview</div>
-              </div>
+                  <div className="flex-1 bg-gray-50 rounded-t-xl">
+                    {/* reserved for future thumbnail preview */}
+                  </div>
               <div className="p-5 flex flex-col flex-1">
                 <h2 className="text-lg font-semibold mb-1">{doc.filename}</h2>
                 <p className="text-xs text-gray-500 mb-2">

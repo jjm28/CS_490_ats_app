@@ -4,7 +4,6 @@ import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from "mongodb";
 
-
 const ROUNDS = 10;
 
 export async function createUser({ email, password, firstName, lastName }) {

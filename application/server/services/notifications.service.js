@@ -1,0 +1,358 @@
+// ============================================
+// FILE: backend/services/notifications.service.js
+// ============================================
+// This is the main notification service that handles sending emails
+
+import nodemailer from 'nodemailer';
+import { getDb } from '../db/connection.js'; // Adjust path to your DB connection file
+import { ObjectId } from 'mongodb';
+
+class NotificationService {
+  constructor() {
+    // Email transporter setup (using Gmail as example)
+    // You can also use SendGrid, AWS SES, etc.
+    this.emailTransporter = nodemailer.createTransport({
+      service: 'gmail', // or 'SendGrid', etc.
+      auth: {
+        user: process.env.EMAIL_USER, // your-email@gmail.com
+        pass: process.env.EMAIL_PASSWORD, // your app password
+      },
+    });
+  }
+
+  /**
+   * Main function to check all deadlines and send notifications
+   * This runs every day via cron job
+   */
+  async checkAndSendDeadlineNotifications() {
+    try {
+      console.log('🔔 Checking deadline notifications...');
+      
+      const db = getDb();
+      
+      // DEBUG: Let's see what's actually in the jobs collection
+      const sampleJobs = await db.collection('jobs').find({}).limit(5).toArray();
+      console.log(`📊 Sample jobs from database (showing ${sampleJobs.length}):`);
+      sampleJobs.forEach(job => {
+        console.log(`   - Job ID: ${job._id}`);
+        console.log(`     userId: "${job.userId}" (type: ${typeof job.userId})`);
+        console.log(`     company: ${job.company}`);
+        console.log(`     deadline: ${job.applicationDeadline}`);
+        console.log(`     status: ${job.status}`);
+      });
+      
+      const users = await this.getUsersWithNotificationsEnabled();
+      console.log(`👥 Found ${users.length} users with notifications enabled:`, users.map(u => u.email));
+      
+      for (const user of users) {
+        await this.processUserNotifications(user);
+      }
+      
+      console.log('✅ Deadline notifications check complete');
+    } catch (error) {
+      console.error('❌ Error in notification service:', error);
+    }
+  }
+
+  /**
+   * Get users who have notifications enabled
+   */
+  async getUsersWithNotificationsEnabled() {
+    const db = getDb();
+    
+    // Find all users with notifications enabled
+    const preferences = await db.collection('notificationpreferences').find({
+      'email.enabled': true,
+    }).toArray();
+    
+    // Get user details for each preference
+    const usersWithPreferences = [];
+    for (const pref of preferences) {
+      // userId is stored as String in your app
+      const user = await db.collection('users').findOne({ 
+        _id: String(pref.userId)
+      });
+      
+      if (user) {
+        usersWithPreferences.push({
+          _id: user._id,
+          email: user.email,
+          name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email,
+          preferences: pref,
+        });
+      }
+    }
+    
+    return usersWithPreferences;
+  }
+
+  /**
+   * Process notifications for a single user
+   */
+  async processUserNotifications(user) {
+    const db = getDb();
+    
+    console.log(`🔍 Looking for jobs with userId: "${String(user._id)}" (type: ${typeof String(user._id)})`);
+    
+    // Let's see what's actually in the jobs collection for this user
+    const allUserJobs = await db.collection('jobs').find({
+      userId: String(user._id)
+    }).toArray();
+    
+    console.log(`   Found ${allUserJobs.length} total jobs for this user`);
+    
+    const jobs = await db.collection('jobs').find({
+      userId: String(user._id),
+      applicationDeadline: { $exists: true, $ne: null },
+      status: { $in: ['interested', 'applied', 'phone_screen', 'interview'] },
+    }).toArray();
+
+    console.log(`📋 User ${user.email} has ${jobs.length} jobs with deadlines`);
+    
+    // Let's see what one job looks like if they have any
+    if (allUserJobs.length > 0) {
+      console.log(`   Sample job userId: "${allUserJobs[0].userId}" (type: ${typeof allUserJobs[0].userId})`);
+      console.log(`   Sample job status: "${allUserJobs[0].status}"`);
+      console.log(`   Sample job deadline: ${allUserJobs[0].applicationDeadline}`);
+    }
+    
+    const now = new Date();
+    
+    for (const job of jobs) {
+      await this.checkJobDeadline(user, job, now);
+    }
+  }
+
+  /**
+   * Check if a job needs a notification sent
+   */
+  async checkJobDeadline(user, job, now) {
+    const db = getDb();
+    
+    const deadline = new Date(job.applicationDeadline);
+    
+    // Work in UTC to avoid timezone confusion
+    const todayMidnightUTC = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    ));
+    
+    const deadlineMidnightUTC = new Date(Date.UTC(
+      deadline.getUTCFullYear(),
+      deadline.getUTCMonth(),
+      deadline.getUTCDate(),
+      0, 0, 0, 0
+    ));
+    
+    // Calculate days difference using UTC midnight times
+    const daysUntil = Math.round((deadlineMidnightUTC - todayMidnightUTC) / (1000 * 60 * 60 * 24));
+    
+    console.log(`🔍 Checking job ${job.company}:`);
+    console.log(`   Deadline (UTC): ${deadlineMidnightUTC.toISOString()}`);
+    console.log(`   Today (UTC): ${todayMidnightUTC.toISOString()}`);
+    console.log(`   Days until: ${daysUntil}`);
+
+    // Check if already notified today
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const alreadyNotified = await db.collection('notificationlogs').findOne({
+      userId: String(user._id),
+      jobId: String(job._id),
+      createdAt: { $gte: startOfDay },
+    });
+
+    if (alreadyNotified) {
+      console.log(`   ⏭️  Already notified today`);
+      return;
+    }
+
+    // Determine notification type
+    let notificationType = null;
+    let shouldNotify = false;
+
+    if (daysUntil < 0) {
+      // Overdue
+      notificationType = 'overdue';
+      shouldNotify = user.preferences.email.types.overdue;
+    } else if (daysUntil === 0) {
+      // Day of deadline
+      notificationType = 'dayOf';
+      shouldNotify = user.preferences.email.types.dayOf;
+    } else if (daysUntil === 1) {
+      // Day before
+      notificationType = 'dayBefore';
+      shouldNotify = user.preferences.email.types.dayBefore;
+    } else if (daysUntil <= user.preferences.email.approachingDays) {
+      // Approaching deadline
+      notificationType = 'approaching';
+      shouldNotify = user.preferences.email.types.approaching;
+    }
+
+    console.log(`   📬 Type: ${notificationType}, shouldNotify: ${shouldNotify}`);
+
+    if (shouldNotify && notificationType) {
+      await this.sendDeadlineEmail(user, job, notificationType, daysUntil);
+    }
+  }
+
+  /**
+   * Send the actual email notification
+   */
+  async sendDeadlineEmail(user, job, type, daysUntil) {
+    const db = getDb();
+    
+    const subject = this.getEmailSubject(type, job, daysUntil);
+    const html = this.getEmailTemplate(type, job, daysUntil, user);
+
+    try {
+      await this.emailTransporter.sendMail({
+        from: process.env.EMAIL_FROM || '"Job Tracker" <noreply@jobtracker.com>',
+        to: user.email,
+        subject,
+        html,
+      });
+
+      // Log successful send
+      await db.collection('notificationlogs').insertOne({
+        userId: String(user._id),
+        jobId: String(job._id),
+        type,
+        channel: 'email',
+        status: 'sent',
+        sentAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: {
+          subject,
+          preview: `Deadline notification for ${job.company}`,
+        },
+      });
+
+      console.log(`📧 Email sent to ${user.email} for job ${job._id}`);
+    } catch (error) {
+      console.error('❌ Email send error:', error);
+      
+      // Log failed send
+      await db.collection('notificationlogs').insertOne({
+        userId: String(user._id),
+        jobId: String(job._id),
+        type,
+        channel: 'email',
+        status: 'failed',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Generate email subject line
+   */
+  getEmailSubject(type, job, daysUntil) {
+    switch (type) {
+      case 'overdue':
+        return `⚠️ Overdue: ${job.company} application deadline passed`;
+      case 'dayOf':
+        return `🚨 Today: Apply to ${job.company} - ${job.jobTitle}`;
+      case 'dayBefore':
+        return `⏰ Tomorrow: ${job.company} application deadline`;
+      case 'approaching':
+        return `📅 ${daysUntil} days left: ${job.company} application deadline`;
+      default:
+        return `Deadline reminder: ${job.company}`;
+    }
+  }
+
+  /**
+   * Generate HTML email template
+   */
+  getEmailTemplate(type, job, daysUntil, user) {
+    const urgencyColor = 
+      type === 'overdue' ? '#DC2626' :
+      type === 'dayOf' ? '#EA580C' :
+      type === 'dayBefore' ? '#D97706' :
+      '#059669';
+
+    const heading = 
+      type === 'overdue' ? '⚠️ Application Deadline Passed' :
+      type === 'dayOf' ? '🚨 Deadline Today!' :
+      type === 'dayBefore' ? '⏰ Deadline Tomorrow' :
+      `📅 ${daysUntil} Days Until Deadline`;
+
+    const actionText =
+      type === 'overdue' 
+        ? 'The application deadline for this position has passed. Consider reaching out directly or looking for similar opportunities.'
+        : type === 'dayOf'
+        ? "Today is the last day to submit your application! Don't miss this opportunity."
+        : type === 'dayBefore'
+        ? 'Your application is due <strong>tomorrow</strong>. Make sure you have everything ready!'
+        : `You have <strong>${daysUntil} days</strong> to submit your application. It's a good time to start preparing if you haven't already.`;
+
+    // Format deadline date in UTC to match our calculation
+    const deadlineDate = new Date(job.applicationDeadline);
+    const formattedDeadline = deadlineDate.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'UTC'  // ← Add this to force UTC
+    });
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: ${urgencyColor}; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">
+              ${heading}
+            </h1>
+          </div>
+          
+          <div style="background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+            <h2 style="margin-top: 0; color: #111827;">
+              ${job.jobTitle}
+            </h2>
+            
+            <p style="font-size: 18px; color: #374151; margin: 10px 0;">
+              <strong>${job.company}</strong>
+            </p>
+            
+            <div style="background-color: white; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <p style="margin: 5px 0;"><strong>Application Deadline:</strong> ${formattedDeadline}</p>
+              ${job.location ? `<p style="margin: 5px 0;"><strong>Location:</strong> ${job.location}</p>` : ''}
+              ${job.type ? `<p style="margin: 5px 0;"><strong>Type:</strong> ${job.type}</p>` : ''}
+            </div>
+
+            <p style="color: ${urgencyColor}; font-size: 16px;">
+              ${actionText}
+            </p>
+            
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${process.env.CORS_ORIGIN || 'http://localhost:5173'}/Jobs" 
+                style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                View Job Details
+              </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            
+            <p style="font-size: 12px; color: #6b7280;">
+              You're receiving this email because you enabled deadline notifications in your Job Tracker settings.
+              <a href="${process.env.CORS_ORIGIN || 'http://localhost:5173'}/Notifications" style="color: #2563eb;">Manage notification preferences</a>
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+}
+
+export default new NotificationService();

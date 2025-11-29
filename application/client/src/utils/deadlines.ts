@@ -20,8 +20,13 @@ export function getDeadlineInfo(applicationDeadline: string | null | undefined):
   const now = new Date();
   now.setHours(0, 0, 0, 0); // Reset time to midnight for accurate day calculation
   
-  const deadline = new Date(applicationDeadline);
-  deadline.setHours(0, 0, 0, 0);
+    // Normalize to YYYY-MM-DD
+  const dateStr = applicationDeadline.slice(0, 10);
+  const [year, month, day] = dateStr.split("-").map(Number);
+
+  // Parse as local date (no timezone issues)
+  const deadline = new Date(year, month - 1, day);
+  // deadline.setHours(0, 0, 0, 0);
   
   const diffTime = deadline.getTime() - now.getTime();
   const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -93,7 +98,12 @@ export function getDeadlineInfo(applicationDeadline: string | null | undefined):
 export function formatDeadlineDate(date: string | null | undefined): string {
   if (!date) return 'No deadline set';
   
-  const deadline = new Date(date);
+  // Normalize to YYYY-MM-DD
+  const dateStr = date.slice(0, 10);
+  const [year, month, day] = dateStr.split("-").map(Number);
+
+  // Parse as local date (no timezone issues)
+  const deadline = new Date(year, month - 1, day);
   const options: Intl.DateTimeFormatOptions = { 
     month: 'short', 
     day: 'numeric', 

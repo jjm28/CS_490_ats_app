@@ -3,9 +3,13 @@ import Jobs from "../models/jobs.js";
 import mongoose from "mongoose";
 
 export async function createJob({ userId, payload }) {
-  const job = await Jobs.create({ ...payload, userId });
-  return job;
+  // Prevent empty package
+  if (payload.applicationPackage) delete payload.applicationPackage;
+
+  return Jobs.create({ ...payload, userId });
 }
+
+
 
 export async function getAllJobs({ userId }) {
   return Jobs.find({ userId }).sort({ createdAt: -1 }).lean();
@@ -42,134 +46,195 @@ export async function getJobStats(userId) {
   console.log("[getJobStats] starting for user:", userId);
 
   try {
-    const all = await Jobs.find({ userId, archived: false }).lean();
-    console.log("[getJobStats] found", all?.length, "jobs");
-
-    // Handle case of no jobs
+    const all = await Jobs.find({ userId }).lean();
     if (!all || all.length === 0) {
-      console.log("[getJobStats] no jobs found, returning defaults");
       return {
         total: 0,
         byStatus: {},
+        applicationsSent: 0,
+        interviewsScheduled: 0,
+        offersReceived: 0,
+        overallConversion: 0,
         responseRate: 0,
         avgOfferTime: 0,
         deadlineAdherence: 100,
         monthlyCounts: {},
         avgStageDurations: {},
+        averageResponseTimeDisplay: "—",
+        conversion: {
+          applyToPhone: 0,
+          applyToInterview: 0,
+          applyToOffer: 0,
+          phoneToInterview: 0,
+          interviewToOffer: 0,
+        },
+        applicationTrend7Days: {
+          Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0
+        },
+        successPatterns: {
+          mostActiveDay: "N/A",
+          interviewRate: "No interviews yet",
+          avgResponse: "—"
+        }
       };
     }
 
-    // === Jobs by status ===
+    // =======================================
+    // BASIC COUNTS
+    // =======================================
+    let applicationsSent = 0;
+    let interviewsScheduled = 0;
+    let offersReceived = 0;
+
+    for (const job of all) {
+      const history = job.statusHistory || [];
+      if (history.some(h => h.status === "applied")) applicationsSent++;
+      if (history.some(h => h.status === "interview")) interviewsScheduled++;
+      if (history.some(h => h.status === "offer")) offersReceived++;
+    }
+
     const byStatus = all.reduce((acc, j) => {
       const s = j.status || "unknown";
       acc[s] = (acc[s] || 0) + 1;
       return acc;
     }, {});
 
-    // === Response rate ===
     const total = all.length;
-    const responded = all.filter(
-      (j) =>
-        j.responseReceived ||
-        ["phone_screen", "interview", "offer", "rejected"].includes(j.status)
-    ).length;
-    const responseRate = total ? Math.round((responded / total) * 100) : 0;
 
-    // === Average time from applied → offer ===
-    const offers = all.filter((j) => j.offerDate);
-    const avgOfferTime =
-      offers.length > 0
-        ? Math.round(
-            offers.reduce((sum, j) => {
-              const appliedAt = (j.statusHistory || []).find(
-                (h) => h.status === "applied"
-              )?.changedAt;
-              if (!appliedAt) return sum;
-              const days =
-                (new Date(j.offerDate) - new Date(appliedAt)) / 86400000;
-              return sum + Math.max(0, days);
-            }, 0) / offers.length
-          )
+    // =======================================
+    // TIME TO FIRST RESPONSE
+    // =======================================
+    let responseMinutesList = [];
+
+    for (const job of all) {
+      const hist = job.statusHistory || [];
+      const applied = hist.find(h => h.status === "applied");
+      if (!applied || !applied.timestamp) continue;
+
+      const appliedAt = new Date(applied.timestamp);
+      if (isNaN(appliedAt)) continue;
+
+      const responses = hist
+        .filter(h =>
+          ["phone_screen", "interview", "rejected", "offer"].includes(h.status)
+        )
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+      if (responses.length === 0) continue;
+
+      const firstResponse = new Date(responses[0].timestamp);
+      if (isNaN(firstResponse)) continue;
+
+      const diffMs = firstResponse - appliedAt;
+      if (diffMs < 0) continue;
+
+      responseMinutesList.push(diffMs / 60000);
+    }
+
+    let averageResponseTimeDisplay = "—";
+    if (responseMinutesList.length > 0) {
+      const avgMin =
+        responseMinutesList.reduce((a, b) => a + b, 0) /
+        responseMinutesList.length;
+
+      if (avgMin < 60) {
+        averageResponseTimeDisplay = `${Math.round(avgMin)} minutes`;
+      } else if (avgMin < 48 * 60) {
+        averageResponseTimeDisplay = `${Math.round(avgMin / 60)} hours`;
+      } else {
+        averageResponseTimeDisplay = `${Math.round(avgMin / 1440)} days`;
+      }
+    }
+
+    // =======================================
+    // CONVERSION FUNNEL (ENTRY-BASED)
+    // =======================================
+    let appliedCount = 0;
+    let phoneCount = 0;
+    let interviewCount = 0;
+    let offerCount = 0;
+
+    for (const job of all) {
+      const hist = job.statusHistory || [];
+      if (hist.some(h => h.status === "applied")) appliedCount++;
+      if (hist.some(h => h.status === "phone_screen")) phoneCount++;
+      if (hist.some(h => h.status === "interview")) interviewCount++;
+      if (hist.some(h => h.status === "offer")) offerCount++;
+    }
+
+    const conversion = {
+      applyToPhone: appliedCount ? Math.round((phoneCount / appliedCount) * 100) : 0,
+      applyToInterview: appliedCount ? Math.round((interviewCount / appliedCount) * 100) : 0,
+      applyToOffer: appliedCount ? Math.round((offerCount / appliedCount) * 100) : 0,
+      phoneToInterview: phoneCount ? Math.round((interviewCount / phoneCount) * 100) : 0,
+      interviewToOffer: interviewCount ? Math.round((offerCount / interviewCount) * 100) : 0,
+    };
+
+    const overallConversion =
+      applicationsSent > 0
+        ? Math.round((offersReceived / applicationsSent) * 100)
         : 0;
 
-    // === Monthly application counts ===
-    const monthlyCounts = all.reduce((acc, j) => {
-      const appliedAt =
-        (j.statusHistory || []).find((h) => h.status === "applied")
-          ?.timestamp || j.createdAt;
-      if (!appliedAt) return acc;
+    // =======================================
+    // 7-DAY TREND (SAFE VERSION)
+    // =======================================
+    const last7Days = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
 
-      const date = new Date(appliedAt);
-      const key = date.toLocaleString("default", {
-        month: "short",
-        year: "numeric",
-      });
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
+    for (const job of all) {
+      if (!job.createdAt) continue;
+      const created = new Date(job.createdAt);
+      if (isNaN(created)) continue;
 
-    // === Average stage durations ===
-    const avgStageDurations = {};
-    const stageTimes = {};
+      const diff = (Date.now() - created.getTime()) / 86400000;
+      if (diff < 0 || diff > 6) continue;
 
-    all.forEach((j) => {
-      if (!j.statusHistory || j.statusHistory.length < 2) return;
-
-      for (let i = 1; i < j.statusHistory.length; i++) {
-        const prev = j.statusHistory[i - 1];
-        const curr = j.statusHistory[i];
-        const diffDays =
-          (new Date(curr.timestamp) - new Date(prev.timestamp)) / 86400000;
-
-        if (!stageTimes[prev.status]) stageTimes[prev.status] = [];
-        stageTimes[prev.status].push(Math.max(0, diffDays));
+      const day = created.toLocaleDateString("en-US", { weekday: "short" });
+      if (last7Days[day] !== undefined) {
+        last7Days[day]++;
       }
-    });
-
-    for (const [status, times] of Object.entries(stageTimes)) {
-      avgStageDurations[status] = Math.round(
-        times.reduce((a, b) => a + b, 0) / times.length
-      );
     }
 
-    // === Deadline adherence ===
-    let deadlineAdherence = 100; // default
-    const jobsWithDeadlines = all.filter((j) => j.applicationDeadline);
+    // =======================================
+    // SUCCESS PATTERNS FOR DEMO
+    // =======================================
+    const successPatterns = {
+      mostActiveDay:
+        Object.entries(last7Days).sort((a, b) => b[1] - a[1])[0][0] || "N/A",
+      interviewRate:
+        interviewsScheduled > 0
+          ? `${interviewsScheduled} interviews so far`
+          : "No interviews yet",
+      avgResponse: averageResponseTimeDisplay
+    };
 
-    if (jobsWithDeadlines.length > 0) {
-      const onTimeCount = jobsWithDeadlines.filter((j) => {
-        const deadline = new Date(j.applicationDeadline);
-        const now = new Date();
+    // =======================================
+    // RESPONSE RATE
+    // =======================================
+    const respondedCount = all.filter(j =>
+      j.responseReceived ||
+      ["phone_screen", "interview", "offer", "rejected"].includes(j.status)
+    ).length;
 
-        // 1️⃣ if job still active and deadline hasn’t passed → on time
-        if (!["offer", "rejected"].includes(j.status) && deadline > now) {
-          return true;
-        }
-
-        // 2️⃣ otherwise, see if user acted before the deadline
-        const history = j.statusHistory || [];
-        const appliedEvent = history.find((h) => h.status === "applied");
-        const actionDate = appliedEvent?.timestamp || j.createdAt;
-
-        return new Date(actionDate) <= deadline;
-      }).length;
-
-      deadlineAdherence = Math.round(
-        (onTimeCount / jobsWithDeadlines.length) * 100
-      );
-    }
-
-    console.log("[getJobStats] returning computed stats");
+    const responseRate = total ? Math.round((respondedCount / total) * 100) : 0;
 
     return {
       total,
       byStatus,
+      applicationsSent,
+      interviewsScheduled,
+      offersReceived,
+      overallConversion,
       responseRate,
-      avgOfferTime,
-      deadlineAdherence,
-      monthlyCounts,
-      avgStageDurations,
+      avgOfferTime: 0, // not needed for demo now
+      deadlineAdherence: 100,
+      monthlyCounts: {},
+      avgStageDurations: {},
+      averageResponseTimeDisplay,
+      conversion,
+      applicationTrend7Days: last7Days,
+      successPatterns
     };
+
   } catch (err) {
     console.error("[getJobStats] ERROR:", err);
     throw err;
@@ -283,12 +348,10 @@ export async function addApplicationHistory({ userId, id, action }) {
   try {
     const job = await Jobs.findOne({ _id: id, userId });
     if (!job) return null;
-
     job.applicationHistory.push({
       action: action.trim(),
       timestamp: new Date()
     });
-
     await job.save();
     return job;
   } catch (err) {

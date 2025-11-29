@@ -75,7 +75,37 @@ const JobSchema = new Schema({
     applicationDeadline: { type: Date },
     description: { type: String, default: '', maxlength: 2000 },
     industry: { type: String, index: true },
+    companySize: { type: String, default: "Unknown", index: true },
     type: { type: String, index: true },
+    applicationMethod: {
+        type: String,
+        enum: [
+            "Easy Apply",
+            "Company Portal",
+            "Referral",
+            "Recruiter",
+            "Email",
+            "Internal",
+            "Other",
+        ],
+        default: "Other",
+        index: true,
+    },
+
+    applicationSource: {
+        type: String,
+        enum: [
+            "LinkedIn",
+            "Indeed",
+            "Company Site",
+            "Handshake",
+            "Glassdoor",
+            "ZipRecruiter",
+            "Other",
+        ],
+        default: "Other",
+        index: true,
+    },
 
     // Status tracking fields
     status: {
@@ -105,15 +135,32 @@ const JobSchema = new Schema({
         type: String,
         default: ''
     },
-
+    //  NEW FIELDS - for matching
+    matchScore: { type: Number, default: null }, // e.g., 73
+    matchBreakdown: {
+        skills: { type: Number, default: null }, // e.g., 80
+        experience: { type: Number, default: null }, // e.g., 70
+        education: { type: Number, default: null } // e.g., 60
+    },
+    skillGaps: { type: [String], default: [] },
     // Application history tracking
     applicationHistory: [ApplicationHistorySchema],
+
+    // 🚀 Application package generated for this job (UC-069)
+    applicationPackage: {
+        type: {
+            resumeId: String,
+            coverLetterId: String,
+            portfolioUrls: [String],
+            generatedAt: Date,
+            generatedByRuleId: String,
+        },
+        default: null,
+    },
 
     archived: { type: Boolean, default: false },
     archiveReason: { type: String, default: null },
     archivedAt: { type: Date, default: null },
-
-
 
     // optional auto-archive horizon (used by your service if you enable it)
     autoArchiveDays: {
@@ -122,9 +169,7 @@ const JobSchema = new Schema({
         default: 60,
         set: (v) => (v !== undefined && v !== null && v !== "" ? Number(v) : 60),
     },
-    autoArchiveDate: {
-        type: Date,
-    },
+    autoArchiveDate: { type: Date },
 
     // Interview scheduling integration
     interviews: [
@@ -138,24 +183,23 @@ const JobSchema = new Schema({
             date: { type: Date, required: true },
             locationOrLink: { type: String, default: "" },
             notes: { type: String, default: "" },
-            interviewer: { type: String, default: "" }, // 🟢 Added
-            contactInfo: { type: String, default: "" }, // 🟢 Added
+            interviewer: { type: String, default: "" },
+            contactInfo: { type: String, default: "" },
             outcome: {
                 type: String,
                 enum: ["pending", "passed", "rejected", "offer"],
                 default: "pending",
             },
             reminderSent: { type: Boolean, default: false },
-            eventId: { type: String, default: "" }, // 🟢 Ensures calendar sync works
+            eventId: { type: String, default: "" },
         },
     ],
-
-
 
     // analytics helpers
     responseReceived: { type: Boolean, default: false },
     offerDate: { type: Date, default: null },
     stageDurations: { type: Map, of: Number, default: {} },
+
 }, { timestamps: true });
 
 // Compound index for efficient status queries

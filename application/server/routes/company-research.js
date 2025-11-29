@@ -1,6 +1,8 @@
 import express from 'express';
 import axios from 'axios';
+import NodeCache from 'node-cache';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import InterviewPrep from '../models/interviewPrep.js';
 
 const router = express.Router();
 
@@ -8,6 +10,11 @@ const router = express.Router();
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 const SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const cache = new NodeCache({ 
+  stdTTL: 86400,
+  checkperiod: 3600 
+});
 
 router.post('/api/company/research', async (req, res) => {
   try {
@@ -23,7 +30,18 @@ router.post('/api/company/research', async (req, res) => {
       });
     }
 
-    console.log(`Researching: ${companyName}`);
+    // Create cache key with today's date
+    const today = new Date().toISOString().split('T')[0];
+    const cacheKey = `company:${companyName.toLowerCase()}:${today}`;
+    
+    // CHECK CACHE FIRST
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      console.log(`✅ Cache HIT for ${companyName}`);
+      return res.json(cachedData);
+    }
+
+    console.log(`🔄 Cache MISS - Researching: ${companyName}`);
 
     // Run all searches in parallel for speed
     const [
@@ -33,7 +51,7 @@ router.post('/api/company/research', async (req, res) => {
         socialMedia,
         competitorInfo,
         financialHealth
-        ] = await Promise.all([
+    ] = await Promise.all([
         searchCompanyBasicInfo(companyName),
         searchCompanyNews(companyName),
         searchLeadership(companyName),
@@ -53,6 +71,10 @@ router.post('/api/company/research', async (req, res) => {
         financialHealth,
         lastUpdated: new Date().toISOString()
     };
+
+    // SAVE TO CACHE
+    cache.set(cacheKey, companyData);
+    console.log(`💾 Cached data for ${companyName}`);
 
     res.json(companyData);
 
@@ -76,7 +98,7 @@ async function googleSearch(query, numResults = 10) {
         num: numResults
       }
     });
-
+ /// when interviewing, what makes someone standout or like you know they've done their hw
     return response.data.items || [];
   } catch (error) {
     console.error(`Search error for "${query}":`, error.response?.data?.error?.message || error.message);
@@ -99,7 +121,14 @@ async function searchCompanyBasicInfo(companyName) {
   "headquarters": "city and state/country (e.g., 'Newark, New Jersey', 'Cupertino, California', 'London, United Kingdom'). Use your best knowledge. If unknown, return 'Not specified'",
   "mission": "company mission statement (1-2 sentences) if commonly known. If unknown, return 'Not specified'",
   "values": "2-4 core company values, comma-separated if commonly known. If unknown, return 'Not specified'",
-  "culture": "brief company culture description (1-2 sentences) if commonly known. If unknown, return 'Not specified'"
+  "culture": "brief company culture description (1-2 sentences) if commonly known. If unknown, return 'Not specified'",
+  "logoUrl": "direct URL to the company's logo image if known. If unknown, use an empty string.",
+  "contactEmail": "general contact or careers email if commonly known. If unknown, use an empty string.",
+  "contactPhone": "main phone number if commonly known. If unknown, use an empty string.",
+  "contactAddress": "full mailing address or HQ address if commonly known. If unknown, return 'Not specified'",
+  "glassdoorRating": "Glassdoor rating between 0 and 5 as a number if commonly known. If unknown, use null.",
+  "glassdoorReviewsCount": "approximate number of Glassdoor reviews as an integer if commonly known. If unknown, use null.",
+  "glassdoorUrl": "URL to the company's Glassdoor profile if commonly known. If unknown, use an empty string."
 }`;
 
     const result = await model.generateContent(prompt);
@@ -132,8 +161,23 @@ async function searchCompanyBasicInfo(companyName) {
         title: `${companyName} - AI Research`,
         snippet: parsed.description || '',
         link: parsed.website || ''
-      }]
+      }],
+      logoUrl: parsed.logoUrl || null,
+      contactEmail: parsed.contactEmail || "",
+      contactPhone: parsed.contactPhone || "",
+      contactAddress: parsed.contactAddress || "Not specified",
+      glassdoorRating:
+          typeof parsed.glassdoorRating === "number"
+            ? parsed.glassdoorRating
+            : undefined,
+      glassdoorReviewsCount:
+          typeof parsed.glassdoorReviewsCount === "number"
+            ? parsed.glassdoorReviewsCount
+            : undefined,
+      glassdoorUrl: parsed.glassdoorUrl || "",
+      
     };
+    
 
   } catch (error) {
     console.error('Gemini API error:', error.message);
@@ -161,7 +205,15 @@ async function searchCompanyBasicInfo(companyName) {
           title: r.title,
           snippet: r.snippet,
           link: r.link
-        }))
+        })),
+        logoUrl: "",
+        contactEmail: "",
+        contactPhone: "",
+        contactAddress: "Not specified",
+        glassdoorRating: undefined,
+        glassdoorReviewsCount: undefined,
+        glassdoorUrl: "",
+        searchResults: [],
       };
     }
 
@@ -404,5 +456,80 @@ async function searchCompetitors(companyName) {
 async function searchFinancialHealth(companyName) {
   return await googleSearch(`"${companyName}" earnings OR revenue OR investor relations OR quarterly results site:finance.yahoo.com OR site:investors.${companyName.toLowerCase().replace(/\s+/g, '')}.com`, 5);
 }
+
+
+
+// Save company research to database
+router.post("/save-research", async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const { jobId, companyInfo } = req.body;
+
+    if (!userId || !jobId || !companyInfo) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Check if research already exists
+    const existing = await InterviewPrep.findOne({ userId, jobId });
+
+    const researchData = {
+      userId,
+      jobId,
+      companyName: companyInfo.name,
+      basicInfo: companyInfo.basicInfo,
+      leadership: companyInfo.leadership.searchResults,
+      financialHealth: companyInfo.financialHealth,
+      socialMedia: companyInfo.socialMedia,
+      competitors: companyInfo.competitors,
+      news: companyInfo.news,
+      lastResearched: new Date()
+    };
+
+    if (existing) {
+      Object.assign(existing, researchData);
+      await existing.save();
+      return res.json({ message: "Research updated", data: existing });
+    }
+
+    const research = await InterviewPrep.create(researchData);
+    res.json({ message: "Research saved", data: research });
+  } catch (err) {
+    console.error("Save research error:", err);
+    res.status(500).json({ error: "Failed to save research" });
+  }
+});
+
+// Get saved company research
+router.get("/saved-research/:jobId", async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const { jobId } = req.params;
+
+    const research = await InterviewPrep.findOne({ userId, jobId });
+
+    if (!research) {
+      return res.status(404).json({ error: "No saved research found" });
+    }
+
+    // Transform back to frontend format
+    const companyInfo = {
+      name: research.companyName,
+      basicInfo: research.basicInfo,
+      news: research.news,
+      leadership: { searchResults: research.leadership },
+      socialMedia: research.socialMedia,
+      competitors: research.competitors,
+      financialHealth: research.financialHealth,
+      lastUpdated: research.lastResearched
+    };
+
+    res.json(companyInfo);
+  } catch (err) {
+    console.error("Get research error:", err);
+    res.status(500).json({ error: "Failed to load research" });
+  }
+});
+
+
 
 export default router;

@@ -1,139 +1,100 @@
 // src/components/Resume/ResumeEditor.tsx
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React, {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+
 import Button from "../StyledComponents/Button";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 
-import {
-  resumePreviewRegistry,
-  resumePdfRegistry,
-} from "../../components/Resume";
-import type { ResumeData, TemplateKey } from "../../api/resumes";
-import {
-  saveResume,
-  updateResume,
-  getFullResume,
-  createSharedResume,
-  GetAiResumeContent,
-} from "../../api/resumes";
+import { resumePreviewRegistry, resumePdfRegistry } from "./index";
 
-import JobPickerSheet from "../Resume/JobPickerSheet";
-import MiniJobForm, { type JobDraft } from "../Resume/MiniJobForm";
+import type { ResumeData, TemplateKey, ContactInfo } from "../../api/resumes";
+import { saveResume, updateResume, GetAiResumeContent } from "../../api/resumes";
+
+import JobPickerSheet from "./JobPickerSheet";
+import MiniJobForm, { type JobDraft } from "./MiniJobForm";
 import { useJobs, type Job } from "./hooks/useJobs";
 
-/* ---------- Types ---------- */
+import {
+  THEMES,
+  TEMPLATE_DEFAULT_THEME,
+  type ThemeKey,
+} from "./resumeThemes";
 
-type AiResumeCandidate = {
-  summarySuggestions?: string[];
-  skills?: string[];
-  atsKeywords?: string[];
-  experienceBullets?: Array<{
-    sourceExperienceIndex: number;
-    company: string;
-    jobTitle: string;
-    bullets: string[];
-  }>;
-};
+import type {
+  LocationState,
+  SectionId,
+  SectionConfig,
+  ValidationSummary,
+  ExportFormat,
+  AiResumeCandidate,
+} from "./ResumeEditor.types";
+import { DEFAULT_SECTIONS } from "./ResumeEditor.types";
 
-type LocationState = {
-  ResumeId?: string | null;
-  template: { key: TemplateKey; title?: string };
-  resumeData?: {
-    filename: string;
-    templateKey: TemplateKey;
-    resumedata: ResumeData;
-    lastSaved: string | null;
-  };
-  // ai handling
-  AImode?: boolean;
-  AiResume?: {
-    parsedCandidates?: AiResumeCandidate[];
-    data?: AiResumeCandidate;
-  };
-};
+import {
+  createBaseResumeDefaults,
+  runResumeValidation,
+  exportResume,
+  safeGetUser,
+  loadContactFromProfile,
+  skillNamesToObjects,
+  skillsCsv,
+  normalizeSkillsForPreview,
+} from "./ResumeEditor.utils";
 
-type SectionKey =
-  | "header"
-  | "summary"
-  | "skills:add"
-  | "experience:add"
-  | "experience:edit"
-  | "education:add"
-  | "education:edit"
-  | "project:add"
-  | "project:edit";
+import { ValidationPanel } from "./ValidationPanel";
 
-type AnyIndex = { idx: number } | null;
-
-/* ---------- Helpers ---------- */
-
-function skillNamesToObjects(input: string): Array<{ name: string }> {
-  return input
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((name) => ({ name }));
-}
-
-function skillsCsv(data: ResumeData) {
-  return Array.isArray(data.skills)
-    ? data.skills
-        .map((s: any) => (typeof s === "string" ? s : s?.name))
-        .filter(Boolean)
-        .join(", ")
-    : "";
-}
-
-/* ---------- Component ---------- */
-
-export default function ResumeEditor() {
+const ResumeEditor: React.FC = () => {
   const navigate = useNavigate();
-  const state = useLocation().state as LocationState | null;
+  const location = useLocation();
+  const state = (location.state || null) as LocationState | null;
 
   const template = state?.template;
   const initialId = state?.ResumeId ?? null;
   const initialPayload = state?.resumeData;
 
-  // base defaults used when no resume payload exists
-  const baseDefaults: ResumeData = {
-    name: "Your Name",
-    summary: "",
-    experience: [],
-    education: [],
-    skills: [],
-    projects: [],
-    style: {
-      color: { primary: "#111827" },
-      font: { family: "Sans" },
-      layout: { columns: 1 },
-    },
-  };
+  // Guard: if someone hits this route directly with no template
+  useEffect(() => {
+    if (!template) {
+      navigate("/resumes", { replace: true });
+    }
+  }, [template, navigate]);
 
-  // ai handling: optional initial injection (kept minimal so we don't disrupt normal flow)
+  if (!template) {
+    return null;
+  }
+
+  /* Defaults */
+
+  const baseDefaults = createBaseResumeDefaults();
+
+  // Optional AI defaults (same idea as backup)
   let aiInjectedData: ResumeData | null = null;
+  let initialAiCandidates: AiResumeCandidate[] = [];
 
-  if (state?.AImode && state?.AiResume) {
-    const ai = state.AiResume;
+  if (state?.AImode && state.AiResume) {
+    const ai = state.AiResume as any;
 
-    const rawCandidate: Partial<ResumeData> | null =
+    const candidates: AiResumeCandidate[] =
       Array.isArray(ai.parsedCandidates) && ai.parsedCandidates.length > 0
-        ? (ai.parsedCandidates[0] as unknown as Partial<ResumeData>)
+        ? (ai.parsedCandidates as AiResumeCandidate[])
         : ai.data
-        ? (ai.data as unknown as Partial<ResumeData>)
-        : null;
+        ? [ai.data as AiResumeCandidate]
+        : [];
 
-    if (rawCandidate) {
-      aiInjectedData = {
-        ...baseDefaults,
-        ...rawCandidate,
-      };
+    if (candidates.length > 0) {
+      initialAiCandidates = candidates;
+      const rawCandidate = candidates[0] as unknown as Partial<ResumeData>;
+      aiInjectedData = { ...baseDefaults, ...rawCandidate };
     }
   }
 
-  useEffect(() => {
-    if (!template) navigate("/resumes", { replace: true });
-  }, [template, navigate]);
-  if (!template) return null;
+  /* State */
 
   const [resumeId, setResumeId] = useState<string | null>(initialId);
   const [filename, setFilename] = useState<string>(
@@ -145,43 +106,72 @@ export default function ResumeEditor() {
   const [lastSaved, setLastSaved] = useState<string | null>(
     initialPayload?.lastSaved || null
   );
-  const [error, setErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
+  const [sections, setSections] = useState<SectionConfig[]>(DEFAULT_SECTIONS);
+  const [draggingId, setDraggingId] = useState<SectionId | null>(null);
+
+  // Theme
+  const initialThemeKey: ThemeKey =
+    TEMPLATE_DEFAULT_THEME[template.key] || "classic";
+  const [themeKey, setThemeKey] = useState<ThemeKey>(initialThemeKey);
+  const theme = THEMES[themeKey];
+
+  // Validation
+  const [validation, setValidation] = useState<ValidationSummary | null>(null);
+  const [lastValidatedAt, setLastValidatedAt] = useState<string | null>(null);
+
+  // AI variants (for suggestions UI)
+  const [aiVars, setAiVars] = useState<AiResumeCandidate[]>(
+    initialAiCandidates
+  );
+  const [aiIdx, setAiIdx] = useState(0);
+
+  // Jobs / AI
   const { jobs, loading: jobsLoading, err: jobsError, isLoggedIn } = useJobs();
-
   const [showJobPicker, setShowJobPicker] = useState(false);
   const [showMiniForm, setShowMiniForm] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  const safeGetUser = () => {
-    const raw = localStorage.getItem("authUser");
-    if (!raw) throw new Error("Not signed in (authUser missing).");
-    const parsed = JSON.parse(raw);
-    const u = parsed.user || parsed;
-    if (!u?._id) throw new Error("authUser is missing _id.");
-    return u;
-  };
+  /* Derived */
 
-  // reload by id on hard refresh
-  useEffect(() => {
-    (async () => {
-      if (!resumeId) return;
-      try {
-        const raw = localStorage.getItem("authUser");
-        const u = raw ? JSON.parse(raw) : null;
-        const uid = u?.user?._id ?? u?._id ?? null;
-        if (!uid) throw new Error("Missing user session");
-        const full = await getFullResume({ userid: uid, resumeid: resumeId });
-        setFilename(full.filename || "Untitled");
-        setData(full.resumedata || data);
-        setLastSaved(full.lastSaved || null);
-      } catch (e: any) {
-        setErr(e?.message ?? "Failed to reload resume.");
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeId]);
+  const visibleSectionIds = useMemo(
+    () => sections.filter((s) => s.enabled).map((s) => s.id),
+    [sections]
+  );
+
+  const previewData: ResumeData = useMemo(() => {
+    const clone: ResumeData = { ...data };
+
+    if (!visibleSectionIds.includes("summary")) clone.summary = "";
+    if (!visibleSectionIds.includes("skills")) {
+      clone.skills = [];
+    } else {
+      clone.skills = normalizeSkillsForPreview(clone.skills);
+    }
+    if (!visibleSectionIds.includes("experience")) clone.experience = [];
+    if (!visibleSectionIds.includes("education")) clone.education = [];
+    if (!visibleSectionIds.includes("projects")) clone.projects = [];
+
+    return clone;
+  }, [data, visibleSectionIds]);
+
+  const activeCandidate =
+    aiVars.length > 0
+      ? aiVars[Math.min(aiIdx, aiVars.length - 1)]
+      : undefined;
+
+  const combinedSkills: string[] =
+    activeCandidate && (activeCandidate.skills || activeCandidate.atsKeywords)
+      ? Array.from(
+          new Set([
+            ...(activeCandidate.skills || []),
+            ...(activeCandidate.atsKeywords || []),
+          ])
+        )
+      : [];
 
   const Preview = useMemo(
     () => resumePreviewRegistry[template.key],
@@ -191,498 +181,219 @@ export default function ResumeEditor() {
     () => resumePdfRegistry[template.key],
     [template.key]
   );
-  const pdfDoc = useMemo(() => <PdfComp data={data} />, [PdfComp, data]);
 
-  /* ---------- Edit State ---------- */
+  const pdfDoc = useMemo(
+    () => <PdfComp data={data} />,
+    [PdfComp, data, themeKey]
+  );
 
-  const [editing, setEditing] = useState<SectionKey | null>(null);
-  const [targetIndex, setTargetIndex] = useState<AnyIndex>(null);
+  /* Section controls */
 
-  /* ---------- List Mutators ---------- */
-
-  // Experience
-  function addExperience(item: any) {
-    setData((d) => ({
-      ...d,
-      experience: [...(d.experience || []), item],
-    }));
-  }
-  function updateExperience(idx: number, patch: any) {
-    setData((d) => {
-      const arr = [...(d.experience || [])];
-      arr[idx] = { ...arr[idx], ...patch };
-      return { ...d, experience: arr };
-    });
-  }
-  function removeExperience(idx: number) {
-    setData((d) => {
-      const arr = [...(d.experience || [])];
-      arr.splice(idx, 1);
-      return { ...d, experience: arr };
-    });
-  }
-
-  // Education
-  function addEducation(item: any) {
-    setData((d) => ({
-      ...d,
-      education: [...(d.education || []), item],
-    }));
-  }
-  function updateEducation(idx: number, patch: any) {
-    setData((d) => {
-      const arr = [...(d.education || [])];
-      arr[idx] = { ...arr[idx], ...patch };
-      return { ...d, education: arr };
-    });
-  }
-  function removeEducation(idx: number) {
-    setData((d) => {
-      const arr = [...(d.education || [])];
-      arr.splice(idx, 1);
-      return { ...d, education: arr };
-    });
-  }
-
-  // Projects
-  function addProject(item: any) {
-    setData((d) => ({
-      ...d,
-      projects: [...(d.projects || []), item],
-    }));
-  }
-  function updateProject(idx: number, patch: any) {
-    setData((d) => {
-      const arr = [...(d.projects || [])];
-      arr[idx] = { ...arr[idx], ...patch };
-      return { ...d, projects: arr };
-    });
-  }
-  function removeProject(idx: number) {
-    setData((d) => {
-      const arr = [...(d.projects || [])];
-      arr.splice(idx, 1);
-      return { ...d, projects: arr };
-    });
-  }
-
-  // Skills
-  function addSkill(name: string) {
-    if (!name.trim()) return;
-    setData((d) => ({
-      ...d,
-      skills: [...(d.skills || []), { name: name.trim() }],
-    }));
-  }
-  function removeSkill(i: number) {
-    setData((d) => {
-      const arr = [...(d.skills || [])];
-      arr.splice(i, 1);
-      return { ...d, skills: arr };
-    });
-  }
-
-  /* ---------- Forms ---------- */
-
-  const EditorForm = () => {
-    if (!editing) return null;
-
-    // Header
-    if (editing === "header") {
-      const [name, setName] = useState(String(data.name || ""));
-      return (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setData((d) => ({ ...d, name }));
-            setEditing(null);
-          }}
-          className="space-y-3"
-        >
-          <label className="block">
-            <span className="text-sm font-medium">Name</span>
-            <input
-              className="mt-1 w-full rounded border px-3 py-2"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              className="px-4 py-2 rounded bg-gray-100"
-              onClick={() => setEditing(null)}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded bg-emerald-600 text-white"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      );
-    }
-
-    // Summary
-    if (editing === "summary") {
-      const [summary, setSummary] = useState(String(data.summary || ""));
-      return (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setData((d) => ({ ...d, summary }));
-            setEditing(null);
-          }}
-          className="space-y-3"
-        >
-          <label className="block">
-            <span className="text-sm font-medium">Summary</span>
-            <textarea
-              className="mt-1 w-full rounded border px-3 py-2 h-36"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-            />
-          </label>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              className="px-4 py-2 rounded bg-gray-100"
-              onClick={() => setEditing(null)}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded bg-emerald-600 text-white"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      );
-    }
-
-    // Skills: add via CSV
-    if (editing === "skills:add") {
-      const [csv, setCsv] = useState(skillsCsv(data));
-      return (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setData((d) => ({ ...d, skills: skillNamesToObjects(csv) }));
-            setEditing(null);
-          }}
-          className="space-y-3"
-        >
-          <label className="block">
-            <span className="text-sm font-medium">Skills (comma-separated)</span>
-            <input
-              className="mt-1 w-full rounded border px-3 py-2"
-              value={csv}
-              onChange={(e) => setCsv(e.target.value)}
-            />
-          </label>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              className="px-4 py-2 rounded bg-gray-100"
-              onClick={() => setEditing(null)}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded bg-emerald-600 text-white"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      );
-    }
-
-    // Experience: add & edit share the same form
-    if (editing === "experience:add" || editing === "experience:edit") {
-      const idx = (targetIndex as AnyIndex)?.idx ?? -1;
-      const initial =
-        editing === "experience:edit" && data.experience && data.experience[idx]
-          ? data.experience[idx]
-          : {};
-      const [company, setCompany] = useState(initial.company || "");
-      const [jobTitle, setJobTitle] = useState(initial.jobTitle || "");
-      const [startDate, setStartDate] = useState(initial.startDate || "");
-      const [endDate, setEndDate] = useState(initial.endDate || "");
-      const [location, setLocation] = useState(initial.location || "");
-      const [highlights, setHighlights] = useState(
-        Array.isArray(initial.highlights) ? initial.highlights.join("\n") : ""
-      );
-
-      return (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const item = {
-              company,
-              jobTitle,
-              startDate,
-              endDate: endDate || null,
-              location,
-              highlights: (typeof highlights === "string" ? highlights : "")
-                .split("\n")
-                .map((h) => String(h).trim())
-                .filter(Boolean),
-            };
-            if (editing === "experience:add") addExperience(item);
-            else updateExperience(idx, item);
-            setEditing(null);
-            setTargetIndex(null);
-          }}
-          className="space-y-3"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-sm font-medium">Company</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Job Title</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Start</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                placeholder="YYYY-MM"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">End (optional)</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                placeholder="YYYY-MM or blank"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </label>
-            <label className="block md:col-span-2">
-              <span className="text-sm font-medium">Location (optional)</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-            </label>
-            <label className="block md:col-span-2">
-              <span className="text-sm font-medium">Highlights (one per line)</span>
-              <textarea
-                className="mt-1 w-full rounded border px-3 py-2 h-28"
-                value={highlights}
-                onChange={(e) => setHighlights(e.target.value)}
-              />
-            </label>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              className="px-4 py-2 rounded bg-gray-100"
-              onClick={() => {
-                setEditing(null);
-                setTargetIndex(null);
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded bg-emerald-600 text-white"
-            >
-              {editing === "experience:add" ? "Add" : "Save"}
-            </button>
-          </div>
-        </form>
-      );
-    }
-
-    // Education: add & edit
-    if (editing === "education:add" || editing === "education:edit") {
-      const idx = (targetIndex as AnyIndex)?.idx ?? -1;
-      const initial =
-        editing === "education:edit" && data.education && data.education[idx]
-          ? data.education[idx]
-          : {};
-      const [institution, setInstitution] = useState(initial.institution || "");
-      const [degree, setDegree] = useState(initial.degree || "");
-      const [fieldOfStudy, setFieldOfStudy] = useState(
-        initial.fieldOfStudy || ""
-      );
-      const [graduationDate, setGraduationDate] = useState(
-        initial.graduationDate || ""
-      );
-
-      return (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const item = { institution, degree, fieldOfStudy, graduationDate };
-            if (editing === "education:add") addEducation(item);
-            else updateEducation(idx, item);
-            setEditing(null);
-            setTargetIndex(null);
-          }}
-          className="space-y-3"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-sm font-medium">Institution</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={institution}
-                onChange={(e) => setInstitution(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Degree</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={degree}
-                onChange={(e) => setDegree(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Field of study</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                value={fieldOfStudy}
-                onChange={(e) => setFieldOfStudy(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Graduation date</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2"
-                placeholder="YYYY-MM"
-                value={graduationDate}
-                onChange={(e) => setGraduationDate(e.target.value)}
-              />
-            </label>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              className="px-4 py-2 rounded bg-gray-100"
-              onClick={() => {
-                setEditing(null);
-                setTargetIndex(null);
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded bg-emerald-600 text-white"
-            >
-              {editing === "education:add" ? "Add" : "Save"}
-            </button>
-          </div>
-        </form>
-      );
-    }
-
-    // Projects: add & edit
-    const idx = (targetIndex as AnyIndex)?.idx ?? -1;
-    const initial =
-      editing === "project:edit" && data.projects && data.projects[idx]
-        ? data.projects[idx]
-        : {};
-    const [name, setName] = useState(initial.name || "");
-    const [technologies, setTechnologies] = useState(
-      initial.technologies || ""
+  function toggleSectionEnabled(id: SectionId) {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === id ? { ...s, enabled: !s.enabled } : { ...s }
+      )
     );
-    const [outcomes, setOutcomes] = useState(initial.outcomes || "");
+  }
 
-    return (
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const item = { name, technologies, outcomes };
-          if (editing === "project:add") addProject(item);
-          else updateProject(idx, item);
-          setEditing(null);
-          setTargetIndex(null);
-        }}
-        className="space-y-3"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-sm font-medium">Project name</span>
-            <input
-              className="mt-1 w-full rounded border px-3 py-2"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">Technologies</span>
-            <input
-              className="mt-1 w-full rounded border px-3 py-2"
-              value={technologies}
-              onChange={(e) => setTechnologies(e.target.value)}
-            />
-          </label>
-          <label className="block md:col-span-2">
-            <span className="text-sm font-medium">Outcomes / notes</span>
-            <textarea
-              className="mt-1 w-full rounded border px-3 py-2 h-24"
-              value={outcomes}
-              onChange={(e) => setOutcomes(e.target.value)}
-            />
-          </label>
-        </div>
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            className="px-4 py-2 rounded bg-gray-100"
-            onClick={() => {
-              setEditing(null);
-              setTargetIndex(null);
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 rounded bg-emerald-600 text-white"
-          >
-            {editing === "project:add" ? "Add" : "Save"}
-          </button>
-        </div>
-      </form>
-    );
+  function handleDragStart(id: SectionId) {
+    setDraggingId(id);
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
+
+  function handleDrop(id: SectionId) {
+    setSections((prev) => {
+      if (!draggingId || draggingId === id) return prev;
+
+      const items = [...prev];
+      const fromIndex = items.findIndex((s) => s.id === draggingId);
+      const toIndex = items.findIndex((s) => s.id === id);
+      if (fromIndex === -1 || toIndex === -1) return prev;
+
+      const [moved] = items.splice(fromIndex, 1);
+      items.splice(toIndex, 0, moved);
+      return items;
+    });
+    setDraggingId(null);
+  }
+
+  /* Simple mutators */
+
+  const handleNameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setData((d) => ({ ...d, name: value }));
   };
 
-  /* ---------- Actions ---------- */
+  const handleContactChange =
+    (field: keyof ContactInfo) => (e: ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setData((d) => ({
+        ...d,
+        contact: {
+          ...(d.contact || {}),
+          [field]: value,
+        },
+      }));
+    };
+
+  const handleSummaryChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setData((d) => ({ ...d, summary: value }));
+  };
+
+  const replaceSummary = (summary: string) => {
+    setData((d) => ({ ...d, summary }));
+  };
+
+  const handleSkillsChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const parsed = skillNamesToObjects(value);
+    setData((d) => ({ ...d, skills: parsed }));
+  };
+
+  // Experience
+  const addExperience = () => {
+    setData((d) => ({
+      ...d,
+      experience: [
+        ...(d.experience || []),
+        {
+          company: "",
+          jobTitle: "",
+          startDate: "",
+          endDate: null,
+          location: "",
+          highlights: [],
+        } as any,
+      ],
+    }));
+  };
+
+  const updateExperienceField =
+    (idx: number, field: string) =>
+    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const value = e.target.value;
+      setData((d) => {
+        const arr = [...(d.experience || [])] as any[];
+        const target = { ...(arr[idx] || {}) };
+
+        if (field === "highlights") {
+          target.highlights = value
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        } else {
+          (target as any)[field] = value;
+        }
+
+        arr[idx] = target;
+        return { ...d, experience: arr };
+      });
+    };
+
+  const removeExperience = (idx: number) => {
+    setData((d) => {
+      const arr = [...(d.experience || [])];
+      arr.splice(idx, 1);
+      return { ...d, experience: arr };
+    });
+  };
+
+  // Education
+  const addEducation = () => {
+    setData((d) => ({
+      ...d,
+      education: [
+        ...(d.education || []),
+        {
+          institution: "",
+          degree: "",
+          fieldOfStudy: "",
+          graduationDate: "",
+        } as any,
+      ],
+    }));
+  };
+
+  const updateEducationField =
+    (idx: number, field: string) =>
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setData((d) => {
+        const arr = [...(d.education || [])] as any[];
+        const target = { ...(arr[idx] || {}) };
+        (target as any)[field] = value;
+        arr[idx] = target;
+        return { ...d, education: arr };
+      });
+    };
+
+  const removeEducation = (idx: number) => {
+    setData((d) => {
+      const arr = [...(d.education || [])];
+      arr.splice(idx, 1);
+      return { ...d, education: arr };
+    });
+  };
+
+  // Projects
+  const addProject = () => {
+    setData((d) => ({
+      ...d,
+      projects: [
+        ...(d.projects || []),
+        {
+          name: "",
+          technologies: "",
+          outcomes: "",
+        } as any,
+      ],
+    }));
+  };
+
+  const updateProjectField =
+    (idx: number, field: string) =>
+    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const value = e.target.value;
+      setData((d) => {
+        const arr = [...(d.projects || [])] as any[];
+        const target = { ...(arr[idx] || {}) };
+        (target as any)[field] = value;
+        arr[idx] = target;
+        return { ...d, projects: arr };
+      });
+    };
+
+  const removeProject = (idx: number) => {
+    setData((d) => {
+      const arr = [...(d.projects || [])];
+      arr.splice(idx, 1);
+      return { ...d, projects: arr };
+    });
+  };
+
+  /* Validation */
+
+  const handleRunValidation = () => {
+    const v = runResumeValidation(data);
+    setValidation(v);
+    setLastValidatedAt(new Date().toISOString());
+  };
+
+  /* Save / export */
 
   const handleSave = async () => {
     try {
-      setErr(null);
-      const raw = localStorage.getItem("authUser");
-      const u = raw ? JSON.parse(raw) : null;
-      const uid = u?.user?._id ?? u?._id ?? null;
-      if (!uid) throw new Error("Missing user session");
-      const ts = new Date().toLocaleTimeString();
+      setIsSaving(true);
+      setError(null);
+
+      const user = safeGetUser();
+      const uid = user._id;
+      const ts = new Date().toISOString();
 
       if (!resumeId) {
         const created = await saveResume({
@@ -692,9 +403,11 @@ export default function ResumeEditor() {
           resumedata: data,
           lastSaved: ts,
         });
-        setResumeId(created?._id || created?.resumeid || null);
+        const id =
+          (created as any)?._id || (created as any)?.resumeid || null;
+        setResumeId(id);
         setLastSaved(ts);
-        alert("Saved.");
+        alert("Resume saved.");
       } else {
         await updateResume({
           resumeid: resumeId,
@@ -705,611 +418,982 @@ export default function ResumeEditor() {
           templateKey: template.key,
         });
         setLastSaved(ts);
-        alert("Updated.");
+        alert("Resume updated.");
       }
     } catch (e: any) {
-      setErr(e?.message ?? "Save failed.");
+      console.error(e);
+      setError(e?.message ?? "Save failed.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleSaveAndGoBack = async () => {
-  await handleSave();       // reuse your existing save logic
-  navigate("/resumes");     // then go back to the list
-};
-
-  const handleShare = async () => {
-    try {
-      const raw = localStorage.getItem("authUser");
-      const u = raw ? JSON.parse(raw) : null;
-      const uid = u?.user?._id ?? u?._id ?? null;
-      if (!uid || !resumeId) throw new Error("Missing session or resume id");
-      const out = await createSharedResume({
-        userid: uid,
-        resumeid: resumeId,
-        resumedata: data,
-      });
-      await navigator.clipboard.writeText(out.url);
-      alert("Share link copied!");
-    } catch (e: any) {
-      setErr(e?.message ?? "Share failed.");
-    }
+  const handleSaveAndBack = async () => {
+    await handleSave();
+    navigate("/resumes");
   };
 
-  const handleExport = () => {
-    const payload = {
+  const handleExport = async (format: ExportFormat) => {
+    await exportResume({
+      format,
       filename,
       templateKey: template.key,
-      resumedata: { ...data },
+      data,
       lastSaved,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
+      pdfDoc,
+      onError: (msg) => setError(msg),
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename || "resume"}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
-  /* ---------- ai handling: load variations from navigation ---------- */
+  /* AI helpers – same applyAiCandidate/runAiWithJob logic as backup,
+     plus tracking multiple variants for the suggestions UI. */
 
-  const AImode = state?.AImode;
-  const AiResume = state?.AiResume;
+  function applyAiCandidate(candidate: AiResumeCandidate) {
+    setData((d) => {
+      const next: ResumeData = { ...d };
+      const exp = [...(next.experience || [])] as any[];
 
-  const [aiVars, setAiVars] = useState<AiResumeCandidate[] | null>(null);
-  const [aiIdx, setAiIdx] = useState(0);
+      // Experience bullets → merge into experience
+      if (Array.isArray(candidate.experienceBullets)) {
+        candidate.experienceBullets.forEach((eb) => {
+          const rawIdx = Number(eb?.sourceExperienceIndex ?? -1);
+          const idx = rawIdx >= 0 ? rawIdx : exp.length;
 
-  useEffect(() => {
-    if (!AImode || !AiResume) return;
-    const arr =
-      AiResume.parsedCandidates && AiResume.parsedCandidates.length
-        ? AiResume.parsedCandidates
-        : AiResume.data
-        ? [AiResume.data]
-        : [];
-    if (arr.length) {
-      setAiVars(arr);
-      setAiIdx(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [AImode, AiResume]);
+          const startFromEb = eb.startDate || "";
+          const endFromEb = eb.endDate || "";
+          const locFromEb = eb.location || "";
 
-  // ai handling: apply bullets + skills
-  function applyAiCandidate(c: AiResumeCandidate) {
-  setData((d) => {
-    const next: ResumeData = { ...d };
+          if (!exp[idx]) {
+            exp[idx] = {
+              company: eb.company || "",
+              jobTitle: eb.jobTitle || "",
+              startDate: startFromEb,
+              endDate: endFromEb,
+              location: locFromEb,
+              highlights: [],
+            };
+          }
 
-    /* ---- 1. Ensure experience entries exist and attach bullets ---- */
-    const exp = [...(next.experience || [])];
+          const existingHighlights = Array.isArray(exp[idx].highlights)
+            ? [...exp[idx].highlights]
+            : [];
 
-    for (const eb of c.experienceBullets || []) {
-      // Prefer the provided index, but fall back to "append" if it’s bad
-      const rawIdx = Number(eb.sourceExperienceIndex ?? -1);
-      const idx = rawIdx >= 0 ? rawIdx : exp.length;
+          for (const b of eb.bullets || []) {
+            if (!existingHighlights.includes(b)) existingHighlights.push(b);
+          }
 
-      // Create a skeleton experience row if it doesn't exist yet
-      if (!exp[idx]) {
-        exp[idx] = {
-          company: eb.company || "",
-          jobTitle: eb.jobTitle || "",
-          startDate: "",
-          endDate: null,
-          location: "",
-          highlights: [],
-        };
+          exp[idx] = {
+            ...exp[idx],
+            company: exp[idx].company || eb.company || "",
+            jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
+            startDate: exp[idx].startDate || startFromEb,
+            endDate:
+              exp[idx].endDate !== null && exp[idx].endDate !== undefined
+                ? exp[idx].endDate
+                : endFromEb,
+            location: exp[idx].location || locFromEb,
+            highlights: existingHighlights,
+          };
+        });
       }
 
-      const existingHighlights = Array.isArray(exp[idx].highlights)
-        ? [...exp[idx].highlights]
-        : [];
+      next.experience = exp;
 
-      for (const b of eb.bullets || []) {
-        if (!existingHighlights.includes(b)) {
-          existingHighlights.push(b);
-        }
+      // Skills / ATS keywords → merge into skills array
+      const have = new Set(
+        (next.skills || [])
+          .map((s: any) => (typeof s === "string" ? s : s?.name))
+          .filter(Boolean)
+      );
+      const incoming = [
+        ...(candidate.skills || []),
+        ...(candidate.atsKeywords || []),
+      ];
+      const toAdd = incoming.filter(
+        (s: string) => s && !have.has(String(s))
+      );
+      next.skills = [
+        ...(next.skills || []),
+        ...toAdd.map((name: string) => ({ name })),
+      ];
+
+      // Summary suggestion – only if we don’t already have one
+      if (
+        (!next.summary || !String(next.summary).trim()) &&
+        Array.isArray(candidate.summarySuggestions) &&
+        candidate.summarySuggestions.length > 0
+      ) {
+        next.summary = candidate.summarySuggestions[0];
       }
 
-      exp[idx] = {
-        ...exp[idx],
-        company: exp[idx].company || eb.company || "",
-        jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
-        highlights: existingHighlights,
-      };
-    }
-
-    next.experience = exp;
-
-    /* ---- 2. Merge skills (and keep them editable in the form) ---- */
-    const have = new Set(
-      (next.skills || [])
-        .map((s: any) => (typeof s === "string" ? s : s?.name))
-        .filter(Boolean)
-    );
-
-    const fromSkills = c.skills || [];
-    const fromAts = c.atsKeywords || []; // treat ATS keywords like extra skills
-    const incoming = [...fromSkills, ...fromAts];
-
-    const toAdd = incoming.filter((s) => s && !have.has(s));
-    next.skills = [
-      ...(next.skills || []),
-      ...toAdd.map((name) => ({ name })),
-    ];
-
-    /* ---- 3. Auto-fill summary if it's empty ---- */
-    if (
-      (!next.summary || !String(next.summary).trim()) &&
-      c.summarySuggestions &&
-      c.summarySuggestions.length > 0
-    ) {
-      next.summary = c.summarySuggestions[0];
-    }
-
-    return next;
-  });
-}
-
-  // ai handling: replace summary quickly
-  function replaceSummary(s: string) {
-    setData((d) => ({ ...d, summary: s }));
-  }
-
-    // ----- Re-generate with AI: button opens job picker -----
-  function handleRegenAI() {
-    if (!isLoggedIn) {
-      navigate("/login", { state: { flash: "Please log in to use AI." } });
-      return;
-    }
-    setAiError(null);
-    setShowJobPicker(true);
+      return next;
+    });
   }
 
   async function runAiWithJob(jobOrDraft: Job | JobDraft) {
-    setAiError(null);
-    setAiLoading(true);
     try {
+      setAiError(null);
+      setAiLoading(true);
+
       const user = safeGetUser();
-      const ai = await GetAiResumeContent({
+      console.log("[AI] Calling GetAiResumeContent with job/draft:", jobOrDraft);
+
+      const result: any = await GetAiResumeContent({
         userid: user._id,
         Jobdata: jobOrDraft,
       });
 
-      // Normalize candidates: parsedCandidates[] or single data
-      const arr =
-        (ai && Array.isArray(ai.parsedCandidates) && ai.parsedCandidates.length
-          ? ai.parsedCandidates
-          : ai?.data
-          ? [ai.data]
-          : []) as AiResumeCandidate[];
+      // 🔍 Log raw AI result
+      console.log("[AI] Raw GetAiResumeContent result:", result);
 
-      if (arr.length) {
-        // update variations panel
+      const arr: AiResumeCandidate[] =
+        result && Array.isArray(result.parsedCandidates)
+          ? (result.parsedCandidates as AiResumeCandidate[])
+          : result?.data
+          ? [result.data as AiResumeCandidate]
+          : [];
+
+      // 🔍 Log parsed candidates + first candidate’s experience bullets
+      console.log("[AI] Parsed candidates array:", arr);
+      if (arr[0]) {
+        console.log(
+          "[AI] First candidate experienceBullets:",
+          arr[0].experienceBullets
+        );
+      }
+
+      if (arr.length > 0) {
         setAiVars(arr);
         setAiIdx(0);
-
-        const first = arr[0];
-
-        // apply bullets + skills into current resume
-        applyAiCandidate(first);
-
-        // if AI gave us a summary, use the first one
-        if (first.summarySuggestions && first.summarySuggestions.length > 0) {
-          replaceSummary(first.summarySuggestions[0]);
-        }
+        // 🔍 Log before applying the first candidate
+        console.log("[AI] Applying first candidate:", arr[0]);
+        applyAiCandidate(arr[0]);
+      } else {
+        setAiVars([]);
+        setAiError("AI did not return any candidates.");
+        console.warn("[AI] No candidates returned from GetAiResumeContent");
       }
     } catch (e: any) {
-      setAiError(e?.message ?? String(e));
+      console.error("[AI] Error from GetAiResumeContent:", e);
+      setAiError(e?.message ?? "AI generation failed.");
     } finally {
       setAiLoading(false);
     }
   }
 
-  // Job picker -> use saved job
+  const handlePrevAiVariant = () => {
+    setAiIdx((idx) =>
+      aiVars.length === 0 ? 0 : (idx - 1 + aiVars.length) % aiVars.length
+    );
+  };
+
+  const handleNextAiVariant = () => {
+    setAiIdx((idx) =>
+      aiVars.length === 0 ? 0 : (idx + 1) % aiVars.length
+    );
+  };
+
+  const handleClickGenerateWithAI = () => {
+    if (!isLoggedIn) {
+      navigate("/login", {
+        state: { flash: "Please log in to use AI resume suggestions." },
+      });
+      return;
+    }
+    setAiError(null);
+    setShowJobPicker(true);
+  };
+
   const handlePickJob = async (job: Job) => {
     setShowJobPicker(false);
     await runAiWithJob(job);
   };
 
-  // Switch from picker -> mini job form
   const handleEnterJobManual = () => {
     setShowJobPicker(false);
     setShowMiniForm(true);
   };
 
-  // Mini job form submit
   const handleMiniFormSubmit = async (draft: JobDraft) => {
     setShowMiniForm(false);
     await runAiWithJob(draft);
   };
 
+  /* JSX */
 
-  /* ---------- UI ---------- */
+  const contact = (data.contact || {}) as ContactInfo;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold mb-2">Resume Editor</h1>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button onClick={handleShare}>Share</Button>
-          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-            File name:
-          </label>
+    <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
+      {/* Top bar */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Edit Resume – {template.key.toUpperCase()}
+          </h1>
+          <p className="text-sm text-gray-500">
+            Fine-tune your resume content, run checks, and export to multiple
+            formats.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
           <input
-            className="flex-1 max-w-md rounded border px-3 py-2 text-sm"
+            type="text"
+            className="border rounded px-2 py-1 text-sm"
             value={filename}
             onChange={(e) => setFilename(e.target.value)}
+            placeholder="Filename"
           />
-          <div className="flex-1" />
-          {error ? (
-            <span className="text-xs text-red-500">Error: {error}</span>
-          ) : (
-            lastSaved && (
-              <span className="text-xs text-gray-500">Saved {lastSaved}</span>
-            )
-          )}
-          <Button onClick={handleSaveAndGoBack}>Save</Button>
-          <Button onClick={handleExport}>Export</Button>
-          <Button onClick={handleRegenAI}>Regenerate with AI</Button>
+          <Button
+            type="button"
+            onClick={handleRunValidation}
+            className="text-xs px-3 py-1"
+          >
+            Run Checks
+          </Button>
+          <Button
+            type="button"
+            onClick={handleClickGenerateWithAI}
+            className="text-xs px-3 py-1"
+          >
+            Regenerate with AI
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="text-xs px-3 py-1"
+          >
+            {isSaving ? "Saving..." : "Save"}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSaveAndBack}
+            className="text-xs px-3 py-1"
+          >
+            Save &amp; Back
+          </Button>
         </div>
       </div>
 
-      <p className="text-gray-600 mb-4">
-        Loaded template: <strong>{template.title || template.key}</strong>
-      </p>
-
-      {/* ai handling: variations panel */}
-      {aiVars && aiVars.length > 0 && (
-        <div className="mb-8 border border-emerald-200 rounded-lg p-5 bg-emerald-50">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">
-              AI suggestions ({aiVars.length} variation
-              {aiVars.length > 1 ? "s" : ""})
-            </h2>
-            <div className="flex gap-2">
-              {aiVars.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setAiIdx(i)}
-                  className={`text-xs px-2 py-1 rounded ${
-                    i === aiIdx
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white border"
-                  }`}
-                >
-                  #{i + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="rounded bg-white border p-3">
-              <div className="font-medium mb-1">Suggested Summary</div>
-              {(aiVars[aiIdx].summarySuggestions || []).length ? (
-                <ul className="list-disc pl-5 space-y-1">
-                  {aiVars[aiIdx].summarySuggestions!.map((s, i) => (
-                    <li key={i} className="text-sm">
-                      {s}{" "}
-                      <button
-                        className="text-emerald-700 underline ml-2"
-                        onClick={() => replaceSummary(s)}
-                      >
-                        Use
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-sm text-gray-600">
-                  No summary suggestions in this variation.
-                </div>
-              )}
-            </div>
-
-            <div className="rounded bg-white border p-3">
-              <div className="font-medium mb-1">Suggested Skills</div>
-              <div className="flex flex-wrap gap-2">
-                {(aiVars[aiIdx].skills || []).map((s, i) => (
-                  <span
-                    key={i}
-                    className="text-xs border rounded-full px-3 py-1 bg-white"
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 rounded bg-white border p-3">
-            <div className="font-medium mb-2">
-              Tailored Bullets (by experience index)
-            </div>
-            <div className="space-y-3">
-              {(aiVars[aiIdx].experienceBullets || []).map((eb, i) => (
-                <div key={i} className="text-sm">
-                  <div className="font-semibold">
-                    [#{eb.sourceExperienceIndex}] {eb.jobTitle} @ {eb.company}
-                  </div>
-                  <ul className="list-disc pl-5">
-                    {eb.bullets.map((b, j) => (
-                      <li key={j}>{b}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 flex items-center gap-3">
-              <button
-                className="px-4 py-2 rounded bg-emerald-600 text-white"
-                onClick={() => applyAiCandidate(aiVars[aiIdx])}
-              >
-                Apply this variation
-              </button>
-              <div className="text-xs text-gray-600">
-                (Adds bullets to matching experiences and merges suggested
-                skills.)
-              </div>
-            </div>
-          </div>
+      {/* Status */}
+      {error && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+          {error}
+        </div>
+      )}
+      {lastSaved && (
+        <div className="text-xs text-gray-500">
+          Last saved: {new Date(lastSaved).toLocaleString()}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* LEFT: editors + lists */}
-        <div className="space-y-6">
-          <div>
-            <h2 className="font-semibold mb-2 text-center">Quick Editors</h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("header")}
-              >
-                Edit Name
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("summary")}
-              >
-                Edit Summary
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("skills:add")}
-              >
-                Edit Skills
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("experience:add")}
-              >
-                Add Experience
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("education:add")}
-              >
-                Add Education
-              </button>
-              <button
-                className="rounded px-3 py-1 text-xs border hover:bg-gray-50"
-                onClick={() => setEditing("project:add")}
-              >
-                Add Project
-              </button>
-            </div>
-            {editing && (
-              <div className="rounded border p-4 mt-3">
-                <EditorForm />
+      {/* Main layout: left editors, right theme + preview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* Left: editors */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Quality checks — now using ValidationPanel */}
+          <ValidationPanel
+            validation={validation}
+            lastValidatedAt={lastValidatedAt}
+            onRunChecks={handleRunValidation}
+          />
+
+          {/* AI suggestions panel */}
+          {aiVars.length > 0 && activeCandidate && (
+            <div className="border rounded-lg p-4 space-y-3 bg-indigo-50/40">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-800">
+                    AI suggestions — Summary, skills, and bullet points
+                  </h2>
+                  <p className="text-[11px] text-gray-600">
+                    Browse AI-generated variations and apply the parts you like
+                    to your resume.
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="text-gray-600">
+                      Variation {aiIdx + 1} of {aiVars.length}
+                    </span>
+                    <div className="inline-flex rounded border overflow-hidden bg-white">
+                      <button
+                        type="button"
+                        onClick={handlePrevAiVariant}
+                        className="px-2 py-1 text-xs hover:bg-gray-50"
+                      >
+                        ◀
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleNextAiVariant}
+                        className="px-2 py-1 text-xs hover:bg-gray-50 border-l"
+                      >
+                        ▶
+                      </button>
+                    </div>
+                  </div>
+                  {aiLoading && (
+                    <span className="text-[11px] text-indigo-700">
+                      Generating…
+                    </span>
+                  )}
+                  {aiError && (
+                    <span className="text-[11px] text-red-600">{aiError}</span>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* Skills chip editor */}
-          <div className="rounded border p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium">Skills</h3>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget as HTMLFormElement;
-                  const inp = form.elements.namedItem(
-                    "newSkill"
-                  ) as HTMLInputElement;
-                  addSkill(inp.value);
-                  inp.value = "";
-                }}
-                className="flex gap-2"
-              >
-                <input
-                  name="newSkill"
-                  placeholder="Add a skill"
-                  className="rounded border px-2 py-1 text-sm"
-                />
-                <button className="rounded px-3 py-1 text-xs border hover:bg-gray-50">
-                  Add
-                </button>
-              </form>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(data.skills || []).map((s: any, i: number) => {
-                const label = typeof s === "string" ? s : s?.name;
-                return (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
-                  >
-                    {label}
-                    <button
-                      className="text-gray-500 hover:text-red-600"
-                      onClick={() => removeSkill(i)}
-                      title="Remove"
-                    >
-                      ✕
-                    </button>
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Experience list */}
-          <div className="rounded border p-4">
-            <h3 className="font-medium mb-2">Experience</h3>
-            <ul className="space-y-2">
-              {(data.experience || []).map((e: any, i: number) => (
-                <li
-                  key={i}
-                  className="text-sm flex items-start justify-between gap-3"
-                >
-                  <div>
-                    <div className="font-medium">
-                      {(e?.jobTitle || "Title")} • {(e?.company || "Company")}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {(e?.startDate || "")} – {(e?.endDate || "Present")}
-                      {e?.location ? ` • ${e.location}` : ""}
-                    </div>
-                  </div>
-                  <div className="shrink-0 flex gap-2">
-                    <button
-                      className="text-xs underline"
-                      onClick={() => {
-                        setTargetIndex({ idx: i });
-                        setEditing("experience:edit");
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-xs text-red-600 underline"
-                      onClick={() => removeExperience(i)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-              {(data.experience || []).length === 0 && (
-                <li className="text-xs text-gray-500">
-                  No experience added yet.
-                </li>
-              )}
-            </ul>
-          </div>
-
-          {/* Education list */}
-          <div className="rounded border p-4">
-            <h3 className="font-medium mb-2">Education</h3>
-            <ul className="space-y-2">
-              {(data.education || []).map((ed: any, i: number) => (
-                <li
-                  key={i}
-                  className="text-sm flex items-start justify-between gap-3"
-                >
-                  <div>
-                    <div className="font-medium">
-                      {(ed?.degree || "Degree")}
-                      {ed?.fieldOfStudy ? `, ${ed.fieldOfStudy}` : ""}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {(ed?.institution || "School")}
-                      {ed?.graduationDate ? ` • ${ed.graduationDate}` : ""}
-                    </div>
-                  </div>
-                  <div className="shrink-0 flex gap-2">
-                    <button
-                      className="text-xs underline"
-                      onClick={() => {
-                        setTargetIndex({ idx: i });
-                        setEditing("education:edit");
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-xs text-red-600 underline"
-                      onClick={() => removeEducation(i)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-              {(data.education || []).length === 0 && (
-                <li className="text-xs text-gray-500">
-                  No education added yet.
-                </li>
-              )}
-            </ul>
-          </div>
-
-          {/* Projects list */}
-          <div className="rounded border p-4">
-            <h3 className="font-medium mb-2">Projects</h3>
-            <ul className="space-y-2">
-              {(data.projects || []).map((p: any, i: number) => (
-                <li
-                  key={i}
-                  className="text-sm flex items-start justify-between gap-3"
-                >
-                  <div>
-                    <div className="font-medium">{p?.name || "Project"}</div>
-                    {p?.technologies && (
-                      <div className="text-xs text-gray-500">
-                        {p.technologies}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                {/* Suggested summary */}
+                <div className="space-y-1">
+                  <p className="font-semibold text-gray-800">
+                    Suggested summary
+                  </p>
+                  {activeCandidate.summarySuggestions &&
+                  activeCandidate.summarySuggestions.length > 0 ? (
+                    activeCandidate.summarySuggestions.map((s, idx) => (
+                      <div
+                        key={idx}
+                        className="border rounded bg-white p-2 flex flex-col gap-2"
+                      >
+                        <p className="leading-snug">{s}</p>
+                        <button
+                          type="button"
+                          onClick={() => replaceSummary(s)}
+                          className="self-start px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                        >
+                          Use
+                        </button>
                       </div>
-                    )}
-                    {p?.outcomes && (
-                      <div className="text-xs">{p.outcomes}</div>
-                    )}
-                  </div>
-                  <div className="shrink-0 flex gap-2">
-                    <button
-                      className="text-xs underline"
-                      onClick={() => {
-                        setTargetIndex({ idx: i });
-                        setEditing("project:edit");
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="text-xs text-red-600 underline"
-                      onClick={() => removeProject(i)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-              {(data.projects || []).length === 0 && (
-                <li className="text-xs text-gray-500">
-                  No projects added yet.
-                </li>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 italic">
+                      No summary suggestions for this variation.
+                    </p>
+                  )}
+                </div>
+
+                {/* Suggested skills */}
+                <div className="space-y-1">
+                  <p className="font-semibold text-gray-800">
+                    Suggested skills &amp; keywords
+                  </p>
+                  {combinedSkills.length > 0 ? (
+                    <>
+                      <div className="flex flex-wrap gap-1">
+                        {combinedSkills.map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() =>
+                              applyAiCandidate({
+                                summarySuggestions: [],
+                                skills: [s],
+                                atsKeywords: [],
+                                experienceBullets: [],
+                              } as AiResumeCandidate)
+                            }
+                            className="px-2 py-1 rounded-full border bg-white hover:bg-emerald-50"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-gray-500">
+                        Click a chip to add that skill to your resume.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-gray-500 italic">
+                      No skill suggestions for this variation.
+                    </p>
+                  )}
+                </div>
+
+                {/* Suggested bullet points */}
+                <div className="space-y-1">
+                  <p className="font-semibold text-gray-800">
+                    Suggested bullet points
+                  </p>
+                  {activeCandidate.experienceBullets &&
+                  activeCandidate.experienceBullets.length > 0 ? (
+                    <>
+                      <ul className="list-disc ml-4 space-y-1 max-h-32 overflow-auto">
+                        {activeCandidate.experienceBullets.flatMap(
+                          (eb, ebIdx) =>
+                            (eb.bullets || []).map((b, idx) => (
+                              <li key={`${ebIdx}-${idx}`}>{b}</li>
+                            ))
+                        )}
+                      </ul>
+                      <button
+                        type="button"
+                        onClick={() => applyAiCandidate(activeCandidate)}
+                        className="mt-2 px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                      >
+                        Apply this variation
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-gray-500 italic">
+                      No bullet suggestions for this variation.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Header + contact */}
+          <div className="border rounded-lg p-4 space-y-4">
+            <h2 className="text-sm font-semibold text-gray-800">Header</h2>
+            <div className="space-y-2">
+              <label className="block text-xs text-gray-600">
+                Full Name
+                <input
+                  type="text"
+                  value={data.name || ""}
+                  onChange={handleNameChange}
+                  className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                />
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <h3 className="text-xs font-semibold text-gray-700">
+                Contact Info
+              </h3>
+              <button
+                type="button"
+                className="text-[11px] text-indigo-600 underline"
+                onClick={() =>
+                  loadContactFromProfile(
+                    (c: ContactInfo, profileName?: string) =>
+                      setData((d) => ({
+                        ...d,
+                        name:
+                          d.name && d.name !== "Your Name"
+                            ? d.name
+                            : profileName || d.name,
+                        contact: c,
+                      })),
+                    contact
+                  )
+                }
+              >
+                Load from profile
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+              <label className="block text-xs text-gray-600">
+                Email
+                <input
+                  type="email"
+                  value={contact.email || ""}
+                  onChange={handleContactChange("email")}
+                  className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-gray-600">
+                Phone
+                <input
+                  type="tel"
+                  value={contact.phone || ""}
+                  onChange={handleContactChange("phone")}
+                  className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-gray-600">
+                Location
+                <input
+                  type="text"
+                  value={contact.location || ""}
+                  onChange={handleContactChange("location")}
+                  className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-gray-600">
+                Website
+                <input
+                  type="text"
+                  value={contact.website || ""}
+                  onChange={handleContactChange("website")}
+                  className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-gray-600">
+                LinkedIn
+                <input
+                  type="text"
+                  value={contact.linkedin || ""}
+                  onChange={handleContactChange("linkedin")}
+                  className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="block text-xs text-gray-600">
+                GitHub
+                <input
+                  type="text"
+                  value={contact.github || ""}
+                  onChange={handleContactChange("github")}
+                  className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Summary */}
+          {visibleSectionIds.includes("summary") && (
+            <div className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-800">Summary</h2>
+              </div>
+              <textarea
+                value={data.summary || ""}
+                onChange={handleSummaryChange}
+                rows={4}
+                className="w-full border rounded px-2 py-1 text-sm"
+                placeholder="2–3 sentences highlighting who you are, your focus, and biggest strengths."
+              />
+            </div>
+          )}
+
+          {/* Skills */}
+          {visibleSectionIds.includes("skills") && (
+            <div className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-800">Skills</h2>
+              </div>
+              <input
+                type="text"
+                className="w-full border rounded px-2 py-1 text-sm"
+                value={skillsCsv(data)}
+                onChange={handleSkillsChange}
+                placeholder="e.g. React, TypeScript, Node.js, SQL"
+              />
+              <p className="text-[11px] text-gray-500">
+                Separate skills with commas. We’ll turn them into individual
+                tags in the preview.
+              </p>
+            </div>
+          )}
+
+          {/* Experience */}
+          {visibleSectionIds.includes("experience") && (
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-800">
+                  Experience
+                </h2>
+                <Button
+                  type="button"
+                  onClick={addExperience}
+                  className="text-xs px-2 py-1"
+                >
+                  Add Role
+                </Button>
+              </div>
+              {(data.experience || []).length === 0 && (
+                <p className="text-xs text-gray-500">
+                  Add internships, part-time roles, research, or other
+                  experience that shows impact.
+                </p>
               )}
-            </ul>
+              <div className="space-y-4">
+                {(data.experience || []).map((exp: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="border rounded-md p-3 bg-white space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-gray-700">
+                        Role {idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeExperience(idx)}
+                        className="text-[11px] text-red-600 underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <label className="block text-xs text-gray-600">
+                        Job Title
+                        <input
+                          type="text"
+                          value={exp.jobTitle || ""}
+                          onChange={updateExperienceField(idx, "jobTitle")}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs text-gray-600">
+                        Company
+                        <input
+                          type="text"
+                          value={exp.company || ""}
+                          onChange={updateExperienceField(idx, "company")}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs text-gray-600">
+                        Location
+                        <input
+                          type="text"
+                          value={exp.location || ""}
+                          onChange={updateExperienceField(idx, "location")}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs text-gray-600">
+                        Start (YYYY-MM)
+                        <input
+                          type="text"
+                          value={exp.startDate || ""}
+                          onChange={updateExperienceField(idx, "startDate")}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs text-gray-600">
+                        End (YYYY-MM or Present)
+                        <input
+                          type="text"
+                          value={exp.endDate || ""}
+                          onChange={updateExperienceField(idx, "endDate")}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                    </div>
+                    <label className="block text-xs text-gray-600">
+                      Highlights (one per line)
+                      <textarea
+                        rows={3}
+                        value={(exp.highlights || []).join("\n")}
+                        onChange={updateExperienceField(idx, "highlights")}
+                        className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Education */}
+          {visibleSectionIds.includes("education") && (
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-800">
+                  Education
+                </h2>
+                <Button
+                  type="button"
+                  onClick={addEducation}
+                  className="text-xs px-2 py-1"
+                >
+                  Add School
+                </Button>
+              </div>
+              {(data.education || []).length === 0 && (
+                <p className="text-xs text-gray-500">
+                  Include degree, institution, and expected / actual graduation
+                  date.
+                </p>
+              )}
+              <div className="space-y-4">
+                {(data.education || []).map((ed: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="border rounded-md p-3 bg-white space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-gray-700">
+                        Education {idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeEducation(idx)}
+                        className="text-[11px] text-red-600 underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <label className="block text-xs text-gray-600">
+                        Institution
+                        <input
+                          type="text"
+                          value={ed.institution || ""}
+                          onChange={updateEducationField(idx, "institution")}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs text-gray-600">
+                        Degree
+                        <input
+                          type="text"
+                          value={ed.degree || ""}
+                          onChange={updateEducationField(idx, "degree")}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs text-gray-600">
+                        Field of Study
+                        <input
+                          type="text"
+                          value={ed.fieldOfStudy || ""}
+                          onChange={updateEducationField(idx, "fieldOfStudy")}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <label className="block text-xs text-gray-600">
+                        Graduation (YYYY-MM)
+                        <input
+                          type="text"
+                          value={ed.graduationDate || ""}
+                          onChange={updateEducationField(
+                            idx,
+                            "graduationDate"
+                          )}
+                          className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Projects */}
+          {visibleSectionIds.includes("projects") && (
+            <div className="border rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-800">
+                  Projects
+                </h2>
+                <Button
+                  type="button"
+                  onClick={addProject}
+                  className="text-xs px-2 py-1"
+                >
+                  Add Project
+                </Button>
+              </div>
+              {(data.projects || []).length === 0 && (
+                <p className="text-xs text-gray-500">
+                  Include personal, academic, or work projects that prove your
+                  skills.
+                </p>
+              )}
+              <div className="space-y-4">
+                {(data.projects || []).map((p: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="border rounded-md p-3 bg-white space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-gray-700">
+                        Project {idx + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeProject(idx)}
+                        className="text-[11px] text-red-600 underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <label className="block text-xs text-gray-600">
+                      Name
+                      <input
+                        type="text"
+                        value={p.name || ""}
+                        onChange={updateProjectField(idx, "name")}
+                        className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs text-gray-600">
+                      Technologies
+                      <input
+                        type="text"
+                        value={p.technologies || ""}
+                        onChange={updateProjectField(idx, "technologies")}
+                        className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                      />
+                    </label>
+                    <label className="block text-xs text-gray-600">
+                      Outcomes / Impact
+                      <textarea
+                        rows={3}
+                        value={p.outcomes || ""}
+                        onChange={updateProjectField(idx, "outcomes")}
+                        className="mt-1 w-full border rounded px-2 py-1 text-sm"
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sections list */}
+          <div className="border rounded-lg p-4 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-800">
+              Sections &amp; Order
+            </h2>
+            <p className="text-[11px] text-gray-500 mb-1">
+              Drag to reorder sections. Use the checkboxes to hide/show in the
+              preview and exports.
+            </p>
+            <div className="space-y-2">
+              {sections.map((s) => (
+                <div
+                  key={s.id}
+                  draggable
+                  onDragStart={() => handleDragStart(s.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={() => handleDrop(s.id)}
+                  className={`flex items-center justify-between border rounded px-2 py-1 text-xs cursor-move ${
+                    draggingId === s.id ? "bg-indigo-50 border-indigo-300" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={s.enabled}
+                      onChange={() => toggleSectionEnabled(s.id)}
+                    />
+                    <span className="font-medium text-gray-700">
+                      {s.label}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-gray-400">drag</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Export options */}
+          <div className="border rounded-lg p-4 space-y-2">
+            <h2 className="text-sm font-semibold text-gray-800">Export</h2>
+            <p className="text-[11px] text-gray-500">
+              Export your current resume in different formats.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={() => handleExport("pdf")}
+                className="text-xs px-3 py-1"
+              >
+                Export PDF
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleExport("docx")}
+                className="text-xs px-3 py-1"
+              >
+                Export Word (.docx)
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleExport("txt")}
+                className="text-xs px-3 py-1"
+              >
+                Plain Text
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleExport("html")}
+                className="text-xs px-3 py-1"
+              >
+                HTML
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleExport("json")}
+                className="text-xs px-3 py-1"
+              >
+                JSON
+              </Button>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              You can also download a PDF directly from the preview panel.
+            </p>
           </div>
         </div>
 
-        {/* RIGHT: live preview */}
-        <div className="border rounded p-3">
-          <Suspense
-            fallback={
-              <div className="text-sm text-gray-500 p-6">Loading preview…</div>
-            }
-          >
-            <Preview data={data} onEdit={(s: any) => setEditing(s)} />
-          </Suspense>
+        {/* Right: theme + preview */}
+        <div className="space-y-4">
+          {/* Theme chooser */}
+          <div className="border rounded-lg p-4 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-800">
+              Theme &amp; Layout
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(THEMES).map(([key, t]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setThemeKey(key as ThemeKey)}
+                  className={`px-2 py-1 rounded text-xs border ${
+                    key === themeKey
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Themes change typography and spacing in both preview and exports.
+            </p>
+          </div>
+
+          {/* Live preview + direct PDF download */}
+          <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+            <div className="flex items-center justify-between px-3 py-2 border-b bg-gray-50">
+              <span className="text-xs font-medium text-gray-700">
+                Live Preview
+              </span>
+              <PDFDownloadLink
+                document={<PdfComp data={data} />}
+                fileName={`${filename || "resume"}.pdf`}
+              >
+                {({ loading }) => (
+                  <Button type="button" className="text-xs px-3 py-1">
+                    {loading ? "Preparing PDF…" : "Download PDF"}
+                  </Button>
+                )}
+              </PDFDownloadLink>
+            </div>
+            <div className="p-3 max-h-[70vh] overflow-auto bg-gray-100">
+              <Suspense
+                fallback={
+                  <div className="text-xs text-gray-500">Loading preview…</div>
+                }
+              >
+                <div className="bg-white shadow-sm">
+                  <Preview
+                    data={previewData}
+                    onEdit={() => {}}
+                    visibleSections={visibleSectionIds}
+                    sectionOrder={sections.map((s) => s.id)}
+                    theme={theme}
+                  />
+                </div>
+              </Suspense>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* AI re-gen modals */}
+      {/* Job picker sheet for AI */}
       <JobPickerSheet
         open={showJobPicker}
         onClose={() => setShowJobPicker(false)}
@@ -1320,69 +1404,16 @@ export default function ResumeEditor() {
         onEnterManual={handleEnterJobManual}
       />
 
-      {showMiniForm && (
-        <MiniJobForm
-          open={showMiniForm}
-          onCancel={() => setShowMiniForm(false)}
-          onSubmit={handleMiniFormSubmit}
-        />
-      )}
-
-      {aiLoading && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-4 p-6 rounded-2xl bg-white shadow-xl border border-gray-100">
-            <div className="h-10 w-10 rounded-full border-4 border-emerald-600 border-t-transparent animate-spin" />
-            <div className="text-lg font-semibold text-gray-800">
-              Regenerating your resume…
-            </div>
-            <div className="text-sm text-gray-500">
-              This usually takes a few seconds.
-            </div>
-            {aiError && (
-              <div className="mt-2 text-sm text-red-600 max-w-xs text-center">
-                {aiError}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-
-      {/* PDF */}
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <details className="w-full">
-          <summary className="cursor-pointer text-sm text-gray-600">
-            Preview PDF (optional)
-          </summary>
-          <div className="mt-3 border rounded overflow-hidden">
-            <Suspense
-              fallback={
-                <div className="p-6 text-sm text-gray-500">Loading PDF…</div>
-              }
-            >
-              <PDFViewer width="100%" height={700} showToolbar>
-                {pdfDoc}
-              </PDFViewer>
-            </Suspense>
-          </div>
-        </details>
-
-        <Suspense
-          fallback={
-            <button className="px-4 py-2 bg-gray-300 text-white rounded">
-              Preparing…
-            </button>
-          }
-        >
-          <PDFDownloadLink
-            document={pdfDoc}
-            fileName={`${filename || "resume"}.pdf`}
-            className="inline-block px-4 py-2 bg-black text-white rounded"
-          >
-            {({ loading }) => (loading ? "Preparing…" : "Download PDF")}
-          </PDFDownloadLink>
-        </Suspense>
-      </div>
+      {/* Mini job form for AI */}
+      <MiniJobForm
+        open={showMiniForm}
+        onCancel={() => setShowMiniForm(false)}
+        onSubmit={(draft) => {
+          void handleMiniFormSubmit(draft);
+        }}
+      />
     </div>
   );
-}
+};
+
+export default ResumeEditor;

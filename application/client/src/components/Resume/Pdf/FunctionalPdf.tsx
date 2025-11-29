@@ -1,72 +1,284 @@
 // src/components/Resume/Pdf/FunctionalPdf.tsx
 import React from "react";
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+} from "@react-pdf/renderer";
 import type { ResumeDocProps } from "..";
 
 const styles = StyleSheet.create({
-  page: { padding: 28 },
-  name: { fontSize: 18, fontWeight: 700, marginBottom: 6 },
-  sectionTitle: { fontSize: 12, marginTop: 10, marginBottom: 4, textTransform: "uppercase" },
-  line: { fontSize: 10, marginBottom: 3 },
-  small: { fontSize: 9, color: "#444" },
+  page: {
+    paddingTop: 30,
+    paddingBottom: 30,
+    paddingHorizontal: 40,
+    fontFamily: "Helvetica",
+    fontSize: 10,
+    lineHeight: 1.35,
+  },
+  header: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+    paddingBottom: 8,
+    marginBottom: 10,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: 700,
+  },
+  summary: {
+    marginTop: 4,
+    color: "#475569",
+  },
+  contactRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    color: "#475569",
+    fontSize: 9,
+  },
+  contactItem: {
+    marginRight: 8,
+  },
+  section: {
+    marginTop: 10,
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    paddingBottom: 2,
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  skillBlock: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+  skillHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  skillTitle: {
+    fontWeight: 700,
+  },
+  skillLevel: {
+    fontSize: 9,
+    color: "#6b7280",
+  },
+  skillItemsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  skillChip: {
+    fontSize: 9,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: 4,
+    marginBottom: 4,
+  },
+  smallMuted: {
+    color: "#6b7280",
+    fontSize: 9,
+  },
+  expItem: {
+    marginBottom: 6,
+  },
+  expHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  expTitle: {
+    fontWeight: 700,
+  },
+  bulletList: {
+    marginTop: 2,
+    marginLeft: 10,
+  },
+  bulletItem: {
+    flexDirection: "row",
+  },
+  bulletDot: {
+    width: 8,
+  },
+  bulletText: {
+    flex: 1,
+  },
+  eduItem: {
+    marginBottom: 4,
+  },
 });
 
-export default function FunctionalPdf({ data }: ResumeDocProps) {
-  const skillsArr = Array.isArray(data.skills) ? data.skills : [];
-  const projects = Array.isArray(data.projects) ? data.projects : [];
-  const exp = Array.isArray(data.experience) ? data.experience : [];
-
-  const skillNames: string[] = skillsArr
-    .map((s: any) => (s && typeof s.name === "string" ? s.name : null))
-    .filter(Boolean) as string[];
+const FunctionalPdf: React.FC<ResumeDocProps> = ({ data }) => {
+  const contact: any = (data as any).contact || {};
+  const skills = Array.isArray((data as any).skills)
+    ? (data as any).skills
+    : [];
+  const experience = Array.isArray((data as any).experience)
+    ? (data as any).experience
+    : [];
+  const projects = Array.isArray((data as any).projects)
+    ? (data as any).projects
+    : [];
+  const education = Array.isArray((data as any).education)
+    ? (data as any).education
+    : [];
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.name}>{data.name || "Your Name"}</Text>
-        {data.summary ? <Text style={styles.line}>{String(data.summary)}</Text> : null}
+        {/* HEADER */}
+        <View style={styles.header}>
+          <Text style={styles.name}>{data.name || "Your Name"}</Text>
+          {data.summary && <Text style={styles.summary}>{data.summary}</Text>}
 
-        {skillNames.length > 0 && (
-          <View>
-            <Text style={styles.sectionTitle}>Core Skills</Text>
-            <Text style={styles.small}>{skillNames.join(", ")}</Text>
+          <View style={styles.contactRow}>
+            {contact.email && (
+              <Text style={styles.contactItem}>{contact.email}</Text>
+            )}
+            {contact.phone && (
+              <Text style={styles.contactItem}>{contact.phone}</Text>
+            )}
+            {contact.location && (
+              <Text style={styles.contactItem}>{contact.location}</Text>
+            )}
+            {contact.website && (
+              <Text style={styles.contactItem}>{contact.website}</Text>
+            )}
           </View>
-        )}
+        </View>
 
-        {projects.length > 0 && (
-          <View>
-            <Text style={styles.sectionTitle}>Selected Projects</Text>
-            {projects.slice(0, 3).map((p: any, i: number) => (
-              <View key={i}>
-                <Text style={styles.line}>{p?.name ? String(p.name) : "Project"}</Text>
-                {p?.technologies ? <Text style={styles.small}>{String(p.technologies)}</Text> : null}
-                {p?.outcomes ? <Text style={styles.small}>{String(p.outcomes)}</Text> : null}
+        {/* SKILLS – core of functional resume */}
+        {skills.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>Skills Overview</Text>
+            {skills.map((group: any, idx: number) => (
+              <View key={idx} style={styles.skillBlock}>
+                <View style={styles.skillHeaderRow}>
+                  <Text style={styles.skillTitle}>
+                    {group.category || group.name || "Skill Group"}
+                  </Text>
+                  {group.level && (
+                    <Text style={styles.skillLevel}>{group.level}</Text>
+                  )}
+                </View>
+                {Array.isArray(group.items) && group.items.length > 0 && (
+                  <View style={styles.skillItemsRow}>
+                    {group.items.map((s: string, i: number) => (
+                      <Text key={i} style={styles.skillChip}>
+                        {s}
+                      </Text>
+                    ))}
+                  </View>
+                )}
               </View>
             ))}
           </View>
         )}
 
-        {exp.length > 0 && (
-          <View>
-            <Text style={styles.sectionTitle}>Experience Highlights</Text>
-            {exp.slice(0, 2).map((e: any, i: number) => {
-              const highlights: string[] = Array.isArray(e?.highlights)
-                ? (e.highlights as any[]).map((x) => String(x))
-                : [];
-              return (
-                <View key={i}>
-                  <Text style={styles.line}>
-                    {`${e?.jobTitle || "Title"} • ${e?.company || "Company"}`}
+        {/* EXPERIENCE HIGHLIGHTS */}
+        {experience.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>Experience Highlights</Text>
+            {experience.map((exp: any, idx: number) => (
+              <View key={idx} style={styles.expItem}>
+                <View style={styles.expHeaderRow}>
+                  <Text style={styles.expTitle}>
+                    {exp.title || exp.position || "Role"}
                   </Text>
-                  {highlights.slice(0, 2).map((h: string, j: number) => (
-                    <Text key={j} style={styles.small}>• {h}</Text>
-                  ))}
+                  {(exp.company || exp.employer) && (
+                    <Text style={styles.smallMuted}>
+                      {exp.company || exp.employer}
+                    </Text>
+                  )}
                 </View>
-              );
-            })}
+                {(exp.startDate || exp.endDate) && (
+                  <Text style={styles.smallMuted}>
+                    {(exp.startDate || "") +
+                      " – " +
+                      (exp.endDate || "Present")}
+                  </Text>
+                )}
+                {Array.isArray(exp.highlights) &&
+                  exp.highlights.length > 0 && (
+                    <View style={styles.bulletList}>
+                      {exp.highlights.slice(0, 4).map((h: string, i: number) => (
+                        <View key={i} style={styles.bulletItem}>
+                          <Text style={styles.bulletDot}>•</Text>
+                          <Text style={styles.bulletText}>{h}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* PROJECTS */}
+        {projects.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>Representative Projects</Text>
+            {projects.map((proj: any, idx: number) => (
+              <View key={idx} style={styles.expItem}>
+                <View style={styles.expHeaderRow}>
+                  <Text style={styles.expTitle}>
+                    {proj.name || "Project Name"}
+                  </Text>
+                  {proj.link && (
+                    <Text style={styles.smallMuted}>{proj.link}</Text>
+                  )}
+                </View>
+                {proj.summary && (
+                  <Text style={styles.smallMuted}>{proj.summary}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* EDUCATION */}
+        {education.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>Education</Text>
+            {education.map((ed: any, idx: number) => (
+              <View key={idx} style={styles.eduItem}>
+                <View style={styles.expHeaderRow}>
+                  <Text style={{ fontWeight: 700 }}>
+                    {ed.school || ed.institution || "School Name"}
+                  </Text>
+                  {(ed.startDate || ed.endDate) && (
+                    <Text style={styles.smallMuted}>
+                      {(ed.startDate || "") +
+                        " – " +
+                        (ed.endDate || "Present")}
+                    </Text>
+                  )}
+                </View>
+                {ed.degree && (
+                  <Text style={styles.smallMuted}>
+                    {ed.degree}
+                    {ed.field ? ` · ${ed.field}` : ""}
+                  </Text>
+                )}
+              </View>
+            ))}
           </View>
         )}
       </Page>
     </Document>
   );
-}
+};
+
+export default FunctionalPdf;

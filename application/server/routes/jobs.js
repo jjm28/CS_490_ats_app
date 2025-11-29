@@ -1,6 +1,8 @@
 // routes/jobs.js
 import mongoose from "mongoose";
 import { Router } from "express";
+import { ObjectId } from "mongodb";
+import { getDb } from "../db/connection.js";
 import { verifyJWT } from "../middleware/auth.js";
 import {
   validateJobCreate,
@@ -15,6 +17,7 @@ import {
   getJob,
   updateJob,
   deleteJob,
+  getJobsByStatus,
   updateJobStatus,
   bulkUpdateJobStatus,
   addApplicationHistory,
@@ -33,6 +36,8 @@ import {
 import Jobs from "../models/jobs.js";
 import { validateJobImport } from '../validators/jobimport.js';
 import { scrapeJobFromUrl } from '../services/jobscraper.service.js';
+import { calculateJobMatch } from "../__tests__/services/matchAnalysis.service.js";
+import { getSkillsByUser } from "./skills.js";
 
 const router = Router();
 
@@ -71,6 +76,8 @@ router.get("/preferences", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const preferences = await getUserPreferences({ userId });
+
+    // Return empty object with empty arrays if no preferences saved
     res.json(preferences || { savedSearches: [], lastSearch: null });
   } catch (err) {
     console.error("Error getting preferences:", err);
@@ -100,6 +107,7 @@ router.post("/preferences/saved", async (req, res) => {
     if (!r.ok) return res.status(r.status).json(r.error);
     const { name, ...search } = r.value;
     const saved = await createSavedSearch({ userId, name, search });
+
     res.status(201).json(saved);
   } catch (err) {
     console.error("Error creating saved search:", err);
@@ -132,7 +140,12 @@ router.delete("/preferences/saved/:searchId", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const updated = await deleteSavedSearch({ userId, searchId: req.params.searchId });
+
+    const updated = await deleteSavedSearch({
+      userId,
+      searchId: req.params.searchId
+    });
+
     if (!updated) return res.status(404).json({ error: "Saved search not found" });
     res.json({ ok: true });
   } catch (err) {
@@ -146,7 +159,11 @@ router.delete("/preferences", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const deleted = await deleteUserPreferences({ userId });
-    if (!deleted) return res.status(404).json({ error: "No preferences found" });
+
+    if (!deleted) {
+      return res.status(404).json({ error: "No preferences found" });
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error("Error deleting preferences:", err);
@@ -171,23 +188,80 @@ router.post("/", async (req, res) => {
   }
 });
 
+// ============================================
+// GET ALL JOBS (with matchScore + skill matching)
+// ============================================
+
+// ============================================
+// GET ALL JOBS (with matchScore + skill matching)
+// ============================================
+
 router.get("/", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const jobs = await Jobs.find({ userId, archived: { $ne: true } }).sort({ createdAt: -1 });
-    res.json(jobs);
+
+    // Build query: only non-archived jobs
+    const query = { userId, archived: { $ne: true } };
+
+    const statusParam = req.query.status;
+    if (statusParam) {
+      if (!VALID_STATUSES.includes(statusParam)) {
+        return res.status(400).json({
+          error: "Invalid status value",
+          validStatuses: VALID_STATUSES
+        });
+      }
+      query.status = statusParam;
+    }
+
+    // Fetch jobs sorted by newest
+    const jobs = await Jobs.find(query).sort({ createdAt: -1 }).lean();
+
+    // Fetch user skills
+    const userSkills = await getSkillsByUser(userId);
+    const skillNames = userSkills.map(s => s.name.toLowerCase());
+
+    // Enhance jobs with matchScore and skill comparisons
+    const enhancedJobs = jobs.map(job => {
+      const jobSkills = job.requiredSkills?.map(s => s.toLowerCase()) || [];
+      const skillsMatched = jobSkills.filter(skill => skillNames.includes(skill));
+      const skillsMissing = jobSkills.filter(skill => !skillNames.includes(skill));
+
+      const matchScore = jobSkills.length
+        ? Math.round((skillsMatched.length / jobSkills.length) * 100)
+        : 0;
+
+      return {
+        ...job,
+        matchScore,
+        skillsMatched,
+        skillsMissing,
+      };
+    });
+
+    return res.json(enhancedJobs);
+
   } catch (err) {
     console.error("Get jobs failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err?.message || "Get jobs failed" });
   }
 });
 
+// ✅ Get archived jobs
 router.get("/archived", async (req, res) => {
   try {
     const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const jobs = await Jobs.find({ userId, archived: true }).sort({ archivedAt: -1 });
+    if (!userId) {
+      console.error("No userId found in /archived");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const jobs = await Jobs.find({
+      userId,
+      archived: true,
+    }).sort({ archivedAt: -1 });
+
     res.json(jobs);
   } catch (err) {
     console.error("Get archived jobs failed:", err);
@@ -195,10 +269,12 @@ router.get("/archived", async (req, res) => {
   }
 });
 
+// /api/jobs/stats
 router.get("/stats", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
     const stats = await getJobStats(userId);
     res.json(stats);
   } catch (err) {
@@ -239,17 +315,16 @@ router.post("/import-from-url", async (req, res) => {
       data: result.data,
       jobBoard: result.jobBoard,
       extractedFields: result.extractedFields,
-      message: result.status === 'success' 
-        ? 'Job data imported successfully' 
+      message: result.status === 'success'
+        ? 'Job data imported successfully'
         : 'Partial data imported - please review and complete missing fields'
     });
-
   } catch (err) {
     console.error('Error importing job from URL:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       status: 'failed',
-      error: err?.message || "Failed to import job data" 
+      error: err?.message || "Failed to import job data"
     });
   }
 });
@@ -461,7 +536,11 @@ router.patch("/:id/status", async (req, res) => {
         note: r.value.note
       });
       if (updated) {
-        await updateJob({ userId: devId, id: req.params.id, payload: { userId } });
+        await updateJob({
+          userId: devId,
+          id: req.params.id,
+          payload: { userId }
+        });
       }
     }
 
@@ -518,19 +597,117 @@ router.post("/:id/history", async (req, res) => {
   }
 });
 
-router.put("/:id/history/:historyIndex", async (req, res) => {
+/**
+ * POST /api/jobs/:id/analyze-match
+ * Calculate match score for a specific job based on user's skills
+ */
+// Inside routes/jobs.js, within the POST /:id/analyze-match handler
+router.post('/:id/analyze-match', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const jobId = req.params.id;
+    const { weights = { skills: 0.6, experience: 0.3, education: 0.1 } } = req.body;
+
+    // 1. Fetch job (using your existing service function)
+    // Try with real user first
+    let job = await getJob({ userId, id: jobId });
+
+    // Legacy fallback (if applicable)
+    const devId = getDevId(req);
+    if (!job && devId && devId !== userId) {
+      job = await getJob({ userId: devId, id: jobId });
+      if (job) {
+        // Migrate ownership if found under old ID
+        await updateJob({ userId: devId, id: jobId, payload: { userId } });
+        job.userId = userId;
+      }
+    }
+
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    // 2. Fetch user's skills (using getDb and NEW ObjectId)
+    const db = getDb(); // Ensure getDb is available here, maybe import it too if not
+    // Use the imported ObjectId with 'new' to convert the string userId and jobId
+    const userSkills = await db.collection('skills').find({ userId }).toArray();
+
+    // 3. Calculate match score (using the service function)
+    const analysis = calculateJobMatch(job, userSkills, weights); // Call the service function
+
+    // 4. Update the job object in the database with the new analysis
+    const updateResult = await db.collection('jobs').updateOne(
+      { _id: new ObjectId(jobId), userId }, // Use NEW ObjectId here
+      {
+        $set: {
+          matchScore: analysis.matchScore,
+          matchBreakdown: analysis.breakdown,
+          skillGaps: analysis.skillGaps,
+          matchedSkills: analysis.matchedSkills,
+          suggestions: analysis.suggestions,
+          matchTimestamp: new Date()
+        },
+        $push: {
+          matchHistory: {
+            $each: [{
+              score: analysis.matchScore,
+              breakdown: analysis.breakdown,
+              skillGaps: analysis.skillGaps,
+              matchedSkills: analysis.matchedSkills,
+              suggestions: analysis.suggestions,
+              timestamp: new Date()
+            }],
+            $slice: -20 // Keep only the last 20 analyses
+          }
+        }
+      }
+    );
+
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({ error: 'Job not found or unauthorized for update' });
+    }
+
+    // 5. Fetch and return the updated job
+    const updatedJob = await getJob({ userId, id: jobId });
+    res.json(updatedJob);
+
+  } catch (err) {
+    console.error('Error analyzing job match:', err);
+    res.status(500).json({ error: err?.message || 'Match analysis failed' });
+  }
+});
+
+
+/**
+ * PUT /api/jobs/:id/history/:historyIndex
+ * Edit an application history entry
+ */
+router.put('/:id/history/:historyIndex', async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const { action } = req.body;
     const historyIndex = parseInt(req.params.historyIndex);
-    if (isNaN(historyIndex) || historyIndex < 0)
-      return res.status(400).json({ error: "Invalid history index" });
-    if (!action || typeof action !== "string" || action.trim().length === 0)
-      return res.status(400).json({ error: "Action is required" });
-    if (action.length > 200)
-      return res.status(400).json({ error: "Action must be 200 characters or less" });
-    let updated = await updateApplicationHistory({ userId, id: req.params.id, historyIndex, action });
+
+    if (isNaN(historyIndex) || historyIndex < 0) {
+      return res.status(400).json({ error: 'Invalid history index' });
+    }
+
+    if (!action || typeof action !== 'string' || action.trim().length === 0) {
+      return res.status(400).json({ error: 'Action is required' });
+    }
+
+    if (action.length > 200) {
+      return res.status(400).json({ error: 'Action must be 200 characters or less' });
+    }
+
+    let updated = await updateApplicationHistory({
+      userId,
+      id: req.params.id,
+      historyIndex,
+      action
+    });
+
     const devId = getDevId(req);
     if (!updated && devId && devId !== userId) {
       updated = await updateApplicationHistory({
@@ -555,9 +732,17 @@ router.delete("/:id/history/:historyIndex", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const historyIndex = parseInt(req.params.historyIndex);
-    if (isNaN(historyIndex) || historyIndex < 0)
-      return res.status(400).json({ error: "Invalid history index" });
-    let updated = await deleteApplicationHistory({ userId, id: req.params.id, historyIndex });
+
+    if (isNaN(historyIndex) || historyIndex < 0) {
+      return res.status(400).json({ error: 'Invalid history index' });
+    }
+
+    let updated = await deleteApplicationHistory({
+      userId,
+      id: req.params.id,
+      historyIndex
+    });
+
     const devId = getDevId(req);
     if (!updated && devId && devId !== userId) {
       updated = await deleteApplicationHistory({
@@ -576,23 +761,29 @@ router.delete("/:id/history/:historyIndex", async (req, res) => {
   }
 });
 
+// ✅ Archive or restore a job
 router.patch("/:id/archive", async (req, res) => {
   try {
-    const userId = getUserId(req);
+    const userId = getUserId(req); // ✅ real user ID extraction
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
     const { id } = req.params;
     const { archive, reason } = req.body;
+
     console.log(`[PATCH /api/jobs/${id}/archive] archive=${archive}, reason=${reason}`);
+
     const updated = await Jobs.findOneAndUpdate(
-      { _id: id, userId },
+      { _id: id, userId }, // ✅ ensure user match
       {
         archived: archive,
         archiveReason: archive ? reason || "User action" : null,
-        archivedAt: archive ? new Date() : null
+        archivedAt: archive ? new Date() : null,
       },
       { new: true }
     );
+
     if (!updated) return res.status(404).json({ error: "Job not found" });
+
     res.json(updated);
   } catch (err) {
     console.error("Archive update failed:", err);
