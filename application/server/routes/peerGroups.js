@@ -10,7 +10,13 @@ import {
   createGroup,updatePeerGroup,DeleteGroup,fetchAllPeerGroupMembership,
   updatePeerGroupMembership,
 createGroupPost,
-fetchposts} from '../services/peerGroups.service.js';
+fetchposts,
+fetchAllChallanges,
+createChallenge,
+joinChallenge,
+incrementprogress,
+leaveChallenge,
+fetchleaderboard} from '../services/peerGroups.service.js';
 import { ObjectId } from 'mongodb';
 import { file } from 'zod';
 import { getAllJobs } from '../services/jobs.service.js';
@@ -109,7 +115,6 @@ router.post("/join",  async (req, res) => {
 
     const result = await JoinPeerGroup(userId, groupId)
     const  membership = result
-    console.log(result)
     res.json({ groupId, membership });
   } catch (err) {
     console.error("Error joining peer group:", err);
@@ -186,7 +191,6 @@ router.patch("/",  async (req, res) => {
     if (role !== undefined) group.role = role;
     if (tags !== undefined) group.tags = Array.isArray(tags) ? tags : [];
     const response = await updatePeerGroup({_id: new ObjectId(groupId)},group,undefined,    { returnDocument: "after" })
-console.log(response)
 
 
     res.json(response);
@@ -268,9 +272,144 @@ router.get("/single",  async (req, res) => {
     if (!group) {
       return res.status(404).json({ error: "Group not found" });
     }
-    res.json(group);
+    res.json(group[0]);
   } catch (err) {
     console.error("Error fetching peer group:", err);
     res.status(500).json({ error: "Server error fetching group" });
+  }
+});
+
+
+// GET /api/peer-groups/challenges
+router.get("/challenges",  async (req, res) => {
+  try {
+        const { groupId } = req.query;
+    const {userId} = req.query;
+    const group = await fetchAllPeerGroups({_id: new ObjectId(groupId)});
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    const response  = await fetchAllChallanges({groupId,userId})
+
+    res.json(response);
+  } catch (err) {
+    console.error("Error fetching group challenges:", err);
+    res.status(500).json({ error: "Server error fetching challenges" });
+  }
+});
+
+
+
+// POST /api/peer-groups/:groupId/challenges
+router.post("/challenges",  async (req, res) => {
+  try {
+      const { groupId } = req.query;
+    const {userId} = req.query;
+    
+    const {
+      title,
+      description,
+      type,
+      targetValue,
+      unitLabel,
+      startDate,
+      endDate,
+    } = req.body;
+
+    if (!title || !targetValue || !startDate || !endDate) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const groups = await fetchAllPeerGroups({_id: new ObjectId(groupId)});
+    const group = groups[0]
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    const allowed = await canManageGroup(userId, group);
+    if (!allowed) {
+      return res.status(403).json({ error: "Not allowed to create challenges" });
+    }
+
+    const response = await createChallenge({groupId,userId,title,description,type,targetValue,unitLabel,startDate,endDate})
+
+    res.status(201).json(response);
+  } catch (err) {
+    console.error("Error creating group challenge:", err);
+    res.status(500).json({ error: "Server error creating challenge" });
+  }
+});
+
+
+// POST /api/peer-groups/challenges//join
+router.post("/challenges/join",  async (req, res) => {
+  try {
+    const { challengeId } = req.query;
+    const {userId} = req.query;
+ const response = await joinChallenge({challengeId,userId})
+
+
+    res.json(response);
+  } catch (err) {
+    console.error("Error joining challenge:", err);
+    res.status(500).json({ error: "Server error joining challenge" });
+  }
+});
+
+
+// POST /api/peer-groups/challenges/:challengeId/progress
+router.post(  "/challenges/progress",  async (req, res) => {
+    try {
+      const { challengeId } = req.query;
+      const {userId} = req.query;
+      const { delta, note } = req.body;
+
+      const increment = Number(delta || 0);
+      if (!increment || isNaN(increment)) {
+        return res
+          .status(400)
+          .json({ error: "delta (number of actions) is required" });
+      }
+
+     const response = await incrementprogress({challengeId,userId,delta,note,increment})
+
+      res.json(response);
+    } catch (err) {
+      console.error("Error updating challenge progress:", err);
+      res.status(500).json({ error: "Server error updating progress" });
+    }
+  }
+);
+
+
+router.delete(  "/challenges/participation",  async (req, res) => {
+    try {
+            const { challengeId } = req.query;
+      const {userId} = req.query;
+
+      await leaveChallenge({challengeId,userId})
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Error leaving challenge:", err);
+      res.status(500).json({ error: "Server error leaving challenge" });
+    }
+  }
+);
+
+
+
+// GET /api/peer-groups/challenges/:challengeId/leaderboard
+router.get("/challenges/leaderboard",  async (req, res) => {
+  try {
+      const { challengeId } = req.query;
+      const {userId} = req.query;
+
+      const respone = await fetchleaderboard({challengeId,userId})
+
+    res.json({ entries: respone });
+  } catch (err) {
+    console.error("Error fetching challenge leaderboard:", err);
+    res.status(500).json({ error: "Server error fetching leaderboard" });
   }
 });

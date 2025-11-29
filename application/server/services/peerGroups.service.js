@@ -5,7 +5,8 @@ import { file, object } from 'zod';
 import PeerGroup from "../models/PeerGroup.js";
 import PeerGroupMembership from "../models/PeerGroupMembership.js"
 import PeerGroupPost from '../models/PeerGroupPost.js';
-
+import GroupChallenge from '../models/GroupChallenge.js'
+import GroupChallengeParticipation from '../models/GroupChallengeParticipation.js';
 
 export async function fetchAllPeerGroups(filter) {
     
@@ -126,7 +127,6 @@ export async function canManageGroup(user, group) {
   if (!group) return false;
   if (!user) return false;
   if (group.createdBy == user) return true;
-   console.log(group.createdBy == user)
   return false;
 }
 
@@ -189,7 +189,7 @@ const db = getDb()
      throw new Error("Group not found");
     }
     // get latest posts
-    console.log(groupId)
+
     const posts = await latestposts({groupId, limit})
 
     if (posts.length === 0) {
@@ -216,7 +216,7 @@ const db = getDb()
     users.forEach((u) => {
       userById.set(`${u.userId}`, u);
     });
-    console.log(users)
+
     function buildPersona(user, membership) {
       if (!membership || !user) {
         return {
@@ -274,4 +274,242 @@ const db = getDb()
     });
 
     return result
+}
+export async function fetchAllChallanges({groupId,userId}) {
+
+const challenges = await GroupChallenge.find({ groupId })
+      .sort({ startDate: -1 })
+      .lean();
+
+    if (challenges.length === 0) {
+      return { challenges: [], myParticipations: [], stats: {} };
+    }
+
+    const challengeIds = challenges.map((c) => String(c._id));
+
+    // participations for THIS user
+    const myParticipations = await GroupChallengeParticipation.find({
+      userId,
+      challengeId: { $in: challengeIds },
+    }).lean();
+
+    // aggregate overall stats per challenge
+    const agg = await GroupChallengeParticipation.aggregate([
+      { $match: { challengeId: { $in: challengeIds } } },
+      {
+        $group: {
+          _id: "$challengeId",
+          participantCount: { $sum: 1 },
+          totalProgress: { $sum: "$progressValue" },
+        },
+      },
+    ]);
+
+    const stats = {};
+    agg.forEach((row) => {
+      stats[String(row._id)] = {
+        participantCount: row.participantCount,
+        totalProgress: row.totalProgress,
+      };
+    });
+    return {
+      challenges,
+      myParticipations,
+      stats,
+    }
+}
+
+
+
+ 
+
+export async function createChallenge({groupId,userId,title,description,type,targetValue,unitLabel,startDate,endDate}) {
+
+    const challenge = await GroupChallenge.create({
+      groupId,
+      createdBy: userId,
+      title: title.trim(),
+      description: (description || "").trim(),
+      type: type || "applications",
+      targetValue: Number(targetValue),
+      unitLabel: unitLabel || "actions",
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      isActive: true,
+    });
+
+    return challenge
+}
+
+export async function joinChallenge({challengeId,userId}) {
+    
+    const challenge = await GroupChallenge.findById(challengeId);
+    if (!challenge) {
+      throw new Error("Challenge not found")
+    }
+
+    const membership = await PeerGroupMembership.findOne({
+      groupId: challenge.groupId,
+      userId,
+    });
+
+    if (!membership) {
+       throw new Error("You must be a member of this group to join challenges");
+    }
+
+    let participation = await GroupChallengeParticipation.findOne({
+      challengeId,
+      userId,
+    });
+
+    if (!participation) {
+      participation = await GroupChallengeParticipation.create({
+        challengeId,
+        userId,
+        progressValue: 0,
+      });
+    }
+
+    return participation
+}
+
+
+
+
+export async function incrementprogress({challengeId,userId,delta,note,increment}) {
+
+  const challenge = await GroupChallenge.findById(challengeId);
+      if (!challenge) {
+         throw new Error("Challenge not found" );
+      }
+
+      const membership = await PeerGroupMembership.findOne({
+        groupId: challenge.groupId,
+        userId,
+      });
+
+      if (!membership) {
+        return res
+          .status(403)
+          .json({ error: "You must be a member of this group to update progress" });
+      }
+
+      const participation =
+        (await GroupChallengeParticipation.findOne({
+          challengeId,
+          userId,
+        })) ||
+        (await GroupChallengeParticipation.create({
+          challengeId,
+          userId,
+          progressValue: 0,
+        }));
+
+      participation.progressValue += increment;
+      participation.lastUpdateAt = new Date();
+      if (note) participation.lastNote = note;
+      await participation.save();
+
+      return participation
+
+}
+
+
+export async function leaveChallenge({challengeId,userId}) {
+    
+      const participation = await GroupChallengeParticipation.findOne({
+        challengeId,
+        userId,
+      });
+
+      if (!participation) {
+        throw new Error("Participation not found" );
+      }
+
+      await participation.deleteOne();
+}
+
+
+export async function fetchleaderboard({challengeId,userId}) {
+    const db = getDb()
+   
+    const challenge = await GroupChallenge.findById(challengeId);
+    if (!challenge) {
+      throw new Error("Challenge not found" );
+    }
+
+    const participations = await GroupChallengeParticipation.find({
+      challengeId,
+    })
+      .sort({ progressValue: -1, lastUpdateAt: 1 })
+      .limit(10)
+      .lean();
+
+    if (participations.length === 0) {
+      return [] ;
+    }
+
+    const userIds = [
+      ...new Set(participations.map((p) => String(p.userId))),
+    ].map((id) =>id);
+    console.log(userIds)
+    const memberships = await PeerGroupMembership.find({
+      groupId: challenge.groupId,
+      userId: { $in: userIds },
+    }).lean();
+    
+    const users = await db.collection("profiles").find({ userId: { $in: userIds } },    { projection: {userId: 1,fullName:1, headline:1, photoUrl:1} }).toArray();
+
+
+
+    const membershipByUser = new Map();
+    memberships.forEach((m) => membershipByUser.set(String(m.userId), m));
+
+    const userById = new Map();
+    users.forEach((u) => userById.set(String(u.userId), u));
+
+    function buildPersona(user, membership) {
+      if (!membership || !user) {
+        return {
+          mode: "anonymous",
+          displayName: "Anonymous",
+        };
+      }
+
+      const interactionLevel = membership.interactionLevel || "public";
+
+      if (interactionLevel === "anonymous") {
+        return {
+          mode: "anonymous",
+          displayName: "Anonymous",
+        };
+      }
+
+      if (interactionLevel === "alias") {
+        return {
+          mode: "alias",
+          displayName: membership.alias || "Anonymous",
+        };
+      }
+
+      const displayName = user.fullName || user.name || "Member";
+      return {
+        mode: "public",
+        displayName,
+        headline: user.headline || "",
+      };
+    }
+
+    const entries = participations.map((p) => {
+      const u = userById.get(String(p.userId));
+      const m = membershipByUser.get(String(p.userId));
+      const persona = buildPersona(u, m);
+      return {
+        userId: String(p.userId),
+        progressValue: p.progressValue,
+        persona,
+      };
+    });
+    
+    return entries
 }

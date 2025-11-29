@@ -207,3 +207,141 @@ export async function getPeerGroup(groupId: string) {
   if (!res.ok) throw new Error("Failed to fetch peer group");
   return (await res.json()) as PeerGroup;
 }
+
+export interface GroupChallenge {
+  _id: string;
+  groupId: string;
+  createdBy: string;
+  title: string;
+  description?: string;
+  type: "applications" | "outreach" | "practice" | "other";
+  targetValue: number;
+  unitLabel: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GroupChallengeStats {
+  participantCount: number;
+  totalProgress: number;
+}
+
+export interface GroupChallengeParticipation {
+  _id: string;
+  challengeId: string;
+  userId: string;
+  progressValue: number;
+  joinedAt: string;
+  lastUpdateAt: string;
+  lastNote?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+export async function fetchGroupChallenges(groupId: string, userId: string) {
+  
+  const res = await fetch(`${API_BASE}/challenges?groupId=${groupId}&userId=${userId}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch group challenges");
+  const data = (await res.json()) as {
+    challenges: GroupChallenge[];
+    myParticipations: GroupChallengeParticipation[];
+    stats: Record<string, GroupChallengeStats>;
+  };
+  return data;
+}
+
+export async function createGroupChallenge(
+  groupId: string,
+  userId: string,
+  payload: {
+    title: string;
+    description?: string;
+    type: "applications" | "outreach" | "practice" | "other";
+    targetValue: number;
+    unitLabel: string;
+    startDate: string; // ISO date
+    endDate: string;   // ISO date
+  }
+) {
+
+  const res = await fetch(`${API_BASE}/challenges?groupId=${groupId}&userId=${userId}`, {
+    method: "POST",
+    credentials: "include",
+     headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create challenge");
+  return (await res.json()) as GroupChallenge;
+}
+
+export async function joinGroupChallenge(challengeId: string, userId: string) {
+  const res = await fetch(
+    `${API_BASE}/challenges/join?challengeId=${challengeId}&userId=${userId}`,
+    {
+      method: "POST",
+       headers: authHeaders(),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to join challenge");
+  return (await res.json()) as GroupChallengeParticipation;
+}
+
+export async function updateGroupChallengeProgress(
+  challengeId: string,
+  userId: string,
+  payload: { delta: number; note?: string }
+) {
+  const res = await fetch(
+    `${API_BASE}/challenges/progress?challengeId=${challengeId}&userId=${userId}`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to update challenge progress");
+  return (await res.json()) as GroupChallengeParticipation;
+}
+
+export async function leaveGroupChallenge(challengeId: string, userId: string) {
+  const res = await fetch(
+    `${API_BASE}/challenges/participation?challengeId=${challengeId}&userId=${userId}`,
+    {
+      method: "DELETE",
+        headers: authHeaders(),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to leave challenge");
+  return await res.json(); // { ok: true }
+}
+
+
+export interface ChallengeLeaderboardEntry {
+  userId: string;
+  progressValue: number;
+  persona: {
+    mode: "public" | "alias" | "anonymous";
+    displayName: string;
+    headline?: string;
+  };
+}
+
+export async function fetchChallengeLeaderboard(challengeId: string,userId: string) {
+  const res = await fetch(
+    `${API_BASE}/challenges/leaderboard?challengeId=${challengeId}&userId=${userId}`,
+    {
+         headers: authHeaders(),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to fetch challenge leaderboard");
+
+  const data = (await res.json()) as { entries: ChallengeLeaderboardEntry[] };
+    console.log(data)
+  return data.entries;
+}

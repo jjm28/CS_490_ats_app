@@ -11,10 +11,21 @@ import {
   fetchGroupPosts,
   createGroupPost,
   updateMembershipPrivacy,
+  fetchGroupChallenges,
+  createGroupChallenge,
+  joinGroupChallenge,
+  updateGroupChallengeProgress,
+  leaveGroupChallenge,
+  fetchChallengeLeaderboard,
   type PeerGroup,
   type PeerGroupMembership,
   type GroupPost,
+  type GroupChallenge,
+  type GroupChallengeParticipation,
+  type GroupChallengeStats,
+  type  ChallengeLeaderboardEntry
 } from "../../../api/peerGroups";
+import ChallengeCard from "./ChallengeCard";
 
 export default function PeerGroupDiscussionPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -32,33 +43,136 @@ export default function PeerGroupDiscussionPage() {
     "insight"
   );
     const currentUserId = JSON.parse(localStorage.getItem("authUser") ?? "").user._id
+const [challenges, setChallenges] = useState<GroupChallenge[]>([]);
+const [myChallengeParticipations, setMyChallengeParticipations] = useState<
+  GroupChallengeParticipation[]
+>([]);
+const [challengeStats, setChallengeStats] = useState<
+  Record<string, GroupChallengeStats>
+>({});
+const [challengesLoading, setChallengesLoading] = useState(true);
+const [challengeError, setChallengeError] = useState<string | null>(null);
+const [creatingChallenge, setCreatingChallenge] = useState(false);
+const [newChallengeTitle, setNewChallengeTitle] = useState("");
+const [newChallengeType, setNewChallengeType] = useState<
+  "applications" | "outreach" | "practice" | "other"
+>("applications");
+const [newChallengeTarget, setNewChallengeTarget] = useState<string>("10");
+const [newChallengeUnit, setNewChallengeUnit] = useState("applications");
+const [newChallengeStart, setNewChallengeStart] = useState<string>("");
+const [newChallengeEnd, setNewChallengeEnd] = useState<string>("");
+const [newChallengeDescription, setNewChallengeDescription] = useState("");
+const [leaderboards, setLeaderboards] = useState<
+  Record<string, ChallengeLeaderboardEntry[]>
+>({});
 
 
   // Privacy modal state
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const isGroupOwner = useMemo(() => {
+    if (!group || !currentUserId) return false;
+    return group.createdBy === currentUserId;
+  }, [group, currentUserId]);
 
-  useEffect(() => {
-    if (!groupId) return;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [g, my, p] = await Promise.all([
-          getPeerGroup(groupId),
-         listMyPeerGroups(currentUserId),
-          fetchGroupPosts(groupId),
-        ]);
-        setGroup(g);
-        setMyMemberships(my.memberships);
-        setPosts(p);
-      } catch (e) {
-        console.error(e);
-        setError("Failed to load group discussion.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [groupId]);
+useEffect(() => {
+  if (!groupId) return;
+  (async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setChallengesLoading(true);
+      setChallengeError(null);
+
+      const [g, my, p, ch] = await Promise.all([
+        getPeerGroup(groupId),
+        listMyPeerGroups(currentUserId),
+        fetchGroupPosts(groupId),
+        fetchGroupChallenges(groupId,currentUserId),
+      ]);
+
+      setGroup(g);
+      setMyMemberships(my.memberships);
+      setPosts(p);
+
+      setChallenges(ch.challenges);
+      setMyChallengeParticipations(ch.myParticipations);
+      setChallengeStats(ch.stats);
+    } catch (e) {
+      console.error(e);
+      setError("Failed to load group discussion.");
+      setChallengeError("Failed to load challenges.");
+    } finally {
+      setLoading(false);
+      setChallengesLoading(false);
+    }
+  })();
+}, [groupId]);
+
+const handleCreateChallenge = async () => {
+  if (!groupId) return;
+  if (!newChallengeTitle.trim()) return;
+
+  const target = Number(newChallengeTarget || 0);
+  if (!target || isNaN(target)) {
+    setChallengeError("Target must be a valid number.");
+    return;
+  }
+  if (!newChallengeStart || !newChallengeEnd) {
+    setChallengeError("Start and end dates are required.");
+    return;
+  }
+
+  try {
+    setCreatingChallenge(true);
+    setChallengeError(null);
+
+    await createGroupChallenge(groupId, currentUserId ,{
+      title: newChallengeTitle.trim(),
+      description: newChallengeDescription.trim(),
+      type: newChallengeType,
+      targetValue: target,
+      unitLabel: newChallengeUnit.trim() || "actions",
+      startDate: newChallengeStart,
+      endDate: newChallengeEnd,
+    });
+
+    // after creating, refresh challenges from backend to get stats etc.
+    const ch = await fetchGroupChallenges(groupId,currentUserId);
+    setChallenges(ch.challenges);
+    setMyChallengeParticipations(ch.myParticipations);
+    setChallengeStats(ch.stats);
+
+    // reset form
+    setNewChallengeTitle("");
+    setNewChallengeDescription("");
+    setNewChallengeTarget("10");
+    setNewChallengeUnit(
+      newChallengeType === "applications"
+        ? "applications"
+        : newChallengeType === "outreach"
+        ? "messages"
+        : newChallengeType === "practice"
+        ? "sessions"
+        : "actions"
+    );
+    setNewChallengeStart("");
+    setNewChallengeEnd("");
+  } catch (e) {
+    console.error(e);
+    setChallengeError("Failed to create challenge.");
+  } finally {
+    setCreatingChallenge(false);
+  }
+};
+
+const loadLeaderboard = async (challengeId: string) => {
+  try {
+    const entries = await fetchChallengeLeaderboard(challengeId,currentUserId);
+    setLeaderboards((prev) => ({ ...prev, [challengeId]: entries }));
+  } catch (e) {
+    console.error("Failed to load leaderboard", e);
+  }
+};
 
   const membership = useMemo(() => {
     if (!groupId) return null;
@@ -101,6 +215,91 @@ export default function PeerGroupDiscussionPage() {
       setPosting(false);
     }
   };
+const participationByChallengeId = useMemo(() => {
+  const map: Record<string, GroupChallengeParticipation> = {};
+  myChallengeParticipations.forEach((p) => {
+    map[p.challengeId] = p;
+  });
+  return map;
+}, [myChallengeParticipations]);
+const handleJoinChallenge = async (challenge: GroupChallenge) => {
+  if (!groupId) return;
+  if (!membership) {
+    setChallengeError("You must join this group before joining challenges.");
+    return;
+  }
+  try {
+    const participation = await joinGroupChallenge(challenge._id,currentUserId);
+    setMyChallengeParticipations((prev) => {
+      const existing = prev.find((p) => p._id === participation._id);
+      if (existing) {
+        return prev.map((p) => (p._id === participation._id ? participation : p));
+      }
+      return [...prev, participation];
+    });
+
+    // refresh stats
+    const ch = await fetchGroupChallenges(groupId,currentUserId);
+    setChallenges(ch.challenges);
+    setChallengeStats(ch.stats);
+  } catch (e) {
+    console.error(e);
+    setChallengeError("Failed to join challenge.");
+  }
+};
+
+const handleUpdateChallengeProgress = async (
+  challenge: GroupChallenge,
+  delta: number,
+  note?: string
+) => {
+  if (!groupId) return;
+  if (!membership) {
+    setChallengeError("You must join this group before updating progress.");
+    return;
+  }
+  if (!delta || isNaN(delta)) return;
+
+  try {
+    const participation = await updateGroupChallengeProgress(challenge._id,currentUserId, {
+      delta,
+      note,
+    });
+
+    setMyChallengeParticipations((prev) =>
+      prev.map((p) => (p._id === participation._id ? participation : p))
+    );
+
+    const ch = await fetchGroupChallenges(groupId,currentUserId);
+    setChallenges(ch.challenges);
+    setChallengeStats(ch.stats);
+  } catch (e) {
+    console.error(e);
+    setChallengeError("Failed to update challenge progress.");
+  }
+};
+const handleLeaveChallenge = async (challenge: GroupChallenge) => {
+  if (!groupId) return;
+  if (!membership) return;
+
+  const ok = window.confirm(
+    `Leave "${challenge.title}"? Your progress will no longer be tracked.`
+  );
+  if (!ok) return;
+
+  try {
+    await leaveGroupChallenge(challenge._id,currentUserId);
+
+    // ✅ Refresh to drop participantCount and remove myParticipation
+    const ch = await fetchGroupChallenges(groupId,currentUserId);
+    setChallenges(ch.challenges);
+    setMyChallengeParticipations(ch.myParticipations);
+    setChallengeStats(ch.stats);
+  } catch (e) {
+    console.error(e);
+    setChallengeError("Failed to leave challenge.");
+  }
+};
 
   const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
     if (!groupId || !membership) return;
@@ -273,6 +472,134 @@ export default function PeerGroupDiscussionPage() {
           </Card>
         ))}
       </div>
+
+      {/* Challenges & accountability */}
+<div className="space-y-2 mt-6">
+  <h2 className="text-lg font-medium">Group challenges & accountability</h2>
+
+  {challengesLoading && (
+    <p className="text-xs text-gray-500">Loading challenges...</p>
+  )}
+
+  {challengeError && (
+    <p className="text-xs text-red-600">{challengeError}</p>
+  )}
+
+  {!challengesLoading && challenges.length === 0 && (
+    <p className="text-xs text-gray-500">
+      No challenges yet. Group owners can create weekly goals like “Apply to 10 jobs”
+      or “Send 5 networking messages”.
+    </p>
+  )}
+  {/* Only group owner can create challenges */}
+  {isGroupOwner && (
+    <div className="border rounded-md p-3 space-y-2 bg-gray-50">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium">Create a new challenge</span>
+      </div>
+
+      <div className="space-y-2 text-xs">
+        <input
+          className="w-full border rounded px-2 py-1"
+          placeholder='Title (e.g. "Apply to 10 jobs this week")'
+          value={newChallengeTitle}
+          onChange={(e) => setNewChallengeTitle(e.target.value)}
+        />
+
+        <textarea
+          className="w-full border rounded px-2 py-1"
+          rows={2}
+          placeholder="Optional description (how to participate, tips, etc.)"
+          value={newChallengeDescription}
+          onChange={(e) => setNewChallengeDescription(e.target.value)}
+        />
+
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="border rounded px-2 py-1"
+            value={newChallengeType}
+            onChange={(e) =>
+              setNewChallengeType(
+                e.target.value as "applications" | "outreach" | "practice" | "other"
+              )
+            }
+          >
+            <option value="applications">Applications</option>
+            <option value="outreach">Outreach</option>
+            <option value="practice">Interview practice</option>
+            <option value="other">Other</option>
+          </select>
+
+          <input
+            type="number"
+            min={1}
+            className="border rounded px-2 py-1 w-24"
+            placeholder="Goal"
+            value={newChallengeTarget}
+            onChange={(e) => setNewChallengeTarget(e.target.value)}
+          />
+
+          <input
+            className="border rounded px-2 py-1 w-32"
+            placeholder="Unit"
+            value={newChallengeUnit}
+            onChange={(e) => setNewChallengeUnit(e.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col">
+            <label className="text-[11px] text-gray-500">Start date</label>
+            <input
+              type="date"
+              className="border rounded px-2 py-1 text-xs"
+              value={newChallengeStart}
+              onChange={(e) => setNewChallengeStart(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[11px] text-gray-500">End date</label>
+            <input
+              type="date"
+              className="border rounded px-2 py-1 text-xs"
+              value={newChallengeEnd}
+              onChange={(e) => setNewChallengeEnd(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            disabled={creatingChallenge}
+            onClick={handleCreateChallenge}
+          >
+            {creatingChallenge ? "Creating..." : "Create challenge"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  <div className="space-y-3">
+    {challenges.map((ch) => (
+     <ChallengeCard
+  key={ch._id}
+  challenge={ch}
+  stats={challengeStats[ch._id] || { participantCount: 0, totalProgress: 0 }}
+  membership={membership}
+  myParticipation={participationByChallengeId[ch._id] || null}
+  onJoin={handleJoinChallenge}
+  onUpdateProgress={handleUpdateChallengeProgress}
+  onLeave={handleLeaveChallenge}
+/>
+
+      
+    ))}
+  </div>
+</div>
+
     </div>
   );
 }
+
