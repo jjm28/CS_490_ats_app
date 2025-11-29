@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import InterviewPrep from '../models/interviewPrep.js';
 
 const router = express.Router();
 
@@ -455,5 +456,80 @@ async function searchCompetitors(companyName) {
 async function searchFinancialHealth(companyName) {
   return await googleSearch(`"${companyName}" earnings OR revenue OR investor relations OR quarterly results site:finance.yahoo.com OR site:investors.${companyName.toLowerCase().replace(/\s+/g, '')}.com`, 5);
 }
+
+
+
+// Save company research to database
+router.post("/save-research", async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const { jobId, companyInfo } = req.body;
+
+    if (!userId || !jobId || !companyInfo) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Check if research already exists
+    const existing = await InterviewPrep.findOne({ userId, jobId });
+
+    const researchData = {
+      userId,
+      jobId,
+      companyName: companyInfo.name,
+      basicInfo: companyInfo.basicInfo,
+      leadership: companyInfo.leadership.searchResults,
+      financialHealth: companyInfo.financialHealth,
+      socialMedia: companyInfo.socialMedia,
+      competitors: companyInfo.competitors,
+      news: companyInfo.news,
+      lastResearched: new Date()
+    };
+
+    if (existing) {
+      Object.assign(existing, researchData);
+      await existing.save();
+      return res.json({ message: "Research updated", data: existing });
+    }
+
+    const research = await InterviewPrep.create(researchData);
+    res.json({ message: "Research saved", data: research });
+  } catch (err) {
+    console.error("Save research error:", err);
+    res.status(500).json({ error: "Failed to save research" });
+  }
+});
+
+// Get saved company research
+router.get("/saved-research/:jobId", async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const { jobId } = req.params;
+
+    const research = await InterviewPrep.findOne({ userId, jobId });
+
+    if (!research) {
+      return res.status(404).json({ error: "No saved research found" });
+    }
+
+    // Transform back to frontend format
+    const companyInfo = {
+      name: research.companyName,
+      basicInfo: research.basicInfo,
+      news: research.news,
+      leadership: { searchResults: research.leadership },
+      socialMedia: research.socialMedia,
+      competitors: research.competitors,
+      financialHealth: research.financialHealth,
+      lastUpdated: research.lastResearched
+    };
+
+    res.json(companyInfo);
+  } catch (err) {
+    console.error("Get research error:", err);
+    res.status(500).json({ error: "Failed to load research" });
+  }
+});
+
+
 
 export default router;
