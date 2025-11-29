@@ -8,7 +8,9 @@ import {
   LeavePeerGroup, 
   canManageGroup,
   createGroup,updatePeerGroup,DeleteGroup,fetchAllPeerGroupMembership,
-  updatePeerGroupMembership} from '../services/peerGroups.service.js';
+  updatePeerGroupMembership,
+createGroupPost,
+fetchposts} from '../services/peerGroups.service.js';
 import { ObjectId } from 'mongodb';
 import { file } from 'zod';
 import { getAllJobs } from '../services/jobs.service.js';
@@ -57,6 +59,22 @@ router.get("/my", async (req, res) => {
   } catch (err) {
     console.error("Error fetching my peer groups:", err);
     res.status(500).json({ error: "Server error fetching my peer groups" });
+  }
+});
+
+// GET /api/peer-groups/:groupId/posts?limit=20
+// Return posts with privacy-aware persona info
+router.get("/posts",  async (req, res) => {
+  try {
+    const { groupId } = req.query;
+    const limit = Math.min(parseInt(req.query.limit || "30", 10), 100);
+
+  const result = await fetchposts({groupId, limit})
+
+    res.json({ posts: result });
+  } catch (err) {
+    console.error("Error fetching peer group posts:", err);
+    res.status(500).json({ error: "Server error fetching posts" });
   }
 });
 
@@ -114,6 +132,38 @@ router.post("/leave",  async (req, res) => {
   } catch (err) {
     console.error("Error leaving peer group:", err);
     res.status(500).json({ error: "Server error leaving group" });
+  }
+});
+
+
+router.post("/posts",  async (req, res) => {
+  try {
+   const { groupId } = req.query;
+    const {userId} =  req.query;
+    const { content, type } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: "Content is required" });
+    }
+
+    const group = await fetchAllPeerGroups({_id: new ObjectId(groupId)})
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    const membership = await fetchAllPeerGroupMembership({ userId,groupId})
+    if (!membership) {
+      return res
+        .status(403)
+        .json({ error: "You must join this group before posting" });
+    }
+
+    const post = await createGroupPost({groupId,userId,content,type})
+
+    res.status(201).json(post);
+  } catch (err) {
+    console.error("Error creating peer group post:", err);
+    res.status(500).json({ error: "Server error creating post" });
   }
 });
 
@@ -208,3 +258,19 @@ router.delete("/",  async (req, res) => {
   }
 });
 export default router;
+
+
+// GET /api/peer-groups/:groupId
+router.get("/single",  async (req, res) => {
+  try {
+    const { groupId } = req.query;
+    const group = await fetchAllPeerGroups({_id: new ObjectId(groupId)});
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+    res.json(group);
+  } catch (err) {
+    console.error("Error fetching peer group:", err);
+    res.status(500).json({ error: "Server error fetching group" });
+  }
+});

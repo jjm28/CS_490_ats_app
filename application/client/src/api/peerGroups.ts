@@ -153,3 +153,57 @@ export async function updateMembershipPrivacy(
   if (!res.ok) throw new Error("Failed to update membership privacy");
   return (await res.json()) as PeerGroupMembership;
 }
+
+
+export interface PostPersona {
+  mode: "public" | "alias" | "anonymous";
+  displayName: string;
+  headline?: string;
+  canViewProfile?: boolean;
+}
+
+export interface GroupPost {
+  _id: string;
+  groupId: string;
+  content: string;
+  type: "insight" | "question" | "strategy" | "other";
+  createdAt: string;
+  updatedAt: string;
+  persona: PostPersona;
+}
+
+
+export async function fetchGroupPosts(groupId: string, limit = 30) {
+  const res = await fetch(
+    `${API_BASE}/posts?limit=${limit}&groupId=${groupId}`,
+    {
+      headers: authHeaders(),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to fetch group posts");
+  const data = (await res.json()) as { posts: GroupPost[] };
+  return data.posts;
+}
+
+export async function createGroupPost(
+  groupId: string,
+  userId: string,
+  payload: { content: string; type?: "insight" | "question" | "strategy" | "other" }
+) {
+  const res = await fetch(`${API_BASE}/posts?groupId=${groupId}&userId=${userId}`, {
+    method: "POST",
+     headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create group post");
+  return (await res.json()) as GroupPost;
+}
+
+
+export async function getPeerGroup(groupId: string) {
+  const res = await fetch(`${API_BASE}/single?groupId=${groupId}`, {
+     headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch peer group");
+  return (await res.json()) as PeerGroup;
+}

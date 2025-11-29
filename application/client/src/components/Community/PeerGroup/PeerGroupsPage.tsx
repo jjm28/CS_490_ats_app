@@ -20,8 +20,11 @@ import GroupPrivacyModal, {
   type GroupPrivacyFormValues,
 } from "./GroupPrivacyModal";
 import { updateMembershipPrivacy } from "../../../api/peerGroups";
-
+import { useNavigate } from "react-router-dom";
 export default function PeerGroupsPage() {
+
+    const navigate = useNavigate();
+
   const [groups, setGroups] = useState<PeerGroup[]>([]);
   const [myMemberships, setMyMemberships] = useState<PeerGroupMembership[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfileForGroups | null>(null);
@@ -419,6 +422,9 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
       Privacy
     </Button>
   )}
+<Button onClick={() => navigate(`/peer-groups/${group._id}`)}>
+  View
+</Button>
 
   {owner && (
     <div className="flex gap-1">

@@ -4,7 +4,7 @@ import 'dotenv/config';
 import { file, object } from 'zod';
 import PeerGroup from "../models/PeerGroup.js";
 import PeerGroupMembership from "../models/PeerGroupMembership.js"
-
+import PeerGroupPost from '../models/PeerGroupPost.js';
 
 
 export async function fetchAllPeerGroups(filter) {
@@ -152,4 +152,126 @@ export async function createGroup( { userId, name, description, industry, role, 
     });
 
     return {group,membership}
+}
+
+
+export async function createGroupPost( { groupId,userId, content, type }) {
+
+  const post = PeerGroupPost.create({
+      groupId,
+      authorId: userId,
+      content: content.trim(),
+      type: type || "insight",
+    });
+
+
+    return post
+}
+
+export async function latestposts( { groupId,limit }) {
+
+ const posts = await PeerGroupPost.find({
+      groupId,
+      isDeleted: false,
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    return posts
+}
+
+
+export async function fetchposts( { groupId ,limit}) {
+const db = getDb()
+  const group = await fetchAllPeerGroups({_id: new ObjectId(groupId)})
+    if (!group) {
+     throw new Error("Group not found");
+    }
+    // get latest posts
+    console.log(groupId)
+    const posts = await latestposts({groupId, limit})
+
+    if (posts.length === 0) {
+      return []
+    }
+    const authorIds = [...new Set(posts.map(p => p.authorId))];
+
+
+    const memberships = await PeerGroupMembership.find({
+      groupId,
+      userId: { $in: authorIds },
+    }).lean();
+  
+    const users = await db.collection("profiles").find({ userId: { $in: authorIds } },    { projection: {userId: 1,fullName:1, headline:1, photoUrl:1} })
+    
+      .toArray();
+
+    const membershipByKey = new Map();
+    memberships.forEach((m) => {
+      membershipByKey.set(`${m.userId}`, m);
+    });
+
+    const userById = new Map();
+    users.forEach((u) => {
+      userById.set(`${u.userId}`, u);
+    });
+    console.log(users)
+    function buildPersona(user, membership) {
+      if (!membership || !user) {
+        return {
+          mode: "anonymous",
+          displayName: "Anonymous",
+          canViewProfile: false,
+        };
+      }
+
+      const interactionLevel = membership.interactionLevel || "public";
+
+      if (interactionLevel === "anonymous") {
+        return {
+          mode: "anonymous",
+          displayName: "Anonymous",
+          canViewProfile: false,
+        };
+      }
+
+      if (interactionLevel === "alias") {
+        return {
+          mode: "alias",
+          displayName: membership.alias || "Anonymous",
+          canViewProfile: false,
+        };
+      }
+
+      // public
+      const displayName = user.fullName || user.name || "Member";
+      return {
+        mode: "public",
+        displayName,
+        headline: user.headline || "",
+        canViewProfile:
+          membership.showProfileLink !== undefined
+            ? membership.showProfileLink
+            : true,
+      };
+    }
+
+    const result = posts.map((p) => {
+      const m = membershipByKey.get(`${p.authorId}`);
+      const u = userById.get(`${p.authorId}`);
+      const persona = buildPersona(u, m);
+
+      return {
+        _id: p._id,
+        groupId: p.groupId,
+        content: p.content,
+        type: p.type,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        persona,
+      };
+    });
+
+    return result
 }

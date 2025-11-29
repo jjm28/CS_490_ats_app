@@ -52,7 +52,7 @@ import ManageReferences from './components/Reference/ManageReferences';
 import ReferencePortfolio from './components/Reference/ReferencePortfolio';
 
 import PeerGroupsPage from './components/Community/PeerGroup/PeerGroupsPage';
-
+import PeerGroupDiscussionPage from './components/Community/PeerGroup/PeerGroupDiscussionPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -137,6 +137,7 @@ function App() {
           <Route path="/manage-references" element={<PrivateRoute><ManageReferences /></PrivateRoute>} />
           <Route path="/references/portfolio" element={<PrivateRoute><ReferencePortfolio /></PrivateRoute>} />
           <Route path="/peer-groups" element={<PrivateRoute><PeerGroupsPage /></PrivateRoute>} />
+          <Route path="/peer-groups/:groupId" element={<PrivateRoute><PeerGroupDiscussionPage /></PrivateRoute>} />
 
 
         </Routes>
