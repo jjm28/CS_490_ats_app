@@ -39,6 +39,12 @@ import {
 import ChallengeCard from "./ChallengeCard";
 import OpportunityCard from "./OpportunityCard";
 import GroupEventCard from "./GroupEventCard";
+
+import JobPickerSheet from "../../Coverletter/JobPickerSheet";
+import MiniOpportunityForm, {
+  type OpportunityDraft,
+} from "./MiniOpportunityForm";
+import { useJobs } from "../../Coverletter/hooks/useJobs";
 export default function PeerGroupDiscussionPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
@@ -122,6 +128,20 @@ const [eventLocationText, setEventLocationText] = useState("");
 const [eventJoinUrl, setEventJoinUrl] = useState("");
 const [eventMaxAttendees, setEventMaxAttendees] = useState<string>("");
 
+
+// Jobs (for picking an existing job)
+const { jobs, loading: jobsLoading, err: jobsError } = useJobs();
+
+// Sharing opportunity flow
+const [showOppJobPicker, setShowOppJobPicker] = useState(false);
+const [showOppMiniForm, setShowOppMiniForm] = useState(false);
+const [oppInitialDraft, setOppInitialDraft] = useState<Partial<OpportunityDraft> | null>(null);
+
+// Alerts
+const [newOppCount, setNewOppCount] = useState(0);
+const [lastSeenOppTime, setLastSeenOppTime] = useState<number | null>(null);
+
+
 const successPosts = useMemo(
   () => posts.filter((p) => p.highlightType === "success").slice(0, 3),
   [posts]
@@ -182,6 +202,24 @@ useEffect(() => {
       setEvents(evData.events);
       setMyEventRsvps(evData.myRsvps);
       setEventStats(evData.stats);
+
+      // NEW: alert + new-marker logic
+if (groupId) {
+  const key = `peerGroup:${groupId}:lastSeenOpportunity`;
+  const lastSeenStr = localStorage.getItem(key);
+  const lastSeen = lastSeenStr ? Date.parse(lastSeenStr) : 0;
+
+  const countNew = oppData.opportunities.filter((o) => {
+    const created = Date.parse(o.createdAt);
+    return created > lastSeen;
+  }).length;
+
+  setNewOppCount(countNew);
+  setLastSeenOppTime(lastSeen || 0);
+
+  // update last seen to now so next visit uses this as baseline
+  localStorage.setItem(key, new Date().toISOString());
+}
     } catch (e) {
       console.error(e);
         setError("Failed to load group discussion.");
@@ -196,6 +234,86 @@ useEffect(() => {
     }
   })();
 }, [groupId, currentUserId]);
+const handleDismissOppAlert = () => {
+  setNewOppCount(0);
+  if (groupId) {
+    localStorage.setItem(
+      `peerGroup:${groupId}:lastSeenOpportunity`,
+      new Date().toISOString()
+    );
+  }
+};
+const isOppNew = (opp: PeerOpportunity) => {
+  if (!lastSeenOppTime) return false;
+  const created = Date.parse(opp.createdAt);
+  return created > lastSeenOppTime;
+};
+const handleShareOpportunityClick = () => {
+  // if user has jobs, let them pick; otherwise go straight to manual form
+  if (jobs && jobs.length > 0) {
+    setShowOppJobPicker(true);
+  } else {
+    setOppInitialDraft(null);
+    setShowOppMiniForm(true);
+  }
+};
+
+const handlePickJobForOpportunity = (job: import("../../Coverletter/hooks/useJobs").Job) => {
+  setShowOppJobPicker(false);
+  // Map job -> opportunity initial draft
+  setOppInitialDraft({
+    title: job.jobTitle,
+    company: job.company,
+    location: job.location || "",
+    jobUrl: job.jobPostingUrl || "",
+    tags: "",          // user can add
+    source: "From my job tracker",
+    notes: job.description ? job.description.slice(0, 240) : "",
+    referralAvailable: true,
+    maxReferrals: "",
+  });
+  setShowOppMiniForm(true);
+};
+const handleEnterOpportunityManual = () => {
+  setShowOppJobPicker(false);
+  setOppInitialDraft(null);
+  setShowOppMiniForm(true);
+};
+const handleMiniOpportunitySubmit = async (draft: OpportunityDraft) => {
+  if (!groupId) return;
+
+  try {
+    setOppsError(null);
+    // Call existing createPeerOpportunity helper
+    await createPeerOpportunity(groupId,currentUserId, {
+      title: draft.title,
+      company: draft.company,
+      location: draft.location || "",
+      jobUrl: draft.jobUrl || "",
+      source: draft.source || "",
+      referralAvailable: draft.referralAvailable,
+      maxReferrals:
+        draft.maxReferrals === "" ? 0 : Number(draft.maxReferrals),
+      tags: draft.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      notes: draft.notes || "",
+    });
+
+    // Refresh opportunities
+    const oppData = await fetchGroupOpportunities(groupId,currentUserId);
+    setOpportunities(oppData.opportunities);
+    setMyOpportunityInterests(oppData.myInterests);
+    setOpportunityStats(oppData.stats);
+
+    setShowOppMiniForm(false);
+    setOppInitialDraft(null);
+  } catch (e) {
+    console.error(e);
+    setOppsError("Failed to share opportunity.");
+  }
+};
 
 const myRsvpByEventId = useMemo(() => {
   const map: Record<string, PeerGroupEventRsvp> = {};
@@ -957,7 +1075,7 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
     ))}
   </div>
 
-  {/* Shared opportunities & referrals */}
+{/* Shared opportunities & referrals */}
 <div className="space-y-2 mt-6">
   <h2 className="text-lg font-medium">Shared opportunities & referrals</h2>
 
@@ -965,90 +1083,48 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
     <p className="text-xs text-red-600">{oppsError}</p>
   )}
 
-  {/* Simple v1 alert: show a hint that this is where new opportunities show up */}
+  {/* Alerts */}
+  {newOppCount > 0 && (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+      <div className="flex items-center gap-2">
+        <span className="text-base">🔔</span>
+        <span>
+          {newOppCount} new opportunit{newOppCount === 1 ? "y" : "ies"} since your last visit to this group.
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={handleDismissOppAlert}
+        className="underline hover:no-underline"
+      >
+        Mark as seen
+      </button>
+    </div>
+  )}
+
   {oppsLoading && (
     <p className="text-xs text-gray-500">Loading opportunities...</p>
   )}
 
-  {/* Share form (group members only) */}
+  {/* CTA card to share */}
   {membership ? (
-    <div className="border rounded-md p-3 space-y-2 bg-gray-50">
-      <div className="flex justify-between items-center">
-        <span className="text-sm font-medium">Share an opportunity</span>
+    <div className="border rounded-md p-3 bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="text-xs text-gray-700">
+        <div className="font-medium text-sm">
+          Share a role with your peers
+        </div>
+        <p className="mt-1">
+          Post internships, new grad roles, and referral-ready openings so the group can benefit.
+        </p>
       </div>
-      <div className="flex flex-wrap gap-2 text-xs">
-        <input
-          className="border rounded px-2 py-1 flex-1"
-          placeholder="Job title (e.g. SWE Intern)"
-          value={oppTitle}
-          onChange={(e) => setOppTitle(e.target.value)}
-        />
-        <input
-          className="border rounded px-2 py-1 flex-1"
-          placeholder="Company"
-          value={oppCompany}
-          onChange={(e) => setOppCompany(e.target.value)}
-        />
-      </div>
-      <div className="flex flex-wrap gap-2 text-xs">
-        <input
-          className="border rounded px-2 py-1 flex-1"
-          placeholder="Location (NYC, Remote...)"
-          value={oppLocation}
-          onChange={(e) => setOppLocation(e.target.value)}
-        />
-        <input
-          className="border rounded px-2 py-1 flex-1"
-          placeholder="Job URL"
-          value={oppUrl}
-          onChange={(e) => setOppUrl(e.target.value)}
-        />
-      </div>
-      <div className="flex flex-wrap gap-2 text-xs">
-        <input
-          className="border rounded px-2 py-1 flex-1"
-          placeholder="Source (Internal, LinkedIn, etc.)"
-          value={oppSource}
-          onChange={(e) => setOppSource(e.target.value)}
-        />
-        <input
-          className="border rounded px-2 py-1 flex-1"
-          placeholder="Tags (internship, backend, 2026)"
-          value={oppTags}
-          onChange={(e) => setOppTags(e.target.value)}
-        />
-      </div>
-      <div className="flex flex-wrap gap-2 items-center text-xs">
-        <label className="flex items-center gap-1">
-          <input
-            type="checkbox"
-            checked={oppReferralAvailable}
-            onChange={(e) => setOppReferralAvailable(e.target.checked)}
-          />
-          I can refer for this role
-        </label>
-        <input
-          className="border rounded px-2 py-1 w-24"
-          placeholder="Max referrals"
-          value={oppMaxReferrals}
-          onChange={(e) => setOppMaxReferrals(e.target.value)}
-        />
-      </div>
-      <textarea
-        className="w-full border rounded px-2 py-1 text-xs"
-        rows={2}
-        placeholder="Optional notes about the team, timeline, expectations..."
-        value={oppNotes}
-        onChange={(e) => setOppNotes(e.target.value)}
-      />
-      <div className="flex justify-end">
-        <Button
+      <div className="flex flex-wrap gap-2">
+        <button
           type="button"
-          disabled={sharingOpp}
-          onClick={handleShareOpportunity}
+          onClick={handleShareOpportunityClick}
+          className="px-4 py-2 rounded-md bg-gray-900 text-white text-xs font-medium hover:bg-black"
         >
-          {sharingOpp ? "Sharing..." : "Share opportunity"}
-        </Button>
+          Share opportunity
+        </button>
       </div>
     </div>
   ) : (
@@ -1061,8 +1137,7 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
   <div className="space-y-2">
     {opportunities.length === 0 && !oppsLoading && (
       <p className="text-xs text-gray-500">
-        No opportunities shared yet. Use this space to share roles and referrals with
-        your peers.
+        No opportunities shared yet. Once members start posting roles and referrals, they’ll appear here.
       </p>
     )}
     {opportunities.map((opp) => (
@@ -1084,11 +1159,13 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
         }
         onExpressInterest={handleExpressInterest}
         onWithdrawInterest={handleWithdrawInterest}
-        onAddToTracker={undefined} // TODO: hook to your jobs API
+        onAddToTracker={undefined} // hook to jobs later if you want
+        isNew={isOppNew(opp)}
       />
     ))}
   </div>
 </div>
+
 {/* Group coaching & webinars */}
 <div className="space-y-2 mt-6">
   <h2 className="text-lg font-medium">Group coaching & webinars</h2>
@@ -1259,6 +1336,28 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
     ))}
   </div>
 </div>
+<JobPickerSheet
+  open={showOppJobPicker}
+  onClose={() => setShowOppJobPicker(false)}
+  jobs={jobs}
+  loading={jobsLoading}
+  error={jobsError}
+  onPickJob={handlePickJobForOpportunity}
+  onEnterManual={handleEnterOpportunityManual}
+  title="Pick a job to share with your group"
+  subtitle="Choose an existing job from your tracker or enter the opportunity details manually."
+/>
+
+<MiniOpportunityForm
+  open={showOppMiniForm}
+  onCancel={() => {
+    setShowOppMiniForm(false);
+    setOppInitialDraft(null);
+  }}
+  onSubmit={handleMiniOpportunitySubmit}
+  initial={oppInitialDraft || undefined}
+  titleLabel="Share an opportunity with your peer group"
+/>
 
 </div>
 

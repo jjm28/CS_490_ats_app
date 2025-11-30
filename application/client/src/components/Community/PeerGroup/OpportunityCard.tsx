@@ -19,6 +19,9 @@ type OpportunityCardProps = {
   onExpressInterest: (op: PeerOpportunity, note: string) => void;
   onWithdrawInterest: (op: PeerOpportunity) => void;
   onAddToTracker?: (op: PeerOpportunity) => void;
+ isNew?: boolean;
+
+
 };
 
 export default function OpportunityCard({
@@ -30,6 +33,7 @@ export default function OpportunityCard({
   onExpressInterest,
   onWithdrawInterest,
   onAddToTracker,
+  isNew
 }: OpportunityCardProps) {
   const [note, setNote] = useState("");
   const [showInterested, setShowInterested] = useState(false);
@@ -71,6 +75,11 @@ export default function OpportunityCard({
             <h3 className="font-medium text-sm">
               {opp.title} @ {opp.company}
             </h3>
+             {isNew && (
+                <span className="text-[10px] uppercase bg-emerald-100 border border-emerald-200 rounded px-1.5 py-0.5 text-emerald-700">
+                  New
+                </span>
+              )}
             {!isOpen && (
               <span className="text-[10px] uppercase bg-gray-100 border rounded px-1.5 py-0.5 text-gray-500">
                 {opp.status}
