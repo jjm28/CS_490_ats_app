@@ -39,6 +39,7 @@ import productivityRoutes from "./routes/productivity.js";
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
 import smartGoalsRoutes from "./routes/smartGoals.js";
+import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -131,6 +132,10 @@ try {
   //productivity 
   app.use("/api/productivity", productivityRoutes);
   app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
+  app.use("/api/productivity", attachDevUser,productivityRoutes);
+
+  //competitive applicant analysis
+  app.use("/api/competitive-analysis", attachDevUser,competitiveAnalysisRouter);
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
