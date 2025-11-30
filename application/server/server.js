@@ -80,7 +80,7 @@ try {
   app.use('/api/jobs', jobRoutes);
 
  app.use("/api/interview-insights", attachDevUser, interviewRoutes);
-  app.use(companyResearch);
+  app.use("/api/company/research" , attachDevUser, companyResearch);
   app.use('/api/salary', salaryRouter);
   // for picture uploads
   app.use(
