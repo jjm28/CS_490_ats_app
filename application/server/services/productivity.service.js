@@ -2,11 +2,15 @@
 import ActivitySession from "../models/activitySession.js";
 import Jobs from "../models/jobs.js";
 
+// Max duration we’ll allow a single session to count for (in minutes)
+// This protects against a tab left open all day skewing stats.
+const MAX_SESSION_MINUTES = 8 * 60; // 8 hours
+
 /**
  * Start a new activity session
  * @param {Object} params
  * @param {string} params.userId
- * @param {string} params.activityType - "job_search" | "job_research" | "resume_edit" | "coverletter_edit"
+ * @param {string} params.activityType - "job_search" | "job_research" | "resume_edit" | "coverletter_edit" | etc.
  * @param {string} [params.jobId]
  * @param {string} [params.context]
  * @param {number} [params.energyLevelStart]
@@ -49,15 +53,25 @@ export async function endActivitySession({
   }
 
   if (session.endedAt) {
-    // Already ended – just return it
+    // Already ended – optionally update energy, then return
+    if (energyLevelEnd !== undefined) {
+      session.energyLevelEnd = energyLevelEnd;
+      await session.save();
+    }
     return session.toObject();
   }
 
   const endedAt = new Date();
-  const durationMinutes = Math.max(
+  // Duration in real minutes
+  let durationMinutes = Math.max(
     0,
     Math.round((endedAt.getTime() - session.startedAt.getTime()) / 60000)
   );
+
+  // Clamp a single session so it can’t be absurdly long
+  if (durationMinutes > MAX_SESSION_MINUTES) {
+    durationMinutes = MAX_SESSION_MINUTES;
+  }
 
   session.endedAt = endedAt;
   session.durationMinutes = durationMinutes;
@@ -75,8 +89,9 @@ export async function endActivitySession({
  * @param {string} userId
  */
 export async function computeProductivityOverview(userId) {
+  const periodDays = 30;
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
 
   // Pull last ~30 days of sessions
   const sessions = await ActivitySession.find({
@@ -90,7 +105,7 @@ export async function computeProductivityOverview(userId) {
       summary: {
         totalMinutes: 0,
         totalHours: 0,
-        periodDays: 30,
+        periodDays,
       },
       activityBreakdown: [],
       schedulePatterns: {
@@ -123,17 +138,27 @@ export async function computeProductivityOverview(userId) {
     };
   }
 
-  // Helper
-  const safeDuration = (s) =>
-    s.durationMinutes ??
-    Math.max(
-      0,
-      Math.round(
-        ((s.endedAt ? new Date(s.endedAt) : now).getTime() -
-          new Date(s.startedAt).getTime()) /
-          60000
-      )
-    );
+  // Helper to safely derive duration in minutes for each *ended* session
+  const safeDuration = (s) => {
+    let minutes;
+
+    if (typeof s.durationMinutes === "number") {
+      minutes = s.durationMinutes;
+    } else if (s.endedAt) {
+      const end = new Date(s.endedAt);
+      const start = new Date(s.startedAt);
+      minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+    } else {
+      // Shouldn't reach here if we skip !endedAt sessions, but be safe
+      minutes = 0;
+    }
+
+    if (!Number.isFinite(minutes)) minutes = 0;
+    minutes = Math.max(0, minutes);
+    if (minutes > MAX_SESSION_MINUTES) minutes = MAX_SESSION_MINUTES;
+
+    return minutes;
+  };
 
   // -----------------------------
   // 1) Summary and breakdown
@@ -163,7 +188,12 @@ export async function computeProductivityOverview(userId) {
   const dailyTotalsMap = new Map(); // "YYYY-MM-DD" -> minutes
 
   for (const s of sessions) {
+    // ✅ Only include sessions that actually ended
+    if (!s.endedAt) continue;
+
     const dur = safeDuration(s);
+    if (dur <= 0) continue;
+
     totalMinutes += dur;
 
     // Activity breakdown
@@ -180,7 +210,7 @@ export async function computeProductivityOverview(userId) {
     const dayLabel = dayLabels[dayIdx];
     byDayOfWeek[dayLabel] += dur;
 
-    // Hour of day (start hour as approximation)
+    // Hour of day (we attribute the full duration to the start hour)
     const hour = startDate.getHours(); // 0–23
     byHourOfDay[hour] += dur;
 
@@ -276,8 +306,9 @@ export async function computeProductivityOverview(userId) {
   // -----------------------------
   // 3) Wellbeing / burnout-ish
   // -----------------------------
-  const distinctDays = dailyTotalsMap.size || 1;
-  const avgMinutesPerDay = totalMinutes / distinctDays;
+  // Use the fixed 30-day window for average, not just "active days"
+  const avgMinutesPerDay =
+    periodDays > 0 ? totalMinutes / periodDays : 0;
   const weeklyHoursEstimate = (avgMinutesPerDay * 7) / 60;
 
   const HIGH_LOAD_MINUTES = 5 * 60; // 5+ hours in a day
@@ -399,8 +430,8 @@ export async function computeProductivityOverview(userId) {
   return {
     summary: {
       totalMinutes,
-      totalHours: +totalHours.toFixed(1),
-      periodDays: 30,
+      totalHours: +(totalMinutes / 60).toFixed(1),
+      periodDays,
     },
     activityBreakdown,
     schedulePatterns,

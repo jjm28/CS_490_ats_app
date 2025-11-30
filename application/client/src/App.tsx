@@ -68,6 +68,8 @@ import JobSalaryDetails from "./components/JobSalaryDetails";
 import SalaryProgressDetail from "./components/Analytics/Salary/SalaryProgressDetail";
 import CompProgressDetail from "./components/Analytics/Salary/CompProgressDetail";
 import GoalNew from "./components/Analytics/SmartGoals/GoalNew";
+import JobCompetitiveAnalysisDashboard from "./components/Jobs/JobCompetitiveAnalysisDashboard";
+
 
 function App() {
   const location = useLocation();
@@ -208,7 +210,17 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route 
+          path="/analytics/productivity" 
+          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>} 
+          />
+          <Route
+            path="/Jobs/CompetitiveAnalysis"
+            element={<PrivateRoute><JobCompetitiveAnalysisDashboard /></PrivateRoute>}
+          />
+
         </Routes>
+
       </div>
     </>
   );

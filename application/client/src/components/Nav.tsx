@@ -224,9 +224,16 @@ function Navbar() {
                   Productivity
                 </NavLink>
                 <NavLink
+                  to="/Jobs/CompetitiveAnalysis"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Competitive Analysis
+                </NavLink>
+                <NavLink
                   to="/analytics/market-trends"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >
+
                   Market Trends
                 </NavLink>
               </PopoverPanel>
