@@ -6,6 +6,11 @@ import type { Job } from "../../types/jobs.types";
 import InterviewScheduler from "../Jobs/InterviewScheduler";
 import ApplicationTimeline from "./ApplicationTimeline";
 
+import {
+  startProductivitySession,
+  endProductivitySession,
+} from "../../api/productivity";
+
 const JobDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -26,6 +31,36 @@ const JobDetailsPage: React.FC = () => {
     if (!id) return;
     fetchJob();
   }, [id]);
+
+  //Time tracking for productivity
+  useEffect(() => {
+  if (!id) return;
+
+  let canceled = false;
+  let sessionId: string | null = null;
+
+  (async () => {
+    try {
+      const session = await startProductivitySession({
+        activityType: "job_focus",
+        jobId: id,
+        context: "JobDetailsPage",
+      });
+      if (!canceled) sessionId = session._id;
+    } catch (err) {
+      console.error("[productivity] Failed to start job_focus session:", err);
+    }
+  })();
+
+  return () => {
+    canceled = true;
+    if (sessionId) {
+      endProductivitySession({ sessionId }).catch((err) =>
+        console.error("[productivity] Failed to end job_focus session:", err)
+      );
+    }
+  };
+}, [id]);
 
   const fetchJob = async () => {
     setLoading(true);

@@ -35,6 +35,7 @@ import goalsRoutes from "./routes/goals.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
+import productivityRoutes from "./routes/productivity.js"; 
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
 import smartGoalsRoutes from "./routes/smartGoals.js";
@@ -127,6 +128,8 @@ try {
 
   app.use("/api/interviews", interviewAnalyticsRoutes);
 
+  //productivity 
+  app.use("/api/productivity", productivityRoutes);
   app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
 
   // Health check
