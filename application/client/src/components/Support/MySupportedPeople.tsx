@@ -77,15 +77,7 @@ export default function MySupportedPeople() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
-      <Card className="p-4">
-        <h1 className="font-semibold text-lg">People you’re supporting</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Here’s a list of job seekers who have invited you into their job
-          search. You can open each support dashboard to see their privacy-safe
-          progress view.
-        </p>
-      </Card>
+  <div className="space-y-4">
 
       <Card className="p-4">
         {error && (

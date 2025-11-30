@@ -7,6 +7,7 @@ import { sendSupporterInviteEmail } from "./emailService.js";
 import { getDb } from "../db/connection.js";
 import Milestone from "../models/Milestone.js";
 import SupportUpdate from "../models/SupportUpdate.js";
+import WellbeingSettings from "../models/WellbeingSettings.js";
  const SUPPORTER_PRIVACY_PRESETS = {
   high_level: {
     canSeeProgressSummary: true,
@@ -40,34 +41,74 @@ import SupportUpdate from "../models/SupportUpdate.js";
 const EDUCATIONAL_RESOURCES = [
   {
     slug: "support-basics",
-    title: "How to support someone searching for a job",
+    title: "How to support someone during a job search",
     category: "emotional_support",
-    url: "https://www.indeed.com/career-advice/career-development/support-someone-looking-for-job"
+    description:
+      "Overview of what a modern job search looks like, why it takes time, and how to be a steady, encouraging presence.",
+    audience: ["general"],
+    stages: ["Planning", "Actively applying", "Interviewing", "Offer stage"],
+    stress: ["any"],
+  },
+  {
+    slug: "parents-guide",
+    title: "Guide for parents & caregivers",
+    category: "family",
+    description:
+      "Explains how to balance concern and encouragement without adding pressure, especially for early-career job seekers.",
+    audience: ["parent", "family"],
+    stages: ["Planning", "Actively applying", "Interviewing"],
+    stress: ["moderate", "high", "any"],
+  },
+  {
+    slug: "partners-guide",
+    title: "Guide for partners & close relationships",
+    category: "family",
+    description:
+      "How to support someone you live with or talk to daily, including handling money and future questions gently.",
+    audience: ["partner"],
+    stages: ["Actively applying", "Interviewing", "Offer stage"],
+    stress: ["any"],
+  },
+  {
+    slug: "friends-guide",
+    title: "Guide for friends & siblings",
+    category: "social",
+    description:
+      "Ways to check in, hype them up, and include them socially without making everything about the job search.",
+    audience: ["friend", "sibling"],
+    stages: ["Actively applying", "Interviewing"],
+    stress: ["any"],
   },
   {
     slug: "boundaries",
-    title: "How to set healthy boundaries when someone you love is stressed about work",
+    title: "Healthy boundaries when talking about jobs",
     category: "boundaries",
-    url: "https://www.psychologytoday.com/us/blog/stress-and-resilience/202008/setting-boundaries-with-loved-ones"
+    description:
+      "Explains why boundaries matter and gives examples of what is and isn’t helpful to ask about.",
+    audience: ["general"],
+    stages: ["Planning", "Actively applying", "Interviewing", "Offer stage"],
+    stress: ["any"],
   },
   {
     slug: "interview-support",
-    title: "How to help someone prepare for a job interview (without taking over)",
+    title: "Supporting them through interviews and rejections",
     category: "interviews",
-    url: "https://www.themuse.com/advice/how-to-help-someone-prepare-for-job-interview"
+    description:
+      "How to help with prep, nerves, and post-interview feelings without demanding every detail.",
+    audience: ["general"],
+    stages: ["Interviewing"],
+    stress: ["moderate", "high"],
   },
   {
-    slug: "celebration",
-    title: "How to celebrate achievements without adding pressure",
-    category: "celebration",
-    url: "https://www.betterup.com/blog/celebrating-wins"
+    slug: "offer-stage",
+    title: "Helping them think through offers & decisions",
+    category: "offers",
+    description:
+      "How to ask good questions and give input on offers without pushing them into a decision.",
+    audience: ["general", "parent", "partner"],
+    stages: ["Offer stage"],
+    stress: ["low", "moderate", "any"],
   },
-  {
-    slug: "emotional-support",
-    title: "Ways to emotionally support family who are job hunting",
-    category: "emotional_support",
-    url: "https://www.healthline.com/health/how-to-support-someone"
-  }
 ];
 
 /**
@@ -269,7 +310,8 @@ const rawSummary = buildRawSummary(
   wellbeingSnapshot,
   supporter.boundaries,
   milestones,
-  updates
+  updates,
+  supporter.relationship 
 );
 
 const filteredSummary = filterSummaryForSupporter(
@@ -301,7 +343,7 @@ const filteredSummary = filterSummaryForSupporter(
 // function buildRawSummary(jobs, wellbeingSnapshot) {
 
 // AFTER:
-function buildRawSummary(jobs, wellbeingSnapshot, boundaries,milestones,updates) {
+function buildRawSummary(jobs, wellbeingSnapshot, boundaries,milestones,updates,relationship) {
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -419,12 +461,12 @@ function buildRawSummary(jobs, wellbeingSnapshot, boundaries,milestones,updates)
 
   const wellbeing = wellbeingSnapshot || null;
 
-  const guidance = buildSupporterGuidance({
-    progressSummary,
-    wellbeing,
-    boundaries,
-  });
-
+const guidance = buildSupporterGuidance({
+  progressSummary,
+  wellbeing,
+  boundaries,
+  relationship
+});
   const recentMilestones = milestones || [];
   const supportUpdates = updates || [];
   return {
@@ -696,7 +738,75 @@ export async function listSupportedPeople({ supporterUserId }) {
   });
 }
 
-function buildSupporterGuidance({ progressSummary, wellbeing, boundaries }) {
+function normalizeRelationship(relRaw) {
+  const rel = (relRaw || "").toLowerCase();
+
+  if (
+    rel.includes("mom") ||
+    rel.includes("mother") ||
+    rel.includes("dad") ||
+    rel.includes("father") ||
+    rel.includes("parent") ||
+    rel.includes("guardian")
+  ) {
+    return "parent";
+  }
+  if (
+    rel.includes("partner") ||
+    rel.includes("boyfriend") ||
+    rel.includes("girlfriend") ||
+    rel.includes("spouse") ||
+    rel.includes("husband") ||
+    rel.includes("wife")
+  ) {
+    return "partner";
+  }
+  if (rel.includes("sister") || rel.includes("brother") || rel.includes("sibling")) {
+    return "sibling";
+  }
+  if (rel.includes("friend")) {
+    return "friend";
+  }
+  if (rel.includes("mentor")) {
+    return "mentor";
+  }
+
+  return "general";
+}
+
+function selectEducationalResources({ statusTrend, stressLabel, relationship }) {
+  const stage = statusTrend || "Planning";
+  const stress = stressLabel || "any";
+  const relKey = normalizeRelationship(relationship);
+
+  const candidates = EDUCATIONAL_RESOURCES.filter((r) => {
+    const audience = r.audience || ["general"];
+    const stages = r.stages || ["Planning", "Actively applying", "Interviewing", "Offer stage"];
+    const stressBands = r.stress || ["any"];
+
+    const audienceMatch =
+      audience.includes("general") || audience.includes(relKey);
+
+    const stageMatch = stages.includes(stage);
+
+    const stressMatch =
+      stressBands.includes("any") ||
+      (stress !== "unknown" && stressBands.includes(stress));
+
+    return audienceMatch && stageMatch && stressMatch;
+  });
+
+  if (candidates.length > 0) {
+    return candidates.slice(0, 3);
+  }
+
+  // Fallback: at least show basics + boundaries
+  return EDUCATIONAL_RESOURCES.filter((r) =>
+    ["support-basics", "boundaries"].includes(r.slug)
+  );
+}
+
+function buildSupporterGuidance({ progressSummary, wellbeing, boundaries,relationship }) {
   const {
     statusTrend,
     consistencyScore,
@@ -854,39 +964,20 @@ function buildSupporterGuidance({ progressSummary, wellbeing, boundaries }) {
   }
 
   // Resources: pick a couple that match their stage
-  const resources = [];
-
-  if (statusTrend === "Interviewing") {
-    resources.push(
-      EDUCATIONAL_RESOURCES.find((r) => r.slug === "interview-support")
-    );
-  }
-  if (statusTrend === "Offer stage") {
-    resources.push(
-      EDUCATIONAL_RESOURCES.find((r) => r.slug === "celebration")
-    );
-  }
-
-  // Always include basics + boundaries as fallback
-  resources.push(
-    EDUCATIONAL_RESOURCES.find((r) => r.slug === "support-basics"),
-    EDUCATIONAL_RESOURCES.find((r) => r.slug === "boundaries")
-  );
-
-  const filteredResources = resources
-    .filter(Boolean)
-    // de-duplicate by slug
-    .filter(
-      (r, idx, arr) => arr.findIndex((x) => x.slug === r.slug) === idx
-    );
+  const resources = selectEducationalResources({
+    statusTrend,
+    stressLabel,
+    relationship,
+  });
 
   return {
     headline,
     summary,
     supportTips: tips,
     thingsToAvoid: avoid,
-    resources: filteredResources,
+    resources,
   };
+
 }
 
 export async function createMilestone({
@@ -1041,4 +1132,234 @@ export async function getSupportUpdatesForSupporter({
     toneTag: u.toneTag,
     createdAt: u.createdAt,
   }));
+}
+
+
+/**
+ * Get the start of the week (Mon 00:00) for a given date in UTC.
+ */
+function getWeekStart(date) {
+  const d = new Date(date);
+  const day = d.getUTCDay(); // 0=Sun,...6=Sat
+  const diff = (day + 6) % 7; // how many days to go back to Monday
+  d.setUTCDate(d.getUTCDate() - diff);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Build an array of week buckets ending this week, size `weeks`.
+ * Each bucket: { start: Date, end: Date }
+ */
+function buildWeekBuckets(weeks) {
+  const now = new Date();
+  const currentWeekStart = getWeekStart(now);
+  const buckets = [];
+
+  for (let i = weeks - 1; i >= 0; i--) {
+    const start = new Date(currentWeekStart);
+    start.setUTCDate(start.getUTCDate() - i * 7);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 7);
+    buckets.push({ start, end });
+  }
+
+  return buckets;
+}
+
+/**
+ * Compute a wellbeing & support overview for the user.
+ */
+export async function getWellbeingSupportOverview({
+  userId,
+  weeks = 4,
+}) {
+  if (!userId) {
+    const err = new Error("userId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const buckets = buildWeekBuckets(weeks);
+  const rangeStart = buckets[0].start;
+  const now = new Date();
+
+  // Load data for the whole period once
+  const [checkins, milestones, updates, jobs, settings] = await Promise.all([
+    WellbeingCheckin.find({
+      userId,
+      createdAt: { $gte: rangeStart },
+    }).lean(),
+    Milestone.find({
+      ownerUserId: userId,
+      createdAt: { $gte: rangeStart },
+    }).lean(),
+    SupportUpdate.find({
+      ownerUserId: userId,
+      createdAt: { $gte: rangeStart },
+    }).lean(),
+    Jobs.find({ userId }).lean(),
+    WellbeingSettings.findOne({ userId }).lean(),
+  ]);
+
+  // Helper to map date -> bucket index
+  function findBucketIndex(date) {
+    const d = new Date(date);
+    for (let i = 0; i < buckets.length; i++) {
+      if (d >= buckets[i].start && d < buckets[i].end) return i;
+    }
+    return -1;
+  }
+
+  // Initialize weekly stats
+  const weekly = buckets.map((b) => ({
+    weekStart: b.start,
+    avgStressLevel: null,
+    avgMoodLevel: null,
+    hasCheckins: false,
+    numSupportUpdates: 0,
+    numMilestones: 0,
+    numApplications: 0,
+    numInterviews: 0,
+    numOffers: 0,
+  }));
+
+  // Aggregate wellbeing
+  const stressSums = Array(weeks).fill(0);
+  const stressCounts = Array(weeks).fill(0);
+  const moodSums = Array(weeks).fill(0);
+  const moodCounts = Array(weeks).fill(0);
+
+  checkins.forEach((c) => {
+    const idx = findBucketIndex(c.createdAt);
+    if (idx === -1) return;
+    stressSums[idx] += c.stressLevel || 0;
+    stressCounts[idx] += 1;
+    moodSums[idx] += c.moodLevel || 0;
+    moodCounts[idx] += 1;
+  });
+
+  for (let i = 0; i < weeks; i++) {
+    if (stressCounts[i] > 0) {
+      weekly[i].avgStressLevel = stressSums[i] / stressCounts[i];
+      weekly[i].hasCheckins = true;
+    }
+    if (moodCounts[i] > 0) {
+      weekly[i].avgMoodLevel = moodSums[i] / moodCounts[i];
+      weekly[i].hasCheckins = true;
+    }
+  }
+
+  // Aggregate support updates
+  updates.forEach((u) => {
+    const idx = findBucketIndex(u.createdAt);
+    if (idx === -1) return;
+    weekly[idx].numSupportUpdates += 1;
+  });
+
+  // Aggregate milestones
+  milestones.forEach((m) => {
+    const idx = findBucketIndex(m.createdAt);
+    if (idx === -1) return;
+    weekly[idx].numMilestones += 1;
+  });
+
+  // Aggregate job activity (rough)
+  jobs.forEach((job) => {
+    const appliedAt =
+      job.appliedAt || job.createdAt || job.updatedAt || null;
+    if (appliedAt) {
+      const idx = findBucketIndex(appliedAt);
+      if (idx !== -1) {
+        weekly[idx].numApplications += 1;
+      }
+    }
+
+    // interviews by nextInterviewDate
+    if (job.nextInterviewDate) {
+      const idx = findBucketIndex(job.nextInterviewDate);
+      if (idx !== -1) {
+        weekly[idx].numInterviews += 1;
+      }
+    }
+
+    const status = (job.status || "").toLowerCase();
+    if (
+      status === "offer" ||
+      status === "offer_received" ||
+      status === "accepted_offer"
+    ) {
+      const idx = findBucketIndex(job.updatedAt || job.createdAt || now);
+      if (idx !== -1) {
+        weekly[idx].numOffers += 1;
+      }
+    }
+  });
+
+  // Compute simple insight about support vs stress
+  let stressWithSupportSum = 0;
+  let stressWithSupportCount = 0;
+  let stressWithoutSupportSum = 0;
+  let stressWithoutSupportCount = 0;
+
+  weekly.forEach((w) => {
+    if (w.avgStressLevel == null) return;
+    const supportActivity = w.numSupportUpdates + w.numMilestones;
+
+    if (supportActivity > 0) {
+      stressWithSupportSum += w.avgStressLevel;
+      stressWithSupportCount++;
+    } else {
+      stressWithoutSupportSum += w.avgStressLevel;
+      stressWithoutSupportCount++;
+    }
+  });
+
+  let simpleInsight = null;
+
+  if (stressWithSupportCount > 0 && stressWithoutSupportCount > 0) {
+    const avgWithSupport = stressWithSupportSum / stressWithSupportCount;
+    const avgWithoutSupport =
+      stressWithoutSupportSum / stressWithoutSupportCount;
+
+    // Lower stressLevel = better, since 1=lowest, 5=highest
+    if (avgWithSupport < avgWithoutSupport - 0.2) {
+      simpleInsight =
+        "In weeks where you shared at least one update or celebration with supporters, your average stress check-ins were a bit lower.";
+    } else if (avgWithSupport > avgWithoutSupport + 0.2) {
+      simpleInsight =
+        "In weeks where you shared updates with supporters, you tended to log slightly higher stress—this might mean you reach out more when weeks are tough.";
+    } else {
+      simpleInsight =
+        "Your stress levels look similar in weeks with and without supporter activity. The most important thing is using support in a way that feels right to you.";
+    }
+  }
+
+  const currentWeek = weekly[weeks - 1] || null;
+
+  return {
+    currentWeek,
+    weeklyTrend: weekly,
+    simpleInsight,
+    resetPlan: settings?.resetPlan || "",
+  };
+}
+
+/**
+ * Upsert the user's reset/coping plan.
+ */
+export async function saveWellbeingResetPlan({ userId, resetPlan }) {
+  if (!userId) {
+    const err = new Error("userId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const doc = await WellbeingSettings.findOneAndUpdate(
+    { userId },
+    { $set: { resetPlan: resetPlan || "" } },
+    { upsert: true, new: true }
+  ).lean();
+
+  return doc;
 }

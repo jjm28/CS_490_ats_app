@@ -7,8 +7,10 @@ import {
   acceptInviteByToken,
     getSupporterSummary,  createWellbeingCheckin,
     getWellbeingSnapshot,
-  getRecentCheckins,acceptInviteForUser,listSupportedPeople, createMilestone,createSupportUpdate
+  getRecentCheckins,acceptInviteForUser,listSupportedPeople, createMilestone,createSupportUpdate ,getWellbeingSupportOverview,
+  saveWellbeingResetPlan,
 } from "../services/supporters.service.js";
+import WellbeingCheckin from "../models/WellbeingCheckin.js";
 
 const router = express.Router();
 
@@ -264,7 +266,7 @@ router.post("/milestones", async (req, res) => {
   }
 });
 
-export default router;
+
 
 
 router.post("/supportupdate", async (req, res) => {
@@ -294,3 +296,94 @@ router.post("/supportupdate", async (req, res) => {
       .json({ error: err.message || "Server error creating support update" });
   }
 });
+
+
+
+/**
+ * GET /api/wellbeing-support/overview?userId=...&weeks=4
+ */
+router.get("/wellbeing-support/overview", async (req, res) => {
+  try {
+    const { userId, weeks } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const overview = await getWellbeingSupportOverview({
+      userId,
+      weeks: weeks ? Number(weeks) : 4,
+    });
+
+    res.json(overview);
+  } catch (err) {
+    console.error("Error getting wellbeing support overview:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error" });
+  }
+});
+
+/**
+ * PUT /api/wellbeing-support/plan?userId=...
+ * Body: { resetPlan: string }
+ */
+router.put("/wellbeing-support/plan", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const { resetPlan } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const settings = await saveWellbeingResetPlan({
+      userId,
+      resetPlan: resetPlan || "",
+    });
+
+    res.json({ resetPlan: settings.resetPlan || "" });
+  } catch (err) {
+    console.error("Error saving wellbeing reset plan:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error" });
+  }
+});
+
+/**
+ * POST /api/wellbeing-checkins?userId=...
+ * Body: { stressLevel, moodLevel, energyLevel?, note? }
+ */
+router.post("/wellbeing-checkins/", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const { stressLevel, moodLevel, energyLevel, note } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+    if (!stressLevel || !moodLevel) {
+      return res
+        .status(400)
+        .json({ error: "stressLevel and moodLevel are required" });
+    }
+
+    const doc = await WellbeingCheckin.create({
+      userId,
+      stressLevel,
+      moodLevel,
+      energyLevel: energyLevel || undefined,
+      note: note || undefined,
+    });
+
+    res.status(201).json(doc);
+  } catch (err) {
+    console.error("Error creating wellbeing check-in:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error" });
+  }
+});
+
+export default router;

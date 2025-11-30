@@ -128,19 +128,25 @@ export default function SupporterSettings({ userId }: Props) {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4 flex items-center justify-between">
+      <Card className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-semibold text-lg">Family &amp; Personal Support</h2>
-          <p className="text-sm text-gray-600">
+          <h2 className="font-semibold text-base sm:text-lg">
+            Family &amp; Personal Support
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-600">
             Invite trusted people to see a privacy-safe summary of your job
             search and learn how to support you.
           </p>
         </div>
-        <Button type="button" onClick={() => setInviteFormOpen(true)}>
+        <Button
+          type="button"
+          onClick={() => setInviteFormOpen(true)}
+          className="px-3 py-1 text-xs sm:text-sm"
+        >
           Invite supporter
         </Button>
       </Card>
-     <SupportUpdateComposer userId={userId} />
+    
       {inviteFormOpen && (
         <Card className="p-4 space-y-3">
           <h3 className="font-semibold text-sm">Invite a supporter</h3>
@@ -236,7 +242,7 @@ export default function SupporterSettings({ userId }: Props) {
           </form>
         </Card>
       )}
-
+ <SupportUpdateComposer userId={userId} />
       <Card className="p-4">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold text-sm">Your supporters</h3>

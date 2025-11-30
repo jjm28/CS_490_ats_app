@@ -129,7 +129,12 @@ export interface SupportGuidanceResource {
   slug: string;
   title: string;
   category: string;
+  description?: string;
+  audience?: string[];
+  stages?: string[];
+  stress?: string[];
 }
+
 
 export interface SupportGuidance {
   headline: string;
@@ -176,3 +181,24 @@ export interface SupportUpdate {
   toneTag?: SupportUpdateTone | null;
   createdAt: string;
 }
+
+
+export interface WeeklyWellbeingSupportStats {
+  weekStart: string; // ISO
+  avgStressLevel: number | null;
+  avgMoodLevel: number | null;
+  hasCheckins: boolean;
+  numSupportUpdates: number;
+  numMilestones: number;
+  numApplications: number;
+  numInterviews: number;
+  numOffers: number;
+}
+
+export interface WellbeingSupportOverview {
+  currentWeek: WeeklyWellbeingSupportStats | null;
+  weeklyTrend: WeeklyWellbeingSupportStats[];
+  simpleInsight: string | null;
+  resetPlan: string;
+}
+

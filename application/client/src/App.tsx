@@ -67,7 +67,8 @@ import SupporterSettings from './components/Support/SupporterSettings';
 import WellbeingCheckinPanel from './components/Support/WellbeingCheckinPanel';
 import SupporterDashboard from './components/Support/SupporterDashboard';
 import AcceptInvitePage from './components/Support/AcceptInvitePage';
-import MySupportedPeople from './components/Support/MySupportedPeople';
+
+import SupportPage from './components/Support/SupportPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -190,16 +191,14 @@ function App() {
             element={<PrivateRoute><MarketTrends /></PrivateRoute>}
           />
           
-              <Route
-        path="/support"
-        element={
-          <div className="grid gap-4 md:grid-cols-[2fr,1.4fr]">
-            <PrivateRoute><SupporterSettings userId={userId} /></PrivateRoute>
-            <PrivateRoute><WellbeingCheckinPanel userId={userId} /></PrivateRoute>
-            <PrivateRoute><MySupportedPeople/></PrivateRoute>
-          </div>
-        }
-      />
+<Route
+  path="/support"
+  element={
+    <PrivateRoute>
+      <SupportPage userId={userId} />
+    </PrivateRoute>
+  }
+/>
 
       {/* Job seeker preview */}
       <Route
