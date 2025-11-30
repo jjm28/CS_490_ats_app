@@ -130,6 +130,25 @@ const JobSchema = new Schema({
         type: String,
         default: ''
     },
+    finalSalary: { type: Number, default: null },
+    salaryHistory: [
+        {
+            finalSalary: { type: Number, required: true },
+            negotiationOutcome: {
+                type: String,
+                enum: ["Not attempted", "Improved", "No change", "Worse", "Lost offer"],
+                default: "Not attempted",
+            },
+            date: { type: Date, default: Date.now }
+        }
+    ],
+
+    compHistory: [
+        {
+            totalComp: { type: Number, required: true },
+            date: { type: Date, default: Date.now }
+        }
+    ],
     interviewNotes: {
         type: String,
         default: ''

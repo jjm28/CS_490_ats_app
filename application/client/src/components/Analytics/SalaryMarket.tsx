@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getSalaryAnalytics } from "../../api/salaryAnalytics";
+
+// --- Types ---
+interface SalaryProgressionItem {
+  jobId: string;
+  date: string | Date;
+  salary: number;
+  company: string;
+  title: string;
+  negotiationOutcome?: string;
+}
 
 export default function SalaryMarket() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
@@ -25,7 +38,15 @@ export default function SalaryMarket() {
   if (error) return <div className="p-6 text-red-600">{error}</div>;
   if (!analytics) return <div className="p-6">No data available</div>;
 
-  const { summary, progression, negotiationStats, marketPositioning, recommendations } = analytics;
+  const {
+    summary,
+    progression,
+    negotiationStats,
+    marketPositioning,
+    recommendations,
+    compSummary,
+    compProgression,
+  } = analytics;
 
   return (
     <div className="p-10 space-y-10 max-w-5xl mx-auto">
@@ -52,11 +73,32 @@ export default function SalaryMarket() {
         {progression.length === 0 ? (
           <p className="text-gray-600">No offer history available.</p>
         ) : (
-          progression.map((p: any, i: number) => (
-            <p key={i}>
-              {new Date(p.date).toLocaleDateString()} — <strong>${p.salary}</strong> at {p.company} ({p.title})
-            </p>
-          ))
+          Object.values(
+            progression.reduce((acc: any, entry: any) => {
+              // Group by jobId and keep only the *latest* entry
+              if (
+                !acc[entry.jobId] ||
+                new Date(entry.date) > new Date(acc[entry.jobId].date)
+              ) {
+                acc[entry.jobId] = entry;
+              }
+              return acc;
+            }, {})
+          )
+            .sort((a: any, b: any) => {
+              return new Date(b.date).getTime() - new Date(a.date).getTime();
+            })
+            .map((p: any, i: number) => (
+              <p
+                key={i}
+                onClick={() => navigate(`/analytics/salary-progress/${p.jobId}`)}
+                className="text-blue-600 underline cursor-pointer hover:text-blue-800"
+              >
+                {new Date(p.date).toLocaleDateString()} —
+                <strong>${p.salary}</strong> at {p.company} ({p.title})
+                {p.negotiationOutcome && ` — Negotiation: ${p.negotiationOutcome}`}
+              </p>
+            ))
         )}
       </section>
 
@@ -66,9 +108,49 @@ export default function SalaryMarket() {
       <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3">
         <h2 className="text-2xl font-semibold text-(--brand-navy)">Negotiation Performance</h2>
 
-        <p>Attempts: <strong>{negotiationStats.attempts}</strong></p>
-        <p>Successful Improvements: <strong>{negotiationStats.successes}</strong></p>
         <p>Success Rate: <strong>{negotiationStats.successRate}%</strong></p>
+        <p>
+          Negotiation Strength:{" "}
+          <strong>{negotiationStats.negotiationStrength}%</strong>
+        </p>
+      </section>
+
+      {/* ===================================================== */}
+      {/* TOTAL COMPENSATION */}
+      {/* ===================================================== */}
+      <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3">
+        <h2 className="text-2xl font-semibold text-(--brand-navy)">
+          Total Compensation Trends
+        </h2>
+
+        {compProgression.length === 0 ? (
+          <p className="text-gray-600">No compensation data yet.</p>
+        ) : (
+          Object.values(
+            compProgression.reduce((acc: any, entry: any) => {
+              if (
+                !acc[entry.jobId] ||
+                new Date(entry.date) > new Date(acc[entry.jobId].date)
+              ) {
+                acc[entry.jobId] = entry;
+              }
+              return acc;
+            }, {})
+          )
+            .sort((a: any, b: any) => {
+              return new Date(b.date).getTime() - new Date(a.date).getTime();
+            })
+            .map((p: any, i: number) => (
+              <p
+                key={i}
+                onClick={() => navigate(`/analytics/comp-progress/${p.jobId}`)}
+                className="text-blue-600 underline cursor-pointer hover:text-blue-800"
+              >
+                {new Date(p.date).toLocaleDateString()} —{" "}
+                <strong>${p.totalComp}</strong> total comp at {p.company} ({p.title})
+              </p>
+            ))
+        )}
       </section>
 
       {/* ===================================================== */}

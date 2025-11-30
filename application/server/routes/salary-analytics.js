@@ -34,8 +34,14 @@ router.get("/", async (req, res) => {
         // --------------------------------------------------------
         // Helper: extract numeric salary range (min & max)
         // --------------------------------------------------------
+        // Use FINAL salary if available, otherwise fall back to base salary
         const salaryVals = jobs
             .map(j => {
+                if (j.salaryHistory?.length > 0) {
+                    return j.salaryHistory[j.salaryHistory.length - 1].finalSalary;
+                }
+
+                // fallback (rare)
                 const min = j.salaryMin ? parseFloat(j.salaryMin.toString()) : null;
                 const max = j.salaryMax ? parseFloat(j.salaryMax.toString()) : null;
                 if (min === null && max === null) return null;
@@ -72,39 +78,68 @@ router.get("/", async (req, res) => {
         // 3) Salary Progression Over Time
         // --------------------------------------------------------
         const progression = jobs
-            .filter(j => j.offerDate && (j.salaryMin || j.salaryMax))
-            .map(j => {
-                const salary =
-                    j.salaryMin && j.salaryMax
-                        ? (parseFloat(j.salaryMin.toString()) + parseFloat(j.salaryMax.toString())) / 2
-                        : j.salaryMin
-                            ? parseFloat(j.salaryMin.toString())
-                            : parseFloat(j.salaryMax.toString());
-
-                return {
-                    date: j.offerDate,
-                    salary,
-                    company: j.company,
-                    title: j.jobTitle,
-                };
-            })
+            .flatMap(job =>
+                (job.salaryHistory || []).map(entry => ({
+                    jobId: job._id.toString(),
+                    date: entry.date,
+                    salary: entry.finalSalary,
+                    company: job.company,
+                    title: job.jobTitle,
+                    negotiationOutcome: entry.negotiationOutcome
+                }))
+            )
             .sort((a, b) => new Date(a.date) - new Date(b.date));
-
         // --------------------------------------------------------
         // 4) Negotiation Analytics
         // --------------------------------------------------------
-        const negotiations = jobs
-            .map(j => j.salaryAnalysis?.negotiation)
-            .filter(n => n && n.attempted === true);
+        const negotiations = jobs.flatMap(j =>
+            (j.salaryHistory || []).map(entry => ({
+                outcome: entry.negotiationOutcome,
+                finalSalary: Number(entry.finalSalary),
+                salaryMin: j.salaryMin != null ? Number(j.salaryMin) : null,
+                salaryMax: j.salaryMax != null ? Number(j.salaryMax) : null
+            }))
+        );
 
-        const attempts = negotiations.length;
-        const successes = negotiations.filter(n => n.outcome === "improved-offer").length;
-        const successRate = attempts > 0 ? Math.round((successes / attempts) * 100) : 0;
+        // Count attempts (exclude “Not attempted”)
+        const attempts = negotiations.filter(n =>
+            ["Improved", "No change", "Worse", "Lost offer"].includes(n.outcome)
+        ).length;
+
+        // Count improvements
+        const successes = negotiations.filter(n => n.outcome === "Improved").length;
+
+        // Success rate
+        const successRate = attempts > 0
+            ? Math.round((successes / attempts) * 100)
+            : 0;
+
+        // ---- NEGOTIATION STRENGTH ----
+        // Only look at "Improved" entries AND only if min/max valid
+        const improvementRatios = negotiations
+            .filter(n =>
+                n.outcome === "Improved" &&
+                n.salaryMin !== null &&
+                n.salaryMax !== null &&
+                n.salaryMax > n.salaryMin
+            )
+            .map(n => {
+                const ratio = (n.finalSalary - n.salaryMin) / (n.salaryMax - n.salaryMin);
+                return Math.max(0, Math.min(1, ratio)); // clamp between 0-1 just in case
+            });
+
+        // Average ratio → percentage
+        const negotiationStrength =
+            improvementRatios.length > 0
+                ? Math.round(
+                    (improvementRatios.reduce((a, b) => a + b, 0) /
+                        improvementRatios.length) * 100
+                )
+                : 0;
 
         const negotiationStats = {
-            attempts,
-            successes,
             successRate,
+            negotiationStrength
         };
 
         // --------------------------------------------------------
@@ -126,14 +161,24 @@ router.get("/", async (req, res) => {
 
             const benchmark = benchmarkTable[key];
 
-            const estimated =
-                j.salaryMin && j.salaryMax
-                    ? (parseFloat(j.salaryMin.toString()) + parseFloat(j.salaryMax.toString())) / 2
-                    : j.salaryMin
-                        ? parseFloat(j.salaryMin.toString())
-                        : j.salaryMax
-                            ? parseFloat(j.salaryMax.toString())
-                            : null;
+            let estimated = null;
+
+            // Prefer FINAL negotiated salary
+            if (j.salaryHistory?.length > 0) {
+                estimated = j.salaryHistory[j.salaryHistory.length - 1].finalSalary;
+            } else {
+                // fallback to min/max estimate
+                if (j.salaryMin && j.salaryMax) {
+                    estimated =
+                        (parseFloat(j.salaryMin.toString()) +
+                            parseFloat(j.salaryMax.toString())) /
+                        2;
+                } else if (j.salaryMin) {
+                    estimated = parseFloat(j.salaryMin.toString());
+                } else if (j.salaryMax) {
+                    estimated = parseFloat(j.salaryMax.toString());
+                }
+            }
 
             return {
                 jobId: j._id.toString(),
@@ -152,26 +197,92 @@ router.get("/", async (req, res) => {
         // --------------------------------------------------------
         const recommendations = [];
 
+        // Low average salary
         if (avgSalary < 70000) {
-            recommendations.push("Your average salary is below typical industry thresholds. Consider targeting higher-paying roles or negotiating more aggressively.");
+            recommendations.push(
+                "Your average salary is below typical industry thresholds. Consider targeting higher-paying roles or negotiating more aggressively."
+            );
         }
 
-        if (successRate < 30) {
-            recommendations.push("Your negotiation success rate is low. Practice negotiation scripts or consider negotiating more often.");
+        // Negotiation success rate
+        if (successRate < 30 && attempts > 0) {
+            recommendations.push(
+                "Your negotiation success rate is low. Practice negotiation scripts or negotiate more often."
+            );
         }
 
+        // Negotiation strength (improvement patterns)
+        if (negotiationStrength > 60) {
+            recommendations.push(
+                `Your negotiation strength is excellent — improved offers typically land in the top ${negotiationStrength}% of the employer's salary range.`
+            );
+        } else if (negotiationStrength > 30) {
+            recommendations.push(
+                `Your negotiation strength is moderate — improvements generally land around ${negotiationStrength}% of the employer's range.`
+            );
+        } else if (attempts > 0) {
+            recommendations.push(
+                `Your negotiation gains tend to be on the lower end of employer ranges. Consider enhancing your negotiation approach.`
+            );
+        }
+
+        // Salary progression recommendation
         if (progression.length >= 2) {
             const start = progression[0].salary;
             const end = progression[progression.length - 1].salary;
             const growth = Math.round(((end - start) / start) * 100);
+
             if (growth > 20) {
-                recommendations.push(`Strong salary progression: ${growth}% total growth across your offers.`);
+                recommendations.push(
+                    `Strong salary progression: ${growth}% total growth across your offers.`
+                );
             }
         }
 
+        // Default fallback
         if (recommendations.length === 0) {
-            recommendations.push("Your salary profile looks strong. Continue applying to higher-tier roles for even better compensation.");
+            recommendations.push(
+                "Your salary profile looks strong. Continue targeting high-compensation roles."
+            );
         }
+
+        // --------------------------------------------------------
+        // 4b) Total Compensation Progression & Summary
+        // --------------------------------------------------------
+        const compProgression = jobs
+            .flatMap(job =>
+                (job.compHistory || []).map(entry => ({
+                    jobId: job._id.toString(),
+                    date: entry.date,
+                    totalComp: entry.totalComp,
+                    company: job.company,
+                    title: job.jobTitle,
+                }))
+            )
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const compVals = compProgression.map(p => p.totalComp);
+
+        const compAvg =
+            compVals.length > 0
+                ? Math.round(compVals.reduce((a, b) => a + b, 0) / compVals.length)
+                : 0;
+
+        const compSorted = [...compVals].sort((a, b) => a - b);
+        const compMedian =
+            compSorted.length > 0
+                ? compSorted[Math.floor(compSorted.length / 2)]
+                : 0;
+
+        const compMin = compSorted.length > 0 ? compSorted[0] : 0;
+        const compMax = compSorted.length > 0 ? compSorted[compSorted.length - 1] : 0;
+
+        const compSummary = {
+            avgTotalComp: compAvg,
+            medianTotalComp: compMedian,
+            minTotalComp: compMin,
+            maxTotalComp: compMax,
+        };
 
         // --------------------------------------------------------
         // Final Response
@@ -182,8 +293,9 @@ router.get("/", async (req, res) => {
             negotiationStats,
             marketPositioning,
             recommendations,
+            compSummary,
+            compProgression,
         });
-
     } catch (err) {
         console.error("❌ Salary analytics error:", err);
         res.status(500).json({ error: "Failed to load salary analytics" });

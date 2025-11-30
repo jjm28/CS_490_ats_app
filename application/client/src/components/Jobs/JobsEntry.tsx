@@ -1424,7 +1424,7 @@ function JobsEntry() {
                   </div>
 
                   <div>
-                    <label className="form-label">Application Method *</label>
+                    <label className="form-label">Application Method</label>
                     <select
                       name="applicationMethod"
                       value={formData.applicationMethod}
@@ -1441,7 +1441,7 @@ function JobsEntry() {
                     </select>
                   </div>
                   <div>
-                    <label className="form-label">Application Source *</label>
+                    <label className="form-label">Application Source</label>
                     <select
                       name="applicationSource"
                       value={formData.applicationSource}

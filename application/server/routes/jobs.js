@@ -463,6 +463,68 @@ router.put("/:id", async (req, res) => {
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const r = await validateJobUpdate(req.body);
     if (!r.ok) return res.status(r.status).json(r.error);
+    // ============================================================
+    // ⭐ UC-100: Salary & Compensation History Tracking Logic
+    // ============================================================
+    {
+      const jobDoc = await Jobs.findOne({ _id: req.params.id, userId });
+
+      if (jobDoc) {
+        // ---------- 1) SALARY HISTORY ----------
+        if (r.value.finalSalary != null) {
+          const previousFinal =
+            jobDoc.salaryHistory?.length > 0
+              ? jobDoc.salaryHistory[jobDoc.salaryHistory.length - 1].finalSalary
+              : null;
+
+          if (Number(r.value.finalSalary) !== previousFinal) {
+            jobDoc.salaryHistory = jobDoc.salaryHistory || [];
+            jobDoc.salaryHistory.push({
+              finalSalary: Number(r.value.finalSalary),
+              negotiationOutcome: r.value.negotiationOutcome || "Not attempted",
+              date: new Date(),
+            });
+          }
+        }
+
+        // ---------- 2) TOTAL COMPENSATION HISTORY ----------
+        const finalSalary =
+          r.value.finalSalary ?? jobDoc.finalSalary ?? 0;
+
+        const salaryBonus =
+          r.value.salaryBonus ?? jobDoc.salaryBonus ?? 0;
+
+        const salaryEquity =
+          r.value.salaryEquity ?? jobDoc.salaryEquity ?? 0;
+
+        const benefitsValue =
+          r.value.benefitsValue ?? jobDoc.benefitsValue ?? 0;
+
+        const newTotalComp =
+          Number(finalSalary) +
+          Number(salaryBonus) +
+          Number(salaryEquity) +
+          Number(benefitsValue);
+
+        if (newTotalComp > 0) {
+          jobDoc.compHistory = jobDoc.compHistory || [];
+
+          const lastComp =
+            jobDoc.compHistory.length > 0
+              ? jobDoc.compHistory[jobDoc.compHistory.length - 1].totalComp
+              : null;
+
+          if (lastComp !== newTotalComp) {
+            jobDoc.compHistory.push({
+              totalComp: newTotalComp,
+              date: new Date(),
+            });
+          }
+        }
+
+        await jobDoc.save();
+      }
+    }
     let updated = await updateJob({ userId, id: req.params.id, payload: r.value });
     const devId = getDevId(req);
     if (!updated && devId && devId !== userId) {

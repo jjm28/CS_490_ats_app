@@ -17,6 +17,12 @@ type JobWithSalaryExtras = Job & {
   negotiationOutcome?: string;
   offerDate?: string;
   salaryNotes?: string;
+  finalSalary?: number;
+  salaryHistory?: {
+    finalSalary: number;
+    negotiationOutcome: string;
+    date: string;
+  }[];
 };
 
 interface SalaryFormState {
@@ -29,6 +35,7 @@ interface SalaryFormState {
   offerDate: string;
   negotiationOutcome: string;
   salaryNotes: string;
+  finalSalary: string;
 }
 
 export default function JobSalaryDetails() {
@@ -49,6 +56,7 @@ export default function JobSalaryDetails() {
     offerDate: "",
     negotiationOutcome: "Not attempted",
     salaryNotes: "",
+    finalSalary: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,18 +96,14 @@ export default function JobSalaryDetails() {
         setForm({
           salaryMin: extractDecimal(data.salaryMin),
           salaryMax: extractDecimal(data.salaryMax),
-          salaryBonus:
-            data.salaryBonus != null ? String(data.salaryBonus) : "",
-          salaryEquity:
-            data.salaryEquity != null ? String(data.salaryEquity) : "",
-          benefitsValue:
-            data.benefitsValue != null ? String(data.benefitsValue) : "",
+          salaryBonus: data.salaryBonus != null ? String(data.salaryBonus) : "",
+          salaryEquity: data.salaryEquity != null ? String(data.salaryEquity) : "",
+          benefitsValue: data.benefitsValue != null ? String(data.benefitsValue) : "",
           offerStage: data.offerStage || "Applied",
-          offerDate: data.offerDate
-            ? new Date(data.offerDate).toISOString().slice(0, 10)
-            : "",
+          offerDate: data.offerDate ? new Date(data.offerDate).toISOString().slice(0, 10) : "",
           negotiationOutcome: data.negotiationOutcome || "Not attempted",
           salaryNotes: data.salaryNotes || "",
+          finalSalary: data.finalSalary != null ? String(data.finalSalary) : "",   // ✅ NEW
         });
       } catch (err: any) {
         console.error(err);
@@ -133,14 +137,18 @@ export default function JobSalaryDetails() {
 
       if (form.salaryMin) payload.salaryMin = Number(form.salaryMin);
       if (form.salaryMax) payload.salaryMax = Number(form.salaryMax);
+      if (form.finalSalary) payload.finalSalary = Number(form.finalSalary);
       if (form.salaryBonus) payload.salaryBonus = Number(form.salaryBonus);
       if (form.salaryEquity) payload.salaryEquity = Number(form.salaryEquity);
       if (form.benefitsValue)
         payload.benefitsValue = Number(form.benefitsValue);
       if (form.offerStage) payload.offerStage = form.offerStage;
       if (form.offerDate) payload.offerDate = form.offerDate;
-      if (form.negotiationOutcome)
+      if (isFirstEntry) {
+        payload.negotiationOutcome = "Not attempted"; // enforce
+      } else if (form.negotiationOutcome) {
         payload.negotiationOutcome = form.negotiationOutcome;
+      }
       payload.salaryNotes = form.salaryNotes;
 
       const res = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
@@ -159,8 +167,7 @@ export default function JobSalaryDetails() {
 
       const updated: JobWithSalaryExtras = await res.json();
       setJob(updated);
-      setFlash("Salary details updated!");
-      setTimeout(() => setFlash(null), 3000);
+      navigate(backTarget);
     } catch (err: any) {
       console.error(err);
       setError(err?.message || "Failed to save salary details");
@@ -177,6 +184,10 @@ export default function JobSalaryDetails() {
     return <p className="p-6 text-red-600">Job not found.</p>;
   }
 
+  // 🚨 True if this is the first ever salary entry
+  const isFirstEntry =
+    !job.salaryHistory || job.salaryHistory.length === 0;
+
   // 🚨 Prevent access unless job is in Offer stage
   if (job.status !== "offer") {
     return (
@@ -190,12 +201,6 @@ export default function JobSalaryDetails() {
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-4 flex justify-between items-center">
-        <Button
-          variant="secondary"
-          onClick={() => navigate(backTarget)}
-        >
-          ← Back
-        </Button>
         {flash && <span className="text-sm text-green-700">{flash}</span>}
         {error && <span className="text-sm text-red-600">{error}</span>}
       </div>
@@ -236,6 +241,19 @@ export default function JobSalaryDetails() {
                 onChange={handleChange}
                 className="form-input"
                 placeholder="e.g. 145000"
+              />
+            </div>
+            <div>
+              <label className="form-label">Final Salary (Agreed Salary)</label>
+              <input
+                type="number"
+                name="finalSalary"
+                value={form.finalSalary}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Enter final negotiated salary"
+                min={form.salaryMin}
+                max={form.salaryMax}
               />
             </div>
           </div>
@@ -311,12 +329,13 @@ export default function JobSalaryDetails() {
                 value={form.negotiationOutcome}
                 onChange={handleChange}
                 className="form-input"
+                disabled={isFirstEntry} // 🔒 lock dropdown for first entry
               >
                 <option value="Not attempted">Not attempted</option>
-                <option value="Improved">Improved</option>
-                <option value="No change">No change</option>
-                <option value="Worse">Worse</option>
-                <option value="Lost offer">Lost offer</option>
+                <option value="Improved" disabled={isFirstEntry}>Improved</option>
+                <option value="No change" disabled={isFirstEntry}>No change</option>
+                <option value="Worse" disabled={isFirstEntry}>Worse</option>
+                <option value="Lost offer" disabled={isFirstEntry}>Lost offer</option>
               </select>
             </div>
           </div>
