@@ -7,7 +7,7 @@ import {
   acceptInviteByToken,
     getSupporterSummary,  createWellbeingCheckin,
     getWellbeingSnapshot,
-  getRecentCheckins,acceptInviteForUser,listSupportedPeople, createMilestone
+  getRecentCheckins,acceptInviteForUser,listSupportedPeople, createMilestone,createSupportUpdate
 } from "../services/supporters.service.js";
 
 const router = express.Router();
@@ -265,3 +265,32 @@ router.post("/milestones", async (req, res) => {
 });
 
 export default router;
+
+
+router.post("/supportupdate", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const { type, title, body, toneTag, visibility, supporterIds } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const update = await createSupportUpdate({
+      ownerUserId: userId,
+      type,
+      title,
+      body,
+      toneTag,
+      visibility,
+      supporterIds,
+    });
+
+    res.status(201).json(update);
+  } catch (err) {
+    console.error("Error creating support update:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error creating support update" });
+  }
+});

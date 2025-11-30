@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Card from "../StyledComponents/Card";
 import API_BASE from "../../utils/apiBase";
-import type { SupporterSummaryPayload, SupportGuidance,    MilestoneSummary, } from "../../types/support.types";
+import type { SupporterSummaryPayload, SupportGuidance,    MilestoneSummary,SupportUpdate } from "../../types/support.types";
 
 const SUPPORTERS_ENDPOINT = `${API_BASE}/api/supporters`;
 
@@ -217,10 +217,62 @@ export default function SupporterDashboard() {
       </Card>
             <SupporterGuidanceCard guidance={summary.guidance || null} />
                   <MilestonesCard milestones={summary.milestones || []} />
+      <SupporterUpdatesCard updates={summary.updates || []} />
 
 
     </div>
   );
+}
+function SupporterUpdatesCard({ updates }: { updates: SupportUpdate[] }) {
+  return (
+    <Card className="p-4">
+      <h2 className="font-semibold text-sm mb-2">Updates from them</h2>
+      {(!updates || updates.length === 0) ? (
+        <p className="text-xs text-gray-600">
+          When they choose to share written updates with you, they&apos;ll appear here.
+        </p>
+      ) : (
+        <div className="space-y-2 text-xs max-h-64 overflow-y-auto">
+          {updates.map((u) => (
+            <div
+              key={u.id}
+              className="border rounded px-3 py-2 flex flex-col gap-1"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium">{u.title}</div>
+                <div className="flex items-center gap-2">
+                  {u.toneTag && (
+                    <span className="inline-flex items-center px-2 py-[1px] rounded-full text-[10px] border border-gray-300 text-gray-700">
+                      {toneLabel(u.toneTag)}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-gray-500 whitespace-nowrap">
+                    {new Date(u.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+              <div className="text-gray-700 whitespace-pre-wrap">{u.body}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function toneLabel(tone: string) {
+  switch (tone) {
+    case "positive":
+      return "Mostly positive";
+    case "mixed":
+      return "Mixed week";
+    case "tough":
+      return "Tough week";
+    case "neutral":
+      return "Neutral";
+    default:
+      return "";
+  }
 }
 
 function SummaryStat({ label, value }: { label: string; value: number }) {

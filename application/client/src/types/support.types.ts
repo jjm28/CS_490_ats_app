@@ -92,6 +92,7 @@ export interface SupporterSummaryPayload {
     notes: string | null;
     guidance?: SupportGuidance | null; 
      milestones?: MilestoneSummary[]; 
+         updates?: SupportUpdate[];
   };
 }
 
@@ -156,4 +157,22 @@ export interface MilestoneSummary {
   jobId?: string | null;
   jobCompany?: string | null;
   jobTitle?: string | null;
+}
+
+
+export type SupportUpdateType =
+  | "WEEKLY_SUMMARY"
+  | "TODAY_FEELING"
+  | "PLAN"
+  | "OTHER";
+
+export type SupportUpdateTone = "positive" | "mixed" | "tough" | "neutral";
+
+export interface SupportUpdate {
+  id: string;
+  type: SupportUpdateType;
+  title: string;
+  body: string;
+  toneTag?: SupportUpdateTone | null;
+  createdAt: string;
 }

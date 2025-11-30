@@ -9,6 +9,7 @@ import type {
 } from "../../types/support.types";
 import { useNavigate } from "react-router-dom";
 import SupporterPrivacyModal from "./SupporterPrivacyModal";
+import SupportUpdateComposer from "./SupportUpdateComposer";
 
 const SUPPORTERS_ENDPOINT = `${API_BASE}/api/supporters`;
 
@@ -139,7 +140,7 @@ export default function SupporterSettings({ userId }: Props) {
           Invite supporter
         </Button>
       </Card>
-
+     <SupportUpdateComposer userId={userId} />
       {inviteFormOpen && (
         <Card className="p-4 space-y-3">
           <h3 className="font-semibold text-sm">Invite a supporter</h3>

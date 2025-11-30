@@ -6,7 +6,7 @@ import Jobs from "../models/jobs.js";
 import { sendSupporterInviteEmail } from "./emailService.js"; 
 import { getDb } from "../db/connection.js";
 import Milestone from "../models/Milestone.js";
-
+import SupportUpdate from "../models/SupportUpdate.js";
  const SUPPORTER_PRIVACY_PRESETS = {
   high_level: {
     canSeeProgressSummary: true,
@@ -258,16 +258,18 @@ export async function getSupporterSummary({ supporterId }) {
   const ownerUserId = supporter.ownerUserId;
 
   // 🔁 Load jobs + wellbeing snapshot in parallel
-const [jobs, wellbeingSnapshot, milestones] = await Promise.all([
+const [jobs, wellbeingSnapshot, milestones, updates] = await Promise.all([
   Jobs.find({ userId: ownerUserId }).lean(),
   getWellbeingSnapshot({ userId: ownerUserId }),
   getMilestonesForSupporter({ supporter }),
+  getSupportUpdatesForSupporter({ supporter, limit: 5 }),
 ]);
 const rawSummary = buildRawSummary(
   jobs,
   wellbeingSnapshot,
   supporter.boundaries,
-  milestones
+  milestones,
+  updates
 );
 
 const filteredSummary = filterSummaryForSupporter(
@@ -299,7 +301,7 @@ const filteredSummary = filterSummaryForSupporter(
 // function buildRawSummary(jobs, wellbeingSnapshot) {
 
 // AFTER:
-function buildRawSummary(jobs, wellbeingSnapshot, boundaries,milestones) {
+function buildRawSummary(jobs, wellbeingSnapshot, boundaries,milestones,updates) {
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -423,9 +425,8 @@ function buildRawSummary(jobs, wellbeingSnapshot, boundaries,milestones) {
     boundaries,
   });
 
-  // NEW: raw milestones array
   const recentMilestones = milestones || [];
-
+  const supportUpdates = updates || [];
   return {
     progressSummary,
     upcomingInterview,
@@ -434,6 +435,8 @@ function buildRawSummary(jobs, wellbeingSnapshot, boundaries,milestones) {
     notes: null,
     guidance,
     milestones: recentMilestones,
+    updates: supportUpdates,
+
   };
 }
 
@@ -512,7 +515,7 @@ result.guidance = raw.guidance || null;
     }
     return copy;
   });
-
+  result.updates = raw.updates || [];
   return result;
 }
 
@@ -967,5 +970,75 @@ export async function getMilestonesForSupporter({ supporter, limit = 5 }) {
     jobId: m.jobId || null,
     jobCompany: m.jobCompany,
     jobTitle: m.jobTitle,
+  }));
+}
+
+export async function createSupportUpdate({
+  ownerUserId,
+  type,
+  title,
+  body,
+  toneTag,
+  visibility,
+  supporterIds,
+}) {
+  if (!ownerUserId) {
+    const err = new Error("ownerUserId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!title || !title.trim() || !body || !body.trim()) {
+    const err = new Error("title and body are required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const update = await SupportUpdate.create({
+    ownerUserId,
+    type: type || "OTHER",
+    title: title.trim(),
+    body: body.trim(),
+    toneTag: toneTag || null,
+    visibility: visibility === "custom" ? "custom" : "all",
+    visibleToSupporterIds:
+      visibility === "custom" && Array.isArray(supporterIds)
+        ? supporterIds
+        : [],
+  });
+
+  return update;
+}
+
+/**
+ * Get updates visible to a specific supporter for a job seeker.
+ * `supporter` is the Supporter document (with ownerUserId + _id).
+ */
+export async function getSupportUpdatesForSupporter({
+  supporter,
+  limit = 5,
+}) {
+  const ownerUserId = supporter.ownerUserId;
+  const supporterId = supporter._id.toString();
+
+  const query = {
+    ownerUserId,
+    $or: [
+      { visibility: "all" },
+      { visibility: "custom", visibleToSupporterIds: supporterId },
+    ],
+  };
+
+  const updates = await SupportUpdate.find(query)
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  return updates.map((u) => ({
+    id: u._id.toString(),
+    type: u.type,
+    title: u.title,
+    body: u.body,
+    toneTag: u.toneTag,
+    createdAt: u.createdAt,
   }));
 }
