@@ -15,64 +15,45 @@ import {
   type PeerGroup,
   type PeerGroupMembership,
   type UserProfileForGroups,
+  updateMembershipPrivacy,
 } from "../../../api/peerGroups";
 import GroupPrivacyModal, {
   type GroupPrivacyFormValues,
 } from "./GroupPrivacyModal";
-import { updateMembershipPrivacy } from "../../../api/peerGroups";
 import { useNavigate } from "react-router-dom";
-export default function PeerGroupsPage() {
 
-    const navigate = useNavigate();
+export default function PeerGroupsPage() {
+  const navigate = useNavigate();
 
   const [groups, setGroups] = useState<PeerGroup[]>([]);
   const [myMemberships, setMyMemberships] = useState<PeerGroupMembership[]>([]);
-  const [userProfile, setUserProfile] = useState<UserProfileForGroups | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfileForGroups | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const currentUserId = JSON.parse(localStorage.getItem("authUser") ?? "").user._id
+  // Modal state (create/edit group)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<PeerGroup | null>(null);
+
+  // Privacy modal state
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [privacyGroup, setPrivacyGroup] = useState<PeerGroup | null>(null);
+  const [privacyMembership, setPrivacyMembership] =
+    useState<PeerGroupMembership | null>(null);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState<string>("all");
   const [selectedRole, setSelectedRole] = useState<string>("all");
 
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<PeerGroup | null>(null);
+  // Current user id (assumes you're logged in for this page)
+  const currentUserId =
+    JSON.parse(localStorage.getItem("authUser") ?? "").user._id;
 
-
-  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
-const [privacyGroup, setPrivacyGroup] = useState<PeerGroup | null>(null);
-const [privacyMembership, setPrivacyMembership] =
-  useState<PeerGroupMembership | null>(null);
-
-  const openPrivacyModal = (group: PeerGroup) => {
-  const membership = membershipByGroupId[group._id];
-  if (!membership) return;
-  setPrivacyGroup(group);
-  setPrivacyMembership(membership);
-  setIsPrivacyModalOpen(true);
-};
-const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
-  if (!privacyGroup || !privacyMembership) return;
-
-  const updated = await updateMembershipPrivacy(privacyGroup._id,currentUserId, {
-    interactionLevel: values.interactionLevel,
-    alias: values.alias,
-    allowDirectMessages: values.allowDirectMessages,
-    showProfileLink: values.showProfileLink,
-    showRealNameInGroup: values.showRealNameInGroup,
-  });
-
-  // update local membership cache
-  setMyMemberships((prev) =>
-    prev.map((m) => (m._id === updated._id ? { ...m, ...updated } : m))
-  );
-};
-
+  // Map groupId -> membership
   const membershipByGroupId = useMemo(() => {
     const map: Record<string, PeerGroupMembership> = {};
     myMemberships.forEach((m) => {
@@ -82,9 +63,42 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
   }, [myMemberships]);
 
   const isMember = (groupId: string) => !!membershipByGroupId[groupId];
-  const isOwner = (group: PeerGroup) =>
-    !!currentUserId && !!group.createdBy && group.createdBy === currentUserId;
 
+  const isOwner = (group: PeerGroup) =>
+    !!currentUserId &&
+    !!group.createdBy &&
+    group.createdBy === (currentUserId as string);
+
+  const openPrivacyModal = (group: PeerGroup) => {
+    const membership = membershipByGroupId[group._id];
+    if (!membership) return;
+    setPrivacyGroup(group);
+    setPrivacyMembership(membership);
+    setIsPrivacyModalOpen(true);
+  };
+
+  const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
+    if (!privacyGroup || !privacyMembership) return;
+
+    const updated = await updateMembershipPrivacy(
+      privacyGroup._id,
+      currentUserId,
+      {
+        interactionLevel: values.interactionLevel,
+        alias: values.alias,
+        allowDirectMessages: values.allowDirectMessages,
+        showProfileLink: values.showProfileLink,
+        showRealNameInGroup: values.showRealNameInGroup,
+      }
+    );
+
+    // Update local membership cache
+    setMyMemberships((prev) =>
+      prev.map((m) => (m._id === updated._id ? { ...m, ...updated } : m))
+    );
+  };
+
+  // Load groups + "my groups" + user profile
   useEffect(() => {
     (async () => {
       try {
@@ -104,7 +118,7 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [currentUserId]);
 
   // Dropdown options
   const industryOptions = useMemo(() => {
@@ -123,12 +137,15 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
     return Array.from(set).sort();
   }, [groups]);
 
-  // Recommended groups (simple scoring by targetRole/targetIndustry)
+  // Recommended groups (simple scoring by targetRole / targetIndustry)
   const recommendedGroups = useMemo(() => {
     if (groups.length === 0) return [];
     const notJoined = groups.filter((g) => !isMember(g._id));
 
-    if (!userProfile || (!userProfile.targetRole && !userProfile.targetIndustry)) {
+    if (
+      !userProfile ||
+      (!userProfile.targetRole && !userProfile.targetIndustry)
+    ) {
       return [...notJoined]
         .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0))
         .slice(0, 3);
@@ -141,7 +158,10 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
       if (targetIndustry && g.industry === targetIndustry) score += 2;
       if (targetRole) {
         if (g.role === targetRole) score += 2;
-        else if (g.role && g.role.toLowerCase().includes(targetRole.toLowerCase())) {
+        else if (
+          g.role &&
+          g.role.toLowerCase().includes(targetRole.toLowerCase())
+        ) {
           score += 1;
         }
       }
@@ -163,16 +183,21 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
     const term = searchTerm.trim().toLowerCase();
 
     return groups.filter((g) => {
-      if (selectedIndustry !== "all" && g.industry !== selectedIndustry) return false;
+      // Industry filter
+      if (selectedIndustry !== "all" && g.industry !== selectedIndustry)
+        return false;
+      // Role filter
       if (selectedRole !== "all" && g.role !== selectedRole) return false;
 
       if (!term) return true;
+
       const haystack =
         (g.name || "") +
         " " +
         (g.description || "") +
         " " +
         (g.tags || []).join(" ");
+
       return haystack.toLowerCase().includes(term);
     });
   }, [groups, searchTerm, selectedIndustry, selectedRole]);
@@ -184,27 +209,31 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
 
     try {
       if (currentlyMember) {
-        await leavePeerGroup(group._id,currentUserId);
+        await leavePeerGroup(group._id, currentUserId);
         setMyMemberships((prev) => prev.filter((m) => m.groupId !== group._id));
         setGroups((prev) =>
           prev.map((g) =>
             g._id === group._id
-              ? { ...g, memberCount: Math.max(0, g.memberCount - 1) }
+              ? { ...g, memberCount: Math.max(0, (g.memberCount || 1) - 1) }
               : g
           )
         );
       } else {
-        const { membership } = await joinPeerGroup(group._id,currentUserId);
+        const { membership } = await joinPeerGroup(group._id, currentUserId);
         setMyMemberships((prev) => [...prev, membership]);
         setGroups((prev) =>
           prev.map((g) =>
-            g._id === group._id ? { ...g, memberCount: g.memberCount + 1 } : g
+            g._id === group._id
+              ? { ...g, memberCount: (g.memberCount || 0) + 1 }
+              : g
           )
         );
       }
     } catch (e) {
       console.error(e);
-      setError(currentlyMember ? "Unable to leave group." : "Unable to join group.");
+      setError(
+        currentlyMember ? "Unable to leave group." : "Unable to join group."
+      );
     } finally {
       setJoiningId(null);
     }
@@ -218,13 +247,17 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
       .filter(Boolean);
 
     if (editingGroup) {
-      const updated = await updatePeerGroup(editingGroup._id,currentUserId, {
-        name: values.name.trim(),
-        description: values.description.trim(),
-        industry: values.industry.trim() || null,
-        role: values.role.trim() || null,
-        tags: tagsArray,
-      });
+      const updated = await updatePeerGroup(
+        editingGroup._id,
+        currentUserId,
+        {
+          name: values.name.trim(),
+          description: values.description.trim(),
+          industry: values.industry.trim() || null,
+          role: values.role.trim() || null,
+          tags: tagsArray,
+        }
+      );
 
       setGroups((prev) =>
         prev.map((g) => (g._id === updated._id ? { ...g, ...updated } : g))
@@ -251,7 +284,7 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
     if (!ok) return;
 
     try {
-      await deletePeerGroup(group._id,currentUserId);
+      await deletePeerGroup(group._id, currentUserId);
       setGroups((prev) => prev.filter((g) => g._id !== group._id));
       setMyMemberships((prev) => prev.filter((m) => m.groupId !== group._id));
     } catch (e) {
@@ -265,19 +298,19 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
   }
 
   return (
-    
     <div className="p-4 space-y-4">
-        <GroupPrivacyModal
-  open={isPrivacyModalOpen}
-  onClose={() => {
-    setIsPrivacyModalOpen(false);
-    setPrivacyGroup(null);
-    setPrivacyMembership(null);
-  }}
-  group={privacyGroup}
-  membership={privacyMembership}
-  onSubmit={handleSubmitPrivacy}
-/>
+      {/* Privacy modal */}
+      <GroupPrivacyModal
+        open={isPrivacyModalOpen}
+        onClose={() => {
+          setIsPrivacyModalOpen(false);
+          setPrivacyGroup(null);
+          setPrivacyMembership(null);
+        }}
+        group={privacyGroup}
+        membership={privacyMembership}
+        onSubmit={handleSubmitPrivacy}
+      />
 
       {/* Create/Edit Modal */}
       <PeerGroupFormModal
@@ -291,11 +324,12 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
       />
 
       {/* Header + create button */}
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Peer Support Groups</h1>
           <p className="text-sm text-gray-600">
-            Join industry or role-specific job search groups to share experiences and
-            support each other.
+            Join industry or role-specific job search groups to share
+            experiences, stay accountable, and support each other.
           </p>
         </div>
         <Button
@@ -306,7 +340,7 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
         >
           + Create group
         </Button>
-    
+      </div>
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
@@ -352,24 +386,53 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
         <div className="space-y-2">
           <h2 className="text-lg font-medium">Recommended for you</h2>
           <div className="space-y-2">
-            {recommendedGroups.map((group) => (
-              <Card key={group._id} className="flex justify-between items-center p-3">
-                <div>
-                  <div className="font-medium">{group.name}</div>
-                  <div className="text-xs text-gray-500">
-                    {group.industry && <span>{group.industry} · </span>}
-                    {group.role && <span>{group.role} · </span>}
-                    {group.memberCount} members
-                  </div>
-                </div>
-                <Button
-                  onClick={() => handleJoinLeave(group)}
-                  disabled={joiningId === group._id}
+            {recommendedGroups.map((group) => {
+              const member = isMember(group._id);
+              return (
+                <Card
+                  key={group._id}
+                  className="flex justify-between items-start p-3 gap-3 border border-emerald-100 bg-emerald-50/40"
                 >
-                  Join
-                </Button>
-              </Card>
-            ))}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-sm">{group.name}</div>
+                      <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5">
+                        Recommended
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[11px] text-gray-600">
+                      {group.industry && <span>{group.industry}</span>}
+                      {group.industry && group.role && <span> · </span>}
+                      {group.role && <span>{group.role}</span>}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-gray-500">
+                      👥 {group.memberCount ?? 0} members
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Button
+                      onClick={() => handleJoinLeave(group)}
+                      disabled={joiningId === group._id}
+                    >
+                      {member ? "Leave" : "Join"}
+                    </Button>
+
+                    {isMember(group._id) && (
+                   <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() =>
+                        navigate(`/peer-groups/${group._id}`)
+                      }
+                    >
+                      View group
+                    </Button>
+                          )}
+ 
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
@@ -384,7 +447,7 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
           return (
             <Card
               key={group._id}
-              className="flex justify-between items-center p-4 gap-4"
+              className="flex justify-between items-start p-4 gap-4"
             >
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -394,44 +457,103 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
                       You are owner
                     </span>
                   )}
+                  {member && !owner && (
+                    <span className="text-[10px] uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-1.5 py-0.5">
+                      Joined
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-gray-500">
-                  {group.industry && <span>{group.industry} · </span>}
-                  {group.role && <span>{group.role} · </span>}
-                  {group.memberCount} members
-                </p>
                 {group.description && (
-                  <p className="text-sm mt-1 text-gray-700">{group.description}</p>
+                  <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                    {group.description}
+                  </p>
+                )}
+
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-500">
+                  {group.industry && (
+                    <span className="inline-flex items-center gap-1">
+                      🏢 {group.industry}
+                    </span>
+                  )}
+                  {group.role && (
+                    <span className="inline-flex items-center gap-1">
+                      🎯 {group.role}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    👥 {group.memberCount ?? 0} members
+                  </span>
+                </div>
+
+                {group.tags && group.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {group.tags.slice(0, 4).map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                    {group.tags.length > 4 && (
+                      <span className="text-[11px] text-gray-400">
+                        +{group.tags.length - 4} more
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 
-<div className="flex flex-col items-end gap-2">
-  <Button
-    onClick={() => handleJoinLeave(group)}
-    disabled={joiningId === group._id}
-  >
-    {member ? "Leave" : "Join"}
-  </Button>
+              <div className="flex flex-col items-end gap-2">
+                <Button
+                  onClick={() => handleJoinLeave(group)}
+                  disabled={joiningId === group._id}
+                >
+                  {member ? "Leave" : "Join"}
+                </Button>
 
-  {member && (
-    <Button
-      type="button"
-      onClick={() => openPrivacyModal(group)}
-    >
-      Privacy
-    </Button>
-  )}
-<Button onClick={() => navigate(`/peer-groups/${group._id}`)}>
-  View
-</Button>
+                {member && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => openPrivacyModal(group)}
+                  >
+                    Privacy
+                  </Button>
+                )}
+                    {isMember(group._id) && (
+                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      onClick={() => navigate(`/peer-groups/${group._id}`)}
+                                    >
+                                      View group
+                                    </Button>
+                    )}
+                                    
 
-  {owner && (
-    <div className="flex gap-1">
-      {/* Edit / Delete buttons here */}
-    </div>
-  )}
-</div>
-
+                {owner && (
+                  <div className="flex gap-2 mt-1">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setEditingGroup(group);
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => handleDeleteGroup(group)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                )}
+              </div>
             </Card>
           );
         })}

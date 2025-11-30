@@ -540,6 +540,7 @@ export async function fetchGroupEvents(params: {
   const res = await fetch(url.toString(), {
     credentials: "include",
   });
+    console.log(res)
   if (!res.ok) throw new Error("Failed to fetch group events");
 
   const data = (await res.json()) as {
@@ -547,6 +548,8 @@ export async function fetchGroupEvents(params: {
     myRsvps: PeerGroupEventRsvp[];
     stats: Record<string, PeerGroupEventStats>;
   };
+
+
   return data;
 }
 
