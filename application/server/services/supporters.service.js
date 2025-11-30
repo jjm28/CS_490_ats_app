@@ -1,13 +1,13 @@
 // services/supportersService.js
 import crypto from "crypto";
-import Supporter from "../models/Supporter.js";
-import WellbeingCheckin from "../models/WellbeingCheckin.js";
+import Supporter from "../models/support/Supporter.js";
+import WellbeingCheckin from "../models/support/WellbeingCheckin.js";
 import Jobs from "../models/jobs.js";
 import { sendSupporterInviteEmail } from "./emailService.js"; 
 import { getDb } from "../db/connection.js";
-import Milestone from "../models/Milestone.js";
-import SupportUpdate from "../models/SupportUpdate.js";
-import WellbeingSettings from "../models/WellbeingSettings.js";
+import Milestone from "../models/support/Milestone.js";
+import SupportUpdate from "../models/support/SupportUpdate.js";
+import WellbeingSettings from "../models/support/WellbeingSettings.js";
  const SUPPORTER_PRIVACY_PRESETS = {
   high_level: {
     canSeeProgressSummary: true,

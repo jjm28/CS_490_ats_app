@@ -10,7 +10,7 @@ import {
   getRecentCheckins,acceptInviteForUser,listSupportedPeople, createMilestone,createSupportUpdate ,getWellbeingSupportOverview,
   saveWellbeingResetPlan,
 } from "../services/supporters.service.js";
-import WellbeingCheckin from "../models/WellbeingCheckin.js";
+import WellbeingCheckin from "../models/support/WellbeingCheckin.js";
 
 const router = express.Router();
 
