@@ -64,6 +64,10 @@ import NetworkingROI from './components/Analytics/NetworkingROI';
 import Overview from './components/Analytics/Overview';
 import SalaryMarket from './components/Analytics/SalaryMarket';
 import JobProductivityDashboard from "./components/Jobs/JobProductivityDashboard";
+import JobSalaryDetails from "./components/JobSalaryDetails";
+import SalaryProgressDetail from "./components/Analytics/Salary/SalaryProgressDetail";
+import CompProgressDetail from "./components/Analytics/Salary/CompProgressDetail";
+import GoalNew from "./components/Analytics/SmartGoals/GoalNew";
 
 function App() {
   const location = useLocation();
@@ -182,6 +186,7 @@ function App() {
             path="/analytics/goal-tracking"
             element={<PrivateRoute><GoalTracking /></PrivateRoute>}
           />
+          <Route path="/analytics/goals/new" element={<GoalNew />} />
           <Route
             path="/analytics/market-trends"
             element={<PrivateRoute><MarketTrends /></PrivateRoute>}
@@ -193,6 +198,16 @@ function App() {
           />
           <Route path="/analytics/productivity" 
           element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>} />
+          <Route path="/jobs/:jobId/salary" element={<JobSalaryDetails />} />
+          <Route path="/analytics/salary-progress/:jobId" element={<SalaryProgressDetail />} />
+          <Route
+            path="/analytics/comp-progress/:jobId"
+            element={
+              <PrivateRoute>
+                <CompProgressDetail />
+              </PrivateRoute>
+            }
+          />
         </Routes>
       </div>
     </>
