@@ -63,12 +63,16 @@ import MarketTrends from './components/Analytics/MarketTrends';
 import NetworkingROI from './components/Analytics/NetworkingROI';
 import Overview from './components/Analytics/Overview';
 import SalaryMarket from './components/Analytics/SalaryMarket';
-
+import SupporterSettings from './components/Support/SupporterSettings';
+import WellbeingCheckinPanel from './components/Support/WellbeingCheckinPanel';
+import SupporterDashboard from './components/Support/SupporterDashboard';
+import AcceptInvitePage from './components/Support/AcceptInvitePage';
+import MySupportedPeople from './components/Support/MySupportedPeople';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
-
+  const userId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id || "fds";
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -185,6 +189,33 @@ function App() {
             path="/analytics/market-trends"
             element={<PrivateRoute><MarketTrends /></PrivateRoute>}
           />
+          
+              <Route
+        path="/support"
+        element={
+          <div className="grid gap-4 md:grid-cols-[2fr,1.4fr]">
+            <PrivateRoute><SupporterSettings userId={userId} /></PrivateRoute>
+            <PrivateRoute><WellbeingCheckinPanel userId={userId} /></PrivateRoute>
+            <PrivateRoute><MySupportedPeople/></PrivateRoute>
+          </div>
+        }
+      />
+
+      {/* Job seeker preview */}
+      <Route
+        path="/supporters/preview/:supporterId"
+        element={<PrivateRoute><SupporterDashboard /></PrivateRoute>}
+      />
+
+      {/* Supporter side (magic link) */}
+      <Route
+        path="/supporter/accept"
+        element={<PrivateRoute><AcceptInvitePage /></PrivateRoute>}
+      />
+      <Route
+        path="/supporter/dashboard/:supporterId"
+        element={<PrivateRoute><SupporterDashboard /></PrivateRoute>}
+      />
         </Routes>
       </div>
     </>

@@ -35,6 +35,7 @@ import goalsRoutes from "./routes/goals.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
+import supportersRoutes from "./routes/supporters.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -119,7 +120,7 @@ try {
   app.use("/api/success-patterns", successPatternsRouter);
 
   app.use("/api/interviews", interviewAnalyticsRoutes);
-
+  app.use("/api/supporters", supportersRoutes);
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
