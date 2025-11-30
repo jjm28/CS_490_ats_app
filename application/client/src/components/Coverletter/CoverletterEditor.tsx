@@ -19,6 +19,11 @@ import type { GetCoverletterResponse } from "../../api/coverletter";
 import type { Job } from "./hooks/useJobs";
 import type { AIcoverletterPromptResponse } from "../../api/coverletter";
 
+import {
+  startProductivitySession,
+  endProductivitySession,
+} from "../../api/productivity";
+
 type LocationState = {
   template: Template;
   Coverletterid?: string;
@@ -199,6 +204,42 @@ export default function CoverletterEditor() {
     if (location.pathname === "/coverletter/editor") return;
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
+
+  //Tracking for Productivity
+  useEffect(() => {
+    let canceled = false;
+    let sessionId: string | null = null;
+
+    (async () => {
+      try {
+        const session = await startProductivitySession({
+          activityType: "coverletter_edit",
+          jobId: state?.UsersJobData?._id ?? undefined,
+          context: "CoverletterEditor",
+        });
+        if (!canceled) {
+          sessionId = session._id;
+        }
+      } catch (err) {
+        console.error(
+          "[productivity] Failed to start coverletter_edit session:",
+          err
+        );
+      }
+    })();
+
+    return () => {
+      canceled = true;
+      if (sessionId) {
+        endProductivitySession({ sessionId }).catch((err) =>
+          console.error(
+            "[productivity] Failed to end coverletter_edit session:",
+            err
+          )
+        );
+      }
+    };
+  }, [state?.UsersJobData?._id]);
 
   if (!template) return null;
 

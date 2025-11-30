@@ -21,8 +21,8 @@ import coverletter from './routes/coverletter.js'
 import jobRoutes from './routes/jobs.js'
 import salaryRouter from "./routes/salary.js";
 import resumesRoute from "./routes/resume.js";
-import templatesRoute from "./routes/templates.js";   
-import interviewRoutes from "./routes/interview-insights.js";            
+import templatesRoute from "./routes/templates.js";
+import interviewRoutes from "./routes/interview-insights.js";
 import { ensureSystemTemplates } from './services/templates.service.js';
 import resumeVersionsRouter from "./routes/resume-versions.js";
 import automationRoutes from "./routes/automation.js";
@@ -30,12 +30,20 @@ import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from './jobs/notificationcron.js';
 import notificationRoutes from './routes/notifications.js';
 import reference from './routes/reference.js'
+import peergroups from './routes/peerGroups.js'
 import goalsRoutes from "./routes/goals.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
 import practiceSession from './routes/practicesession.js';
 
+import supportersRoutes from "./routes/supporters.js";
+import productivityRoutes from "./routes/productivity.js"; 
+import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
+import jobSalaryRoutes from "./routes/jobs-salary.js";
+import smartGoalsRoutes from "./routes/smartGoals.js";
+import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
+import salaryRoutes from  "./routes/salary.js"
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -79,10 +87,14 @@ try {
   // Job routes  
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/api/jobs', jobRoutes);
+  app.use("/api/jobs", jobSalaryRoutes);
 
- app.use("/api/interview-insights", attachDevUser, interviewRoutes);
-  app.use(companyResearch);
+  app.use("/api/salary", salaryRoutes);
   app.use('/api/salary', salaryRouter);
+  app.use("/api/salary/analytics", salaryAnalyticsRoutes);
+  app.use("/api/interview-insights", attachDevUser, interviewRoutes);
+  app.use(companyResearch);
+  
   // for picture uploads
   app.use(
     '/uploads',
@@ -110,6 +122,8 @@ try {
 
   // References Routes
   app.use('/api/reference', reference)
+  // Peer groups Routes
+  app.use('/api/peer-groups', peergroups)
 
   app.use("/api/goals", attachDevUser, goalsRoutes);
 
@@ -118,6 +132,16 @@ try {
 
   app.use("/api/interviews", interviewAnalyticsRoutes);
   app.use('/api/practice-sessions', practiceSession);
+  app.use("/api/supporters", supportersRoutes);
+
+  //productivity 
+  app.use("/api/productivity", productivityRoutes);
+  app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
+  app.use("/api/productivity", attachDevUser,productivityRoutes);
+
+  //competitive applicant analysis
+  app.use("/api/competitive-analysis", attachDevUser,competitiveAnalysisRouter);
+
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {

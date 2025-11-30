@@ -21,6 +21,8 @@ export default function JobPickerSheet({
   error,
   onPickJob,
   onEnterManual,
+   title = "Pick a job for AI to use",
+  subtitle = "Choose an existing opportunity or enter the job details manually.",
 }: {
   open: boolean;
   onClose: () => void;
@@ -29,6 +31,8 @@ export default function JobPickerSheet({
   error: string | null;
   onPickJob: (job: Job) => void;
   onEnterManual: () => void;
+    title?: string;
+  subtitle?: string;
 }) {
   const hasJobs = useMemo(() => jobs && jobs.length > 0, [jobs]);
 
@@ -47,7 +51,7 @@ export default function JobPickerSheet({
 
       <div className="relative w-full md:w-[720px] bg-white rounded-t-2xl md:rounded-2xl shadow-2xl p-5 md:p-6 max-h-[85vh] overflow-auto">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Pick a job for AI to use</h3>
+          <h3 className="text-lg font-semibold">{title}</h3>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -57,9 +61,8 @@ export default function JobPickerSheet({
           </button>
         </div>
 
-        <p className="text-sm text-gray-600 mb-4">
-          Choose an existing opportunity or enter the job details manually.
-        </p>
+        <p className="text-sm text-gray-600 mb-4">{subtitle}</p>
+
 
         {loading && <div className="text-sm text-gray-600">Loading jobs…</div>}
         {error && <div className="text-sm text-red-600">{error}</div>}

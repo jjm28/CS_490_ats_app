@@ -2,14 +2,16 @@
 import { useState } from 'react';
 import MockPractice from './MockPractice';
 import '../../styles/InterviewStyles/Interview.css';
+import InterviewPrepResearch from './CompanyResearch';
+import '../../styles/Interview.css';
 
 type CardData = {
   label: string;
   title: string;
   description: string;
   color?: string;
-  // Optional: add more detail later
   details?: string;
+  component?: 'research' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -18,42 +20,48 @@ const cardData: CardData[] = [
     title: 'Company Research',
     description: 'Deep dive into company culture and values',
     color: '#0E3B43',
-    details: 'Access curated reports, employee reviews, news, and cultural insights to understand what makes this company unique. Learn their mission, values, recent initiatives, and interview expectations.'
+    details: 'Access curated reports, employee reviews, news, and cultural insights to understand what makes this company unique. Learn their mission, values, recent initiatives, and interview expectations.',
+    component: 'research' // Link to research component
   },
   {
     label: 'Role Questions',
     title: 'Role-Specific Qs',
     description: 'Tailored questions for your position',
     color: '#0E3B43',
-    details: 'Get a database of real interview questions asked for this exact role at this company. Filter by round (phone screen, onsite), experience level, and question type (coding, behavioral, system design).'
+    details: 'Get a database of real interview questions asked for this exact role at this company. Filter by round (phone screen, onsite), experience level, and question type (coding, behavioral, system design).',
+    component: null
   },
   {
     label: 'AI Coaching',
     title: 'AI Coaching',
     description: 'Real-time feedback on your responses',
     color: '#0E3B43',
-    details: 'Record yourself answering questions and receive instant AI feedback on clarity, structure, technical accuracy, and communication style. Compare your answers to strong examples.'
+    details: 'Record yourself answering questions and receive instant AI feedback on clarity, structure, technical accuracy, and communication style. Compare your answers to strong examples.',
+    component: null
   },
   {
     label: 'Mock Interviews/Tech Prep',
     title: 'Mock Interviews',
     description: 'Practice with coding challenges, system design, realistic scenarios',
     color: '#0E3B43',
-    details: 'Simulate real interview conditions with timed coding challenges, system design prompts, and behavioral scenarios. Get scored on problem-solving, efficiency, and communication.'
+    details: 'Simulate real interview conditions with timed coding challenges, system design prompts, and behavioral scenarios. Get scored on problem-solving, efficiency, and communication.',
+    component: null
   },
   {
     label: 'Calendar',
     title: 'Calendar Integration',
     description: 'Schedule and track your interviews',
     color: '#0E3B43',
-    details: 'Sync with Google Calendar to auto-schedule prep time, track upcoming interviews, set reminders, and log feedback after each round.'
+    details: 'Sync with Google Calendar to auto-schedule prep time, track upcoming interviews, set reminders, and log feedback after each round.',
+    component: null
   },
   {
     label: 'Analytics',
     title: 'Performance Analytics',
     description: 'Track your progress and improvements',
     color: '#0E3B43',
-    details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.'
+    details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
+    component: null
   }
 ];
 
@@ -62,7 +70,7 @@ type InterviewCardProps = {
   title: string;
   description: string;
   color?: string;
-  onClick: () => void; // 👈 Add click handler
+  onClick: () => void;
 };
 
 const InterviewCard = ({ label, title, description, color, onClick }: InterviewCardProps) => {
@@ -91,6 +99,12 @@ const DetailView = ({
   card: CardData; 
   onBack: () => void;
 }) => {
+  // If the card has a component, render it
+  if (card.component === 'research') {
+    return <InterviewPrepResearch onBack={onBack} />;
+  }
+
+  // Otherwise, show the default detail view
   return (
     <div 
       className="interview-detail-view"

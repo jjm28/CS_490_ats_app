@@ -166,7 +166,16 @@ function Navbar() {
                 >
                   References
                 </NavLink>
-
+                <NavLink 
+                to="/peer-groups" 
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                  Peer Support Groups
+                  </NavLink>
+                     <NavLink 
+                to="/support" 
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                  Family Support
+                  </NavLink>
                 {/* DIVIDER */}
                 <div className="border-t border-gray-200 my-2"></div>
 
@@ -213,9 +222,22 @@ function Navbar() {
                   Goal Tracking
                 </NavLink>
                 <NavLink
+                  to="/analytics/productivity"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Productivity
+                </NavLink>
+                <NavLink
+                  to="/Jobs/CompetitiveAnalysis"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Competitive Analysis
+                </NavLink>
+                <NavLink
                   to="/analytics/market-trends"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >
+
                   Market Trends
                 </NavLink>
               </PopoverPanel>
