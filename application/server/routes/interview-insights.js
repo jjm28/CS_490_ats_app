@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyJWT } from "../middleware/auth.js"; 
 import Job from "../models/jobs.js";
 import InterviewInsights from "../models/interviewInsights.js"; 
-import InterviewPrep from "../models/interviewPrep.js";
+//import InterviewPrep from "../models/interviewPrep.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -12,6 +12,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 class RequestQueue {
   constructor(delayMs = 2000) {
     this.queue = [];
+
+    
     this.processing = false;
     this.delayMs = delayMs;
   }
