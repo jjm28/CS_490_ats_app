@@ -1,8 +1,11 @@
 import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type JobCardProps as BaseJobCardProps, formatSalary } from "../../types/jobs.types";
-import { useNavigate } from "react-router-dom";
+import {
+  type JobCardProps as BaseJobCardProps,
+  formatSalary,
+} from "../../types/jobs.types";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface ExtendedJobCardProps extends BaseJobCardProps {
   selectedJobs: string[];
@@ -16,7 +19,9 @@ const JobCard: React.FC<ExtendedJobCardProps> = ({
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: job._id });
+
   const navigate = useNavigate();
+  const location = useLocation();
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -45,14 +50,12 @@ const JobCard: React.FC<ExtendedJobCardProps> = ({
       onClick={(e) => {
         const target = e.target as HTMLElement;
 
-        // ❌ Don’t navigate when clicking checkbox
         if (target.tagName === "INPUT") return;
-
-        // ❌ Don’t navigate when dragging
         if (target.closest(".drag-handle")) return;
 
-        // ✅ Navigate to job details
-        navigate(`/Jobs/${job._id}`, { state: { fromPipeline: true } });
+        navigate(`/Jobs/${job._id}`, {
+          state: { from: location.pathname },
+        });
       }}
     >
       <div className="flex items-center justify-between">

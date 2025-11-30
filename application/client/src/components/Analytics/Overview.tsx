@@ -75,26 +75,25 @@ export default function Overview() {
 
   return (
     <div className="p-6 space-y-8">
-
       {/* PAGE HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-(--brand-navy)">Job Search Performance</h1>
-          <p className="text-gray-600 mt-1">
-            Track your application trends, conversion rates, and performance insights.
-          </p>
-        </div>
 
-        {/* DATE RANGE FILTER */}
-        <div className="flex items-center gap-3 mt-4 md:mt-0">
-          <select className="border rounded-md px-3 py-2 text-gray-700">
-            <option>Last 7 days</option>
-            <option>Last 30 days</option>
-            <option>Last 90 days</option>
-            <option>This year</option>
-            <option>Custom range</option>
-          </select>
-        </div>
+      {/* Centered Title + Subtitle */}
+      <div className="w-full text-center mb-4">
+        <h1 className="text-3xl font-bold text-(--brand-navy)">Job Search Performance</h1>
+        <p className="text-gray-600 mt-1">
+          Track your application trends, conversion rates, and performance insights.
+        </p>
+      </div>
+
+      {/* Dropdown aligned right */}
+      <div className="w-full flex justify-end mb-6">
+        <select className="border rounded-md px-3 py-2 text-gray-700">
+          <option>Last 7 days</option>
+          <option>Last 30 days</option>
+          <option>Last 90 days</option>
+          <option>This year</option>
+          <option>Custom range</option>
+        </select>
       </div>
 
       {/* TWO COLUMN GRID */}
@@ -408,6 +407,6 @@ export default function Overview() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
