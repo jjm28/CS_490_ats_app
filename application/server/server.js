@@ -35,6 +35,7 @@ import goalsRoutes from "./routes/goals.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
+import supportersRoutes from "./routes/supporters.js";
 import productivityRoutes from "./routes/productivity.js"; 
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
@@ -128,6 +129,7 @@ try {
   app.use("/api/success-patterns", successPatternsRouter);
 
   app.use("/api/interviews", interviewAnalyticsRoutes);
+  app.use("/api/supporters", supportersRoutes);
 
   //productivity 
   app.use("/api/productivity", productivityRoutes);
