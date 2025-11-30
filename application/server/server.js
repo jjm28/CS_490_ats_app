@@ -19,7 +19,7 @@ import projectsRoutes from "./routes/projects.js";
 import companyResearch from './routes/company-research.js';
 import coverletter from './routes/coverletter.js'
 import jobRoutes from './routes/jobs.js'
-import salaryRoutes from "./routes/salary.js";
+import salaryRouter from "./routes/salary.js";
 import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";
 import interviewRoutes from "./routes/interview-insights.js";
@@ -30,6 +30,7 @@ import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from './jobs/notificationcron.js';
 import notificationRoutes from './routes/notifications.js';
 import reference from './routes/reference.js'
+import peergroups from './routes/peerGroups.js'
 import goalsRoutes from "./routes/goals.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
@@ -55,10 +56,9 @@ app.use(cors({
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-dev-user-id'],
 }));
-
 app.use(express.json());
 app.use(cookieParser());
-app.use(companyResearch);
+
 
 // Start after DB connects
 try {
@@ -84,9 +84,12 @@ try {
   app.use('/api/jobs', jobRoutes);
   app.use("/api/jobs", jobSalaryRoutes);
 
-  app.use("/api/salary/analytics", salaryAnalyticsRoutes);
   app.use("/api/salary", salaryRoutes);
+  app.use('/api/salary', salaryRouter);
+  app.use("/api/salary/analytics", salaryAnalyticsRoutes);
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
+  app.use(companyResearch);
+  
   // for picture uploads
   app.use(
     '/uploads',
@@ -114,6 +117,8 @@ try {
 
   // References Routes
   app.use('/api/reference', reference)
+  // Peer groups Routes
+  app.use('/api/peer-groups', peergroups)
 
   app.use("/api/goals", attachDevUser, goalsRoutes);
 

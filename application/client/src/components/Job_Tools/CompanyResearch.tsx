@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, Loader2, Building2, Newspaper, Users, Globe, TrendingUp } from 'lucide-react';
 import NewsColumn from './NewsSection';
+import SearchHistory from './SearchHistory.tsx';
+import { searchHistory } from '../../utils/searchHistory';
 import '../../styles/CompanyResearch.css';
 
 interface NewsArticle {
@@ -57,6 +59,7 @@ function CompanyResearch() {
   const [error, setError] = useState<string>('');
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [showRelevantOnly, setShowRelevantOnly] = useState(true);
+  
 
   // Handle search
   const handleSearch = async (): Promise<void> => {
@@ -65,6 +68,8 @@ function CompanyResearch() {
     setLoading(true);
     setError('');
     setCompanyInfo(null); // Clear previous results
+
+    
 
     try {
       const response = await fetch('http://localhost:5050/api/company/research', {
@@ -83,6 +88,7 @@ function CompanyResearch() {
       const data: CompanyInfo = await response.json();
       console.log('Backend response:', data);
       setCompanyInfo(data);
+      searchHistory.add(companyName, data);
     } catch (err) {
       setError('Failed to research company. Please try again.');
       console.error('Error:', err);
@@ -95,6 +101,13 @@ function CompanyResearch() {
     setCompanyName('');
     setCompanyInfo(null);
     setError('');
+  };
+   const handleSelectFromHistory = (name: string) => {
+    setCompanyName(name);
+    // Small delay so user sees the name populate
+    setTimeout(() => {
+      handleSearch();
+    }, 100);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
@@ -167,7 +180,9 @@ function CompanyResearch() {
               )}
             </button>
           </div>
-
+           {!companyInfo && !loading && (
+            <SearchHistory onSelectCompany={handleSelectFromHistory} />
+          )}
           {error && (
             <div className="error-message">
               {error}
@@ -179,7 +194,7 @@ function CompanyResearch() {
           <div className="results-wrapper">
             {/* Use a grid container */}
             <div className="results-grid">
-              {/* Left Column: All other info */}
+              {/* Left Column: All other info */} 
               <div className="info-column">
                 {/* Basic Information */}
                 <div className="section-card">
@@ -351,6 +366,7 @@ function CompanyResearch() {
             </div> {/* End of .results-grid */}
           </div>
         )}
+        
       </div>
     </div>
   );
