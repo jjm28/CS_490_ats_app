@@ -2,15 +2,15 @@ import { getDb } from '../db/connection.js';
 import { ObjectId, ReturnDocument, Timestamp } from "mongodb";
 import 'dotenv/config';
 import { file, object } from 'zod';
-import PeerGroup from "../models/PeerGroup.js";
-import PeerGroupMembership from "../models/PeerGroupMembership.js"
-import PeerGroupPost from '../models/PeerGroupPost.js';
-import GroupChallenge from '../models/GroupChallenge.js'
-import GroupChallengeParticipation from '../models/GroupChallengeParticipation.js';
-import PeerOpportunity from '../models/PeerOpportunity.js';
-import PeerOpportunityInterest from '../models/PeerOpportunityInterest.js';
-import PeerGroupEvent from "../models/PeerGroupEvent.js";
-import PeerGroupEventRsvp from "../models/PeerGroupEventRsvp.js";
+import PeerGroup from "../models/peerGroup/PeerGroup.js";
+import PeerGroupMembership from "../models/peerGroup/PeerGroupMembership.js"
+import PeerGroupPost from '../models/peerGroup/PeerGroupPost.js';
+import GroupChallenge from '../models/peerGroup/GroupChallenge.js'
+import GroupChallengeParticipation from '../models/peerGroup/GroupChallengeParticipation.js';
+import PeerOpportunity from '../models/peerGroup/PeerOpportunity.js';
+import PeerOpportunityInterest from '../models/peerGroup/PeerOpportunityInterest.js';
+import PeerGroupEvent from "../models/peerGroup/PeerGroupEvent.js";
+import PeerGroupEventRsvp from "../models/peerGroup/PeerGroupEventRsvp.js";
 import Job from "../models/jobs.js";
 export async function fetchAllPeerGroups(filter) {
     
