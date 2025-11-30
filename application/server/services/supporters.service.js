@@ -35,6 +35,39 @@ import { getDb } from "../db/connection.js";
   },
 };
 
+const EDUCATIONAL_RESOURCES = [
+  {
+    slug: "support-basics",
+    title: "How to support someone searching for a job",
+    category: "emotional_support",
+    url: "https://www.indeed.com/career-advice/career-development/support-someone-looking-for-job"
+  },
+  {
+    slug: "boundaries",
+    title: "How to set healthy boundaries when someone you love is stressed about work",
+    category: "boundaries",
+    url: "https://www.psychologytoday.com/us/blog/stress-and-resilience/202008/setting-boundaries-with-loved-ones"
+  },
+  {
+    slug: "interview-support",
+    title: "How to help someone prepare for a job interview (without taking over)",
+    category: "interviews",
+    url: "https://www.themuse.com/advice/how-to-help-someone-prepare-for-job-interview"
+  },
+  {
+    slug: "celebration",
+    title: "How to celebrate achievements without adding pressure",
+    category: "celebration",
+    url: "https://www.betterup.com/blog/celebrating-wins"
+  },
+  {
+    slug: "emotional-support",
+    title: "Ways to emotionally support family who are job hunting",
+    category: "emotional_support",
+    url: "https://www.healthline.com/health/how-to-support-someone"
+  }
+];
+
 /**
  * Get all supporters for a given job seeker (ownerUserId)
  */
@@ -223,16 +256,22 @@ export async function getSupporterSummary({ supporterId }) {
   const ownerUserId = supporter.ownerUserId;
 
   // 🔁 Load jobs + wellbeing snapshot in parallel
-  const [jobs, wellbeingSnapshot] = await Promise.all([
-    Jobs.find({ userId: ownerUserId }).lean(),
-    getWellbeingSnapshot({ userId: ownerUserId }),
-  ]);
+const [jobs, wellbeingSnapshot] = await Promise.all([
+  Jobs.find({ userId: ownerUserId }).lean(),
+  getWellbeingSnapshot({ userId: ownerUserId }),
+]);
 
-  const rawSummary = buildRawSummary(jobs, wellbeingSnapshot);
-  const filteredSummary = filterSummaryForSupporter(
-    rawSummary,
-    supporter.permissions
-  );
+const rawSummary = buildRawSummary(
+  jobs,
+  wellbeingSnapshot,
+  supporter.boundaries
+);
+
+const filteredSummary = filterSummaryForSupporter(
+  rawSummary,
+  supporter.permissions
+);
+
 
   supporter.lastViewedAt = new Date();
   await supporter.save();
@@ -253,7 +292,11 @@ export async function getSupporterSummary({ supporterId }) {
  * Build the unfiltered summary from jobs only.
  * You can later extend this to include wellbeing checkins, notes, etc.
  */
-function buildRawSummary(jobs, wellbeingSnapshot) {
+// BEFORE:
+// function buildRawSummary(jobs, wellbeingSnapshot) {
+
+// AFTER:
+function buildRawSummary(jobs, wellbeingSnapshot, boundaries) {
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -360,19 +403,31 @@ function buildRawSummary(jobs, wellbeingSnapshot) {
     };
   });
 
+  const progressSummary = {
+    totalApplications,
+    applicationsThisWeek,
+    interviewsScheduled,
+    offers,
+    statusTrend,
+    consistencyScore,
+  };
+
+  const wellbeing = wellbeingSnapshot || null;
+
+  // 🔥 NEW: guidance
+  const guidance = buildSupporterGuidance({
+    progressSummary,
+    wellbeing,
+    boundaries,
+  });
+
   return {
-    progressSummary: {
-      totalApplications,
-      applicationsThisWeek,
-      interviewsScheduled,
-      offers,
-      statusTrend,
-      consistencyScore,
-    },
+    progressSummary,
     upcomingInterview,
     recentActivity,
-    wellbeing: wellbeingSnapshot || null,
+    wellbeing,
     notes: null, // future hook for reflections
+    guidance,
   };
 }
 
@@ -441,7 +496,7 @@ function filterSummaryForSupporter(raw, permissions) {
   } else {
     result.notes = null;
   }
-
+result.guidance = raw.guidance || null;
   
 
   return result;
@@ -622,4 +677,197 @@ export async function listSupportedPeople({ supporterUserId }) {
         : null,
     };
   });
+}
+
+function buildSupporterGuidance({ progressSummary, wellbeing, boundaries }) {
+  const {
+    statusTrend,
+    consistencyScore,
+  } = progressSummary || {};
+
+  const b = boundaries || {};
+  const topicsOffLimits = (b.topicsOffLimits || []).map((t) =>
+    t.toLowerCase()
+  );
+  const avoidRejectionTalk = topicsOffLimits.some((t) =>
+    t.includes("rejection")
+  );
+  const avoidSalaryTalk = topicsOffLimits.some((t) =>
+    t.includes("salary")
+  );
+  const avoidJobTalk = topicsOffLimits.some((t) =>
+    t.includes("job")
+  );
+
+  const preferredCheckinFrequency = b.preferredCheckinFrequency || "weekly";
+  const preferredContactChannel = b.preferredContactChannel || "in_app";
+
+  // --- HEADLINE + SUMMARY ---------------------------------------
+
+  let headline = "Offer gentle encouragement and be a steady presence.";
+  let summary = "";
+
+  if (statusTrend === "Planning") {
+    headline = "Support them as they plan, not just when they get offers.";
+    summary =
+      "They may still be clarifying their goals or building their application materials. Encouragement and curiosity can help more than pressure.";
+  } else if (statusTrend === "Actively applying") {
+    headline = "Focus on cheering their effort, not just results.";
+    summary =
+      "They’re applying and building momentum. Recognize their work and avoid turning every conversation into a status update.";
+  } else if (statusTrend === "Interviewing") {
+    headline = "Support them through interview nerves and recovery.";
+    summary =
+      "They’re handling interviews, which can be stressful and draining. Listening and celebrating effort matters a lot right now.";
+  } else if (statusTrend === "Offer stage") {
+    headline = "Help them think clearly without adding pressure.";
+    summary =
+      "They may be weighing options or waiting for final decisions. Offer space to think and ask how you can help instead of pushing for quick decisions.";
+  }
+
+  // Consistency tweaks
+  if (typeof consistencyScore === "number") {
+    if (consistencyScore < 40) {
+      summary +=
+        " They might appreciate encouragement and practical help, but it’s important not to make them feel behind.";
+    } else if (consistencyScore >= 40 && consistencyScore < 70) {
+      summary +=
+        " They’re putting in steady effort. Acknowledge what they’re already doing and ask what kind of support actually feels helpful.";
+    } else if (consistencyScore >= 70) {
+      summary +=
+        " They’re working consistently; the best support is often emotional—reminding them they’re more than their job search.";
+    }
+  }
+
+  // Wellbeing-based adjustments
+  const tips = [];
+  const avoid = [];
+
+  let stressLabel = wellbeing?.stressLevelLabel || "unknown";
+  let moodLabel = wellbeing?.moodLabel || "unknown";
+  let trend = wellbeing?.trend || "unknown";
+
+  if (stressLabel === "high") {
+    tips.push(
+      "Check in on how they’re feeling before asking for job updates.",
+      "Offer breaks from job talk—invite them to do something relaxing or fun."
+    );
+    avoid.push(
+      "Don’t ask for detailed updates on every application or interview.",
+      "Avoid implying they should be doing more right now."
+    );
+  } else if (stressLabel === "moderate") {
+    tips.push(
+      "Ask open-ended questions like “How can I support you this week?”",
+      "Offer practical help, like doing a mock interview if they want it."
+    );
+    avoid.push(
+      "Avoid comparing their pace to other people’s careers.",
+      "Try not to assume they want advice every time they share an update."
+    );
+  } else if (stressLabel === "low") {
+    tips.push(
+      "Celebrate their progress and ask what kind of encouragement they like most.",
+      "Offer to be a sounding board if they need to think through options."
+    );
+    avoid.push(
+      "Don’t assume everything is easy just because stress looks low.",
+      "Avoid dismissing their concerns if they bring them up."
+    );
+  }
+
+  if (trend === "worsening") {
+    tips.push(
+      "Let them know it’s okay to rest and take a slower day when they need it.",
+      "Gently remind them they’re more than their job search outcomes."
+    );
+  } else if (trend === "improving") {
+    tips.push(
+      "Recognize positive steps they’ve taken recently, not just big milestones."
+    );
+  }
+
+  // Boundaries-based adjustments
+  if (preferredCheckinFrequency === "daily") {
+    tips.push("Short, supportive daily check-ins can be helpful for them.");
+  } else if (preferredCheckinFrequency === "weekly") {
+    tips.push(
+      "A once-a-week check-in focused on listening rather than questioning can go a long way."
+    );
+  } else if (preferredCheckinFrequency === "ad_hoc") {
+    tips.push(
+      "Let them lead when to talk about jobs; focus on being available when they reach out."
+    );
+    avoid.push(
+      "Avoid bringing up job topics unless they signal they’re open to it."
+    );
+  }
+
+  if (avoidJobTalk) {
+    tips.push(
+      "They may want to keep job conversations limited. Let them choose when to share updates."
+    );
+    avoid.push(
+      "Avoid bringing up the job search unless they start the conversation."
+    );
+  }
+
+  if (avoidRejectionTalk) {
+    avoid.push(
+      "Don’t ask for detailed breakdowns of rejections unless they bring it up themselves."
+    );
+  }
+
+  if (avoidSalaryTalk) {
+    avoid.push("Avoid pushing them to reveal salary numbers or offer details.");
+  }
+
+  // Ensure we have at least some default tips/avoid items
+  if (tips.length === 0) {
+    tips.push(
+      "Ask how you can support them instead of assuming what they need.",
+      "Celebrate their effort and growth, not just final results."
+    );
+  }
+  if (avoid.length === 0) {
+    avoid.push(
+      "Avoid constant “any news?” questions.",
+      "Don’t compare their progress to friends, siblings, or social media."
+    );
+  }
+
+  // Resources: pick a couple that match their stage
+  const resources = [];
+
+  if (statusTrend === "Interviewing") {
+    resources.push(
+      EDUCATIONAL_RESOURCES.find((r) => r.slug === "interview-support")
+    );
+  }
+  if (statusTrend === "Offer stage") {
+    resources.push(
+      EDUCATIONAL_RESOURCES.find((r) => r.slug === "celebration")
+    );
+  }
+
+  // Always include basics + boundaries as fallback
+  resources.push(
+    EDUCATIONAL_RESOURCES.find((r) => r.slug === "support-basics"),
+    EDUCATIONAL_RESOURCES.find((r) => r.slug === "boundaries")
+  );
+
+  const filteredResources = resources
+    .filter(Boolean)
+    // de-duplicate by slug
+    .filter(
+      (r, idx, arr) => arr.findIndex((x) => x.slug === r.slug) === idx
+    );
+
+  return {
+    headline,
+    summary,
+    supportTips: tips,
+    thingsToAvoid: avoid,
+    resources: filteredResources,
+  };
 }

@@ -90,6 +90,7 @@ export interface SupporterSummaryPayload {
     recentActivity: ActivityItem[];
     wellbeing: WellbeingSummary | null;
     notes: string | null;
+    guidance?: SupportGuidance | null; // 👈 NEW
   };
 }
 
@@ -122,3 +123,17 @@ export interface SupportedPerson {
     email?: string;
   } | null;
 }
+export interface SupportGuidanceResource {
+  slug: string;
+  title: string;
+  category: string;
+}
+
+export interface SupportGuidance {
+  headline: string;
+  summary: string;
+  supportTips: string[];
+  thingsToAvoid: string[];
+  resources: SupportGuidanceResource[];
+}
+

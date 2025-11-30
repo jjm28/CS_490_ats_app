@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Card from "../StyledComponents/Card";
 import API_BASE from "../../utils/apiBase";
-import type { SupporterSummaryPayload } from "../../types/support.types";
-import MySupportedPeople from "./MySupportedPeople";
+import type { SupporterSummaryPayload, SupportGuidance  } from "../../types/support.types";
 
 const SUPPORTERS_ENDPOINT = `${API_BASE}/api/supporters`;
 
@@ -216,7 +215,8 @@ export default function SupporterDashboard() {
           </p>
         )}
       </Card>
-      
+            <SupporterGuidanceCard guidance={summary.guidance || null} />
+
     </div>
   );
 }
@@ -227,5 +227,87 @@ function SummaryStat({ label, value }: { label: string; value: number }) {
       <div className="text-[10px] text-gray-500">{label}</div>
       <div className="text-base font-semibold">{value}</div>
     </div>
+  );
+}
+
+
+function SupporterGuidanceCard({ guidance }: { guidance: any }) {
+  if (!guidance) {
+    return (
+      <Card className="p-4">
+        <h2 className="font-semibold text-sm mb-2">
+          How you can support them
+        </h2>
+        <p className="text-xs text-gray-600">
+          Guidance isn&apos;t available right now, but you can always ask them
+          directly how they&apos;d like to be supported.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-4 space-y-3">
+      <div>
+        <h2 className="font-semibold text-sm mb-1">
+          How you can support them this week
+        </h2>
+        <p className="text-xs text-gray-700 font-medium">
+          {guidance.headline}
+        </p>
+        {guidance.summary && (
+          <p className="text-xs text-gray-600 mt-1">{guidance.summary}</p>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 text-xs">
+        <div>
+          <div className="font-semibold mb-1">Helpful things you can do</div>
+          <ul className="list-disc list-inside space-y-1 text-gray-700">
+            {guidance.supportTips?.map((tip: string, idx: number) => (
+              <li key={idx}>{tip}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <div className="font-semibold mb-1">
+            Things to avoid (based on their preferences)
+          </div>
+          <ul className="list-disc list-inside space-y-1 text-gray-700">
+            {guidance.thingsToAvoid?.map((tip: string, idx: number) => (
+              <li key={idx}>{tip}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+{guidance.resources && guidance.resources.length > 0 && (
+  <div>
+    <div className="font-semibold text-xs mb-1">Want to learn more?</div>
+    <ul className="text-xs space-y-1">
+      {guidance.resources.map(
+        (r: { slug: string; title: string; category: string; url?: string }, idx: number) => (
+          <li key={idx}>
+            {r.url ? (
+              <a
+                href={r.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-700 underline"
+              >
+                {r.title}
+              </a>
+            ) : (
+              <span className="text-gray-700">{r.title}</span>
+            )}
+          </li>
+        )
+      )}
+    </ul>
+  </div>
+)}
+
+    </Card>
   );
 }
