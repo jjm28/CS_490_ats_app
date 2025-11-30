@@ -9,6 +9,8 @@ import GroupChallenge from '../models/GroupChallenge.js'
 import GroupChallengeParticipation from '../models/GroupChallengeParticipation.js';
 import PeerOpportunity from '../models/PeerOpportunity.js';
 import PeerOpportunityInterest from '../models/PeerOpportunityInterest.js';
+import PeerGroupEvent from "../models/PeerGroupEvent.js";
+import PeerGroupEventRsvp from "../models/PeerGroupEventRsvp.js";
 export async function fetchAllPeerGroups(filter) {
     
   let result;
@@ -379,43 +381,46 @@ export async function joinChallenge({challengeId,userId}) {
 
 
 
-export async function incrementprogress({challengeId,userId,delta,note,increment}) {
-
+export async function incrementprogress({ challengeId, userId, note, increment }) {
   const challenge = await GroupChallenge.findById(challengeId);
-      if (!challenge) {
-         throw new Error("Challenge not found" );
-      }
+  if (!challenge) {
+    const err = new Error("Challenge not found");
+    err.status = 404;
+    throw err;
+  }
 
-      const membership = await PeerGroupMembership.findOne({
-        groupId: challenge.groupId,
-        userId,
-      });
+  const membership = await PeerGroupMembership.findOne({
+    groupId: challenge.groupId,
+    userId,
+  });
 
-      if (!membership) {
-        return res
-          .status(403)
-          .json({ error: "You must be a member of this group to update progress" });
-      }
+  if (!membership) {
+    const err = new Error(
+      "You must be a member of this group to update progress"
+    );
+    err.status = 403;
+    throw err;
+  }
 
-      const participation =
-        (await GroupChallengeParticipation.findOne({
-          challengeId,
-          userId,
-        })) ||
-        (await GroupChallengeParticipation.create({
-          challengeId,
-          userId,
-          progressValue: 0,
-        }));
+  const participation =
+    (await GroupChallengeParticipation.findOne({
+      challengeId,
+      userId,
+    })) ||
+    (await GroupChallengeParticipation.create({
+      challengeId,
+      userId,
+      progressValue: 0,
+    }));
 
-      participation.progressValue += increment;
-      participation.lastUpdateAt = new Date();
-      if (note) participation.lastNote = note;
-      await participation.save();
+  participation.progressValue += increment;
+  participation.lastUpdateAt = new Date();
+  if (note) participation.lastNote = note;
+  await participation.save();
 
-      return participation
-
+  return participation;
 }
+
 
 
 export async function leaveChallenge({challengeId,userId}) {
@@ -790,4 +795,203 @@ export async function getinterstedCandidate({opportunityId,userId}) {
         };
       });
 return  { entries: entries }
+}
+
+export async function getGroupEvents({ groupId, userId }) {
+  if (!groupId) {
+    const err = new Error("groupId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // optional: validate group exists
+  const group = await PeerGroup.findById(groupId);
+  if (!group) {
+    const err = new Error("Group not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // you can decide if non-members can see events; here we require membership
+  if (!userId) {
+    const err = new Error("userId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const membership = await PeerGroupMembership.findOne({
+    groupId: groupId.toString(),
+    userId: userId.toString(),
+  });
+
+  if (!membership) {
+    const err = new Error("You must be a member to view events");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Fetch all events for this group (you can later filter to upcoming only)
+  const events = await PeerGroupEvent.find({
+    groupId: groupId.toString(),
+  })
+    .sort({ startTime: 1 })
+    .lean();
+
+  if (events.length === 0) {
+    return {
+      events: [],
+      myRsvps: [],
+      stats: {},
+    };
+  }
+
+  const eventIds = events.map((e) => e._id.toString());
+
+  // my RSVPs
+  const myRsvps = await PeerGroupEventRsvp.find({
+    eventId: { $in: eventIds },
+    userId: userId.toString(),
+  }).lean();
+
+  // aggregate stats for each event
+  const agg = await PeerGroupEventRsvp.aggregate([
+    { $match: { eventId: { $in: eventIds } } },
+    {
+      $group: {
+        _id: "$eventId",
+        goingCount: {
+          $sum: { $cond: [{ $eq: ["$status", "going"] }, 1, 0] },
+        },
+        interestedCount: {
+          $sum: { $cond: [{ $eq: ["$status", "interested"] }, 1, 0] },
+        },
+      },
+    },
+  ]);
+
+  const stats = {};
+  agg.forEach((row) => {
+    stats[row._id] = {
+      goingCount: row.goingCount,
+      interestedCount: row.interestedCount,
+    };
+  });
+
+  return {
+    events,
+    myRsvps,
+    stats,
+  };
+}
+
+
+export async function createPeerGroupEvent({
+  groupId,
+  userId,
+  title,
+  description,
+  type,
+  startTime,
+  endTime,
+  locationType,
+  locationText,
+  joinUrl,
+  maxAttendees,
+}) {
+  if (!groupId || !userId) {
+    const err = new Error("groupId and userId are required");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!title || !startTime || !endTime) {
+    const err = new Error("Title, startTime, and endTime are required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const group = await PeerGroup.findById(groupId);
+  if (!group) {
+    const err = new Error("Group not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Only group owner can create events (you can relax this later)
+  if (group.createdBy?.toString() !== userId.toString()) {
+    const err = new Error("Not allowed to create events for this group");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const event = await PeerGroupEvent.create({
+    groupId: groupId.toString(),
+    createdBy: userId.toString(),
+    title: title.trim(),
+    description: (description || "").trim(),
+    type: type || "group_coaching",
+    startTime: new Date(startTime),
+    endTime: new Date(endTime),
+    locationType: locationType || "online",
+    locationText: (locationText || "").trim(),
+    joinUrl: (joinUrl || "").trim(),
+    maxAttendees: maxAttendees ? Number(maxAttendees) : 0,
+    status: "scheduled",
+  });
+
+  return event;
+}
+
+
+export async function rsvpToEvent({ eventId, userId, status }) {
+  if (!eventId || !userId) {
+    const err = new Error("eventId and userId are required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const event = await PeerGroupEvent.findById(eventId);
+  if (!event) {
+    const err = new Error("Event not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const group = await PeerGroup.findById(event.groupId);
+  if (!group) {
+    const err = new Error("Group not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const membership = await PeerGroupMembership.findOne({
+    groupId: event.groupId.toString(),
+    userId: userId.toString(),
+  });
+
+  if (!membership) {
+    const err = new Error("You must be a member to RSVP to this event");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const allowedStatuses = ["going", "interested", "not_going"];
+  const finalStatus = allowedStatuses.includes(status) ? status : "interested";
+
+  let rsvp = await PeerGroupEventRsvp.findOne({
+    eventId: event._id.toString(),
+    userId: userId.toString(),
+  });
+
+  if (!rsvp) {
+    rsvp = await PeerGroupEventRsvp.create({
+      eventId: event._id.toString(),
+      userId: userId.toString(),
+      status: finalStatus,
+    });
+  } else {
+    rsvp.status = finalStatus;
+    await rsvp.save();
+  }
+
+  return rsvp;
 }

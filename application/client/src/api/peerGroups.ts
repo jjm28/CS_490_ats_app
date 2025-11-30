@@ -487,3 +487,114 @@ export async function fetchOpportunityInterests(opportunityId: string, userId: s
   console.log(data,data.entries)
   return data.entries;
 }
+
+
+// ---- Group events (coaching / webinars) ----
+
+export interface PeerGroupEvent {
+  _id: string;
+  groupId: string;      // string id
+  createdBy: string;    // string userId
+  title: string;
+  description?: string;
+  type: "group_coaching" | "webinar" | "office_hours" | "other";
+  startTime: string;    // ISO string from server
+  endTime: string;      // ISO string
+  locationType: "online" | "in_person";
+  locationText?: string;
+  joinUrl?: string;
+  maxAttendees: number;
+  status: "scheduled" | "completed" | "cancelled";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PeerGroupEventStats {
+  goingCount: number;
+  interestedCount: number;
+}
+
+export interface PeerGroupEventRsvp {
+  _id: string;
+  eventId: string;
+  userId: string;
+  status: "going" | "interested" | "not_going";
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+// API base import should already exist in this file
+// import API_BASE from "../utils/apiBase";
+
+export async function fetchGroupEvents(params: {
+  groupId: string;
+  userId: string;
+}) {
+  const { groupId, userId } = params;
+  const url = new URL(`${API_BASE}/events`);
+  url.searchParams.set("groupId", groupId);
+  url.searchParams.set("userId", userId);
+
+  const res = await fetch(url.toString(), {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to fetch group events");
+
+  const data = (await res.json()) as {
+    events: PeerGroupEvent[];
+    myRsvps: PeerGroupEventRsvp[];
+    stats: Record<string, PeerGroupEventStats>;
+  };
+  return data;
+}
+
+export async function createGroupEvent(params: {
+  groupId: string;
+  userId: string;
+  payload: {
+    title: string;
+    description?: string;
+    type?: "group_coaching" | "webinar" | "office_hours" | "other";
+    startTime: string; // ISO string
+    endTime: string;   // ISO string
+    locationType?: "online" | "in_person";
+    locationText?: string;
+    joinUrl?: string;
+    maxAttendees?: number;
+  };
+}) {
+  const { groupId, userId, payload } = params;
+  const url = new URL(`${API_BASE}/events`);
+  url.searchParams.set("groupId", groupId);
+  url.searchParams.set("userId", userId);
+
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create group event");
+  return (await res.json()) as PeerGroupEvent;
+}
+
+export async function rsvpToGroupEvent(params: {
+  eventId: string;
+  userId: string;
+  status: "going" | "interested" | "not_going";
+}) {
+  const { eventId, userId, status } = params;
+  const url = new URL(`${API_BASE}/events/rsvp`);
+  url.searchParams.set("eventId", eventId);
+  url.searchParams.set("userId", userId);
+
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error("Failed to RSVP to event");
+  return (await res.json()) as PeerGroupEventRsvp;
+}

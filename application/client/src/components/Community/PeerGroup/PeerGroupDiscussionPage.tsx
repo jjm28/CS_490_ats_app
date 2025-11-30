@@ -20,6 +20,12 @@ import {
     fetchGroupOpportunities,
   createPeerOpportunity,
   expressInterestInOpportunity,
+    fetchGroupEvents,
+  createGroupEvent,
+  rsvpToGroupEvent,
+  type PeerGroupEvent,
+  type PeerGroupEventStats,
+  type PeerGroupEventRsvp,
   type PeerOpportunity,
   type PeerOpportunityStats,
   type PeerOpportunityInterest,
@@ -32,6 +38,7 @@ import {
 } from "../../../api/peerGroups";
 import ChallengeCard from "./ChallengeCard";
 import OpportunityCard from "./OpportunityCard";
+import GroupEventCard from "./GroupEventCard";
 export default function PeerGroupDiscussionPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
@@ -89,6 +96,31 @@ const [oppTags, setOppTags] = useState("");
 const [oppNotes, setOppNotes] = useState("");
 const [oppReferralAvailable, setOppReferralAvailable] = useState(true);
 const [oppMaxReferrals, setOppMaxReferrals] = useState<string>("");
+// Events (group coaching / webinars)
+const [events, setEvents] = useState<PeerGroupEvent[]>([]);
+const [eventStats, setEventStats] = useState<
+  Record<string, PeerGroupEventStats>
+>({});
+const [myEventRsvps, setMyEventRsvps] = useState<PeerGroupEventRsvp[]>([]);
+const [eventsLoading, setEventsLoading] = useState<boolean>(true);
+const [eventsError, setEventsError] = useState<string | null>(null);
+
+// Create event form (owner only)
+const [creatingEvent, setCreatingEvent] = useState(false);
+const [eventTitle, setEventTitle] = useState("");
+const [eventDescription, setEventDescription] = useState("");
+const [eventType, setEventType] = useState<
+  "group_coaching" | "webinar" | "office_hours" | "other"
+>("group_coaching");
+const [eventDate, setEventDate] = useState("");      // yyyy-mm-dd
+const [eventStartTime, setEventStartTime] = useState(""); // HH:MM
+const [eventEndTime, setEventEndTime] = useState("");     // HH:MM
+const [eventLocationType, setEventLocationType] = useState<
+  "online" | "in_person"
+>("online");
+const [eventLocationText, setEventLocationText] = useState("");
+const [eventJoinUrl, setEventJoinUrl] = useState("");
+const [eventMaxAttendees, setEventMaxAttendees] = useState<string>("");
 
 const successPosts = useMemo(
   () => posts.filter((p) => p.highlightType === "success").slice(0, 3),
@@ -109,23 +141,31 @@ const learningPosts = useMemo(
   }, [group, currentUserId]);
 
 useEffect(() => {
-  if (!groupId) return;
+  if (!groupId || !currentUserId) return;
+
   (async () => {
     try {
-      setLoading(true);
+         setLoading(true);
       setError(null);
       setChallengesLoading(true);
       setChallengeError(null);
             setOppsLoading(true);
       setOppsError(null);
 
-      const [g, my, p, ch,  oppData] = await Promise.all([
+      setEventsLoading(true);
+      setEventsError(null);
+
+      // Add to whatever Promise.all you're already using
+      const [g, my, p, ch, oppData, evData] = await Promise.all([
         getPeerGroup(groupId),
         listMyPeerGroups(currentUserId),
         fetchGroupPosts(groupId),
-        fetchGroupChallenges(groupId,currentUserId),fetchGroupOpportunities(groupId,currentUserId),
+        fetchGroupChallenges(groupId,currentUserId),
+        fetchGroupOpportunities(groupId,currentUserId),
+        fetchGroupEvents({ groupId, userId: currentUserId }),
       ]);
 
+   
       setGroup(g);
       setMyMemberships(my.memberships);
       setPosts(p);
@@ -133,35 +173,37 @@ useEffect(() => {
       setChallenges(ch.challenges);
       setMyChallengeParticipations(ch.myParticipations);
       setChallengeStats(ch.stats);
-      console.log("dsdfsd",oppData.myInterests)
+
       setOpportunities(oppData.opportunities);
       setMyOpportunityInterests(oppData.myInterests);
       setOpportunityStats(oppData.stats);
 
-            const key = `peerGroup:${groupId}:lastSeenOpTime`;
-      const lastSeen = localStorage.getItem(key);
-      const lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
-      const newCount = oppData.opportunities.filter(
-        (o) => new Date(o.createdAt).getTime() > lastSeenTime
-      ).length;
-      if (newCount > 0) {
-        // you can store this in state if you want a banner;
-        // for now we just immediately update lastSeen to now
-      }
-      localStorage.setItem(key, new Date().toISOString());
-
+      // NEW: events
+      setEvents(evData.events);
+      setMyEventRsvps(evData.myRsvps);
+      setEventStats(evData.stats);
     } catch (e) {
       console.error(e);
-      setError("Failed to load group discussion.");
+        setError("Failed to load group discussion.");
       setChallengeError("Failed to load challenges.");
        setOppsError("Failed to load opportunities.");
+      setEventsError("Failed to load group events.");
     } finally {
+      setEventsLoading(false);
       setLoading(false);
       setChallengesLoading(false);
        setOppsLoading(false);
     }
   })();
-}, [groupId]);
+}, [groupId, currentUserId]);
+
+const myRsvpByEventId = useMemo(() => {
+  const map: Record<string, PeerGroupEventRsvp> = {};
+  myEventRsvps.forEach((r) => {
+    map[r.eventId] = r;
+  });
+  return map;
+}, [myEventRsvps]);
 
 const myInterestByOppId = useMemo(() => {
   const map: Record<string, PeerOpportunityInterest> = {};
@@ -211,6 +253,94 @@ const handleShareOpportunity = async () => {
     setOppsError("Failed to share opportunity.");
   } finally {
     setSharingOpp(false);
+  }
+};
+const handleCreateEvent = async () => {
+  if (!groupId || !currentUserId) return;
+  if (!eventTitle.trim() || !eventDate || !eventStartTime || !eventEndTime) {
+    return;
+  }
+
+  try {
+    setCreatingEvent(true);
+    setEventsError(null);
+
+    // Build ISO datetime strings
+    const startIso = new Date(`${eventDate}T${eventStartTime}:00`).toISOString();
+    const endIso = new Date(`${eventDate}T${eventEndTime}:00`).toISOString();
+
+    await createGroupEvent({
+      groupId,
+      userId: currentUserId,
+      payload: {
+        title: eventTitle.trim(),
+        description: eventDescription.trim(),
+        type: eventType,
+        startTime: startIso,
+        endTime: endIso,
+        locationType: eventLocationType,
+        locationText: eventLocationText.trim(),
+        joinUrl: eventJoinUrl.trim(),
+        maxAttendees: eventMaxAttendees
+          ? Number(eventMaxAttendees)
+          : 0,
+      },
+    });
+
+    // Refresh events
+    const evData = await fetchGroupEvents({
+      groupId,
+      userId: currentUserId,
+    });
+    setEvents(evData.events);
+    setMyEventRsvps(evData.myRsvps);
+    setEventStats(evData.stats);
+
+    // Reset form
+    setEventTitle("");
+    setEventDescription("");
+    setEventType("group_coaching");
+    setEventDate("");
+    setEventStartTime("");
+    setEventEndTime("");
+    setEventLocationType("online");
+    setEventLocationText("");
+    setEventJoinUrl("");
+    setEventMaxAttendees("");
+  } catch (e) {
+    console.error(e);
+    setEventsError("Failed to create event.");
+  } finally {
+    setCreatingEvent(false);
+  }
+};
+const handleRsvp = async (
+  ev: PeerGroupEvent,
+  status: "going" | "interested" | "not_going"
+) => {
+  if (!currentUserId) return;
+  if (!membership) {
+    setEventsError("You must join this group before RSVPing.");
+    return;
+  }
+
+  try {
+    await rsvpToGroupEvent({
+      eventId: ev._id,
+      userId: currentUserId,
+      status,
+    });
+
+    const evData = await fetchGroupEvents({
+      groupId: ev.groupId,
+      userId: currentUserId,
+    });
+    setEvents(evData.events);
+    setMyEventRsvps(evData.myRsvps);
+    setEventStats(evData.stats);
+  } catch (e) {
+    console.error(e);
+    setEventsError("Failed to update RSVP.");
   }
 };
 
@@ -955,6 +1085,176 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
         onExpressInterest={handleExpressInterest}
         onWithdrawInterest={handleWithdrawInterest}
         onAddToTracker={undefined} // TODO: hook to your jobs API
+      />
+    ))}
+  </div>
+</div>
+{/* Group coaching & webinars */}
+<div className="space-y-2 mt-6">
+  <h2 className="text-lg font-medium">Group coaching & webinars</h2>
+
+  {eventsError && (
+    <p className="text-xs text-red-600">{eventsError}</p>
+  )}
+
+  {eventsLoading && (
+    <p className="text-xs text-gray-500">Loading sessions...</p>
+  )}
+
+  {/* Create event form (group owner only) */}
+  {isGroupOwner ? (
+    <div className="border rounded-md p-3 space-y-2 bg-gray-50">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium">Schedule a session</span>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="Session title (e.g. Weekly Job Search Check-in)"
+          value={eventTitle}
+          onChange={(e) => setEventTitle(e.target.value)}
+        />
+        <select
+          className="border rounded px-2 py-1"
+          value={eventType}
+          onChange={(e) =>
+            setEventType(
+              e.target.value as
+                | "group_coaching"
+                | "webinar"
+                | "office_hours"
+                | "other"
+            )
+          }
+        >
+          <option value="group_coaching">Group coaching</option>
+          <option value="webinar">Webinar</option>
+          <option value="office_hours">Office hours</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <textarea
+        className="w-full border rounded px-2 py-1 text-xs"
+        rows={2}
+        placeholder="Optional description (what you'll cover, who it's for)"
+        value={eventDescription}
+        onChange={(e) => setEventDescription(e.target.value)}
+      />
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        <div className="flex flex-col">
+          <label className="text-[11px] text-gray-600">Date</label>
+          <input
+            type="date"
+            className="border rounded px-2 py-1"
+            value={eventDate}
+            onChange={(e) => setEventDate(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-[11px] text-gray-600">Start time</label>
+          <input
+            type="time"
+            className="border rounded px-2 py-1"
+            value={eventStartTime}
+            onChange={(e) => setEventStartTime(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-[11px] text-gray-600">End time</label>
+          <input
+            type="time"
+            className="border rounded px-2 py-1"
+            value={eventEndTime}
+            onChange={(e) => setEventEndTime(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs items-center">
+        <select
+          className="border rounded px-2 py-1"
+          value={eventLocationType}
+          onChange={(e) =>
+            setEventLocationType(
+              e.target.value as "online" | "in_person"
+            )
+          }
+        >
+          <option value="online">Online</option>
+          <option value="in_person">In-person</option>
+        </select>
+
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder={
+            eventLocationType === "online"
+              ? "Platform (Zoom, Discord, etc.)"
+              : "Location (Room, campus, etc.)"
+          }
+          value={eventLocationText}
+          onChange={(e) => setEventLocationText(e.target.value)}
+        />
+
+        {eventLocationType === "online" && (
+          <input
+            className="border rounded px-2 py-1 flex-[1.2]"
+            placeholder="Join URL (Zoom / Meet / Discord link)"
+            value={eventJoinUrl}
+            onChange={(e) => setEventJoinUrl(e.target.value)}
+          />
+        )}
+
+        <input
+          className="border rounded px-2 py-1 w-28"
+          placeholder="Max attendees"
+          value={eventMaxAttendees}
+          onChange={(e) => setEventMaxAttendees(e.target.value)}
+        />
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          disabled={creatingEvent}
+          onClick={handleCreateEvent}
+        >
+          {creatingEvent ? "Scheduling..." : "Schedule session"}
+        </Button>
+      </div>
+    </div>
+  ) : (
+    <p className="text-[11px] text-gray-500">
+      Group owners can schedule coaching sessions and webinars for this group.
+    </p>
+  )}
+
+  {/* Event list */}
+  <div className="space-y-2">
+    {events.length === 0 && !eventsLoading && (
+      <p className="text-xs text-gray-500">
+        No sessions scheduled yet. Once the group owner adds events, they will
+        appear here.
+      </p>
+    )}
+
+    {events.map((ev) => (
+      <GroupEventCard
+        key={ev._id}
+        event={ev}
+        stats={
+          eventStats[ev._id] || { goingCount: 0, interestedCount: 0 }
+        }
+        membership={membership}
+        myRsvp={myRsvpByEventId[ev._id] || null}
+        isOwner={
+          !!currentUserId &&
+          (ev.createdBy === currentUserId ||
+            (group && group.createdBy === currentUserId))
+        }
+        onRsvp={handleRsvp}
       />
     ))}
   </div>

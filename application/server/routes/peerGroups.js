@@ -19,7 +19,7 @@ leaveChallenge,
 fetchleaderboard,clearHighlight,
 fetchsharedOpp,
 shareOpp,  expressorupdateInterest,
-getinterstedCandidate
+getinterstedCandidate,getGroupEvents,createPeerGroupEvent,rsvpToEvent
 } from '../services/peerGroups.service.js';
 import { ObjectId } from 'mongodb';
 import { file } from 'zod';
@@ -266,7 +266,7 @@ router.delete("/",  async (req, res) => {
     res.status(500).json({ error: "Server error deleting group" });
   }
 });
-export default router;
+
 
 
 // GET /api/peer-groups/:groupId
@@ -364,28 +364,33 @@ router.post("/challenges/join",  async (req, res) => {
 
 
 // POST /api/peer-groups/challenges/:challengeId/progress
-router.post(  "/challenges/progress",  async (req, res) => {
-    try {
-      const { challengeId } = req.query;
-      const {userId} = req.query;
-      const { delta, note } = req.body;
+router.post("/challenges/progress", async (req, res) => {
+  try {
+    const { challengeId, userId } = req.query;
+    const { delta, note } = req.body;
 
-      const increment = Number(delta || 0);
-      if (!increment || isNaN(increment)) {
-        return res
-          .status(400)
-          .json({ error: "delta (number of actions) is required" });
-      }
-
-     const response = await incrementprogress({challengeId,userId,delta,note,increment})
-
-      res.json(response);
-    } catch (err) {
-      console.error("Error updating challenge progress:", err);
-      res.status(500).json({ error: "Server error updating progress" });
+    const increment = Number(delta || 0);
+    if (!increment || isNaN(increment)) {
+      return res
+        .status(400)
+        .json({ error: "delta (number of actions) is required" });
     }
+
+    const participation = await incrementprogress({
+      challengeId,
+      userId,
+      note,
+      increment,
+    });
+
+    res.json(participation);
+  } catch (err) {
+    console.error("Error updating challenge progress:", err);
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || "Server error" });
   }
-);
+});
+
 
 
 router.delete(  "/challenges/participation",  async (req, res) => {
@@ -524,3 +529,82 @@ router.get(  "/opportunities/interests",  async (req, res) => {
     }
   }
 );
+
+// GET /api/peer-groups/events?groupId=...&userId=...
+router.get("/events", async (req, res) => {
+  try {
+    const { groupId, userId } = req.query;
+
+    const data = await getGroupEvents({
+      groupId,
+      userId,
+    });
+
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching group events:", err);
+    const status = err.statusCode || 500;
+    res.status(status).json({ error: err.message || "Server error" });
+  }
+});
+
+// POST /api/peer-groups/events?groupId=...&userId=...
+router.post("/events", async (req, res) => {
+  try {
+    const { groupId, userId } = req.query;
+    const {
+      title,
+      description,
+      type,
+      startTime,
+      endTime,
+      locationType,
+      locationText,
+      joinUrl,
+      maxAttendees,
+    } = req.body;
+
+    const event = await createPeerGroupEvent({
+      groupId,
+      userId,
+      title,
+      description,
+      type,
+      startTime,
+      endTime,
+      locationType,
+      locationText,
+      joinUrl,
+      maxAttendees,
+    });
+
+    res.status(201).json(event);
+  } catch (err) {
+    console.error("Error creating group event:", err);
+    const status = err.statusCode || 500;
+    res.status(status).json({ error: err.message || "Server error" });
+  }
+});
+
+// POST /api/peer-groups/events/rsvp?eventId=...&userId=...
+router.post("/events/rsvp", async (req, res) => {
+  try {
+    const { eventId, userId } = req.query;
+    const { status } = req.body; // "going" | "interested" | "not_going"
+
+    const rsvp = await rsvpToEvent({
+      eventId,
+      userId,
+      status,
+    });
+
+    res.json(rsvp);
+  } catch (err) {
+    console.error("Error RSVPing to event:", err);
+    const status = err.statusCode || 500;
+    res.status(status).json({ error: err.message || "Server error" });
+  }
+});
+
+
+export default router;
