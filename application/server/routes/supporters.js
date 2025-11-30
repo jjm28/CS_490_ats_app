@@ -7,7 +7,7 @@ import {
   acceptInviteByToken,
     getSupporterSummary,  createWellbeingCheckin,
     getWellbeingSnapshot,
-  getRecentCheckins,acceptInviteForUser,listSupportedPeople
+  getRecentCheckins,acceptInviteForUser,listSupportedPeople, createMilestone
 } from "../services/supporters.service.js";
 
 const router = express.Router();
@@ -234,4 +234,34 @@ router.get("/as-supporter", async (req, res) => {
       .json({ error: err.message || "Server error listing supported people" });
   }
 });
+
+
+router.post("/milestones", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const { type, title, message, jobId, visibility, supporterIds } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const milestone = await createMilestone({
+      ownerUserId: userId,
+      type,
+      title,
+      message,
+      jobId,
+      visibility,
+      supporterIds,
+    });
+
+    res.status(201).json(milestone);
+  } catch (err) {
+    console.error("Error creating milestone:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error creating milestone" });
+  }
+});
+
 export default router;

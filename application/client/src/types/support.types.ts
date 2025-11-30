@@ -90,7 +90,8 @@ export interface SupporterSummaryPayload {
     recentActivity: ActivityItem[];
     wellbeing: WellbeingSummary | null;
     notes: string | null;
-    guidance?: SupportGuidance | null; // 👈 NEW
+    guidance?: SupportGuidance | null; 
+     milestones?: MilestoneSummary[]; 
   };
 }
 
@@ -137,3 +138,22 @@ export interface SupportGuidance {
   resources: SupportGuidanceResource[];
 }
 
+
+export type MilestoneType =
+  | "INTERVIEW_SCHEDULED"
+  | "INTERVIEW_PASSED"
+  | "OFFER_RECEIVED"
+  | "OFFER_ACCEPTED"
+  | "NEW_JOB_STARTED"
+  | "CUSTOM_CELEBRATION";
+
+export interface MilestoneSummary {
+  id: string;
+  type: MilestoneType;
+  title: string;
+  message?: string;
+  createdAt: string;
+  jobId?: string | null;
+  jobCompany?: string | null;
+  jobTitle?: string | null;
+}

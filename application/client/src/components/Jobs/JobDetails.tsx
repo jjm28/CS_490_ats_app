@@ -19,6 +19,7 @@ import CompanyResearchInline from "./CompanyResearchInline";
 import ReferencesPanel from "./ReferencesPanel";
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 const RESUME_VERSIONS_ENDPOINT = `${API_BASE}/api/resume-versions`; // NEW
+import MilestoneShareModal from "../Support/MilestoneShareModal";
 
 // NEW: type for linked resume versions coming from backend
 interface LinkedResumeVersion {
@@ -64,6 +65,8 @@ export default function JobDetails({
   const [editingHistoryText, setEditingHistoryText] = useState("");
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [shareOpen, setShareOpen] = useState(false);
+  const currentuserId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
 
   const token = useMemo(
     () =>
@@ -286,6 +289,7 @@ export default function JobDetails({
       }
 
       const data = await response.json();
+
       setJob(data);
       setIsEditing(false);
 
@@ -533,6 +537,30 @@ export default function JobDetails({
               />
             </div>
           </section>
+
+        {(job.status === "offer" || job.status === "interview") && (
+         <Button type="button" variant="secondary" onClick={() => setShareOpen(true)}>
+            Share this win with supporters
+          </Button>
+            )}
+  <MilestoneShareModal
+    userId={currentuserId}
+    open={shareOpen}
+    onClose={() => setShareOpen(false)}
+    jobId={job._id}
+    jobTitle={job.jobTitle}
+    jobCompany={job.company}
+    defaultType={
+      job.status === "offer"
+        ? "OFFER_RECEIVED"
+        : "INTERVIEW_SCHEDULED"
+    }
+    defaultTitle={
+      job.status === "offer"
+        ? "Got an offer for a new role!"
+        : "I have an interview scheduled!"
+    }
+  />
           <section>
             <h3 className="font-semibold text-lg mb-3">Application Package</h3>
 

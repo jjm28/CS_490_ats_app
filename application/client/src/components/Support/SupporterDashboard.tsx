@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Card from "../StyledComponents/Card";
 import API_BASE from "../../utils/apiBase";
-import type { SupporterSummaryPayload, SupportGuidance  } from "../../types/support.types";
+import type { SupporterSummaryPayload, SupportGuidance,    MilestoneSummary, } from "../../types/support.types";
 
 const SUPPORTERS_ENDPOINT = `${API_BASE}/api/supporters`;
 
@@ -216,6 +216,8 @@ export default function SupporterDashboard() {
         )}
       </Card>
             <SupporterGuidanceCard guidance={summary.guidance || null} />
+                  <MilestonesCard milestones={summary.milestones || []} />
+
 
     </div>
   );
@@ -308,6 +310,46 @@ function SupporterGuidanceCard({ guidance }: { guidance: any }) {
   </div>
 )}
 
+    </Card>
+  );
+}
+
+
+function MilestonesCard({ milestones }: { milestones: MilestoneSummary[] }) {
+  return (
+    <Card className="p-4">
+      <h2 className="font-semibold text-sm mb-2">Recent wins &amp; milestones</h2>
+      {(!milestones || milestones.length === 0) ? (
+        <p className="text-xs text-gray-600">
+          When they choose to share celebrations with you, they&apos;ll appear here.
+        </p>
+      ) : (
+        <div className="space-y-2 text-xs max-h-64 overflow-y-auto">
+          {milestones.map((m) => (
+            <div
+              key={m.id}
+              className="border rounded px-3 py-2 flex flex-col gap-1"
+            >
+              <div className="flex items-center justify-between">
+                <div className="font-medium">{m.title}</div>
+                <div className="text-[10px] text-gray-500">
+                  {new Date(m.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+              {m.message && (
+                <div className="text-gray-700">{m.message}</div>
+              )}
+              {(m.jobCompany || m.jobTitle) && (
+                <div className="text-[11px] text-gray-600">
+                  {m.jobTitle && <span>{m.jobTitle}</span>}
+                  {m.jobTitle && m.jobCompany && <span> @ </span>}
+                  {m.jobCompany && <span>{m.jobCompany}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

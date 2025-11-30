@@ -5,6 +5,8 @@ import WellbeingCheckin from "../models/WellbeingCheckin.js";
 import Jobs from "../models/jobs.js";
 import { sendSupporterInviteEmail } from "./emailService.js"; 
 import { getDb } from "../db/connection.js";
+import Milestone from "../models/Milestone.js";
+
  const SUPPORTER_PRIVACY_PRESETS = {
   high_level: {
     canSeeProgressSummary: true,
@@ -256,15 +258,16 @@ export async function getSupporterSummary({ supporterId }) {
   const ownerUserId = supporter.ownerUserId;
 
   // 🔁 Load jobs + wellbeing snapshot in parallel
-const [jobs, wellbeingSnapshot] = await Promise.all([
+const [jobs, wellbeingSnapshot, milestones] = await Promise.all([
   Jobs.find({ userId: ownerUserId }).lean(),
   getWellbeingSnapshot({ userId: ownerUserId }),
+  getMilestonesForSupporter({ supporter }),
 ]);
-
 const rawSummary = buildRawSummary(
   jobs,
   wellbeingSnapshot,
-  supporter.boundaries
+  supporter.boundaries,
+  milestones
 );
 
 const filteredSummary = filterSummaryForSupporter(
@@ -296,7 +299,7 @@ const filteredSummary = filterSummaryForSupporter(
 // function buildRawSummary(jobs, wellbeingSnapshot) {
 
 // AFTER:
-function buildRawSummary(jobs, wellbeingSnapshot, boundaries) {
+function buildRawSummary(jobs, wellbeingSnapshot, boundaries,milestones) {
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -414,20 +417,23 @@ function buildRawSummary(jobs, wellbeingSnapshot, boundaries) {
 
   const wellbeing = wellbeingSnapshot || null;
 
-  // 🔥 NEW: guidance
   const guidance = buildSupporterGuidance({
     progressSummary,
     wellbeing,
     boundaries,
   });
 
+  // NEW: raw milestones array
+  const recentMilestones = milestones || [];
+
   return {
     progressSummary,
     upcomingInterview,
     recentActivity,
     wellbeing,
-    notes: null, // future hook for reflections
+    notes: null,
     guidance,
+    milestones: recentMilestones,
   };
 }
 
@@ -498,6 +504,14 @@ function filterSummaryForSupporter(raw, permissions) {
   }
 result.guidance = raw.guidance || null;
   
+
+  result.milestones = (raw.milestones || []).map((m) => {
+    const copy = { ...m };
+    if (!permissions.canSeeCompanyNames) {
+      copy.jobCompany = null;
+    }
+    return copy;
+  });
 
   return result;
 }
@@ -870,4 +884,88 @@ function buildSupporterGuidance({ progressSummary, wellbeing, boundaries }) {
     thingsToAvoid: avoid,
     resources: filteredResources,
   };
+}
+
+export async function createMilestone({
+  ownerUserId,
+  type,
+  title,
+  message,
+  jobId,
+  visibility,
+  supporterIds,
+}) {
+  if (!ownerUserId) {
+    const err = new Error("ownerUserId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!type || !title) {
+    const err = new Error("type and title are required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let jobCompany = null;
+  let jobTitle = null;
+
+  if (jobId) {
+    const job = await Jobs.findById(jobId).lean();
+    if (job && job.userId?.toString() === ownerUserId.toString()) {
+      jobCompany = job.company || job.companyName || null;
+      jobTitle = job.jobTitle || job.title || null;
+    }
+  }
+
+  const doc = await Milestone.create({
+    ownerUserId,
+    jobId: jobId || null,
+    type,
+    title,
+    message: message || "",
+    visibility: visibility === "custom" ? "custom" : "all",
+    visibleToSupporterIds:
+      visibility === "custom" && Array.isArray(supporterIds)
+        ? supporterIds
+        : [],
+    jobCompany,
+    jobTitle,
+  });
+
+  return doc;
+}
+
+/**
+ * Get milestones visible to a given supporter.
+ * supporter: Supporter document
+ * limit: how many (default 5)
+ */
+export async function getMilestonesForSupporter({ supporter, limit = 5 }) {
+  const ownerUserId = supporter.ownerUserId;
+  const supporterId = supporter._id.toString();
+
+  const query = {
+    ownerUserId,
+    $or: [
+      { visibility: "all" },
+      { visibility: "custom", visibleToSupporterIds: supporterId },
+    ],
+  };
+
+  const milestones = await Milestone.find(query)
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+
+  return milestones.map((m) => ({
+    id: m._id.toString(),
+    type: m.type,
+    title: m.title,
+    message: m.message,
+    createdAt: m.createdAt,
+    // include full job snapshot; we'll filter company name later by permissions
+    jobId: m.jobId || null,
+    jobCompany: m.jobCompany,
+    jobTitle: m.jobTitle,
+  }));
 }
