@@ -18,7 +18,7 @@ type OpportunityCardProps = {
   isOwner: boolean; // whether current user is the referrer / group owner
   onExpressInterest: (op: PeerOpportunity, note: string) => void;
   onWithdrawInterest: (op: PeerOpportunity) => void;
-  onAddToTracker?: (op: PeerOpportunity) => void;
+    onAddToTracker?: (opp: PeerOpportunity) => void;
  isNew?: boolean;
 
 
@@ -186,6 +186,16 @@ export default function OpportunityCard({
                   >
                     Withdraw
                   </Button>
+
+                   {onAddToTracker && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => onAddToTracker(opp)}
+                    >
+                      Add to my job tracker
+                    </Button>
+                  )}
                 </div>
               )}
             </>

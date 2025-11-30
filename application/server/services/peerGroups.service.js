@@ -11,6 +11,7 @@ import PeerOpportunity from '../models/PeerOpportunity.js';
 import PeerOpportunityInterest from '../models/PeerOpportunityInterest.js';
 import PeerGroupEvent from "../models/PeerGroupEvent.js";
 import PeerGroupEventRsvp from "../models/PeerGroupEventRsvp.js";
+import Job from "../models/jobs.js";
 export async function fetchAllPeerGroups(filter) {
     
   let result;
@@ -614,7 +615,6 @@ export async function fetchsharedOpp({groupId,userId}) {
         referredCount: row.referredCount,
       };
     });
-console.log(agg)
     return {
       opportunities: opps,
       myInterests,
@@ -994,4 +994,145 @@ export async function rsvpToEvent({ eventId, userId, status }) {
   }
 
   return rsvp;
+}
+
+
+const INTERVIEW_STATUSES = ['interested', 'applied', 'phone_screen', 'interview', 'offer', 'rejected']
+
+const OFFER_STATUSES = ["offer"];
+
+export async function getNetworkingImpact({ groupId, userId }) {
+  if (!groupId) {
+    const err = new Error("groupId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!userId) {
+    const err = new Error("userId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const group = await PeerGroup.findById(groupId);
+  if (!group) {
+    const err = new Error("Group not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const membership = await PeerGroupMembership.findOne({
+    groupId: groupId.toString(),
+    userId: userId.toString(),
+  });
+  if (!membership) {
+    const err = new Error("You must be a member to view networking impact");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // ---- My jobs that came from this peer group ----
+  const myJobs = await Job.find({
+    userId: userId.toString(),           // adjust if your field name differs
+    sourcePeerGroupId: groupId.toString(),  // tagged as coming from this group
+  }).lean();
+
+  const myJobsFromGroup = myJobs.length;
+  const myInterviewsFromGroup = myJobs.filter((j) =>
+    INTERVIEW_STATUSES.includes(j.status)
+  ).length;
+  const myOffersFromGroup = myJobs.filter((j) =>
+    OFFER_STATUSES.includes(j.status)
+  ).length;
+
+  // ---- All jobs across users sourced from this group ----
+  const groupJobs = await Job.find({
+    sourcePeerGroupId: groupId.toString(),
+  }).lean();
+
+  const groupJobsFromGroup = groupJobs.length;
+  const groupInterviewsFromGroup = groupJobs.filter((j) =>
+    INTERVIEW_STATUSES.includes(j.status)
+  ).length;
+  const groupOffersFromGroup = groupJobs.filter((j) =>
+    OFFER_STATUSES.includes(j.status)
+  ).length;
+
+  const membersWithPeerJobs = new Set(
+    groupJobs
+      .map((j) => j.createdBy?.toString?.() || j.createdBy)
+      .filter(Boolean)
+  ).size;
+
+  return {
+    me: {
+      jobsFromGroup: myJobsFromGroup,
+      interviewsFromGroup: myInterviewsFromGroup,
+      offersFromGroup: myOffersFromGroup,
+    },
+    group: {
+      jobsFromGroup: groupJobsFromGroup,
+      interviewsFromGroup: groupInterviewsFromGroup,
+      offersFromGroup: groupOffersFromGroup,
+      membersWithPeerJobs,
+    },
+  };
+}
+
+
+export async function createJobFromPeerOpportunity({
+  userId,
+  groupId,
+  opportunityId,
+}) {
+  if (!userId || !groupId || !opportunityId) {
+    const err = new Error("userId, groupId, and opportunityId are required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const group = await PeerGroup.findById(groupId);
+  if (!group) {
+    const err = new Error("Group not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const membership = await PeerGroupMembership.findOne({
+    groupId: groupId.toString(),
+    userId: userId.toString(),
+  });
+  if (!membership) {
+    const err = new Error("You must be a member of this group to add this job");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const opportunity = await PeerOpportunity.findById(opportunityId);
+  if (!opportunity) {
+    const err = new Error("Opportunity not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (opportunity.groupId?.toString?.() !== groupId.toString()) {
+    const err = new Error("Opportunity does not belong to this group");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const job = await Job.create({
+    jobTitle: opportunity.title,
+    company: opportunity.company,
+    location: opportunity.location || "",
+    jobPostingUrl: opportunity.jobUrl || "",
+    description: opportunity.notes || "",
+    source: "peer_group",
+    sourcePeerGroupId: groupId.toString(),
+    sourceOpportunityId: opportunityId.toString(),
+    // who owns this job
+    createdBy: userId.toString(),
+    userId: userId
+  });
+
+  return job;
 }

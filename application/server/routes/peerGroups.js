@@ -19,7 +19,7 @@ leaveChallenge,
 fetchleaderboard,clearHighlight,
 fetchsharedOpp,
 shareOpp,  expressorupdateInterest,
-getinterstedCandidate,getGroupEvents,createPeerGroupEvent,rsvpToEvent
+getinterstedCandidate,getGroupEvents,createPeerGroupEvent,rsvpToEvent,getNetworkingImpact,createJobFromPeerOpportunity
 } from '../services/peerGroups.service.js';
 import { ObjectId } from 'mongodb';
 import { file } from 'zod';
@@ -433,7 +433,6 @@ router.patch(  "/posts/highlight",  async (req, res) => {
           const {userId} = req.query;
 
       const response = await clearHighlight({groupId,postId,highlightType,userId})
-      console.log(response)
       res.json(response)
     } catch (err) {
       console.error("Error updating post highlight:", err);
@@ -606,5 +605,39 @@ router.post("/events/rsvp", async (req, res) => {
   }
 });
 
+
+router.get("/networking-impact", async (req, res) => {
+  try {
+    const { groupId, userId } = req.query;
+
+    const data = await getNetworkingImpact({ groupId, userId });
+    console.log(data)
+    res.json(data);
+  } catch (err) {
+    console.error("Error fetching networking impact:", err);
+    const status = err.statusCode || 500;
+    res.status(status).json({ error: err.message || "Server error" });
+  }
+});
+
+
+// POST /api/jobs/from-peer-opportunity?userId=...&groupId=...&opportunityId=...
+router.post("/from-peer-opportunity", async (req, res) => {
+  try {
+    const { userId, groupId, opportunityId } = req.query;
+
+    const job = await createJobFromPeerOpportunity({
+      userId,
+      groupId,
+      opportunityId,
+    });
+
+    res.status(201).json(job);
+  } catch (err) {
+    console.error("Error creating job from peer opportunity:", err);
+    const status = err.statusCode || 500;
+    res.status(status).json({ error: err.message || "Server error" });
+  }
+});
 
 export default router;

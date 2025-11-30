@@ -1,4 +1,5 @@
 // src/api/peerGroups.ts
+import type { Job } from "../types/jobs.types";
 const API_BASE  =  "http://localhost:5050/api/peer-groups";
 const authHeaders = (): HeadersInit => {
   const token = localStorage.getItem("token");
@@ -597,4 +598,66 @@ export async function rsvpToGroupEvent(params: {
   });
   if (!res.ok) throw new Error("Failed to RSVP to event");
   return (await res.json()) as PeerGroupEventRsvp;
+}
+
+// ---- Networking impact analytics ----
+
+export interface NetworkingImpactMe {
+  jobsFromGroup: number;
+  interviewsFromGroup: number;
+  offersFromGroup: number;
+}
+
+export interface NetworkingImpactGroup {
+  jobsFromGroup: number;
+  interviewsFromGroup: number;
+  offersFromGroup: number;
+  membersWithPeerJobs: number;
+}
+
+export interface NetworkingImpactResponse {
+  me: NetworkingImpactMe;
+  group: NetworkingImpactGroup;
+}
+
+export async function fetchNetworkingImpact(params: {
+  groupId: string;
+  userId: string;
+}) {
+  const { groupId, userId } = params;
+  const url = new URL(`${API_BASE}/networking-impact`);
+  url.searchParams.set("groupId", groupId);
+  url.searchParams.set("userId", userId);
+
+  const res = await fetch(url.toString(), {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to fetch networking impact");
+
+  return (await res.json()) as NetworkingImpactResponse;
+}
+
+
+
+
+export async function createJobFromPeerOpportunity(params: {
+  userId: string;
+  groupId: string;
+  opportunityId: string;
+}) {
+  const { userId, groupId, opportunityId } = params;
+
+  const url = new URL(`${API_BASE}/from-peer-opportunity`);
+  url.searchParams.set("userId", userId);
+  url.searchParams.set("groupId", groupId);
+  url.searchParams.set("opportunityId", opportunityId);
+
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!res.ok) throw new Error("Failed to create job from peer opportunity");
+
+  return (await res.json()) as Job;
 }

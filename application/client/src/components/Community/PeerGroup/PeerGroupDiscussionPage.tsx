@@ -23,6 +23,8 @@ import {
     fetchGroupEvents,
   createGroupEvent,
   rsvpToGroupEvent,
+    fetchNetworkingImpact, createJobFromPeerOpportunity,
+  type NetworkingImpactResponse,
   type PeerGroupEvent,
   type PeerGroupEventStats,
   type PeerGroupEventRsvp,
@@ -152,6 +154,15 @@ const learningPosts = useMemo(
   [posts]
 );
 
+const [networkingImpact, setNetworkingImpact] =
+  useState<NetworkingImpactResponse | null>(null);
+const [networkingImpactLoading, setNetworkingImpactLoading] =
+  useState<boolean>(true);
+const [networkingImpactError, setNetworkingImpactError] =
+  useState<string | null>(null);
+
+const [addToTrackerLoadingId, setAddToTrackerLoadingId] = useState<string | null>(null);
+const [addToTrackerError, setAddToTrackerError] = useState<string | null>(null);
 
   // Privacy modal state
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
@@ -159,6 +170,50 @@ const learningPosts = useMemo(
     if (!group || !currentUserId) return false;
     return group.createdBy === currentUserId;
   }, [group, currentUserId]);
+useEffect(() => {
+  if (!groupId || !currentUserId) return;
+
+  (async () => {
+    try {
+      setNetworkingImpactLoading(true);
+      setNetworkingImpactError(null);
+
+      const data = await fetchNetworkingImpact({
+        groupId,
+        userId: currentUserId,
+      });
+
+      setNetworkingImpact(data);
+    } catch (e) {
+      console.error(e);
+      setNetworkingImpactError("Failed to load networking impact.");
+    } finally {
+      setNetworkingImpactLoading(false);
+    }
+  })();
+}, [groupId, currentUserId]);
+
+const handleAddOpportunityToTracker = async (opp: PeerOpportunity) => {
+  if (!groupId || !currentUserId) return;
+  try {
+    setAddToTrackerError(null);
+    setAddToTrackerLoadingId(opp._id);
+
+    const job = await createJobFromPeerOpportunity({
+      userId: currentUserId,
+      groupId,
+      opportunityId: opp._id,
+    });
+
+    // Navigate to the job detail/editor – adjust path to your real route
+    navigate(`/jobs/${job._id}`);
+  } catch (e: any) {
+    console.error(e);
+    setAddToTrackerError(e?.message ?? "Failed to add opportunity to job tracker.");
+  } finally {
+    setAddToTrackerLoadingId(null);
+  }
+};
 
 useEffect(() => {
   if (!groupId || !currentUserId) return;
@@ -1077,6 +1132,10 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
 
 {/* Shared opportunities & referrals */}
 <div className="space-y-2 mt-6">
+  {addToTrackerError && (
+  <p className="text-xs text-red-600">{addToTrackerError}</p>
+)}
+
   <h2 className="text-lg font-medium">Shared opportunities & referrals</h2>
 
   {oppsError && (
@@ -1141,27 +1200,27 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
       </p>
     )}
     {opportunities.map((opp) => (
-      <OpportunityCard
-        key={opp._id}
-        opportunity={opp}
-        stats={
-          opportunityStats[opp._id] || {
-            interestCount: 0,
-            referredCount: 0,
-          }
-        }
-        membership={membership}
-        myInterest={myInterestByOppId[opp._id] || null}
-        isOwner={
-          !!currentUserId &&
-          (opp.createdBy === currentUserId ||
-            (group && group.createdBy === currentUserId))
-        }
-        onExpressInterest={handleExpressInterest}
-        onWithdrawInterest={handleWithdrawInterest}
-        onAddToTracker={undefined} // hook to jobs later if you want
-        isNew={isOppNew(opp)}
-      />
+     <OpportunityCard
+    key={opp._id}
+    opportunity={opp}
+    stats={
+      opportunityStats[opp._id] || {
+        interestCount: 0,
+        referredCount: 0,
+      }
+    }
+    membership={membership}
+    myInterest={myInterestByOppId[opp._id] || null}
+    isOwner={
+      !!currentUserId &&
+      (opp.createdBy === currentUserId ||
+        (group && group.createdBy === currentUserId))
+    }
+    onExpressInterest={handleExpressInterest}
+    onWithdrawInterest={handleWithdrawInterest}
+    onAddToTracker={handleAddOpportunityToTracker}
+    isNew={isOppNew(opp)}
+  />
     ))}
   </div>
 </div>
@@ -1336,6 +1395,86 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
     ))}
   </div>
 </div>
+
+
+{/* Networking impact analytics */}
+<div className="space-y-2 mt-6">
+  <h2 className="text-lg font-medium">Networking impact</h2>
+
+  {networkingImpactLoading && (
+    <p className="text-xs text-gray-500">Calculating impact…</p>
+  )}
+
+  {networkingImpactError && (
+    <p className="text-xs text-red-600">{networkingImpactError}</p>
+  )}
+
+  {networkingImpact && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Your impact */}
+      <div className="border rounded-md p-3 bg-white">
+        <h3 className="text-sm font-medium mb-1">Your outcomes from this group</h3>
+        <p className="text-[11px] text-gray-500 mb-2">
+          Jobs you added to your tracker that came from shared opportunities or referrals in this group.
+        </p>
+        <div className="flex gap-4 text-sm">
+          <div>
+            <div className="text-xs text-gray-500">Jobs sourced</div>
+            <div className="text-lg font-semibold">
+              {networkingImpact.me.jobsFromGroup}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Reached interview</div>
+            <div className="text-lg font-semibold">
+              {networkingImpact.me.interviewsFromGroup}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Offers</div>
+            <div className="text-lg font-semibold">
+              {networkingImpact.me.offersFromGroup}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Group impact */}
+      <div className="border rounded-md p-3 bg-white">
+        <h3 className="text-sm font-medium mb-1">Group-wide outcomes</h3>
+        <p className="text-[11px] text-gray-500 mb-2">
+          Combined results from jobs sourced through this group (all members).
+        </p>
+        <div className="flex gap-4 text-sm">
+          <div>
+            <div className="text-xs text-gray-500">Jobs sourced</div>
+            <div className="text-lg font-semibold">
+              {networkingImpact.group.jobsFromGroup}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Reached interview</div>
+            <div className="text-lg font-semibold">
+              {networkingImpact.group.interviewsFromGroup}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500">Offers</div>
+            <div className="text-lg font-semibold">
+              {networkingImpact.group.offersFromGroup}
+            </div>
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-gray-500">
+          {networkingImpact.group.membersWithPeerJobs} member
+          {networkingImpact.group.membersWithPeerJobs === 1 ? "" : "s"} have at
+          least one job sourced from this group.
+        </p>
+      </div>
+    </div>
+  )}
+</div>
+
 <JobPickerSheet
   open={showOppJobPicker}
   onClose={() => setShowOppJobPicker(false)}
