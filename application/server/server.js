@@ -30,6 +30,7 @@ import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from './jobs/notificationcron.js';
 import notificationRoutes from './routes/notifications.js';
 import reference from './routes/reference.js'
+import peergroups from './routes/peerGroups.js'
 import goalsRoutes from "./routes/goals.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
@@ -109,6 +110,8 @@ try {
 
   // References Routes
   app.use('/api/reference', reference)
+  // Peer groups Routes
+  app.use('/api/peer-groups', peergroups)
 
   app.use("/api/goals", attachDevUser, goalsRoutes);
 

@@ -194,6 +194,21 @@ const JobSchema = new Schema({
             eventId: { type: String, default: "" },
         },
     ],
+    source: {
+      type: String,
+      default: "manual", // e.g. "manual", "peer_group", "imported"
+    },
+
+    // if this job was created from a peer group opportunity
+    sourcePeerGroupId: {
+      type: String,
+      index: true, // group._id as string
+    },
+
+    sourceOpportunityId: {
+      type: String,
+      index: true, // PeerOpportunity._id as string
+    },
 
     // analytics helpers
     responseReceived: { type: Boolean, default: false },
