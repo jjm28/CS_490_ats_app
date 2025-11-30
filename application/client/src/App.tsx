@@ -63,6 +63,7 @@ import MarketTrends from './components/Analytics/MarketTrends';
 import NetworkingROI from './components/Analytics/NetworkingROI';
 import Overview from './components/Analytics/Overview';
 import SalaryMarket from './components/Analytics/SalaryMarket';
+import JobProductivityDashboard from "./components/Jobs/JobProductivityDashboard";
 
 function App() {
   const location = useLocation();
@@ -185,6 +186,13 @@ function App() {
             path="/analytics/market-trends"
             element={<PrivateRoute><MarketTrends /></PrivateRoute>}
           />
+
+          <Route 
+          path="/Jobs/Productivity" 
+          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>}
+          />
+          <Route path="/analytics/productivity" 
+          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>} />
         </Routes>
       </div>
     </>
