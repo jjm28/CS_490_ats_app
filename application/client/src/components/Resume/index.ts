@@ -1,6 +1,7 @@
 // src/components/Resume/index.ts
 import React from "react";
 import type { ResumeData, TemplateKey } from "../../api/resumes";
+import type { ResumeTheme } from "./resumeThemes";
 
 /* -------- Web previews (DOM) -------- */
 const ChronologicalPreview = React.lazy(() => import("./ClientSide/ChronologicalPreview"));
@@ -22,6 +23,7 @@ export type ResumePreviewProps = {
   className?: string;
   visibleSections?: SectionId[];
   sectionOrder?: SectionId[];
+  theme?: ResumeTheme;
 };
 
 export const resumePreviewRegistry: Record<
