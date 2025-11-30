@@ -21,8 +21,8 @@ import coverletter from './routes/coverletter.js'
 import jobRoutes from './routes/jobs.js'
 import salaryRouter from "./routes/salary.js";
 import resumesRoute from "./routes/resume.js";
-import templatesRoute from "./routes/templates.js";   
-import interviewRoutes from "./routes/interview-insights.js";            
+import templatesRoute from "./routes/templates.js";
+import interviewRoutes from "./routes/interview-insights.js";
 import { ensureSystemTemplates } from './services/templates.service.js';
 import resumeVersionsRouter from "./routes/resume-versions.js";
 import automationRoutes from "./routes/automation.js";
@@ -35,6 +35,9 @@ import goalsRoutes from "./routes/goals.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
+import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
+import jobSalaryRoutes from "./routes/jobs-salary.js";
+import smartGoalsRoutes from "./routes/smartGoals.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -79,10 +82,14 @@ try {
   // Job routes  
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
   app.use('/api/jobs', jobRoutes);
+  app.use("/api/jobs", jobSalaryRoutes);
 
- app.use("/api/interview-insights", attachDevUser, interviewRoutes);
-  app.use(companyResearch);
+  app.use("/api/salary", salaryRoutes);
   app.use('/api/salary', salaryRouter);
+  app.use("/api/salary/analytics", salaryAnalyticsRoutes);
+  app.use("/api/interview-insights", attachDevUser, interviewRoutes);
+  app.use(companyResearch);
+  
   // for picture uploads
   app.use(
     '/uploads',
@@ -119,6 +126,8 @@ try {
   app.use("/api/success-patterns", successPatternsRouter);
 
   app.use("/api/interviews", interviewAnalyticsRoutes);
+
+  app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

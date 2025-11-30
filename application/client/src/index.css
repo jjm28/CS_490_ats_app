@@ -15,8 +15,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-
-
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
@@ -52,4 +50,20 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* ===== Fade-In Animation Utility ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
 }
