@@ -44,15 +44,15 @@ router.get("/analytics", async (req, res) => {
         }
       }
 
-      // 2) If NO saved interviews, infer from job status
-      else if (["interview", "offer", "rejected"].includes(job.status)) {
+      // 2) If NO saved interviews, infer an implicit interview
+      // ONLY if the job actually reached the Interview stage (interview/offer).
+      // Dragging a job straight to "rejected" should NOT count as an interview.
+      else if (["interview", "offer"].includes(job.status)) {
         interviews.push({
           ...base,
           date: job.updatedAt || job.createdAt,
           type: "Implicit",
-          outcome: job.status === "offer" ? "offer" :
-            job.status === "rejected" ? "rejected" :
-              "pending",
+          outcome: job.status === "offer" ? "offer" : "pending",
         });
       }
     }

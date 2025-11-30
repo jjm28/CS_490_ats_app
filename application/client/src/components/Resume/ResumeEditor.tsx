@@ -49,6 +49,12 @@ import {
 
 import { ValidationPanel } from "./ValidationPanel";
 
+import {
+  startProductivitySession,
+  endProductivitySession,
+} from "../../api/productivity";
+
+
 const ResumeEditor: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,6 +70,41 @@ const ResumeEditor: React.FC = () => {
       navigate("/resumes", { replace: true });
     }
   }, [template, navigate]);
+
+  //Time Tracking for Productivity
+  useEffect(() => {
+    let canceled = false;
+    let sessionId: string | null = null;
+
+    (async () => {
+      try {
+        const session = await startProductivitySession({
+          activityType: "resume_edit",
+          context: "ResumeEditor",
+        });
+        if (!canceled) {
+          sessionId = session._id;
+        }
+      } catch (err) {
+        console.error(
+          "[productivity] Failed to start resume_edit session:",
+          err
+        );
+      }
+    })();
+
+    return () => {
+      canceled = true;
+      if (sessionId) {
+        endProductivitySession({ sessionId }).catch((err) =>
+          console.error(
+            "[productivity] Failed to end resume_edit session:",
+            err
+          )
+        );
+      }
+    };
+  }, []);
 
   if (!template) {
     return null;

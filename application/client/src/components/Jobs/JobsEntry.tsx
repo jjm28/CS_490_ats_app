@@ -26,6 +26,12 @@ import BulkDeadlineManager from "./BulkDeadlineManager";
 import { toggleArchiveJob } from "../../api/jobs";
 import JobUrlImporter from "./JobUrlImporter";
 
+// productivity
+import {
+  startProductivitySession,
+  endProductivitySession,
+} from "../../api/productivity";
+
 // Configuration
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
@@ -120,6 +126,13 @@ function JobsEntry() {
   const [extendingJob, setExtendingJob] = useState<Job | null>(null);
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
   const [archivingJob, setArchivingJob] = useState<Job | null>(null);
+
+  //Productivity Session State
+  const [activeSearchSessionId, setActiveSearchSessionId] = useState<
+    string | null
+  >(null);
+  const [isStartingSearchSession, setIsStartingSearchSession] = useState(false);
+  const [isEndingSearchSession, setIsEndingSearchSession] = useState(false);
 
   const token = useMemo(
     () =>
@@ -684,6 +697,37 @@ function JobsEntry() {
     }
   }, [isLoggedIn]);
 
+  // Once logged in automatically start tracking time spent for productivity
+  useEffect(() => {
+  if (!isLoggedIn) return;
+
+  let canceled = false;
+  let sessionId: string | null = null;
+
+  (async () => {
+    try {
+      const session = await startProductivitySession({
+        activityType: "job_search",
+        context: "JobsEntry",
+      });
+      if (!canceled) {
+        sessionId = session._id;
+      }
+    } catch (err) {
+      console.error("[productivity] Failed to start job_search session:", err);
+    }
+  })();
+
+  return () => {
+    canceled = true;
+    if (sessionId) {
+      endProductivitySession({ sessionId }).catch((err) =>
+        console.error("[productivity] Failed to end job_search session:", err)
+      );
+    }
+  };
+}, [isLoggedIn]);
+
   const fetchJobs = async () => {
     console.log("Output");
     setLoading(true);
@@ -1098,6 +1142,51 @@ function JobsEntry() {
     return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
   };
 
+  //Productivity Session Helpers
+
+  const handleStartJobSearchSession = async () => {
+    if (activeSearchSessionId || isStartingSearchSession) return;
+
+    try {
+      setIsStartingSearchSession(true);
+
+      const session = await startProductivitySession({
+        activityType: "job_search",
+        context: "JobsEntry",
+        // you can later add energyLevelStart: 4 if you want to track energy
+      });
+
+      setActiveSearchSessionId(session._id);
+      showToast("Started job search focus session.");
+    } catch (error) {
+      console.error("Failed to start job search session:", error);
+      showToast("Could not start job search session. Please try again.");
+    } finally {
+      setIsStartingSearchSession(false);
+    }
+  };
+
+  const handleEndJobSearchSession = async () => {
+    if (!activeSearchSessionId || isEndingSearchSession) return;
+
+    try {
+      setIsEndingSearchSession(true);
+
+      await endProductivitySession({
+        sessionId: activeSearchSessionId,
+        // you can later add energyLevelEnd if you collect it from the user
+      });
+
+      setActiveSearchSessionId(null);
+      showToast("Ended job search focus session.");
+    } catch (error) {
+      console.error("Failed to end job search session:", error);
+      showToast("Could not end job search session. Please try again.");
+    } finally {
+      setIsEndingSearchSession(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -1226,6 +1315,14 @@ function JobsEntry() {
                 >
                   <Icon name="success" size={18} className="icon-teal" />
                   <span>Job Statistics</span>
+                </button>
+                {/* New: Productivity & Time Insights */}
+                <button
+                  onClick={() => navigate("/Jobs/Productivity")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 border-t border-gray-200"
+                >
+                  <Icon name="success" size={18} className="icon-teal" />
+                  <span>Productivity &amp; Time Insights</span>
                 </button>
               </PopoverPanel>
             </Popover>
@@ -1424,7 +1521,7 @@ function JobsEntry() {
                   </div>
 
                   <div>
-                    <label className="form-label">Application Method *</label>
+                    <label className="form-label">Application Method</label>
                     <select
                       name="applicationMethod"
                       value={formData.applicationMethod}
@@ -1441,7 +1538,7 @@ function JobsEntry() {
                     </select>
                   </div>
                   <div>
-                    <label className="form-label">Application Source *</label>
+                    <label className="form-label">Application Source</label>
                     <select
                       name="applicationSource"
                       value={formData.applicationSource}
@@ -1957,15 +2054,32 @@ function JobsEntry() {
                           </div>
                           <div className="mt-2 space-y-1 text-sm text-gray-600">
                             {job.location && <div>📍 {job.location}</div>}
-                            <div className="flex items-center">
-                              💰 {formatSalary(job.salaryMin, job.salaryMax)}
+                            <div className="text-gray-600 text-sm">
+                              <div>💰 {formatSalary(job.salaryMin, job.salaryMax)}</div>
+
                               <a
-                                onClick={() => navigate(`/SalaryResearch`)}
-                                className="ml-2 text-blue-600 hover:underline cursor-pointer text-sm font-medium"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/SalaryResearch`);
+                                }}
+                                className="text-blue-600 hover:underline cursor-pointer text-xs font-medium"
                               >
                                 Research salary →
                               </a>
                             </div>
+                            {job.status === "offer" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/jobs/${job._id}/salary`, {
+                                    state: { from: "/Jobs" },
+                                  });
+                                }}
+                                className="text-blue-600 hover:underline text-xs font-medium mt-1"
+                              >
+                                Salary details →
+                              </button>
+                            )}
                             <div className="mt-2">
                               <DeadlineIndicator
                                 applicationDeadline={job.applicationDeadline}

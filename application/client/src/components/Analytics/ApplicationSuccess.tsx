@@ -141,7 +141,6 @@ export default function ApplicationSuccess() {
 
   // Normalize / type the data so TS is happy
   const byIndustry: SuccessItem[] = data.byIndustry ?? [];
-  const byCompanySize: SuccessItem[] = data.byCompanySize ?? [];
   const byRoleType: SuccessItem[] = data.byRoleType ?? [];
   const byMethod: SuccessItem[] = data.byMethod ?? [];
   const bySource: SuccessItem[] = data.bySource ?? [];
@@ -196,9 +195,8 @@ export default function ApplicationSuccess() {
           Job Characteristics That Lead to Offers
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <MetricCard title="By Industry" items={byIndustry} />
-          <MetricCard title="By Company Size" items={byCompanySize} />
           <MetricCard title="By Role Type" items={byRoleType} />
         </div>
       </section>
@@ -211,7 +209,7 @@ export default function ApplicationSuccess() {
           Application Behaviors That Lead to Offers
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <MetricCard title="By Application Method" items={byMethod} />
           <MetricCard title="By Application Source" items={bySource} />
         </div>
