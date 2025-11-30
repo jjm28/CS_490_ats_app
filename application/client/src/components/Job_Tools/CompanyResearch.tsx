@@ -5,6 +5,11 @@ import SearchHistory from './SearchHistory.tsx';
 import { searchHistory } from '../../utils/searchHistory';
 import '../../styles/CompanyResearch.css';
 
+import {
+  startProductivitySession,
+  endProductivitySession,
+} from "../../api/productivity";
+
 interface NewsArticle {
   title: string;
   snippet: string;
@@ -60,6 +65,35 @@ function CompanyResearch() {
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [showRelevantOnly, setShowRelevantOnly] = useState(true);
   
+
+  //Used to track time for productivity
+  useEffect(() => {
+    let canceled = false;
+    let sessionId: string | null = null;
+
+    (async () => {
+      try {
+        const session = await startProductivitySession({
+          activityType: "company_research",
+          context: "CompanyResearch",
+        });
+        if (!canceled) {
+          sessionId = session._id;
+        }
+      } catch (err) {
+        console.error("[productivity] Failed to start company_research session:", err);
+      }
+    })();
+
+    return () => {
+      canceled = true;
+      if (sessionId) {
+        endProductivitySession({ sessionId }).catch((err) =>
+          console.error("[productivity] Failed to end company_research session:", err)
+        );
+      }
+    };
+  }, []);
 
   // Handle search
   const handleSearch = async (): Promise<void> => {

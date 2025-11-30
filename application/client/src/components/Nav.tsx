@@ -222,6 +222,12 @@ function Navbar() {
                   Goal Tracking
                 </NavLink>
                 <NavLink
+                  to="/analytics/productivity"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Productivity
+                </NavLink>
+                <NavLink
                   to="/analytics/market-trends"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >

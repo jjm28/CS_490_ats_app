@@ -67,3 +67,15 @@ export async function getSuccessPatterns() {
   if (!res.ok) throw new Error("Failed to fetch success patterns");
   return res.json();
 }
+
+export async function getJobById(id: string) {
+    const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
+        headers: baseHeaders(),
+    });
+
+    if (!res.ok) {
+        throw new Error("Failed to fetch job");
+    }
+
+    return res.json();
+}
