@@ -7,7 +7,8 @@ import PeerGroupMembership from "../models/PeerGroupMembership.js"
 import PeerGroupPost from '../models/PeerGroupPost.js';
 import GroupChallenge from '../models/GroupChallenge.js'
 import GroupChallengeParticipation from '../models/GroupChallengeParticipation.js';
-
+import PeerOpportunity from '../models/PeerOpportunity.js';
+import PeerOpportunityInterest from '../models/PeerOpportunityInterest.js';
 export async function fetchAllPeerGroups(filter) {
     
   let result;
@@ -454,7 +455,6 @@ export async function fetchleaderboard({challengeId,userId}) {
     const userIds = [
       ...new Set(participations.map((p) => String(p.userId))),
     ].map((id) =>id);
-    console.log(userIds)
     const memberships = await PeerGroupMembership.find({
       groupId: challenge.groupId,
       userId: { $in: userIds },
@@ -544,7 +544,6 @@ export async function clearHighlight({groupId,postId,highlightType,userId}) {
       ) {
         throw new Error( "Invalid highlight type" );
       }
-      console.log("working")
       post.highlightType = highlightType;
       await post.save();
      
@@ -558,4 +557,237 @@ export async function clearHighlight({groupId,postId,highlightType,userId}) {
         highlightType: post.highlightType,
       };
 
+}
+
+export async function fetchsharedOpp({groupId,userId}) {
+    
+  const group = await PeerGroup.findById(groupId);
+    if (!group) {
+      throw new Error( "Group not found" );
+    }
+
+    const opps = await PeerOpportunity.find({ groupId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (opps.length === 0) {
+      return {
+        opportunities: [],
+        myInterests: [],
+        stats: {},
+      };
+    }
+
+    const oppIds = opps.map((o) => String(o._id));
+
+    // my interests
+    const myInterests = await PeerOpportunityInterest.find({
+      opportunityId: { $in: oppIds },
+      userId,
+    }).lean();
+
+    // aggregate stats (interestCount, referredCount) per opportunity
+    const agg = await PeerOpportunityInterest.aggregate([
+      { $match: { opportunityId: { $in: oppIds } } },
+      {
+        $group: {
+          _id: "$opportunityId",
+          interestCount: { $sum: 1 },
+          referredCount: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "referred"] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    const stats = {};
+    agg.forEach((row) => {
+      stats[String(row._id)] = {
+        interestCount: row.interestCount,
+        referredCount: row.referredCount,
+      };
+    });
+console.log(agg)
+    return {
+      opportunities: opps,
+      myInterests,
+      stats,
+    };
+
+
+}
+
+export async function shareOpp({groupId,userId,      title,
+      company,
+      location,
+      jobUrl,
+      source,
+      referralAvailable,
+      maxReferrals,
+      tags,
+      notes,
+      expiresAt})  {
+    
+    const group = await PeerGroup.findById(groupId);
+    if (!group) {
+      throw new Error("Group not found" );
+    }
+ 
+    const membership = await PeerGroupMembership.findOne({ groupId, userId });
+
+    if (!membership) {
+      throw new Error("You must be a member to share opportunities" );
+    }
+
+    const opp = await PeerOpportunity.create({
+      groupId,
+      createdBy: userId,
+      title: title.trim(),
+      company: company.trim(),
+      location: (location || "").trim(),
+      jobUrl: (jobUrl || "").trim(),
+      source: (source || "").trim(),
+      referralAvailable: !!referralAvailable,
+      maxReferrals: maxReferrals ? Number(maxReferrals) : 0,
+      tags: Array.isArray(tags)
+        ? tags
+        : typeof tags === "string"
+        ? tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : [],
+      notes: (notes || "").trim(),
+      status: "open",
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+    });
+    return opp
+}
+
+
+export async function  expressorupdateInterest({opportunityId,userId,note,status}) {
+    
+  const opp = await PeerOpportunity.findById(opportunityId);
+      if (!opp) {
+       throw new Error("Opportunity not found" );
+      }
+
+      const membership = await PeerGroupMembership.findOne({
+        groupId: opp.groupId,
+        userId,
+      });
+      if (!membership) {
+        throw new Error( "You must be a member to express interest" );
+      }
+
+      let interest = await PeerOpportunityInterest.findOne({
+        opportunityId,
+        userId,
+      });
+
+      if (!interest) {
+        interest = await PeerOpportunityInterest.create({
+          opportunityId,
+          userId,
+          status: "interested",
+          note: note || "",
+        });
+      } else {
+        if (note !== undefined) interest.note = note;
+        if (status && interest.status !== status) {
+          // allow candidate to withdraw; referrer can change status via other endpoint later if you want
+          if (status === "withdrawn" || status === "interested") {
+            interest.status = status;
+          }
+        }
+        await interest.save();
+      }
+
+    return interest
+}
+
+export async function getinterstedCandidate({opportunityId,userId}) {
+    const db = getDb()
+      const opp = await PeerOpportunity.findById(opportunityId);
+      if (!opp) {
+        throw new Error( "Opportunity not found" );
+      }
+
+      const group = await PeerGroup.findById(opp.groupId);
+      if (!group) {
+       throw new Error( "Group not found" );
+      }
+
+      // Only the creator (referrer) or group owner can see interest details
+      const isOwner = String(group.createdBy) === String(userId);
+      const isReferrer = String(opp.createdBy) === String(userId);
+      if (!isOwner && !isReferrer) {
+        throw new Error(  "Not allowed to view interested candidates" );
+      }
+
+      const interests = await PeerOpportunityInterest.find({
+        opportunityId,
+      })
+        .sort({ createdAt: 1 })
+        .lean();
+
+      if (interests.length === 0) {
+        return { entries: [] };
+      }
+
+      const userIds = [
+        ...new Set(interests.map((i) => String(i.userId))),
+      ].map((id) => id);
+
+      const memberships = await PeerGroupMembership.find({
+        groupId: opp.groupId,
+        userId: { $in: userIds },
+      }).lean();
+    const users = await db.collection("profiles").find({ userId: { $in: userIds } },    { projection: {userId: 1,fullName:1, headline:1, photoUrl:1} }).toArray();
+
+
+      const membershipByUser = new Map();
+      memberships.forEach((m) => membershipByUser.set(String(m.userId), m));
+
+      const userById = new Map();
+      users.forEach((u) => userById.set(String(u.userId), u));
+
+      function buildPersona(user, membership) {
+        if (!membership || !user) {
+          return { mode: "anonymous", displayName: "Anonymous" };
+        }
+        const interactionLevel = membership.interactionLevel || "public";
+        if (interactionLevel === "anonymous") {
+          return { mode: "anonymous", displayName: "Anonymous" };
+        }
+        if (interactionLevel === "alias") {
+          return {
+            mode: "alias",
+            displayName: membership.alias || "Anonymous",
+          };
+        }
+        const displayName = user.fullName || user.name || "Member";
+        return {
+          mode: "public",
+          displayName,
+          headline: user.headline || "",
+        };
+      }
+
+      const entries = interests.map((i) => {
+        const u = userById.get(String(i.userId));
+        const m = membershipByUser.get(String(i.userId));
+        const persona = buildPersona(u, m);
+        return {
+          _id: i._id,
+          userId: String(i.userId),
+          status: i.status,
+          note: i.note,
+          createdAt: i.createdAt,
+          persona,
+        };
+      });
+return  { entries: entries }
 }

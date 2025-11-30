@@ -48,7 +48,6 @@ export default function ChallengeCard({
       setLoadingLeaderboard(true);
       setLeaderboardError(null);
       const entries = await fetchChallengeLeaderboard(ch._id,currentUserId);
-      console.log(entries)
       setLeaderboard(entries);
     } catch (e) {
       console.error(e);

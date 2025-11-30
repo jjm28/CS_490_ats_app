@@ -16,17 +16,22 @@ import {
   joinGroupChallenge,
   updateGroupChallengeProgress,
   leaveGroupChallenge,
-   updatePostHighlight, 
+   updatePostHighlight,  
+    fetchGroupOpportunities,
+  createPeerOpportunity,
+  expressInterestInOpportunity,
+  type PeerOpportunity,
+  type PeerOpportunityStats,
+  type PeerOpportunityInterest,
   type PeerGroup,
   type PeerGroupMembership,
   type GroupPost,
   type GroupChallenge,
   type GroupChallengeParticipation,
   type GroupChallengeStats,
-  type  ChallengeLeaderboardEntry
 } from "../../../api/peerGroups";
 import ChallengeCard from "./ChallengeCard";
-
+import OpportunityCard from "./OpportunityCard";
 export default function PeerGroupDiscussionPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
@@ -63,6 +68,28 @@ const [newChallengeStart, setNewChallengeStart] = useState<string>("");
 const [newChallengeEnd, setNewChallengeEnd] = useState<string>("");
 const [newChallengeDescription, setNewChallengeDescription] = useState("");
 
+const [opportunities, setOpportunities] = useState<PeerOpportunity[]>([]);
+const [opportunityStats, setOpportunityStats] = useState<
+  Record<string, PeerOpportunityStats>
+>({});
+const [myOpportunityInterests, setMyOpportunityInterests] = useState<
+  PeerOpportunityInterest[]
+>([]);
+const [oppsLoading, setOppsLoading] = useState(true);
+const [oppsError, setOppsError] = useState<string | null>(null);
+
+// for share form
+const [sharingOpp, setSharingOpp] = useState(false);
+const [oppTitle, setOppTitle] = useState("");
+const [oppCompany, setOppCompany] = useState("");
+const [oppLocation, setOppLocation] = useState("");
+const [oppUrl, setOppUrl] = useState("");
+const [oppSource, setOppSource] = useState("");
+const [oppTags, setOppTags] = useState("");
+const [oppNotes, setOppNotes] = useState("");
+const [oppReferralAvailable, setOppReferralAvailable] = useState(true);
+const [oppMaxReferrals, setOppMaxReferrals] = useState<string>("");
+
 const successPosts = useMemo(
   () => posts.filter((p) => p.highlightType === "success").slice(0, 3),
   [posts]
@@ -89,12 +116,14 @@ useEffect(() => {
       setError(null);
       setChallengesLoading(true);
       setChallengeError(null);
+            setOppsLoading(true);
+      setOppsError(null);
 
-      const [g, my, p, ch] = await Promise.all([
+      const [g, my, p, ch,  oppData] = await Promise.all([
         getPeerGroup(groupId),
         listMyPeerGroups(currentUserId),
         fetchGroupPosts(groupId),
-        fetchGroupChallenges(groupId,currentUserId),
+        fetchGroupChallenges(groupId,currentUserId),fetchGroupOpportunities(groupId,currentUserId),
       ]);
 
       setGroup(g);
@@ -104,16 +133,119 @@ useEffect(() => {
       setChallenges(ch.challenges);
       setMyChallengeParticipations(ch.myParticipations);
       setChallengeStats(ch.stats);
+      console.log("dsdfsd",oppData.myInterests)
+      setOpportunities(oppData.opportunities);
+      setMyOpportunityInterests(oppData.myInterests);
+      setOpportunityStats(oppData.stats);
+
+            const key = `peerGroup:${groupId}:lastSeenOpTime`;
+      const lastSeen = localStorage.getItem(key);
+      const lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
+      const newCount = oppData.opportunities.filter(
+        (o) => new Date(o.createdAt).getTime() > lastSeenTime
+      ).length;
+      if (newCount > 0) {
+        // you can store this in state if you want a banner;
+        // for now we just immediately update lastSeen to now
+      }
+      localStorage.setItem(key, new Date().toISOString());
+
     } catch (e) {
       console.error(e);
       setError("Failed to load group discussion.");
       setChallengeError("Failed to load challenges.");
+       setOppsError("Failed to load opportunities.");
     } finally {
       setLoading(false);
       setChallengesLoading(false);
+       setOppsLoading(false);
     }
   })();
 }, [groupId]);
+
+const myInterestByOppId = useMemo(() => {
+  const map: Record<string, PeerOpportunityInterest> = {};
+  myOpportunityInterests.forEach((i) => {
+    map[i.opportunityId] = i;
+  });
+  return map;
+}, [myOpportunityInterests]);
+const handleShareOpportunity = async () => {
+  if (!groupId) return;
+  if (!oppTitle.trim() || !oppCompany.trim()) return;
+  try {
+    setSharingOpp(true);
+    setOppsError(null);
+
+    await createPeerOpportunity(groupId,currentUserId ,{
+      title: oppTitle.trim(),
+      company: oppCompany.trim(),
+      location: oppLocation.trim(),
+      jobUrl: oppUrl.trim(),
+      source: oppSource.trim(),
+      referralAvailable: oppReferralAvailable,
+      maxReferrals: oppMaxReferrals ? Number(oppMaxReferrals) : 0,
+      tags: oppTags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      notes: oppNotes.trim(),
+    });
+
+    const oppData = await fetchGroupOpportunities(groupId,currentUserId);
+    setOpportunities(oppData.opportunities);
+    setMyOpportunityInterests(oppData.myInterests);
+    setOpportunityStats(oppData.stats);
+
+    setOppTitle("");
+    setOppCompany("");
+    setOppLocation("");
+    setOppUrl("");
+    setOppSource("");
+    setOppTags("");
+    setOppNotes("");
+    setOppReferralAvailable(true);
+    setOppMaxReferrals("");
+  } catch (e) {
+    console.error(e);
+    setOppsError("Failed to share opportunity.");
+  } finally {
+    setSharingOpp(false);
+  }
+};
+
+const handleExpressInterest = async (opp: PeerOpportunity, note: string) => {
+  if (!groupId) return;
+  if (!membership) {
+    setOppsError("You must join this group before expressing interest.");
+    return;
+  }
+  try {
+    await expressInterestInOpportunity(opp._id,currentUserId, { note, status: "interested" });
+    const oppData = await fetchGroupOpportunities(groupId,currentUserId);
+    setOpportunities(oppData.opportunities);
+    setMyOpportunityInterests(oppData.myInterests);
+    setOpportunityStats(oppData.stats);
+  } catch (e) {
+    console.error(e);
+    setOppsError("Failed to express interest.");
+  }
+};
+
+const handleWithdrawInterest = async (opp: PeerOpportunity) => {
+  if (!groupId) return;
+  try {
+    await expressInterestInOpportunity(opp._id, currentUserId,{ status: "withdrawn" });
+    const oppData = await fetchGroupOpportunities(groupId,currentUserId);
+    setOpportunities(oppData.opportunities);
+    setMyOpportunityInterests(oppData.myInterests);
+    setOpportunityStats(oppData.stats);
+  } catch (e) {
+    console.error(e);
+    setOppsError("Failed to withdraw interest.");
+  }
+};
+
 
 const handleCreateChallenge = async () => {
   if (!groupId) return;
@@ -694,6 +826,140 @@ const handleLeaveChallenge = async (challenge: GroupChallenge) => {
       
     ))}
   </div>
+
+  {/* Shared opportunities & referrals */}
+<div className="space-y-2 mt-6">
+  <h2 className="text-lg font-medium">Shared opportunities & referrals</h2>
+
+  {oppsError && (
+    <p className="text-xs text-red-600">{oppsError}</p>
+  )}
+
+  {/* Simple v1 alert: show a hint that this is where new opportunities show up */}
+  {oppsLoading && (
+    <p className="text-xs text-gray-500">Loading opportunities...</p>
+  )}
+
+  {/* Share form (group members only) */}
+  {membership ? (
+    <div className="border rounded-md p-3 space-y-2 bg-gray-50">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium">Share an opportunity</span>
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="Job title (e.g. SWE Intern)"
+          value={oppTitle}
+          onChange={(e) => setOppTitle(e.target.value)}
+        />
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="Company"
+          value={oppCompany}
+          onChange={(e) => setOppCompany(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="Location (NYC, Remote...)"
+          value={oppLocation}
+          onChange={(e) => setOppLocation(e.target.value)}
+        />
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="Job URL"
+          value={oppUrl}
+          onChange={(e) => setOppUrl(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="Source (Internal, LinkedIn, etc.)"
+          value={oppSource}
+          onChange={(e) => setOppSource(e.target.value)}
+        />
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="Tags (internship, backend, 2026)"
+          value={oppTags}
+          onChange={(e) => setOppTags(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-wrap gap-2 items-center text-xs">
+        <label className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={oppReferralAvailable}
+            onChange={(e) => setOppReferralAvailable(e.target.checked)}
+          />
+          I can refer for this role
+        </label>
+        <input
+          className="border rounded px-2 py-1 w-24"
+          placeholder="Max referrals"
+          value={oppMaxReferrals}
+          onChange={(e) => setOppMaxReferrals(e.target.value)}
+        />
+      </div>
+      <textarea
+        className="w-full border rounded px-2 py-1 text-xs"
+        rows={2}
+        placeholder="Optional notes about the team, timeline, expectations..."
+        value={oppNotes}
+        onChange={(e) => setOppNotes(e.target.value)}
+      />
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          disabled={sharingOpp}
+          onClick={handleShareOpportunity}
+        >
+          {sharingOpp ? "Sharing..." : "Share opportunity"}
+        </Button>
+      </div>
+    </div>
+  ) : (
+    <p className="text-[11px] text-gray-500">
+      Join this group to share opportunities and referrals.
+    </p>
+  )}
+
+  {/* List of opportunities */}
+  <div className="space-y-2">
+    {opportunities.length === 0 && !oppsLoading && (
+      <p className="text-xs text-gray-500">
+        No opportunities shared yet. Use this space to share roles and referrals with
+        your peers.
+      </p>
+    )}
+    {opportunities.map((opp) => (
+      <OpportunityCard
+        key={opp._id}
+        opportunity={opp}
+        stats={
+          opportunityStats[opp._id] || {
+            interestCount: 0,
+            referredCount: 0,
+          }
+        }
+        membership={membership}
+        myInterest={myInterestByOppId[opp._id] || null}
+        isOwner={
+          !!currentUserId &&
+          (opp.createdBy === currentUserId ||
+            (group && group.createdBy === currentUserId))
+        }
+        onExpressInterest={handleExpressInterest}
+        onWithdrawInterest={handleWithdrawInterest}
+        onAddToTracker={undefined} // TODO: hook to your jobs API
+      />
+    ))}
+  </div>
+</div>
+
 </div>
 
     </div>

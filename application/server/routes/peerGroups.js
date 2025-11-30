@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { response } from 'express';
 import { verifyJWT } from '../middleware/auth.js';
 import 'dotenv/config';
 import { 
@@ -16,7 +16,10 @@ createChallenge,
 joinChallenge,
 incrementprogress,
 leaveChallenge,
-fetchleaderboard,clearHighlight
+fetchleaderboard,clearHighlight,
+fetchsharedOpp,
+shareOpp,  expressorupdateInterest,
+getinterstedCandidate
 } from '../services/peerGroups.service.js';
 import { ObjectId } from 'mongodb';
 import { file } from 'zod';
@@ -435,3 +438,89 @@ router.patch(  "/posts/highlight",  async (req, res) => {
 );
 
 
+// GET /api/peer-groups/:groupId/opportunities
+router.get("/opportunities",  async (req, res) => {
+  try {
+    const { groupId } = req.query;
+    const {userId} = req.query;
+    
+    const response = await fetchsharedOpp({groupId,userId})
+    res.json(response)
+  } catch (err) {
+    console.error("Error fetching opportunities:", err);
+    res.status(500).json({ error: "Server error fetching opportunities" });
+  }
+});
+
+
+// POST /api/peer-groups/:groupId/opportunities
+router.post("/opportunities",  async (req, res) => {
+  try {
+    const { groupId } = req.query;
+    const {userId} = req.query;
+    const {
+      title,
+      company,
+      location,
+      jobUrl,
+      source,
+      referralAvailable,
+      maxReferrals,
+      tags,
+      notes,
+      expiresAt,
+    } = req.body;
+
+    if (!title || !company) {
+      return res.status(400).json({ error: "Title and company are required" });
+    }
+     const response =  await shareOpp({groupId,userId,      title,
+      company,
+      location,
+      jobUrl,
+      source,
+      referralAvailable,
+      maxReferrals,
+      tags,
+      notes,
+      expiresAt}) 
+
+    res.status(201).json(response);
+  } catch (err) {
+    console.error("Error creating opportunity:", err);
+    res.status(500).json({ error: "Server error creating opportunity" });
+  }
+});
+
+
+// POST /api/peer-groups/opportunities/:opportunityId/interest
+router.post(  "/opportunities/interest", async (req, res) => {
+    try {
+      const { opportunityId } = req.query;
+      const {userId} = req.query;
+      const { note, status } = req.body;
+
+      const response = await expressorupdateInterest({opportunityId,userId,note,status})
+      res.json(response);
+    } catch (err) {
+      console.error("Error expressing interest:", err);
+      res.status(500).json({ error: "Server error expressing interest" });
+    }
+  }
+);
+
+
+// GET /api/peer-groups/opportunities/:opportunityId/interests
+router.get(  "/opportunities/interests",  async (req, res) => {
+    try {
+      const { opportunityId } = req.query;
+      const {userId} = req.query;
+
+      const response = await getinterstedCandidate({opportunityId,userId});
+      res.json( response );
+    } catch (err) {
+      console.error("Error fetching opportunity interests:", err);
+      res.status(500).json({ error: "Server error fetching interests" });
+    }
+  }
+);

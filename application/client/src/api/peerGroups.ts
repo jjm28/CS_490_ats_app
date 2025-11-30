@@ -358,8 +358,7 @@ export async function updatePostHighlight(
     `${API_BASE}/posts/highlight?groupId=${groupId}&userId=${userId}&postId=${postId}`,
     {
       method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
+       headers: authHeaders(),
       body: JSON.stringify({ highlightType }),
     }
   );
@@ -369,4 +368,122 @@ export async function updatePostHighlight(
     groupId: string;
     highlightType: "success" | "learning" | null;
   };
+}
+
+
+export interface PeerOpportunity {
+  _id: string;
+  groupId: string;
+  createdBy: string;
+  title: string;
+  company: string;
+  location?: string;
+  jobUrl?: string;
+  source?: string;
+  referralAvailable: boolean;
+  maxReferrals: number;
+  tags: string[];
+  notes?: string;
+  status: "open" | "filled" | "closed" | "expired";
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PeerOpportunityStats {
+  interestCount: number;
+  referredCount: number;
+}
+
+export interface PeerOpportunityInterest {
+  _id: string;
+  opportunityId: string;
+  userId: string;
+  status: "interested" | "profile_sent" | "referred" | "rejected" | "withdrawn";
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OpportunityInterestEntry {
+  _id: string;
+  userId: string;
+  status: string;
+  note: string;
+  createdAt: string;
+  persona: {
+    mode: "public" | "alias" | "anonymous";
+    displayName: string;
+    headline?: string;
+  };
+}
+
+
+export async function fetchGroupOpportunities(groupId: string, userId: string) {
+  const res = await fetch(`${API_BASE}/opportunities?groupId=${groupId}&userId=${userId}`, {
+        headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch opportunities");
+  const data = (await res.json()) as {
+    opportunities: PeerOpportunity[];
+    myInterests: PeerOpportunityInterest[];
+    stats: Record<string, PeerOpportunityStats>;
+  };
+  return data;
+  
+}
+
+export async function createPeerOpportunity(
+  groupId: string,
+  userId: string,
+  payload: {
+    title: string;
+    company: string;
+    location?: string;
+    jobUrl?: string;
+    source?: string;
+    referralAvailable?: boolean;
+    maxReferrals?: number;
+    tags?: string[];
+    notes?: string;
+    expiresAt?: string | null;
+  }
+) {
+  const res = await fetch(`${API_BASE}/opportunities?groupId=${groupId}&userId=${userId}`, {
+    method: "POST",
+      headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create opportunity");
+  return (await res.json()) as PeerOpportunity;
+}
+
+export async function expressInterestInOpportunity(
+  opportunityId: string,
+  userId: string,
+  payload: { note?: string; status?: "interested" | "withdrawn" }
+) {
+  const res = await fetch(
+    `${API_BASE}/opportunities/interest?opportunityId=${opportunityId}&userId=${userId}`,
+    {
+      method: "POST",
+  headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to express interest");
+  return (await res.json()) as PeerOpportunityInterest;
+}
+
+export async function fetchOpportunityInterests(opportunityId: string, userId: string) {
+  const res = await fetch(
+    `${API_BASE}/opportunities/interests?opportunityId=${opportunityId}&userId=${userId}`,
+    {
+        headers: authHeaders(),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to fetch interested candidates");
+  const data = (await res.json()) as { entries: OpportunityInterestEntry[] };
+  console.log(data,data.entries)
+  return data.entries;
 }

@@ -212,7 +212,6 @@ const handleSubmitPrivacy = async (values: GroupPrivacyFormValues) => {
 
   // Create vs edit submit handler (used by modal)
   const handleSubmitGroupForm = async (values: PeerGroupFormValues) => {
-    console.log("wokring")
     const tagsArray = values.tags
       .split(",")
       .map((t) => t.trim())
