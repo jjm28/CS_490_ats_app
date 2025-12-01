@@ -10,7 +10,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | null; // Add component type
+  component?: 'research' | 'questions' | null; // Add component type
 };
 
 const cardData: CardData[] = [
