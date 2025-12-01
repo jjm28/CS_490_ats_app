@@ -8,6 +8,7 @@ import fireConfetti from "./confetti.ts";
 import JobSearchPartnerEngagement from "./JobSearchPartnerEngagement.tsx";
 import JobSearchMotivationPanel from "./JobSearchMotivationPanel.tsx";
 import { ToastContainer, toast ,Bounce} from 'react-toastify';
+import JobSearchAccountabilityInsights from "./JobSearchAccountabilityInsights";
 
 type CelebrationToast = {
   id: number;
@@ -80,6 +81,8 @@ transition: Bounce,
   refreshKey={motivationRefreshKey}
 />
       <JobSearchPartnerEngagement currentUserId={currentUserId} />
+            <JobSearchAccountabilityInsights currentUserId={currentUserId} />
+
     </div>
   );
 }

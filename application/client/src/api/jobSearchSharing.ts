@@ -394,3 +394,64 @@ export async function fetchMotivationStats(
 
   return res.json();
 }
+
+export interface WeeklyImpact {
+  weekKey: string;          // "YYYY-MM-DD" of week start
+  weekStart: string;
+  engagementEvents: number;
+  actionCount: number;
+  goalsCompleted: number;
+}
+
+export interface TopPartnerImpact {
+  partnerUserId: string;
+  engagementLevel: string;
+  totalEvents: number;
+}
+
+export interface AccountabilityInsights {
+  ownerUserId: string;
+  since: string;
+  until: string;
+  sinceWeeks: number;
+  highEngagementDefinition: {
+    minEventsPerWeek: number;
+  };
+  weekly: WeeklyImpact[];
+  stats: {
+    totalEngagementEvents: number;
+    totalActions: number;
+    totalGoalsCompleted: number;
+    highEngagementWeeks: number;
+    zeroEngagementWeeks: number;
+    avgActionsHigh: number;
+    avgActionsZero: number;
+    avgGoalsHigh: number;
+    avgGoalsZero: number;
+  };
+  topPartners: TopPartnerImpact[];
+  headline: string;
+  insights: string[];
+  suggestions: string[];
+  summaryForAi: string;
+}
+
+export async function fetchAccountabilityInsights(
+  ownerId: string,
+  sinceWeeks: number = 8
+): Promise<AccountabilityInsights> {
+  const params = new URLSearchParams();
+  params.set("ownerId", ownerId);
+  params.set("sinceWeeks", String(sinceWeeks));
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/insights?${params.toString()}`,
+    { credentials: "include" }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load accountability insights");
+  }
+
+  return res.json();
+}

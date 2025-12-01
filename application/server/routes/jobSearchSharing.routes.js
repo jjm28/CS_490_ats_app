@@ -329,5 +329,32 @@ router.get("/job-search/motivation", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/job-search/insights?ownerId=...&sinceWeeks=8
+ *
+ * Returns insights on accountability impact on job search success.
+ */
+router.get("/job-search/insights", async (req, res) => {
+  try {
+    const { ownerId, sinceWeeks } = req.query;
+
+    if (!ownerId) {
+      return res.status(400).json({ error: "ownerId is required" });
+    }
+
+    const insights = await getAccountabilityInsights({
+      ownerUserId: String(ownerId),
+      sinceWeeks: sinceWeeks ? Number(sinceWeeks) : 8,
+    });
+
+    res.json(insights);
+  } catch (err) {
+    console.error("Error getting accountability insights:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error getting accountability insights",
+    });
+  }
+});
+
 export default router;
 
