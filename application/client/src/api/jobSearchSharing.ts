@@ -186,3 +186,92 @@ export async function createMilestone(
   if (!res.ok) throw new Error("Failed to create milestone");
   return res.json();
 }
+
+
+export interface SharingScopes {
+  shareGoals: boolean;
+  shareMilestones: boolean;
+  shareStats: boolean;
+  shareNotes: boolean;
+}
+
+export interface JobSearchSharingProfile {
+  _id: string;
+  ownerUserId: string;
+  visibilityMode: VisibilityMode;
+  allowedUserIds: string[];
+  blockedUserIds: string[];
+  scopes: SharingScopes;
+  defaultReportFrequency: ReportFrequency;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ... your existing fetchSharingProfile / updateSharingProfile ...
+
+// ---- Report types ----
+export interface ReportGoalSummary {
+  id: string;
+  title: string;
+  description: string;
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+  status: string;
+  percent: number;
+}
+
+export interface ReportMilestoneSummary {
+  id: string;
+  title: string;
+  description: string;
+  achievedAt: string;
+  type?: string;
+  relatedJobId?: string;
+}
+
+export interface ActivitySummary {
+  // extend when you add job stats
+  // jobsAdded?: number;
+}
+
+export interface JobSearchProgressReport {
+  generatedAt: string;
+  range: {
+    from: string;
+    to: string;
+  };
+  goalsSummary: ReportGoalSummary[];
+  milestones: ReportMilestoneSummary[];
+  activitySummary: ActivitySummary | null;
+  insights: string[];
+}
+
+export async function generateProgressReportApi(params: {
+  ownerId: string;
+  viewerId?: string;
+  rangeFrom?: string;
+  rangeTo?: string;
+}): Promise<JobSearchProgressReport> {
+  const { ownerId, viewerId, rangeFrom, rangeTo } = params;
+
+  const query = new URLSearchParams();
+  query.set("ownerId", ownerId);
+  if (viewerId) query.set("viewerId", viewerId);
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/reports/generate?${query.toString()}`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rangeFrom, rangeTo }),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to generate progress report");
+  }
+
+  return res.json();
+}

@@ -6,7 +6,9 @@ import {
   createJobSearchGoal,
   addGoalProgress,
   listJobSearchMilestones,
-  createJobSearchMilestone,
+  createJobSearchMilestone, 
+  
+  generateProgressReport,
 } from "../services/jobSearchSharing.service.js";
 
 const router = express.Router();
@@ -185,5 +187,30 @@ router.post("/job-search/milestones", async (req, res) => {
   }
 });
 
+router.post("/job-search/reports/generate", async (req, res) => {
+  try {
+    const { ownerId, viewerId } = req.query;
+    const { rangeFrom, rangeTo } = req.body || {};
+
+    if (!ownerId) {
+      return res.status(400).json({ error: "ownerId is required" });
+    }
+
+    const report = await generateProgressReport({
+      ownerUserId: String(ownerId),
+      viewerUserId: viewerId ? String(viewerId) : undefined,
+      rangeFrom,
+      rangeTo,
+    });
+
+    res.json(report);
+  } catch (err) {
+    console.error("Error generating progress report:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error generating progress report",
+    });
+  }
+});
 
 export default router;
+

@@ -240,3 +240,137 @@ export async function createJobSearchMilestone({
 
   return milestone;
 }
+
+
+function applyScopesToReport(report, scopes) {
+  const scoped = { ...report };
+
+  if (!scopes?.shareGoals) {
+    scoped.goalsSummary = [];
+  }
+  if (!scopes?.shareMilestones) {
+    scoped.milestones = [];
+  }
+  if (!scopes?.shareStats) {
+    scoped.activitySummary = null;
+  }
+  // notes are not explicitly in this report yet, but if you add them later
+  // you can hide them when !scopes.shareNotes
+
+  return scoped;
+}
+
+
+export async function generateProgressReport({
+  ownerUserId,
+  viewerUserId,     // optional: null when owner is viewing their own report
+  rangeFrom,        // optional ISO string or Date
+  rangeTo,          // optional ISO string or Date
+}) {
+  const now = new Date();
+
+  // default range: last 7 days
+  const from = rangeFrom ? new Date(rangeFrom) : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const to = rangeTo ? new Date(rangeTo) : now;
+
+  // 1) Check permissions & get sharing profile
+  const profile = await getOrCreateSharingProfile(ownerUserId);
+
+  let scopes = profile.scopes;
+  let canView = true;
+
+  if (viewerUserId && viewerUserId !== ownerUserId) {
+    // Not the owner – must pass permission check
+    canView = await canViewJobSearchProgress({ ownerUserId, viewerUserId });
+  }
+
+  if (!canView) {
+    const err = new Error("You are not allowed to view this report");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // 2) Fetch goals & compute summary
+  const goals = await JobSearchGoal.find({ ownerUserId }).sort({ createdAt: 1 });
+
+  const goalsSummary = goals.map((g) => {
+    const percent =
+      g.targetValue > 0
+        ? Math.min(100, Math.round((g.currentValue / g.targetValue) * 100))
+        : 0;
+
+    return {
+      id: g._id.toString(),
+      title: g.title,
+      description: g.description,
+      targetValue: g.targetValue,
+      currentValue: g.currentValue,
+      unit: g.unit,
+      status: g.status,
+      percent,
+    };
+  });
+
+  // 3) Fetch recent milestones in range
+  const milestones = await JobSearchMilestone.find({
+    ownerUserId,
+    achievedAt: { $gte: from, $lte: to },
+  }).sort({ achievedAt: -1 });
+
+  const milestonesSummary = milestones.map((m) => ({
+    id: m._id.toString(),
+    title: m.title,
+    description: m.description,
+    achievedAt: m.achievedAt,
+    type: m.type,
+    relatedJobId: m.relatedJobId,
+  }));
+
+  // 4) Optional: activity summary (if/when you integrate with Jobs/Applications)
+  // For now, we can keep this simple or stub it
+  const activitySummary = null;
+  // Example if you later have a Job collection with createdAt, status, etc:
+  // const jobsAdded = await Job.countDocuments({
+  //   userId: ownerUserId,
+  //   createdAt: { $gte: from, $lte: to },
+  // });
+  // const activitySummary = { jobsAdded };
+
+  // 5) Compute simple insights
+  const completedGoals = goalsSummary.filter((g) => g.status === "completed").length;
+  const activeGoals = goalsSummary.filter((g) => g.status === "active").length;
+  const insights = [];
+
+  if (completedGoals > 0) {
+    insights.push(`You completed ${completedGoals} goal${completedGoals > 1 ? "s" : ""} in this period.`);
+  }
+  if (activeGoals > 0 && completedGoals === 0) {
+    insights.push("You’re actively working on your goals. Keep pushing to complete one this week!");
+  }
+  if (milestonesSummary.length > 0) {
+    insights.push(`You hit ${milestonesSummary.length} milestone${milestonesSummary.length > 1 ? "s" : ""}. Nice work!`);
+  }
+  if (insights.length === 0) {
+    insights.push("This is a quieter period. Consider setting a small, achievable goal to build momentum.");
+  }
+
+  const baseReport = {
+    generatedAt: now,
+    range: {
+      from,
+      to,
+    },
+    goalsSummary,
+    milestones: milestonesSummary,
+    activitySummary,
+    insights,
+  };
+
+  // 6) Apply scopes if viewer is not the owner
+  const effectiveScopes =
+    viewerUserId && viewerUserId !== ownerUserId ? scopes : scopes || {};
+
+  const finalReport = applyScopesToReport(baseReport, effectiveScopes);
+
+  return finalReport;
+}
