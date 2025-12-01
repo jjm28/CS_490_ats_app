@@ -5,6 +5,29 @@ import JobSearchGoalProgress from "../models/JobSharing/JobSearchGoalProgress.js
 import JobSharingEncouragement from "../models/JobSharing/JobSharingEncouragement.js";
 import JobSharingEngagement from "../models/JobSharing/JobSharingEngagement.js";
 
+function startOfDayUTC(date) {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+function getWeekStartUTC(date) {
+  const d = startOfDayUTC(date);
+  const day = d.getUTCDay(); // 0 = Sunday, 1 = Monday...
+  const diffToMonday = (day + 6) % 7; // 0 if Monday, 6 if Sunday
+  d.setUTCDate(d.getUTCDate() - diffToMonday);
+  return d;
+}
+
+
+function toDayKey(date) {
+  const d = new Date(date);
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 
 /**
  * Ensure there is a sharing profile for this user.
@@ -588,5 +611,508 @@ export async function getPartnerEngagementSummary({
     goalsCompleted,
     milestonesAdded,
     partners: partnerSummaries,
+  };
+}
+
+
+export async function getMotivationStats({
+  ownerUserId,
+  viewerUserId,
+  sinceDays = 14,
+}) {
+  const ownerUserIdStr = String(ownerUserId);
+
+  const now = new Date();
+  const sinceRaw = new Date(now.getTime() - sinceDays * 24 * 60 * 60 * 1000);
+  const since = startOfDayUTC(sinceRaw);
+
+  const profile = await getOrCreateSharingProfile(ownerUserIdStr);
+  const scopes = profile.scopes || {
+    shareGoals: true,
+    shareMilestones: true,
+    shareStats: true,
+    shareNotes: true,
+  };
+
+  const isOwner = !viewerUserId || viewerUserId === ownerUserIdStr;
+  if (!isOwner && scopes.shareStats === false) {
+    const err = new Error("You are not allowed to view motivation stats");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // --- DAILY ACTIVITY (last N days) ---
+
+  const ownerMatch = {
+    $or: [{ ownerUserId: ownerUserIdStr }, { userId: ownerUserIdStr }],
+  };
+
+  const progressEntries = await JobSearchGoalProgress.find({
+    ...ownerMatch,
+    createdAt: { $gte: since, $lte: now },
+  });
+
+  const milestones = await JobSearchMilestone.find({
+    ...ownerMatch,
+    achievedAt: { $gte: since, $lte: now },
+  });
+
+  const dailyMap = new Map();
+
+  function ensureDay(dayKey) {
+    if (!dailyMap.has(dayKey)) {
+      dailyMap.set(dayKey, {
+        dayKey,
+        totalActions: 0,
+        progressCount: 0,
+        milestonesCount: 0,
+      });
+    }
+    return dailyMap.get(dayKey);
+  }
+
+  for (const p of progressEntries) {
+    const key = toDayKey(p.createdAt);
+    const d = ensureDay(key);
+    d.totalActions += 1;
+    d.progressCount += 1;
+  }
+
+  for (const m of milestones) {
+    const key = toDayKey(m.achievedAt);
+    const d = ensureDay(key);
+    d.totalActions += 1;
+    d.milestonesCount += 1;
+  }
+
+  for (let i = 0; i < sinceDays; i++) {
+    const day = new Date(since.getTime() + i * 24 * 60 * 60 * 1000);
+    const key = toDayKey(day);
+    ensureDay(key);
+  }
+
+  const dailyActivity = Array.from(dailyMap.values()).sort((a, b) =>
+    a.dayKey.localeCompare(b.dayKey)
+  );
+
+  // --- STREAKS WINDOW (90 days, same ownerMatch) ---
+
+  const streakWindowDays = 90;
+  const streakSince = startOfDayUTC(
+    new Date(now.getTime() - streakWindowDays * 24 * 60 * 60 * 1000)
+  );
+
+  const streakProgressEntries = await JobSearchGoalProgress.find({
+    ...ownerMatch,
+    createdAt: { $gte: streakSince, $lte: now },
+  });
+
+  const streakMilestones = await JobSearchMilestone.find({
+    ...ownerMatch,
+    achievedAt: { $gte: streakSince, $lte: now },
+  });
+
+  const activeDaysSet = new Set();
+  for (const p of streakProgressEntries) {
+    activeDaysSet.add(toDayKey(p.createdAt));
+  }
+  for (const m of streakMilestones) {
+    activeDaysSet.add(toDayKey(m.achievedAt));
+  }
+  // current streak: from today backwards until a gap
+  let currentStreak = 0;
+  {
+    let cursor = new Date(now);
+    for (let i = 0; i < streakWindowDays; i++) {
+      const key = toDayKey(cursor);
+      if (activeDaysSet.has(key)) {
+        currentStreak += 1;
+        cursor = new Date(cursor.getTime() - 24 * 60 * 60 * 1000);
+      } else {
+        break;
+      }
+    }
+  }
+
+  // longest streak: scan the 90-day window
+  let longestStreak = 0;
+  {
+    let streak = 0;
+    for (let i = 0; i < streakWindowDays; i++) {
+      const day = new Date(streakSince.getTime() + i * 24 * 60 * 60 * 1000);
+      const key = toDayKey(day);
+      if (activeDaysSet.has(key)) {
+        streak += 1;
+        if (streak > longestStreak) longestStreak = streak;
+      } else {
+        streak = 0;
+      }
+    }
+  }
+
+  // --- goal completion snapshot ---
+  const goals = await JobSearchGoal.find({ ownerUserId });
+
+  const totalGoals = goals.length;
+  const completedGoals = goals.filter((g) => g.status === "completed").length;
+  const activeGoals = goals.filter((g) => g.status === "active").length;
+  const completionRate =
+    totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
+
+  // --- motivational messages ---
+  const messages = [];
+
+  if (currentStreak > 0) {
+    messages.push(
+      `You're on a ${currentStreak}-day activity streak. Keep it going!`
+    );
+  } else {
+    messages.push("You don't have an active streak yet. Take one small action today to start one.");
+  }
+
+  if (completedGoals > 0) {
+    messages.push(
+      `You've completed ${completedGoals} goal${
+        completedGoals === 1 ? "" : "s"
+      } so far. Nice momentum.`
+    );
+  } else if (totalGoals > 0) {
+    messages.push(
+      `You have ${activeGoals} active goal${
+        activeGoals === 1 ? "" : "s"
+      }. Focus on one and make a small update.`
+    );
+  }
+
+  const totalActionsInWindow = dailyActivity.reduce(
+    (sum, d) => sum + d.totalActions,
+    0
+  );
+  if (totalActionsInWindow === 0) {
+    messages.push(
+      `It's been a quiet last ${sinceDays} day${
+        sinceDays === 1 ? "" : "s"
+      }. Even one action can restart your momentum.`
+    );
+  } else if (totalActionsInWindow >= sinceDays) {
+    messages.push(
+      `You're averaging at least one job search action per day in this window. That's strong consistency.`
+    );
+  }
+
+  return {
+    ownerUserId,
+    since,
+    until: now,
+    sinceDays,
+    dailyActivity,
+    currentStreak,
+    longestStreak,
+    totalGoals,
+    activeGoals,
+    completedGoals,
+    completionRate,
+    messages,
+  };
+}
+
+
+export async function getAccountabilityInsights({
+  ownerUserId,
+  sinceWeeks = 8,
+}) {
+  const ownerUserIdStr = String(ownerUserId);
+
+  const now = new Date();
+  const windowDays = sinceWeeks * 7;
+  const windowStartRaw = new Date(
+    now.getTime() - windowDays * 24 * 60 * 60 * 1000
+  );
+  const windowStart = startOfDayUTC(windowStartRaw);
+
+  const highEngagementThreshold = 3; // events per week to count as "high"
+
+  // match owner (some of your models use ownerUserId, some userId)
+  const ownerMatch = {
+    $or: [{ ownerUserId: ownerUserIdStr }, { userId: ownerUserIdStr }],
+  };
+
+  // --- Fetch data in window ---
+
+  const [engagementEvents, progressEntries, milestones, completedGoals] =
+    await Promise.all([
+      JobSharingEngagement.find({
+        ownerUserId: ownerUserIdStr,
+        createdAt: { $gte: windowStart, $lte: now },
+      }),
+      JobSearchGoalProgress.find({
+        ...ownerMatch,
+        createdAt: { $gte: windowStart, $lte: now },
+      }),
+      JobSearchMilestone.find({
+        ...ownerMatch,
+        achievedAt: { $gte: windowStart, $lte: now },
+      }),
+      JobSearchGoal.find({
+        ownerUserId: ownerUserIdStr,
+        status: "completed",
+        updatedAt: { $gte: windowStart, $lte: now },
+      }),
+    ]);
+
+  // --- Build weekly buckets ---
+
+  const weeklyMap = new Map();
+
+  function ensureWeek(weekKey) {
+    if (!weeklyMap.has(weekKey)) {
+      weeklyMap.set(weekKey, {
+        weekKey,
+        weekStart: weekKey,
+        engagementEvents: 0,
+        actionCount: 0,
+        goalsCompleted: 0,
+      });
+    }
+    return weeklyMap.get(weekKey);
+  }
+
+  // Fill empty weeks in range
+  for (let i = 0; i < sinceWeeks; i++) {
+    const d = new Date(windowStart.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+    const weekStart = getWeekStartUTC(d);
+    const key = toDayKey(weekStart);
+    ensureWeek(key);
+  }
+
+  // Engagement per week
+  for (const ev of engagementEvents) {
+    const weekStart = getWeekStartUTC(ev.createdAt);
+    const key = toDayKey(weekStart);
+    const bucket = ensureWeek(key);
+    bucket.engagementEvents += 1;
+  }
+
+  // Activity (progress + milestones) per week
+  for (const p of progressEntries) {
+    const weekStart = getWeekStartUTC(p.createdAt);
+    const key = toDayKey(weekStart);
+    const bucket = ensureWeek(key);
+    bucket.actionCount += 1;
+  }
+
+  for (const m of milestones) {
+    const weekStart = getWeekStartUTC(m.achievedAt);
+    const key = toDayKey(weekStart);
+    const bucket = ensureWeek(key);
+    bucket.actionCount += 1;
+  }
+
+  // Goals completed per week
+  for (const g of completedGoals) {
+    const weekStart = getWeekStartUTC(g.updatedAt || g.completedAt || g.createdAt);
+    const key = toDayKey(weekStart);
+    const bucket = ensureWeek(key);
+    bucket.goalsCompleted += 1;
+  }
+
+  const weekly = Array.from(weeklyMap.values()).sort((a, b) =>
+    a.weekKey.localeCompare(b.weekKey)
+  );
+
+  // --- Split into high-engagement vs no-engagement weeks ---
+
+  const highWeeks = weekly.filter(
+    (w) => w.engagementEvents >= highEngagementThreshold
+  );
+  const zeroWeeks = weekly.filter((w) => w.engagementEvents === 0);
+
+  function avg(arr, prop) {
+    if (!arr.length) return 0;
+    const sum = arr.reduce((s, x) => s + (x[prop] || 0), 0);
+    return sum / arr.length;
+  }
+
+  const avgActionsHigh = avg(highWeeks, "actionCount");
+  const avgActionsZero = avg(zeroWeeks, "actionCount");
+  const avgGoalsHigh = avg(highWeeks, "goalsCompleted");
+  const avgGoalsZero = avg(zeroWeeks, "goalsCompleted");
+
+  const totalEngagementEvents = engagementEvents.length;
+  const totalActions = weekly.reduce((s, w) => s + w.actionCount, 0);
+  const totalGoalsCompleted = weekly.reduce(
+    (s, w) => s + w.goalsCompleted,
+    0
+  );
+
+  // --- Partner engagement summary (reuse existing service) ---
+
+  let topPartners = [];
+  try {
+    const partnerSummary = await getPartnerEngagementSummary({
+      ownerUserId: ownerUserIdStr,
+      sinceDays: windowDays,
+    });
+
+    topPartners = partnerSummary.partners
+      .filter((p) => p.engagementScore > 0)
+      .sort((a, b) => b.engagementScore - a.engagementScore)
+      .slice(0, 3)
+      .map((p) => ({
+        partnerUserId: p.partnerUserId,
+        engagementLevel: p.engagementLevel,
+        totalEvents: p.totalEvents,
+      }));
+  } catch (e) {
+    console.error("Error computing top partners for insights:", e);
+  }
+
+  // --- Generate headline + insights + suggestions (rule-based) ---
+
+  let headline = "Accountability impact overview";
+  const insights = [];
+  const suggestions = [];
+
+  if (totalEngagementEvents === 0) {
+    headline = "No partner engagement in this period";
+    insights.push(
+      `In the last ${sinceWeeks} week${
+        sinceWeeks === 1 ? "" : "s"
+      }, there were no logged engagement events from accountability partners.`
+    );
+    if (totalActions > 0) {
+      insights.push(
+        `You still completed ${totalActions} job search action${
+          totalActions === 1 ? "" : "s"
+        } and ${totalGoalsCompleted} goal${
+          totalGoalsCompleted === 1 ? "" : "s"
+        } without partner engagement.`
+      );
+    }
+    suggestions.push(
+      "Consider sending a progress report to your partners or explicitly asking them to check in on your goals.",
+      "You could invite a trusted friend or mentor to become an accountability partner and share this dashboard."
+    );
+  } else {
+    if (highWeeks.length > 0 && zeroWeeks.length > 0) {
+      // Compare high vs zero
+      const ratioActions =
+        avgActionsZero > 0 ? avgActionsHigh / avgActionsZero : null;
+      const ratioGoals =
+        avgGoalsZero > 0 ? avgGoalsHigh / avgGoalsZero : null;
+
+      if (ratioActions && ratioActions >= 1.5) {
+        headline = "Accountability is boosting your activity";
+        insights.push(
+          `In weeks with at least ${highEngagementThreshold} partner engagement events, you average about ${avgActionsHigh.toFixed(
+            1
+          )} job search actions per week, compared to ${avgActionsZero.toFixed(
+            1
+          )} in weeks with no engagement.`
+        );
+      } else {
+        headline = "Accountability has a mixed impact so far";
+        insights.push(
+          `Your average weekly activity is ${avgActionsHigh.toFixed(
+            1
+          )} actions in higher-engagement weeks versus ${avgActionsZero.toFixed(
+            1
+          )} actions in weeks with no engagement.`
+        );
+      }
+
+      if (avgGoalsHigh > avgGoalsZero) {
+        insights.push(
+          `Goal completion also trends higher in engaged weeks: ${avgGoalsHigh.toFixed(
+            2
+          )} goals completed per week vs ${avgGoalsZero.toFixed(
+            2
+          )} in no-engagement weeks.`
+        );
+      }
+    } else if (highWeeks.length > 0) {
+      headline = "You have consistent accountability support";
+      insights.push(
+        `You have ${highWeeks.length} high-engagement week${
+          highWeeks.length === 1 ? "" : "s"
+        } in the last ${sinceWeeks} week${
+          sinceWeeks === 1 ? "" : "s"
+        }, with an average of ${avgActionsHigh.toFixed(
+          1
+        )} actions and ${avgGoalsHigh.toFixed(
+          2
+        )} goal completions per week in those weeks.`
+      );
+    } else {
+      headline = "Light but regular partner engagement";
+      insights.push(
+        `Partners have engaged ${totalEngagementEvents} time${
+          totalEngagementEvents === 1 ? "" : "s"
+        } in the last ${sinceWeeks} weeks, but not enough in any single week to be classified as “high engagement.”`
+      );
+    }
+
+    if (zeroWeeks.length > 0) {
+      suggestions.push(
+        `You had ${zeroWeeks.length} week${
+          zeroWeeks.length === 1 ? "" : "s"
+        } with no partner engagement. Consider sending a quick update or report at the start of those weeks to trigger support.`
+      );
+    }
+
+    if (highWeeks.length > 0) {
+      suggestions.push(
+        "Look at what was happening in your high-engagement weeks (timing of check-ins, messages, or deadlines) and try to repeat those patterns."
+      );
+    }
+  }
+
+  if (topPartners.length > 0) {
+    const namesOrIds = topPartners
+      .map((p) => p.partnerUserId)
+      .join(", ");
+    insights.push(
+      `Your most engaged partners in this period are: ${namesOrIds}.`
+    );
+    suggestions.push(
+      "Consider scheduling a regular check-in with your most engaged partners to maintain momentum."
+    );
+  }
+
+  const summaryForAi = `Owner ${ownerUserIdStr} over last ${sinceWeeks} weeks: total engagement events=${totalEngagementEvents}, total actions=${totalActions}, total goals completed=${totalGoalsCompleted}. High-engagement weeks=${highWeeks.length}, no-engagement weeks=${zeroWeeks.length}, avgActionsHigh=${avgActionsHigh.toFixed(
+    2
+  )}, avgActionsZero=${avgActionsZero.toFixed(
+    2
+  )}, avgGoalsHigh=${avgGoalsHigh.toFixed(
+    2
+  )}, avgGoalsZero=${avgGoalsZero.toFixed(2)}. Top partners=${topPartners
+    .map((p) => `${p.partnerUserId}(${p.totalEvents} events)`)
+    .join(", ")}.`;
+
+  return {
+    ownerUserId: ownerUserIdStr,
+    since: windowStart,
+    until: now,
+    sinceWeeks,
+    highEngagementDefinition: {
+      minEventsPerWeek: highEngagementThreshold,
+    },
+    weekly,
+    stats: {
+      totalEngagementEvents,
+      totalActions,
+      totalGoalsCompleted,
+      highEngagementWeeks: highWeeks.length,
+      zeroEngagementWeeks: zeroWeeks.length,
+      avgActionsHigh,
+      avgActionsZero,
+      avgGoalsHigh,
+      avgGoalsZero,
+    },
+    topPartners,
+    headline,
+    insights,
+    suggestions,
+    summaryForAi, // <-- easy hook for future AI analysis
   };
 }

@@ -15,10 +15,15 @@ import {
 
 interface Props {
   currentUserId: string;
-  onCelebrate?: (message: string) => void; // changed to accept message
+  onCelebrate?: (message: string) => void;
+  onActivityChange?: () => void; // NEW
 }
 
-export default function JobSearchProgressPanel({ currentUserId, onCelebrate }: Props) {
+export default function JobSearchProgressPanel({
+  currentUserId,
+  onCelebrate,
+  onActivityChange,
+}: Props) {
   const [goals, setGoals] = useState<JobSearchGoal[]>([]);
   const [milestones, setMilestones] = useState<JobSearchMilestone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,8 +128,11 @@ const handleAddGoalProgress = async (goal: JobSearchGoal) => {
       ...prev,
       [goal._id]: { delta: "", note: "" },
     }));
+if (onActivityChange) {
+  onActivityChange(); // tell parent "activity changed"
+}
 
-    // only celebrate when it *just* became completed
+   // only celebrate when it *just* became completed
     if (!wasCompletedBefore && updatedGoal.status === "completed" && onCelebrate) {
       const title = updatedGoal.title || "your goal";
       onCelebrate(`Goal completed: "${title}"`);
@@ -149,7 +157,9 @@ const handleCreateMilestone = async () => {
     setMilestones((prev) => [milestone, ...prev]);
     setNewMilestoneTitle("");
     setNewMilestoneDescription("");
-
+if (onActivityChange) {
+  onActivityChange(); // milestone = activity
+}
     if (onCelebrate) {
       onCelebrate(`Milestone added: "${title}"`);
     }

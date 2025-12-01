@@ -351,3 +351,46 @@ export async function fetchPartnerEngagementSummary(
 
   return res.json();
 }
+
+
+export interface DailyActivitySample {
+  dayKey: string;          // "YYYY-MM-DD"
+  totalActions: number;
+  progressCount: number;
+  milestonesCount: number;
+}
+
+export interface MotivationStats {
+  ownerUserId: string;
+  since: string;
+  until: string;
+  sinceDays: number;
+  dailyActivity: DailyActivitySample[];
+  currentStreak: number;
+  longestStreak: number;
+  totalGoals: number;
+  activeGoals: number;
+  completedGoals: number;
+  completionRate: number;
+  messages: string[];
+}
+
+export async function fetchMotivationStats(
+  ownerId: string,
+  sinceDays: number = 14
+): Promise<MotivationStats> {
+  const params = new URLSearchParams();
+  params.set("ownerId", ownerId);
+  params.set("sinceDays", String(sinceDays));
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/motivation?${params.toString()}`,
+    { credentials: "include" }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load motivation stats");
+  }
+
+  return res.json();
+}

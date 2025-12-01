@@ -10,7 +10,7 @@ import {
   listEncouragementEvents,
   generateProgressReport,
   logPartnerEngagement,
-  getPartnerEngagementSummary,
+  getPartnerEngagementSummary, getMotivationStats,getAccountabilityInsights
 } from "../services/jobSearchSharing.service.js";
 
 const router = express.Router();
@@ -301,6 +301,33 @@ router.get("/job-search/engagement/summary", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/job-search/motivation?ownerId=...&viewerId=...&sinceDays=14
+ *
+ * Returns visual/motivation stats for job search.
+ */
+router.get("/job-search/motivation", async (req, res) => {
+  try {
+    const { ownerId, viewerId, sinceDays } = req.query;
+
+    if (!ownerId) {
+      return res.status(400).json({ error: "ownerId is required" });
+    }
+
+    const stats = await getMotivationStats({
+      ownerUserId: String(ownerId),
+      viewerUserId: viewerId ? String(viewerId) : undefined,
+      sinceDays: sinceDays ? Number(sinceDays) : 14,
+    });
+
+    res.json(stats);
+  } catch (err) {
+    console.error("Error getting motivation stats:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error getting motivation stats",
+    });
+  }
+});
 
 export default router;
 
