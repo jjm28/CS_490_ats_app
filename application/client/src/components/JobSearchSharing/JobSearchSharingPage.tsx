@@ -12,11 +12,9 @@ type CelebrationToast = {
 };
 
 export default function JobSearchSharingPage() {
-  // const { user } = useAuth();
-  // if (!user) return null;
-  // const currentUserId = user._id;
 
-  const currentUserId = "mockUserId"; // replace with real user id
+
+  const currentUserId = JSON.parse(localStorage.getItem("authUser") ?? "").user._id || "dfs";
 
   const [toast, setToast] = useState<CelebrationToast | null>(null);
 
