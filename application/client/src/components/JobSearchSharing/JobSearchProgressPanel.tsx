@@ -14,16 +14,25 @@ import {
 } from "../../api/jobSearchSharing";
 
 interface Props {
-  currentUserId: string;
+  ownerUserId: string;           // whose job search this belongs to
+  currentUserId: string;         // who is viewing
+  mode?: "owner" | "partner";    // optional override, default based on ids
   onCelebrate?: (message: string) => void;
   onActivityChange?: () => void; // NEW
 }
 
 export default function JobSearchProgressPanel({
+  ownerUserId,
   currentUserId,
+  mode,
   onCelebrate,
   onActivityChange,
 }: Props) {
+  const isOwner = ownerUserId === currentUserId;
+  const effectiveMode: "owner" | "partner" =
+    mode || (isOwner ? "owner" : "partner");
+  const canEdit = isOwner && effectiveMode === "owner";
+
   const [goals, setGoals] = useState<JobSearchGoal[]>([]);
   const [milestones, setMilestones] = useState<JobSearchMilestone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,45 +50,47 @@ export default function JobSearchProgressPanel({
     [goalId: string]: { delta: string; note: string };
   }>({});
 
-  useEffect(() => {
-    let mounted = true;
+useEffect(() => {
+  let mounted = true;
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const [g, m] = await Promise.all([
-          fetchGoals(currentUserId),
-          fetchMilestones(currentUserId),
-        ]);
-        if (!mounted) return;
-        setGoals(g);
-        setMilestones(m);
-      } catch (err: any) {
-        console.error(err);
-        if (!mounted) return;
-        setError(err.message || "Error loading progress data");
-      } finally {
-        if (mounted) setLoading(false);
-      }
+  async function load() {
+    try {
+      setLoading(true);
+      setError(null);
+      const [g, m] = await Promise.all([
+        fetchGoals(ownerUserId),
+        fetchMilestones(ownerUserId),
+      ]);
+      if (!mounted) return;
+      setGoals(g);
+      setMilestones(m);
+    } catch (err: any) {
+      console.error(err);
+      if (!mounted) return;
+      setError(err.message || "Error loading progress data");
+    } finally {
+      if (mounted) setLoading(false);
     }
+  }
 
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [currentUserId]);
+  load();
+  return () => {
+    mounted = false;
+  };
+}, [ownerUserId]);
+
 
   const handleCreateGoal = async () => {
-    try {
-      if (!newGoalTitle.trim()) return;
+  try {
+    if (!canEdit) return;
+    if (!newGoalTitle.trim()) return;
 
-      const goal = await createGoal(currentUserId, {
-        title: newGoalTitle.trim(),
-        description: newGoalDescription.trim(),
-        targetValue: newGoalTarget,
-        unit: newGoalUnit.trim(),
-      });
+    const goal = await createGoal(ownerUserId, {
+      title: newGoalTitle.trim(),
+      description: newGoalDescription.trim(),
+      targetValue: newGoalTarget,
+      unit: newGoalUnit.trim(),
+    });
 
       setGoals((prev) => [...prev, goal]);
       setNewGoalTitle("");
@@ -109,16 +120,17 @@ const handleAddGoalProgress = async (goal: JobSearchGoal) => {
   if (!deltaNum || isNaN(deltaNum)) return;
 
   const wasCompletedBefore = goal.status === "completed";
+if (!canEdit) return;
 
   try {
-    const { goal: updatedGoal } = await addGoalProgressApi(
-      currentUserId,
-      goal._id,
-      {
-        delta: deltaNum,
-        note: input.note,
-      }
-    );
+    const { goal: updatedGoal } = await  addGoalProgressApi(
+  ownerUserId,
+  goal._id,
+  {
+    delta: deltaNum,
+    note: input.note,
+  }
+);
 
     setGoals((prev) =>
       prev.map((g) => (g._id === updatedGoal._id ? updatedGoal : g))
@@ -144,15 +156,17 @@ if (onActivityChange) {
 };
 
 const handleCreateMilestone = async () => {
+  if (!canEdit) return;
+
   try {
     if (!newMilestoneTitle.trim()) return;
 
     const title = newMilestoneTitle.trim();
 
-    const milestone = await createMilestone(currentUserId, {
-      title,
-      description: newMilestoneDescription.trim(),
-    });
+    const milestone = await createMilestone(ownerUserId, {
+  title,
+  description: newMilestoneDescription.trim(),
+});
 
     setMilestones((prev) => [milestone, ...prev]);
     setNewMilestoneTitle("");
@@ -281,6 +295,8 @@ if (onActivityChange) {
         </div>
 
         {/* New goal form */}
+
+        {canEdit && (
         <div className="border-t pt-3 mt-2">
           <h3 className="text-sm font-medium mb-2">Create a new goal</h3>
           <div className="flex flex-col gap-2">
@@ -316,13 +332,13 @@ if (onActivityChange) {
               </Button>
             </div>
           </div>
-        </div>
+        </div>)}
       </Card>
 
       {/* Milestones */}
       <Card className="p-4 space-y-3">
         <h2 className="text-lg font-semibold">Milestone Achievements</h2>
-
+{canEdit && (
         <div className="space-y-2 border-b pb-3">
           <h3 className="text-sm font-medium">Add a milestone</h3>
           <input
@@ -342,7 +358,7 @@ if (onActivityChange) {
             Add milestone
           </Button>
         </div>
-
+)}
         <div className="space-y-2">
           {milestones.length === 0 && (
             <p className="text-sm text-gray-600">

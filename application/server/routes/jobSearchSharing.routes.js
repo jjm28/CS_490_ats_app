@@ -12,7 +12,12 @@ import {
   logPartnerEngagement,
   getPartnerEngagementSummary, getMotivationStats,getAccountabilityInsights,listDiscussionMessages,
   postDiscussionMessage,
-  reactToDiscussionMessage,
+  reactToDiscussionMessage,  addAccountabilityPartner,
+  removeAccountabilityPartner,
+    createPartnerInvite,
+  listPartnerInvitesForOwner,
+  respondToPartnerInvite,
+  listOwnersForPartner,respondToPartnerInviteByToken
 } from "../services/jobSearchSharing.service.js";
 
 const router = express.Router();
@@ -444,6 +449,207 @@ router.post("/job-search/discussion/:messageId/react", async (req, res) => {
     console.error("Error reacting to discussion message:", err);
     res.status(err.statusCode || 500).json({
       error: err.message || "Server error reacting to discussion message",
+    });
+  }
+});
+router.get("/job-search/sharing-profile", async (req, res) => {
+  try {
+    const { ownerId } = req.query;
+    if (!ownerId) {
+      return res.status(400).json({ error: "ownerId is required" });
+    }
+
+    const profile = await getOrCreateSharingProfile(String(ownerId));
+    res.json(profile);
+  } catch (err) {
+    console.error("Error loading sharing profile:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error loading sharing profile",
+    });
+  }
+});
+/**
+ * POST /api/job-search/partners
+ * Body: { ownerUserId, partnerUserId }
+ */
+router.post("/job-search/partners", async (req, res) => {
+  try {
+    const { ownerUserId, partnerUserId } = req.body || {};
+    if (!ownerUserId || !partnerUserId) {
+      return res
+        .status(400)
+        .json({ error: "ownerUserId and partnerUserId are required" });
+    }
+
+    const profile = await addAccountabilityPartner({
+      ownerUserId: String(ownerUserId),
+      partnerUserId: String(partnerUserId),
+    });
+
+    res.json(profile);
+  } catch (err) {
+    console.error("Error adding accountability partner:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error adding accountability partner",
+    });
+  }
+});
+
+/**
+ * DELETE /api/job-search/partners
+ * Body: { ownerUserId, partnerUserId }
+ */
+router.delete("/job-search/partners", async (req, res) => {
+  try {
+    const { ownerUserId, partnerUserId } = req.body || {};
+    if (!ownerUserId || !partnerUserId) {
+      return res
+        .status(400)
+        .json({ error: "ownerUserId and partnerUserId are required" });
+    }
+
+    const profile = await removeAccountabilityPartner({
+      ownerUserId: String(ownerUserId),
+      partnerUserId: String(partnerUserId),
+    });
+
+    res.json(profile);
+  } catch (err) {
+    console.error("Error removing accountability partner:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error removing accountability partner",
+    });
+  }
+});
+
+
+/**
+ * POST /api/job-search/partners/invite
+ * Body: { ownerUserId, email, jobSeekerName?, partnerName? }
+ */
+router.post("/job-search/partners/invite", async (req, res) => {
+  try {
+    const { ownerUserId, email, jobSeekerName, partnerName } = req.body || {};
+    if (!ownerUserId || !email) {
+      return res
+        .status(400)
+        .json({ error: "ownerUserId and email are required" });
+    }
+
+    const invite = await createPartnerInvite({
+      ownerUserId: String(ownerUserId),
+      invitedEmail: email,
+      jobSeekerName,
+      partnerName,
+    });
+
+    res.json(invite);
+  } catch (err) {
+    console.error("Error creating partner invite:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error creating partner invite",
+    });
+  }
+});
+
+/**
+ * GET /api/job-search/partners/invites?ownerId=...
+ */
+router.get("/job-search/partners/invites", async (req, res) => {
+  try {
+    const { ownerId } = req.query;
+    if (!ownerId) {
+      return res.status(400).json({ error: "ownerId is required" });
+    }
+
+    const invites = await listPartnerInvitesForOwner(String(ownerId));
+    res.json(invites);
+  } catch (err) {
+    console.error("Error listing partner invites:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error listing partner invites",
+    });
+  }
+});
+/**
+ * POST /api/job-search/partners/invites/:inviteId/respond
+ * Body: { userId, action: "accept" | "reject" }
+ */
+
+/**
+ * POST /api/job-search/partners/invites/accept-token
+ * Body: { token, userId }
+ */
+router.post("/job-search/partners/invites/accept-token", async (req, res) => {
+  try {
+    const { token, userId } = req.body || {};
+    if (!token || !userId) {
+      return res
+        .status(400)
+        .json({ error: "token and userId are required" });
+    }
+
+    const invite = await respondToPartnerInviteByToken({
+      token,
+      userId: String(userId),
+    });
+
+    res.json(invite);
+  } catch (err) {
+    console.error("Error accepting partner invite by token:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error accepting partner invite",
+    });
+  }
+});
+
+
+router.post(
+  "/job-search/partners/invites/:inviteId/respond",
+  async (req, res) => {
+    try {
+      const { inviteId } = req.params;
+      const { userId, action } = req.body || {};
+
+      if (!userId || !action) {
+        return res
+          .status(400)
+          .json({ error: "userId and action are required" });
+      }
+
+      const updated = await respondToPartnerInvite({
+        inviteId,
+        responderUserId: String(userId),
+        action,
+      });
+
+      res.json(updated);
+    } catch (err) {
+      console.error("Error responding to partner invite:", err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Server error responding to partner invite",
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/job-search/partners/as-partner?userId=...
+ * Returns list of owners where this user is in allowedUserIds
+ */
+router.get("/job-search/partners/as-partner", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const owners = await listOwnersForPartner(String(userId));
+    res.json(owners);
+  } catch (err) {
+    console.error("Error listing owners for partner:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error listing owners for partner",
     });
   }
 });

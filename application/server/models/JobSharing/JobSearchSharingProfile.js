@@ -1,6 +1,15 @@
 // models/JobSearchSharingProfile.js
 import mongoose from "mongoose";
 
+const SharingScopesSchema = new mongoose.Schema(
+  {
+    shareGoals: { type: Boolean, default: true },
+    shareMilestones: { type: Boolean, default: true },
+    shareStats: { type: Boolean, default: true },
+    shareNotes: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
 const JobSearchSharingProfileSchema = new mongoose.Schema(
   {
     // owner of this sharing profile (string, but actually an ObjectId behind the scenes)
@@ -14,17 +23,18 @@ const JobSearchSharingProfileSchema = new mongoose.Schema(
     },
 
     // explicit allowlist
-    allowedUserIds: [{ type: String }],
+        allowedUserIds: {
+      type: [String], // user IDs of accountability partners
+      default: [],
+    },
 
     // explicit blocklist
     blockedUserIds: [{ type: String }],
 
     // what data can be shared with others
     scopes: {
-      shareGoals: { type: Boolean, default: true },
-      shareMilestones: { type: Boolean, default: true },
-      shareStats: { type: Boolean, default: true }, // apps/week, interviews, etc.
-      shareNotes: { type: Boolean, default: false }, // private reflections
+      type: SharingScopesSchema,
+      default: () => ({}),
     },
 
     defaultReportFrequency: {

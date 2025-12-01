@@ -188,12 +188,6 @@ export async function createMilestone(
 }
 
 
-export interface SharingScopes {
-  shareGoals: boolean;
-  shareMilestones: boolean;
-  shareStats: boolean;
-  shareNotes: boolean;
-}
 
 export interface JobSearchSharingProfile {
   _id: string;
@@ -207,7 +201,6 @@ export interface JobSearchSharingProfile {
   updatedAt: string;
 }
 
-// ... your existing fetchSharingProfile / updateSharingProfile ...
 
 // ---- Report types ----
 export interface ReportGoalSummary {
@@ -377,11 +370,13 @@ export interface MotivationStats {
 
 export async function fetchMotivationStats(
   ownerId: string,
-  sinceDays: number = 14
+  sinceDays: number = 14,
+  viewerId?: string
 ): Promise<MotivationStats> {
   const params = new URLSearchParams();
   params.set("ownerId", ownerId);
   params.set("sinceDays", String(sinceDays));
+  if (viewerId) params.set("viewerId", viewerId);
 
   const res = await fetch(
     `${API_BASE}/api/job-search/motivation?${params.toString()}`,
@@ -394,6 +389,8 @@ export async function fetchMotivationStats(
 
   return res.json();
 }
+
+
 
 export interface WeeklyImpact {
   weekKey: string;          // "YYYY-MM-DD" of week start
@@ -539,3 +536,182 @@ export async function reactToDiscussionMessageApi(input: {
 
   return res.json();
 }
+
+
+export interface JobSearchSharingProfile {
+  _id: string;
+  ownerUserId: string;
+  allowedUserIds: string[];
+  scopes: SharingScopes;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+export async function addAccountabilityPartnerApi(input: {
+  ownerUserId: string;
+  partnerUserId: string;
+}): Promise<JobSearchSharingProfile> {
+  const res = await fetch(`${API_BASE}/api/job-search/partners`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to add accountability partner");
+  }
+
+  return res.json();
+}
+
+export async function removeAccountabilityPartnerApi(input: {
+  ownerUserId: string;
+  partnerUserId: string;
+}): Promise<JobSearchSharingProfile> {
+  const res = await fetch(`${API_BASE}/api/job-search/partners`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to remove accountability partner");
+  }
+
+  return res.json();
+}
+
+export async function fetchSharingProfilepat(
+  ownerId: string
+): Promise<JobSearchSharingProfile> {
+  const params = new URLSearchParams();
+  params.set("ownerId", ownerId);
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/sharing-profile?${params.toString()}`,
+    { credentials: "include" }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load sharing profile");
+  }
+
+  return res.json();
+}
+
+export interface PartnerInvite {
+  _id: string;
+  ownerUserId: string;
+  invitedEmail: string;
+  invitedUserId?: string | null;
+  inviteToken: string;
+  status: "pending" | "accepted" | "rejected" | "cancelled";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OwnerPartnerOf {
+  ownerUserId: string;
+  lastUpdatedAt?: string;
+}
+
+export async function createPartnerInviteApi(input: {
+  ownerUserId: string;
+  email: string;
+}): Promise<PartnerInvite> {
+  const res = await fetch(`${API_BASE}/api/job-search/partners/invite`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to create partner invite");
+  }
+
+  return res.json();
+}
+
+export async function fetchPartnerInvitesForOwner(
+  ownerUserId: string
+): Promise<PartnerInvite[]> {
+  const params = new URLSearchParams();
+  params.set("ownerId", ownerUserId);
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/partners/invites?${params.toString()}`,
+    { credentials: "include" }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load partner invites");
+  }
+
+  return res.json();
+}
+
+export async function respondToPartnerInviteApi(input: {
+  inviteId: string;
+  userId: string;
+  action: "accept" | "reject";
+}): Promise<PartnerInvite> {
+  const res = await fetch(
+    `${API_BASE}/api/job-search/partners/invites/${input.inviteId}/respond`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ userId: input.userId, action: input.action }),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to respond to partner invite");
+  }
+
+  return res.json();
+}
+
+export async function fetchOwnersWhereUserIsPartner(
+  userId: string
+): Promise<OwnerPartnerOf[]> {
+  const params = new URLSearchParams();
+  params.set("userId", userId);
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/partners/as-partner?${params.toString()}`,
+    { credentials: "include" }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load owners where user is partner");
+  }
+
+  return res.json();
+}
+
+export async function acceptPartnerInviteByTokenApi(input: {
+  token: string;
+  userId: string;
+}): Promise<PartnerInvite> {
+  const res = await fetch(
+    `${API_BASE}/api/job-search/partners/invites/accept-token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(input),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to accept partner invite");
+  }
+
+  return res.json();
+}
+

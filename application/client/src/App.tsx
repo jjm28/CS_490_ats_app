@@ -74,8 +74,9 @@ import CompProgressDetail from "./components/Analytics/Salary/CompProgressDetail
 import GoalNew from "./components/Analytics/SmartGoals/GoalNew";
 import JobCompetitiveAnalysisDashboard from "./components/Jobs/JobCompetitiveAnalysisDashboard";
 import JobSearchSharingPage from './components/JobSearchSharing/JobSearchSharingPage';
-
+import JobSearchSharingPartnerPage from './components/JobSearchSharing/JobSearchSharingPartnerPage';
 import SupportPage from './components/Support/SupportPage';
+import JobSearchPartnerInviteAcceptPage from './components/JobSearchSharing/JobSearchPartnerInviteAcceptPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -253,8 +254,23 @@ function App() {
             <PrivateRoute>
               <JobSearchSharingPage />
             </PrivateRoute>
-          }
+          }/>
+          <Route
+  path="/job-sharing/:ownerId"
+  element={
+    <PrivateRoute>
+      <JobSearchSharingPartnerPage />
+    </PrivateRoute>
+  }
   />
+  <Route
+  path="/job-sharing/accept"
+  element={
+    <PrivateRoute>
+      <JobSearchPartnerInviteAcceptPage />
+    </PrivateRoute>
+  }
+/>
         </Routes>
 
       </div>

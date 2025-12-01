@@ -65,8 +65,10 @@ transition: Bounce,
 
       <JobSearchSharingSettings currentUserId={currentUserId} />
 
-     <JobSearchProgressPanel
+<JobSearchProgressPanel
+  ownerUserId={currentUserId}
   currentUserId={currentUserId}
+  mode="owner"
   onCelebrate={handleCelebrate}
   onActivityChange={handleActivityChange}
 />
@@ -77,13 +79,16 @@ transition: Bounce,
       <JobSearchEncouragementFeed currentUserId={currentUserId} />
 
 <JobSearchMotivationPanel
-  currentUserId={currentUserId}
+  ownerUserId={currentUserId}
+  viewerUserId={currentUserId}
   refreshKey={motivationRefreshKey}
 />
       <JobSearchPartnerEngagement currentUserId={currentUserId} />
             <JobSearchAccountabilityInsights currentUserId={currentUserId} />
-      <JobSearchDiscussionPanel currentUserId={currentUserId} />
-
+<JobSearchDiscussionPanel
+  ownerUserId={currentUserId}
+  currentUserId={currentUserId}
+/>
     </div>
   );
 }

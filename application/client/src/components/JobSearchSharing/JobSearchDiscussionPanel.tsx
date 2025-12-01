@@ -12,12 +12,18 @@ import {
 } from "../../api/jobSearchSharing";
 
 interface Props {
-  currentUserId: string;
+  ownerUserId: string;   // whose discussion thread
+  currentUserId: string; // who is posting/viewing
 }
 
 type ContextType = "general" | "goal" | "milestone" | "report";
 
-export default function JobSearchDiscussionPanel({ currentUserId }: Props) {
+
+
+export default function JobSearchDiscussionPanel({
+  ownerUserId,
+  currentUserId,
+}: Props) {
   const [messages, setMessages] = useState<DiscussionMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +41,8 @@ export default function JobSearchDiscussionPanel({ currentUserId }: Props) {
       try {
         setLoading(true);
         setError(null);
-        const data = await fetchDiscussionMessages(ownerId, currentUserId, 50);
+        const data = await fetchDiscussionMessages(ownerUserId, currentUserId, 50);
+        
         if (!mounted) return;
         setMessages(data);
       } catch (err: any) {

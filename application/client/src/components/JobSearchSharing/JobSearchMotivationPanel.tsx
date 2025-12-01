@@ -15,43 +15,51 @@ import {
 } from "recharts";
 
 interface Props {
-  currentUserId: string;
+  ownerUserId: string;   // whose job search stats
+  viewerUserId: string;  // who is looking at it (owner or partner)
   refreshKey?: number;
 }
 
 export default function JobSearchMotivationPanel({
-  currentUserId,
+  ownerUserId,
+  viewerUserId,
   refreshKey,
 }: Props) {
+
   const [stats, setStats] = useState<MotivationStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sinceDays, setSinceDays] = useState(14);
 
-  useEffect(() => {
-    let mounted = true;
+useEffect(() => {
+  let mounted = true;
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await fetchMotivationStats(currentUserId, sinceDays);
-        if (!mounted) return;
-        setStats(data);
-      } catch (err: any) {
-        console.error(err);
-        if (!mounted) return;
-        setError(err.message || "Error loading motivation stats");
-      } finally {
-        if (mounted) setLoading(false);
-      }
+  async function load() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchMotivationStats(
+        ownerUserId,
+        sinceDays,
+        viewerUserId
+      );
+      if (!mounted) return;
+      setStats(data);
+    } catch (err: any) {
+      console.error(err);
+      if (!mounted) return;
+      setError(err.message || "Error loading motivation stats");
+    } finally {
+      if (mounted) setLoading(false);
     }
+  }
 
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [currentUserId, sinceDays, refreshKey]);
+  load();
+  return () => {
+    mounted = false;
+  };
+}, [ownerUserId, viewerUserId, sinceDays, refreshKey]);
+
 
 const renderChart = (daily: DailyActivitySample[]) => {
   if (!daily || daily.length === 0) return null;

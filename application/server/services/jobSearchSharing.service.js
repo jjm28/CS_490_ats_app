@@ -5,7 +5,9 @@ import JobSearchGoalProgress from "../models/JobSharing/JobSearchGoalProgress.js
 import JobSharingEncouragement from "../models/JobSharing/JobSharingEncouragement.js";
 import JobSharingEngagement from "../models/JobSharing/JobSharingEngagement.js";
 import JobSharingDiscussionMessage from "../models/JobSharing/JobSharingDiscussionMessage.js";
-
+import JobSearchPartnerInvite from "../models/JobSharing/JobSearchPartnerInvite.js";
+import { sendPartnerInviteEmail } from "./emailService.js";
+import crypto from "crypto";
 function startOfDayUTC(date) {
   const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
@@ -1247,3 +1249,190 @@ export async function reactToDiscussionMessage({
   await msg.save();
   return msg;
 }
+
+
+export async function addAccountabilityPartner({ ownerUserId, partnerUserId }) {
+  const ownerUserIdStr = String(ownerUserId);
+  const partnerUserIdStr = String(partnerUserId);
+
+  if (!partnerUserIdStr.trim()) {
+    const err = new Error("partnerUserId is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const profile = await getOrCreateSharingProfile(ownerUserIdStr);
+
+  if (!profile.allowedUserIds.includes(partnerUserIdStr)) {
+    profile.allowedUserIds.push(partnerUserIdStr);
+    await profile.save();
+  }
+
+  return profile;
+}
+
+export async function removeAccountabilityPartner({
+  ownerUserId,
+  partnerUserId,
+}) {
+  const ownerUserIdStr = String(ownerUserId);
+  const partnerUserIdStr = String(partnerUserId);
+
+  const profile = await getOrCreateSharingProfile(ownerUserIdStr);
+
+  profile.allowedUserIds = profile.allowedUserIds.filter(
+    (id) => id !== partnerUserIdStr
+  );
+
+  await profile.save();
+  return profile;
+}
+
+export async function createPartnerInvite({
+  ownerUserId,
+  invitedEmail,
+  jobSeekerName,
+  partnerName,
+}) {
+  const ownerUserIdStr = String(ownerUserId);
+  const email = String(invitedEmail || "").trim().toLowerCase();
+
+  if (!email) {
+    const err = new Error("invitedEmail is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // ensure profile exists
+  await getOrCreateSharingProfile(ownerUserIdStr);
+
+  // generate a unique token
+  const inviteToken = crypto.randomBytes(32).toString("hex");
+
+  const invite = await JobSearchPartnerInvite.create({
+    ownerUserId: ownerUserIdStr,
+    invitedEmail: email,
+    inviteToken,
+    status: "pending",
+  });
+
+  try {
+    await sendPartnerInviteEmail({
+      toEmail: email,
+      partnerName,
+      jobSeekerName,
+      inviteToken,
+    });
+  } catch (e) {
+    console.error("Error sending partner invite email:", e);
+    // we still keep the invite; email failure shouldn't break the flow
+  }
+
+  return invite;
+}
+
+
+export async function listPartnerInvitesForOwner(ownerUserId) {
+  const ownerUserIdStr = String(ownerUserId);
+
+  const invites = await JobSearchPartnerInvite.find({
+    ownerUserId: ownerUserIdStr,
+  }).sort({ createdAt: -1 });
+
+  return invites;
+}
+
+export async function respondToPartnerInvite({
+  inviteId,
+  responderUserId,
+  action,
+}) {
+  const id = String(inviteId);
+  const responderIdStr = String(responderUserId);
+
+  const invite = await JobSearchPartnerInvite.findById(id);
+  if (!invite) {
+    const err = new Error("Invite not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (invite.status !== "pending") {
+    const err = new Error("This invite is no longer pending");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (action === "accept") {
+    // Add the responder as an accountability partner
+    await addAccountabilityPartner({
+      ownerUserId: invite.ownerUserId,
+      partnerUserId: responderIdStr,
+    });
+
+    invite.status = "accepted";
+    invite.invitedUserId = responderIdStr;
+    await invite.save();
+  } else if (action === "reject") {
+    invite.status = "rejected";
+    invite.invitedUserId = responderIdStr;
+    await invite.save();
+  } else {
+    const err = new Error("Invalid invite action");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return invite;
+}
+
+export async function respondToPartnerInviteByToken({ token, userId }) {
+  const tokenStr = String(token);
+  const userIdStr = String(userId);
+
+  const invite = await JobSearchPartnerInvite.findOne({
+    inviteToken: tokenStr,
+  });
+
+  if (!invite) {
+    const err = new Error("Invite not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (invite.status !== "pending") {
+    const err = new Error("This invite is no longer pending");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Accept by default for magic link
+  await addAccountabilityPartner({
+    ownerUserId: invite.ownerUserId,
+    partnerUserId: userIdStr,
+  });
+
+  invite.status = "accepted";
+  invite.invitedUserId = userIdStr;
+  await invite.save();
+
+  return invite;
+}
+/**
+ * For the current user: list all owners for whom they are an accountability partner.
+ * Uses JobSearchSharingProfile.allowedUserIds
+ */
+export async function listOwnersForPartner(partnerUserId) {
+  const partnerIdStr = String(partnerUserId);
+
+  const profiles = await JobSearchSharingProfile.find({
+    allowedUserIds: partnerIdStr,
+  }).select("ownerUserId updatedAt");
+
+  // we just return the owner ids; you can enrich later (names, etc.)
+  return profiles.map((p) => ({
+    ownerUserId: p.ownerUserId,
+    lastUpdatedAt: p.updatedAt,
+  }));
+}
+
