@@ -75,9 +75,8 @@ import productivityRoutes from "./routes/productivity.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
-import salaryRoutes from  "./routes/salary.js"
-import networkingRoutes from "./routes/networking.js";
-import outreachRoutes from "./routes/outreach.js";
+//import networkingRoutes from "./routes/networking.js";
+//import outreachRoutes from "./routes/outreach.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -146,7 +145,6 @@ try {
   // 💼 JOBS & SALARY
   app.use('/api/jobs', jobRoutes);
   app.use("/api/jobs", jobSalaryRoutes);
-  app.use("/api/salary", salaryRoutes);
   app.use('/api/salary', salaryRouter);
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
 
@@ -164,8 +162,8 @@ try {
   app.use("/api/resume-versions", resumeVersionsRouter);
 
   //networking 
-  app.use("/api/networking", networkingRoutes);
-  app.use("/api/networking/outreach", outreachRoutes);
+  //app.use("/api/networking", networkingRoutes);
+  //app.use("/api/networking/outreach", outreachRoutes);
 
   // 🔔 NOTIFICATIONS (Must be after DB)
   setupNotificationCron();

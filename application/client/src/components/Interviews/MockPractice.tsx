@@ -1,5 +1,7 @@
 // MockPractice.tsx - With length guidance and better pacing
 import React, { useState, useRef, useEffect } from 'react';
+
+import { useNavigate } from "react-router-dom";
 import '../../styles/InterviewStyles/MockPractice.css';
 
 type InterviewStep = 'type-select' | 'job-select' | 'interview' | 'summary';
@@ -27,7 +29,11 @@ interface QuestionResponse {
   category: string;
 }
 
-const MockPractice: React.FC = () => {
+interface MockPracticeProps {
+  onBack: () => void;
+}
+
+const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
   const [step, setStep] = useState<InterviewStep>('type-select');
   const [interviewType, setInterviewType] = useState<'behavioral' | 'technical'>('behavioral');
   const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
@@ -45,7 +51,8 @@ const MockPractice: React.FC = () => {
   const [averageScore, setAverageScore] = useState<number>(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -324,7 +331,7 @@ const MockPractice: React.FC = () => {
   if (step === 'type-select') {
     return (
       <div className="mock-interview-container">
-        <button className="back-button" onClick={() => window.location.href = '/interviews'}>
+        <button className="back-button" onClick={onBack}>
           ← Back to Dashboard
         </button>
         <div className="setup-content">
@@ -483,7 +490,7 @@ const MockPractice: React.FC = () => {
   if (step === 'summary') {
     return (
       <div className="mock-interview-container">
-        <button className="back-button" onClick={() => window.location.href = '/interviews'}>
+        <button className="back-button" onClick={onBack}>
           ← Back to Dashboard
         </button>
         <div className="summary-content">
