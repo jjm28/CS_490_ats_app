@@ -19,7 +19,6 @@ import projectsRoutes from "./routes/projects.js";
 import companyResearch from './routes/company-research.js';
 import coverletter from './routes/coverletter.js'
 import jobRoutes from './routes/jobs.js'
-import salaryRouter from "./routes/salary.js";
 import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";
 import interviewRoutes from "./routes/interview-insights.js";
@@ -39,11 +38,16 @@ import practiceSession from './routes/practicesession.js';
 
 import supportersRoutes from "./routes/supporters.js";
 import productivityRoutes from "./routes/productivity.js"; 
+
+
+import salaryRouter from "./routes/salary.js";
+import salaryRoutes from  "./routes/salary.js";
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
+
 import jobSalaryRoutes from "./routes/jobs-salary.js";
 import smartGoalsRoutes from "./routes/smartGoals.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
-import salaryRoutes from  "./routes/salary.js"
+
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -86,14 +90,22 @@ try {
 
   // Job routes  
   app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
   app.use('/api/jobs', jobRoutes);
   app.use("/api/jobs", jobSalaryRoutes);
 
+
+
+  // Salary Analytics (UC-100) — MUST COME FIRST
+  app.use("/api/salary/analytics", salaryAnalyticsRoutes);
+
+  // Salary CRUD — MUST COME AFTER
+  app.use("/api/salary", salaryRoutes);
+
+
  app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use("/api/company/research" , attachDevUser, companyResearch);
-  app.use("/api/salary", salaryRoutes);
-  app.use('/api/salary', salaryRouter);
-  app.use("/api/salary/analytics", salaryAnalyticsRoutes);
+
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use(companyResearch);
   

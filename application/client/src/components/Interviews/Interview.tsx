@@ -3,7 +3,6 @@ import { useState } from 'react';
 import MockPractice from './MockPractice';
 import '../../styles/InterviewStyles/Interview.css';
 import InterviewPrepResearch from './CompanyResearch';
-import '../../styles/Interview.css';
 
 type CardData = {
   label: string;
