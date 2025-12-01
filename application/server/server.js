@@ -51,14 +51,14 @@ import peergroups from './routes/peerGroups.js';
 import goalsRoutes from "./routes/goals.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
-
+import interviewAnalyticsRoutes from "./routes/interviews.js";
+import supportersRoutes from "./routes/supporters.js";
+import productivityRoutes from "./routes/productivity.js"; 
+import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
+import jobSalaryRoutes from "./routes/jobs-salary.js";
 import smartGoalsRoutes from "./routes/smartGoals.js";
-
-
-/* ----------------------------------- */
-/* CONFIG */
-/* ----------------------------------- */
-
+import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
+import salaryRoutes from  "./routes/salary.js"
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -197,10 +197,16 @@ try {
   app.use("/api/success-analysis", successAnalysisRouter);
   app.use("/api/success-patterns", successPatternsRouter);
 
+  app.use("/api/interviews", interviewAnalyticsRoutes);
+  app.use("/api/supporters", supportersRoutes);
 
-  /* ----------------------------------- */
-  /* HEALTH CHECK */
-  /* ----------------------------------- */
+  //productivity 
+  app.use("/api/productivity", productivityRoutes);
+  app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
+  app.use("/api/productivity", attachDevUser,productivityRoutes);
+
+  //competitive applicant analysis
+  app.use("/api/competitive-analysis", attachDevUser,competitiveAnalysisRouter);
 
   app.get('/healthz', (_req, res) => res.sendStatus(204));
 

@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  startProductivitySession,
+  endProductivitySession,
+} from "../../api/productivity";
 
 type JobOpportunity = {
   _id: string;
@@ -11,11 +15,9 @@ type JobOpportunity = {
 
 type SalaryResearch = {
   jobId?: string;
-  aggregated?: {
-    average?: number;
-    min?: number;
-    max?: number;
-  };
+  average?: number;
+  min?: number;
+  max?: number;
   sourceCount?: number;
   message?: string;
   cached?: boolean;
@@ -39,6 +41,41 @@ export default function SalaryResearchPage() {
   const annualToHourly = (annual: number): number => {
     return Math.round((annual / 2080) * 100) / 100;
   };
+
+  // Time tracking for productivity while viewing Salary Research
+  useEffect(() => {
+    let canceled = false;
+    let sessionId: string | null = null;
+
+    (async () => {
+      try {
+        const session = await startProductivitySession({
+          activityType: "salary_research",
+          context: "SalaryResearchPage",
+        });
+        if (!canceled) {
+          sessionId = session._id;
+        }
+      } catch (err) {
+        console.error(
+          "[productivity] Failed to start salary_research session:",
+          err
+        );
+      }
+    })();
+
+    return () => {
+      canceled = true;
+      if (sessionId) {
+        endProductivitySession({ sessionId }).catch((err) =>
+          console.error(
+            "[productivity] Failed to end salary_research session:",
+            err
+          )
+        );
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -200,179 +237,179 @@ export default function SalaryResearchPage() {
                 </div>
               </div>
 
-                      {hasData ? (
-              <div className="space-y-4">
-                {/* Average Salary - Large Display */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-lg border border-green-200">
-                  <div className="flex items-baseline justify-center">
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600 mb-1">💰 Average {isIntern ? 'Hourly Rate' : 'Salary'}</p>
-                      <p className="text-4xl font-bold text-green-700">
-                        ${isIntern 
-                          ? annualToHourly(salary.average).toLocaleString()
-                          : salary.average.toLocaleString()
-                        }
-                        {isIntern && <span className="text-xl text-gray-600">/hr</span>}
+              {hasData ? (
+                <div className="space-y-4">
+                  {/* Average Salary - Large Display */}
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-5 rounded-lg border border-green-200">
+                    <div className="flex items-baseline justify-center">
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600 mb-1">💰 Average {isIntern ? 'Hourly Rate' : 'Salary'}</p>
+                        <p className="text-4xl font-bold text-green-700">
+                          ${isIntern 
+                            ? annualToHourly(salary!.average!).toLocaleString()
+                            : salary!.average!.toLocaleString()
+                          }
+                          {isIntern && <span className="text-xl text-gray-600">/hr</span>}
+                        </p>
+                          
+                        {/* 🆕 Add MIN & MAX */}
+                        <div className="mt-2 text-sm text-gray-600 flex gap-4 justify-center">
+                          <span>
+                            <strong>Min:</strong> $
+                            {isIntern
+                              ? annualToHourly(salary.min!).toLocaleString()
+                              : Math.round(salary.min!).toLocaleString()}
+                            {isIntern && "/hr"}
+                          </span>
+                          <span>
+                            <strong>Max:</strong> $
+                            {isIntern
+                              ? annualToHourly(salary.max!).toLocaleString()
+                              : Math.round(salary.max!).toLocaleString()}
+                            {isIntern && "/hr"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Salary Range */}
+                  {salary.min && salary.max && (
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <p className="text-sm font-medium text-gray-700 mb-3">
+                        📊 Salary Range {isIntern ? '(Hourly)' : ''}
                       </p>
-                        
-                      {/* 🆕 Add MIN & MAX */}
-                      <div className="mt-2 text-sm text-gray-600 flex gap-4 justify-center">
-                        <span>
-                          <strong>Min:</strong> $
-                          {isIntern
-                            ? annualToHourly(salary.min!).toLocaleString()
-                            : Math.round(salary.min!).toLocaleString()}
-                          {isIntern && "/hr"}
-                        </span>
-                        <span>
-                          <strong>Max:</strong> $
-                          {isIntern
-                            ? annualToHourly(salary.max!).toLocaleString()
-                            : Math.round(salary.max!).toLocaleString()}
-                          {isIntern && "/hr"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Salary Range */}
-                {salary.min && salary.max && (
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <p className="text-sm font-medium text-gray-700 mb-3">
-                      📊 Salary Range {isIntern ? '(Hourly)' : ''}
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Minimum</p>
-                        <p className="text-xl font-semibold text-gray-800">
-                          ${isIntern 
-                            ? annualToHourly(salary.min).toLocaleString()
-                            : Math.round(salary.min).toLocaleString()
-                          }
-                          {isIntern && <span className="text-sm">/hr</span>}
-                        </p>
-                        {isIntern && (
-                          <p className="text-xs text-gray-500">
-                            (${Math.round(salary.min).toLocaleString()}/year)
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Minimum</p>
+                          <p className="text-xl font-semibold text-gray-800">
+                            ${isIntern 
+                              ? annualToHourly(salary.min).toLocaleString()
+                              : Math.round(salary.min).toLocaleString()
+                            }
+                            {isIntern && <span className="text-sm">/hr</span>}
                           </p>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Maximum</p>
-                        <p className="text-xl font-semibold text-gray-800">
-                          ${isIntern 
-                            ? annualToHourly(salary.max).toLocaleString()
-                            : Math.round(salary.max).toLocaleString()
-                          }
-                          {isIntern && <span className="text-sm">/hr</span>}
-                        </p>
-                        {isIntern && (
-                          <p className="text-xs text-gray-500">
-                            (${Math.round(salary.max).toLocaleString()}/year)
+                          {isIntern && (
+                            <p className="text-xs text-gray-500">
+                              (${Math.round(salary.min).toLocaleString()}/year)
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">Maximum</p>
+                          <p className="text-xl font-semibold text-gray-800">
+                            ${isIntern 
+                              ? annualToHourly(salary.max).toLocaleString()
+                              : Math.round(salary.max).toLocaleString()
+                            }
+                            {isIntern && <span className="text-sm">/hr</span>}
                           </p>
-                        )}
+                          {isIntern && (
+                            <p className="text-xs text-gray-500">
+                              (${Math.round(salary.max).toLocaleString()}/year)
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Visual Range Bar */}
+                      <div className="mt-4">
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-blue-400 via-green-400 to-green-600"></div>
+                        </div>
+                        <div className="flex justify-between mt-1 text-xs text-gray-500">
+                          <span>Low</span>
+                          <span>Average</span>
+                          <span>High</span>
+                        </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Visual Range Bar */}
-                    <div className="mt-4">
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-blue-400 via-green-400 to-green-600"></div>
-                      </div>
-                      <div className="flex justify-between mt-1 text-xs text-gray-500">
-                        <span>Low</span>
-                        <span>Average</span>
-                        <span>High</span>
-                      </div>
+                  {/* Data Source Info */}
+                  <div className="flex items-center justify-between text-sm text-gray-600 pt-3 border-t border-gray-100">
+                    <div>
+                      {salary.sourceCount && (
+                        <span>
+                          📈 Based on <strong>{salary.sourceCount}</strong> job posting{salary.sourceCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
-                  </div>
-                )}
-
-                {/* Data Source Info */}
-                <div className="flex items-center justify-between text-sm text-gray-600 pt-3 border-t border-gray-100">
-                  <div>
-                    {salary.sourceCount && (
-                      <span>
-                        📈 Based on <strong>{salary.sourceCount}</strong> job posting{salary.sourceCount !== 1 ? 's' : ''}
+                    {salary.updatedAt && (
+                      <span className="text-xs text-gray-400">
+                        Updated: {new Date(salary.updatedAt).toLocaleDateString()}
                       </span>
                     )}
                   </div>
-                  {salary.updatedAt && (
-                    <span className="text-xs text-gray-400">
-                      Updated: {new Date(salary.updatedAt).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
 
-                {/* User's Expected Salary Comparison */}
-                {job.userExpectedSalary && salary.average && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 bg-blue-50 p-3 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">Your expectation:</p>
-                        <p className="text-lg font-semibold text-gray-800">
-                          ${job.userExpectedSalary.toLocaleString()}
-                          {isIntern && <span className="text-sm">/hr</span>}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        {job.userExpectedSalary <= salary.average ? (
-                          <span className="inline-flex items-center text-green-700 font-medium">
-                            <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            Within range
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center text-amber-600 font-medium">
-                            <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            Above average
-                          </span>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          {((job.userExpectedSalary / salary.average - 1) * 100).toFixed(1)}% 
-                          {job.userExpectedSalary > salary.average ? ' higher' : ' lower'}
-                        </p>
+                  {/* User's Expected Salary Comparison */}
+                  {job.userExpectedSalary && salary.average && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 bg-blue-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">Your expectation:</p>
+                          <p className="text-lg font-semibold text-gray-800">
+                            ${job.userExpectedSalary.toLocaleString()}
+                            {isIntern && <span className="text-sm">/hr</span>}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          {job.userExpectedSalary <= salary.average ? (
+                            <span className="inline-flex items-center text-green-700 font-medium">
+                              <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              Within range
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-amber-600 font-medium">
+                              <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              Above average
+                            </span>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">
+                            {((job.userExpectedSalary / salary.average - 1) * 100).toFixed(1)}% 
+                            {job.userExpectedSalary > salary.average ? ' higher' : ' lower'}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : salary?.error ? (
-              <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-                <p className="text-red-700 font-medium">❌ Error loading salary data</p>
-                <p className="text-sm text-red-600 mt-1">{salary.error}</p>
-                {salary.message && (
-                  <p className="text-sm text-gray-600 mt-2">{salary.message}</p>
-                )}
-              </div>
-            ) : salary?.message ? (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                <p className="text-gray-700">ℹ️ {salary.message}</p>
-              </div>
-            ) : (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-gray-500 text-center">
-                  <span className="inline-block animate-spin mr-2">⏳</span>
-                  Loading salary data...
-                </p>
-              </div>
-            )}
+                  )}
+                </div>
+              ) : salary?.error ? (
+                <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                  <p className="text-red-700 font-medium">❌ Error loading salary data</p>
+                  <p className="text-sm text-red-600 mt-1">{salary.error}</p>
+                  {salary.message && (
+                    <p className="text-sm text-gray-600 mt-2">{salary.message}</p>
+                  )}
+                </div>
+              ) : salary?.message ? (
+                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                  <p className="text-gray-700">ℹ️ {salary.message}</p>
+                </div>
+              ) : (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-gray-500 text-center">
+                    <span className="inline-block animate-spin mr-2">⏳</span>
+                    Loading salary data...
+                  </p>
+                </div>
+              )}
 
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <Link
-                to={`/jobs/${job._id}`}
-                className="text-blue-600 hover:text-blue-700 hover:underline text-sm font-medium inline-flex items-center"
-              >
-                View Job Details 
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <Link
+                  to={`/jobs/${job._id}`}
+                  className="text-blue-600 hover:text-blue-700 hover:underline text-sm font-medium inline-flex items-center"
+                >
+                  View Job Details 
+                  <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
           </div>
         );
       })}

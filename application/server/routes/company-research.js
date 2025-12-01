@@ -3,6 +3,8 @@ import axios from 'axios';
 import NodeCache from 'node-cache';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import InterviewPrep from '../models/interviewPrep.js';
+import { get } from 'mongoose';
+
 
 const router = express.Router();
 
@@ -16,8 +18,17 @@ const cache = new NodeCache({
   checkperiod: 3600 
 });
 
-router.post('/api/company/research', async (req, res) => {
+
+function getUserId(req) {
+  if (req.user?._id) return req.user._id.toString();  // MONGO ID
+  if (req.user?.id) return req.user.id.toString();    // CLERK ID fallback
+  const dev = req.headers["x-dev-user-id"];           // for Postman/testing
+  return dev ? dev.toString() : null;
+}
+
+router.post('/', async (req, res) => {
   try {
+    const userId = getUserId(req); 
     const { companyName } = req.body;
 
     if (!companyName) {
@@ -460,24 +471,40 @@ async function searchFinancialHealth(companyName) {
 
 
 // Save company research to database
+// Save company research to database
 router.post("/save-research", async (req, res) => {
   try {
-    const userId = req.user?._id;
+
+    console.log('=== SAVE RESEARCH DEBUG ===');
+    console.log('req.user:', getUserId(req));
+    console.log('req.body:', req.body);
+    console.log('userId:', req.user?.id);
+    console.log('jobId:', req.body.jobId);
+    console.log('companyInfo:', req.body.companyInfo);
+  
+    console.log('========================');
+
+    const userId = getUserId(req);
     const { jobId, companyInfo } = req.body;
 
     if (!userId || !jobId || !companyInfo) {
+      console.log('FAILED CHECKS:', { 
+        hasUserId: !!userId, 
+        hasJobId: !!jobId, 
+        hasCompanyInfo: !!companyInfo 
+      });
       return res.status(400).json({ error: "Missing required fields" });
     }
-
-    // Check if research already exists
-    const existing = await InterviewPrep.findOne({ userId, jobId });
 
     const researchData = {
       userId,
       jobId,
       companyName: companyInfo.name,
       basicInfo: companyInfo.basicInfo,
-      leadership: companyInfo.leadership.searchResults,
+      // ✅ Save leadership as OBJECT (matches schema)
+      leadership: {
+        searchResults: companyInfo.leadership?.searchResults || []
+      },
       financialHealth: companyInfo.financialHealth,
       socialMedia: companyInfo.socialMedia,
       competitors: companyInfo.competitors,
@@ -485,14 +512,14 @@ router.post("/save-research", async (req, res) => {
       lastResearched: new Date()
     };
 
-    if (existing) {
-      Object.assign(existing, researchData);
-      await existing.save();
-      return res.json({ message: "Research updated", data: existing });
-    }
+    // ✅ Use findOneAndUpdate for cleaner upsert
+    const research = await InterviewPrep.findOneAndUpdate(
+      { userId, jobId },
+      researchData,
+      { upsert: true, new: true, runValidators: true }
+    );
 
-    const research = await InterviewPrep.create(researchData);
-    res.json({ message: "Research saved", data: research });
+    res.json({ message: research.companyName ? "Research updated" : "Research saved", data: research });
   } catch (err) {
     console.error("Save research error:", err);
     res.status(500).json({ error: "Failed to save research" });
@@ -502,7 +529,7 @@ router.post("/save-research", async (req, res) => {
 // Get saved company research
 router.get("/saved-research/:jobId", async (req, res) => {
   try {
-    const userId = req.user?._id;
+    const userId = getUserId(req);  
     const { jobId } = req.params;
 
     const research = await InterviewPrep.findOne({ userId, jobId });
@@ -516,7 +543,7 @@ router.get("/saved-research/:jobId", async (req, res) => {
       name: research.companyName,
       basicInfo: research.basicInfo,
       news: research.news,
-      leadership: { searchResults: research.leadership },
+      leadership: research.leadership, 
       socialMedia: research.socialMedia,
       competitors: research.competitors,
       financialHealth: research.financialHealth,

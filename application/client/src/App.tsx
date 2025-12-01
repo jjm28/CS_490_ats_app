@@ -63,16 +63,24 @@ import MarketTrends from './components/Analytics/MarketTrends';
 import NetworkingROI from './components/Analytics/NetworkingROI';
 import Overview from './components/Analytics/Overview';
 import SalaryMarket from './components/Analytics/SalaryMarket';
+import SupporterSettings from './components/Support/SupporterSettings';
+import WellbeingCheckinPanel from './components/Support/WellbeingCheckinPanel';
+import SupporterDashboard from './components/Support/SupporterDashboard';
+import AcceptInvitePage from './components/Support/AcceptInvitePage';
+import JobProductivityDashboard from "./components/Jobs/JobProductivityDashboard";
 import JobSalaryDetails from "./components/JobSalaryDetails";
 import SalaryProgressDetail from "./components/Analytics/Salary/SalaryProgressDetail";
 import CompProgressDetail from "./components/Analytics/Salary/CompProgressDetail";
 import GoalNew from "./components/Analytics/SmartGoals/GoalNew";
+import JobCompetitiveAnalysisDashboard from "./components/Jobs/JobCompetitiveAnalysisDashboard";
 
+
+import SupportPage from './components/Support/SupportPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
-
+  const userId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -190,6 +198,38 @@ function App() {
             path="/analytics/market-trends"
             element={<PrivateRoute><MarketTrends /></PrivateRoute>}
           />
+          
+<Route
+  path="/support"
+  element={
+    <PrivateRoute>
+      <SupportPage userId={userId} />
+    </PrivateRoute>
+  }
+/>
+
+      {/* Job seeker preview */}
+      <Route
+        path="/supporters/preview/:supporterId"
+        element={<PrivateRoute><SupporterDashboard /></PrivateRoute>}
+      />
+
+      {/* Supporter side (magic link) */}
+      <Route
+        path="/supporter/accept"
+        element={<PrivateRoute><AcceptInvitePage /></PrivateRoute>}
+      />
+      <Route
+        path="/supporter/dashboard/:supporterId"
+        element={<PrivateRoute><SupporterDashboard /></PrivateRoute>}
+      />
+
+          <Route 
+          path="/Jobs/Productivity" 
+          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>}
+          />
+          <Route path="/analytics/productivity" 
+          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>} />
           <Route path="/jobs/:jobId/salary" element={<JobSalaryDetails />} />
           <Route path="/analytics/salary-progress/:jobId" element={<SalaryProgressDetail />} />
           <Route
@@ -200,7 +240,17 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route 
+          path="/analytics/productivity" 
+          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>} 
+          />
+          <Route
+            path="/Jobs/CompetitiveAnalysis"
+            element={<PrivateRoute><JobCompetitiveAnalysisDashboard /></PrivateRoute>}
+          />
+
         </Routes>
+
       </div>
     </>
   );
