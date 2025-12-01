@@ -2,7 +2,11 @@
 import express from "express";
 import {
   getOrCreateSharingProfile,
-  updateSharingProfileSettings,
+  updateSharingProfileSettings,listJobSearchGoals,
+  createJobSearchGoal,
+  addGoalProgress,
+  listJobSearchMilestones,
+  createJobSearchMilestone,
 } from "../services/jobSearchSharing.service.js";
 
 const router = express.Router();
@@ -62,5 +66,124 @@ router.post("/job-search/sharing", async (req, res) => {
     res.status(500).json({ error: "Server error updating sharing profile" });
   }
 });
+
+
+// GET /api/job-search/goals?userId=...
+router.get("/job-search/goals", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const goals = await listJobSearchGoals(String(userId));
+    res.json(goals);
+  } catch (err) {
+    console.error("Error listing goals:", err);
+    res.status(500).json({ error: "Server error listing goals" });
+  }
+});
+
+// POST /api/job-search/goals?userId=...
+router.post("/job-search/goals", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const { title, description, targetValue, unit, deadline } = req.body;
+
+    const goal = await createJobSearchGoal({
+      ownerUserId: String(userId),
+      title,
+      description,
+      targetValue,
+      unit,
+      deadline,
+    });
+
+    res.json(goal);
+  } catch (err) {
+    console.error("Error creating goal:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error creating goal",
+    });
+  }
+});
+
+// POST /api/job-search/goals/:goalId/progress?userId=...
+router.post("/job-search/goals/:goalId/progress", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const { goalId } = req.params;
+    const { delta, note } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const result = await addGoalProgress({
+      ownerUserId: String(userId),
+      goalId,
+      delta,
+      note,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error adding goal progress:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error adding goal progress",
+    });
+  }
+});
+
+// ----- MILESTONES -----
+
+// GET /api/job-search/milestones?userId=...
+router.get("/job-search/milestones", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const milestones = await listJobSearchMilestones(String(userId));
+    res.json(milestones);
+  } catch (err) {
+    console.error("Error listing milestones:", err);
+    res.status(500).json({ error: "Server error listing milestones" });
+  }
+});
+
+// POST /api/job-search/milestones?userId=...
+router.post("/job-search/milestones", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const { title, description, achievedAt, relatedJobId, type } = req.body;
+
+    const milestone = await createJobSearchMilestone({
+      ownerUserId: String(userId),
+      title,
+      description,
+      achievedAt,
+      relatedJobId,
+      type,
+    });
+
+    res.json(milestone);
+  } catch (err) {
+    console.error("Error creating milestone:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error creating milestone",
+    });
+  }
+});
+
 
 export default router;
