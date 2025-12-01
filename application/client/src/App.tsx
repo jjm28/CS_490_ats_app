@@ -63,8 +63,8 @@ import MarketTrends from './components/Analytics/MarketTrends';
 import NetworkingROI from './components/Analytics/NetworkingROI';
 import Overview from './components/Analytics/Overview';
 import SalaryMarket from './components/Analytics/SalaryMarket';
-import SupporterSettings from './components/Support/SupporterSettings';
-import WellbeingCheckinPanel from './components/Support/WellbeingCheckinPanel';
+//import SupporterSettings from './components/Support/SupporterSettings';
+//import WellbeingCheckinPanel from './components/Support/WellbeingCheckinPanel';
 import SupporterDashboard from './components/Support/SupporterDashboard';
 import AcceptInvitePage from './components/Support/AcceptInvitePage';
 import JobProductivityDashboard from "./components/Jobs/JobProductivityDashboard";
@@ -76,11 +76,22 @@ import JobCompetitiveAnalysisDashboard from "./components/Jobs/JobCompetitiveAna
 
 
 import SupportPage from './components/Support/SupportPage';
+import NetworkingDashboard from './components/Networking/NetworkingDashboard';
+import ContactList from './components/Networking/ContactList';
+import ContactDetails from './components/Networking/ContactDetails';
+import ContactEditor from './components/Networking/ContactEditor';
+import AddInteraction from './components/Networking/AddInteraction';
+import AiOutreachGenerator from './components/Networking/AiOutreachGenerator';
+import InteractionHistory from './components/Networking/InteractionHistory';
+import AllInteractionsPage from './components/Networking/AllInteractionsPage';
+import ImportGoogle from "./components/Networking/ImportGoogle";
+
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
-  const userId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
+  const userId = JSON.parse(localStorage.getItem("authUser") || "{}")?.user?._id || null;
+
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -130,6 +141,86 @@ function App() {
           <Route path="/resumes/share" element={<PrivateRoute><ResumeShareView /></PrivateRoute>} />
           <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
           <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
+          <Route path="/networking/import" element={<ImportGoogle />} />
+          <Route
+            path="/networking"
+            element={
+              <PrivateRoute>
+                <NetworkingDashboard />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/networking/contacts"
+            element={
+              <PrivateRoute>
+                <ContactList />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/networking/contacts/new"
+            element={
+              <PrivateRoute>
+                <ContactEditor />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/networking/contacts/:id"
+            element={
+              <PrivateRoute>
+                <ContactDetails />
+              </PrivateRoute>
+            }
+          />
+
+
+          <Route
+            path="/networking/interactions/:id"
+            element={<InteractionHistory />}
+          />
+
+          <Route
+            path="/networking/contacts/:id/edit"
+            element={
+              <PrivateRoute>
+                <ContactEditor />
+              </PrivateRoute>
+            }
+          />
+
+
+          <Route
+            path="/networking/interactions/:id/add"
+            element={
+              <PrivateRoute>
+                <AddInteraction />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/networking/interactions"
+            element={<AllInteractionsPage />}
+          />
+
+
+
+        
+
+          <Route
+            path="/networking/outreach"
+            element={
+              <PrivateRoute>
+                <AiOutreachGenerator />
+              </PrivateRoute>
+            }
+          />
+
           <Route
             path="/Applications"
             element={<PrivateRoute><ApplicationsPage /></PrivateRoute>}
@@ -159,11 +250,11 @@ function App() {
           <Route
             path="/interview-insights"
             element={<InterviewInsightsPage/>}
-          />/
+          />
           <Route
-            path="/interviews"
+            path="/Interview-Prep"
             element={<InterviewHome/>}
-          />/
+          />
           <Route path="/manage-references" element={<PrivateRoute><ManageReferences /></PrivateRoute>} />
           <Route path="/references/portfolio" element={<PrivateRoute><ReferencePortfolio /></PrivateRoute>} />
           <Route path="/peer-groups" element={<PrivateRoute><PeerGroupsPage /></PrivateRoute>} />
@@ -203,7 +294,7 @@ function App() {
   path="/support"
   element={
     <PrivateRoute>
-      <SupportPage userId={userId} />
+      <SupportPage  />
     </PrivateRoute>
   }
 />

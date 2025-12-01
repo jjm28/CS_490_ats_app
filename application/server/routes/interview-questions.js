@@ -1,0 +1,186 @@
+import express from "express";
+const router = express.Router();
+import { verifyJWT } from "../middleware/auth.js";
+import Job from "../models/jobs.js";
+import InterviewQuestions from "../models/interviewQuestions.js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+router.use(verifyJWT);
+function prompt(job) {
+  return `
+    You are an AI that generates interview questions based on a job posting.
+    Job Title: "${job.jobTitle}"
+    Company: "${job.company}"
+    Job Description: "${job.jobDescription}"
+    
+    Return ONLY valid JSON with this EXACT structure:
+    {
+      "questions": [
+        {
+          "id": "unique_id",
+          "text": "the question text",
+          "category": "behavioral" | "technical" | "situational",
+          "difficulty": "entry" | "mid" | "senior",
+          "skills": ["skill1", "skill2"],
+          "companySpecific": true/false
+        }
+      ]
+    }
+    
+    Rules:
+    - Generate 3-5 technical questions (category: "technical")
+    - Generate 3-5 behavioral questions (category: "behavioral")
+    - Generate 2-3 situational questions (category: "situational")
+    - Set "companySpecific" to true ONLY if the question directly relates to ${job.company}
+    - Extract relevant skills from the job description for technical questions
+    - Set difficulty based on the job level (entry/mid/senior)
+    - Do NOT wrap JSON in markdown or backticks
+    `;
+}
+router.get("/:jobId", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const jobId = req.params.jobId;
+    
+    console.log(`[Interview Questions] Fetching for jobId: ${jobId}, userId: ${userId}`);
+    
+    // 1️⃣ fetch job data
+    const job = await Job.findOne({ _id: jobId, userId });
+    if (!job) {
+      console.log(`[Interview Questions] Job not found`);
+      return res.status(404).json({ error: "Job not found" });
+    }
+    
+    console.log(`[Interview Questions] Found job: ${job.jobTitle} at ${job.company}`);
+    
+    // 2️⃣ Check cache
+    let cached = await InterviewQuestions.findOne({ userId, jobId });
+    if (cached) {
+      console.log(`[Interview Questions] Found cached data`);
+      
+      // Transform cached data
+      const transformedQuestions = transformToFrontendFormat(cached);
+      console.log(`[Interview Questions] Transformed questions count:`, transformedQuestions.length);
+      
+      return res.json({ questions: transformedQuestions });
+    }
+    
+    console.log(`[Interview Questions] No cache found, generating with Gemini...`);
+    
+    // 3️⃣ Generate Questions via Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const response = await model.generateContent(prompt(job));
+    
+    let rawText = response.response.text();
+    let cleaned = rawText.replace(/```json|```/g, "").trim();
+    
+    let json;
+    try {
+      json = JSON.parse(cleaned);
+      console.log(`[Interview Questions] Parsed JSON successfully`);
+    } catch (parseErr) {
+      console.error(`[Interview Questions] JSON Parse Error:`, parseErr);
+      return res.status(500).json({ 
+        error: "Failed to parse AI response",
+        details: parseErr.message 
+      });
+    }
+    
+    // 4️⃣ Extract and format questions by category
+    const allQuestions = json.questions || [];
+    
+    const technicalQuestions = allQuestions
+      .filter(q => q.category === 'technical')
+      .map(q => ({ question: q.text }));
+    
+    const behavioralQuestions = allQuestions
+      .filter(q => q.category === 'behavioral')
+      .map(q => ({ question: q.text }));
+    
+    const generalQuestions = allQuestions
+      .filter(q => q.category === 'situational')
+      .map(q => ({ 
+        question: q.text,
+        companySpecific: q.companySpecific || false 
+      }));
+    
+    console.log(`[Interview Questions] Extracted: ${technicalQuestions.length} tech, ${behavioralQuestions.length} behavioral, ${generalQuestions.length} general`);
+    
+    // 5️⃣ Save to database with NEW schema field names
+    const savedQuestions = await InterviewQuestions.create({
+      userId,
+      jobId,
+      jobTitle: job.jobTitle,
+      company: job.company,
+      technicalQuestions,
+      behavioralQuestions,
+      generalQuestions
+    });
+    
+    console.log(`[Interview Questions] Saved to database`);
+    
+    // 6️⃣ Transform and return
+    const transformedQuestions = transformToFrontendFormat(savedQuestions);
+    console.log(`[Interview Questions] Transformed questions count:`, transformedQuestions.length);
+    
+    res.json({ questions: transformedQuestions });
+    
+  } catch (err) {
+    console.error(`[Interview Questions] Error:`, err);
+    res.status(500).json({ 
+      error: "Failed to generate questions",
+      details: err.message 
+    });
+  }
+});
+
+// Helper function to transform backend format to frontend format
+function transformToFrontendFormat(data) {
+  const doc = data._doc || data;
+  const questions = [];
+  
+  // Technical questions
+  const techQuestions = doc.technicalQuestions || [];
+  techQuestions.forEach((q, idx) => {
+    questions.push({
+      id: `tech_${idx}`,
+      text: q.question,
+      category: 'technical',
+      difficulty: 'mid',
+      skills: [],
+      companySpecific: false
+    });
+  });
+  
+  // Behavioral questions
+  const behavioralQuestions = doc.behavioralQuestions || [];
+  behavioralQuestions.forEach((q, idx) => {
+    questions.push({
+      id: `behavioral_${idx}`,
+      text: q.question,
+      category: 'behavioral',
+      difficulty: 'mid',
+      skills: [],
+      companySpecific: false
+    });
+  });
+  
+  // General/Situational questions
+  const generalQuestions = doc.generalQuestions || [];
+  generalQuestions.forEach((q, idx) => {
+    questions.push({
+      id: `situational_${idx}`,
+      text: q.question,
+      category: 'situational',
+      difficulty: 'mid',
+      skills: [],
+      companySpecific: q.companySpecific || false
+    });
+  });
+  
+  console.log(`[Transform] Final output:`, questions.length, 'questions');
+  return questions;
+}
+export default router;
