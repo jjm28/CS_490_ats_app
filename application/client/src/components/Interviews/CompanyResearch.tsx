@@ -129,7 +129,6 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
       // First, check if we have cached research
       const cachedResponse = await fetch(`http://localhost:5050/api/company/saved-research/${jobId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
-        credentials: 'include'
       });
 
       if (cachedResponse.ok) {
@@ -146,7 +145,6 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({ companyName: job.company }),
       });
 
@@ -168,18 +166,18 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
 
   // Manual save function
   const handleSaveResearch = async () => {
+    
     if (!selectedJobId || !companyInfo || isSaved) return;
 
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/company/save-research', {
+      const response = await fetch('/api/company/research/save-research', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify({ jobId: selectedJobId, companyInfo })
       });
 
@@ -321,49 +319,6 @@ console.log("companyInfo:", companyInfo);
                     </span>
                   ) : null}
                 </div>
-                {selectedJob && upcomingInterview && (
-                  <div className="interview-info-card">
-                    <div className="interview-detail">
-                      <span className="detail-label">Position:</span>
-                      <span className="detail-value">{selectedJob.jobTitle}</span>
-                    </div>
-                    <div className="interview-detail">
-                      <span className="detail-label">Company:</span>
-                      <span className="detail-value">{selectedJob.company}</span>
-                    </div>
-                    <div className="interview-detail">
-                      <span className="detail-label">Interview Date:</span>
-                      <span className="detail-value">
-                        {new Date(upcomingInterview.date).toLocaleString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-                    {upcomingInterview.type && (
-                      <div className="interview-detail">
-                        <span className="detail-label">Type:</span>
-                        <span className="detail-value">{upcomingInterview.type}</span>
-                      </div>
-                    )}
-                    {upcomingInterview.locationOrLink && (
-                      <div className="interview-detail">
-                        <span className="detail-label">Location/Link:</span>
-                        <span className="detail-value">{upcomingInterview.locationOrLink}</span>
-                      </div>
-                    )}
-                    {upcomingInterview.interviewer && (
-                      <div className="interview-detail">
-                        <span className="detail-label">Interviewer:</span>
-                        <span className="detail-value">{upcomingInterview.interviewer}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {loading && (

@@ -166,6 +166,12 @@ function Navbar() {
                 >
                   References
                 </NavLink>
+                <NavLink
+                  to="/interviews"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Interview Prep
+                </NavLink>
                 <NavLink 
                 to="/peer-groups" 
                 className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
@@ -242,6 +248,7 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
+            
           </div>
 
           <div className="flex items-center space-x-4">

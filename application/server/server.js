@@ -89,6 +89,8 @@ try {
   app.use('/api/jobs', jobRoutes);
   app.use("/api/jobs", jobSalaryRoutes);
 
+ app.use("/api/interview-insights", attachDevUser, interviewRoutes);
+  app.use("/api/company/research" , attachDevUser, companyResearch);
   app.use("/api/salary", salaryRoutes);
   app.use('/api/salary', salaryRouter);
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);

@@ -1,11 +1,7 @@
 import mongoose from 'mongoose';
 
 const interviewPrepSchema = new mongoose.Schema({
-  userId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
-  },
+   userId: { type: String, ref: 'User', required: true, index: true },
   jobId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Job', 
@@ -24,11 +20,13 @@ const interviewPrepSchema = new mongoose.Schema({
     values: String,
     culture: String
   },
-  leadership: [{
-    title: String,
-    snippet: String,
-    link: String
-  }],
+  leadership: {
+    searchResults: [{
+      title: String,
+      snippet: String,
+      link: String
+    }]
+  },
   financialHealth: [{
     title: String,
     snippet: String,
