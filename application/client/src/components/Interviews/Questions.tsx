@@ -49,7 +49,7 @@ function QuestionCard({
   });
   const [isEditing, setIsEditing] = useState(false);
   const practiced = !!response.trim();
-
+  
   const saveResponse = () => {
     localStorage.setItem(storageKey, response);
     setIsEditing(false);
@@ -58,7 +58,6 @@ function QuestionCard({
   const handleResponseChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setResponse(e.target.value);
   };
-
   return (
     <div
       className="p-5 rounded-xl border hover:shadow-md transition-all"
@@ -179,6 +178,8 @@ export default function InterviewQuestionsOnly() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<Question['category'] | 'all'>('all');
+
 
   // Fetch jobs
   useEffect(() => {
@@ -213,7 +214,7 @@ export default function InterviewQuestionsOnly() {
         const token = localStorage.getItem("token")?.trim();
         if (!token) throw new Error("No auth token");
 
-        const res = await fetch(`/api/interview-insights/${selectedJobId}`, {
+        const res = await fetch(`/api/interview-questions/${selectedJobId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -247,6 +248,22 @@ export default function InterviewQuestionsOnly() {
       Question[]
     >
   );
+  // Filter questions based on selected category
+    const filteredQuestions = categoryFilter === 'all' 
+      ? questions 
+      : questions.filter(q => q.category === categoryFilter);
+
+    // Group filtered questions
+    const filteredGrouped = filteredQuestions.reduce(
+      (acc, q) => {
+      acc[q.category].push(q);
+      return acc;
+      },
+      { behavioral: [], technical: [], situational: [] } as Record<
+        Question['category'],
+        Question[]
+      >
+    );
 
   const selectedJob = jobs.find((j) => j._id === selectedJobId);
 
@@ -289,7 +306,61 @@ export default function InterviewQuestionsOnly() {
             ))}
           </select>
         </div>
-
+            {/* Category Filter */}
+          {/* Category Filter */}
+{questions.length > 0 && (
+  <div className="bg-white rounded-3xl p-6 mb-8 shadow-2xl">
+    <label className="block text-lg font-semibold mb-3" style={{ color: '#0E3B43' }}>
+      Filter by Category:
+    </label>
+    <div className="flex flex-wrap gap-3">
+      <button
+        onClick={() => setCategoryFilter('all')}
+        className="px-5 py-2 rounded-xl font-medium transition-all"
+        style={{
+          backgroundColor: categoryFilter === 'all' ? '#357266' : '#f0f7f5',
+          color: categoryFilter === 'all' ? 'white' : '#0E3B43',
+          border: categoryFilter === 'all' ? 'none' : '2px solid #6DA598',
+        }}
+      >
+        All ({questions.length})
+      </button>
+      <button
+            onClick={() => setCategoryFilter('behavioral')}
+            className="px-5 py-2 rounded-xl font-medium transition-all"
+            style={{
+              backgroundColor: categoryFilter === 'behavioral' ? '#4A90E2' : '#f0f7f5',
+              color: categoryFilter === 'behavioral' ? 'white' : '#0E3B43',
+              border: categoryFilter === 'behavioral' ? 'none' : '2px solid #6DA598',
+            }}
+          >
+            Behavioral ({grouped.behavioral.length})
+          </button>
+          <button
+            onClick={() => setCategoryFilter('technical')}
+            className="px-5 py-2 rounded-xl font-medium transition-all"
+            style={{
+              backgroundColor: categoryFilter === 'technical' ? '#50C878' : '#f0f7f5',
+              color: categoryFilter === 'technical' ? 'white' : '#0E3B43',
+              border: categoryFilter === 'technical' ? 'none' : '2px solid #6DA598',
+            }}
+          >
+            Technical ({grouped.technical.length})
+          </button>
+          <button
+            onClick={() => setCategoryFilter('situational')}
+            className="px-5 py-2 rounded-xl font-medium transition-all"
+            style={{
+              backgroundColor: categoryFilter === 'situational' ? '#FFA500' : '#f0f7f5',
+              color: categoryFilter === 'situational' ? 'white' : '#0E3B43',
+              border: categoryFilter === 'situational' ? 'none' : '2px solid #6DA598',
+            }}
+          >
+            Situational ({grouped.situational.length})
+          </button>
+        </div>
+      </div>
+    )}
         {loading && (
           <div className="bg-white rounded-3xl p-10 shadow-2xl text-center">
             <p className="text-xl text-gray-600">Loading questions...</p>
@@ -305,7 +376,7 @@ export default function InterviewQuestionsOnly() {
         {!loading && !error && questions.length > 0 && (
           <div className="space-y-10">
             {(['behavioral', 'technical', 'situational'] as const).map((cat) => {
-              if (grouped[cat].length === 0) return null;
+              if (filteredGrouped[cat].length === 0) return null;
               return (
                 <div key={cat} className="bg-white rounded-3xl p-8 shadow-2xl">
                   <h2

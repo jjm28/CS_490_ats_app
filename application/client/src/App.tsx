@@ -80,8 +80,7 @@ function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
-  const userId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
-  useEffect(() => {
+const userId = JSON.parse(localStorage.getItem("authUser") || "{}")?.user?._id ?? null;  useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
       // we are currently ON the editor page → don't clear yet
