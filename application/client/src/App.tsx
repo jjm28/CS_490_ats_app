@@ -254,7 +254,7 @@ function App() {
           <Route
             path="/Interview-Prep"
             element={<InterviewHome/>}
-            />
+          />
           <Route path="/manage-references" element={<PrivateRoute><ManageReferences /></PrivateRoute>} />
           <Route path="/references/portfolio" element={<PrivateRoute><ReferencePortfolio /></PrivateRoute>} />
           <Route path="/peer-groups" element={<PrivateRoute><PeerGroupsPage /></PrivateRoute>} />

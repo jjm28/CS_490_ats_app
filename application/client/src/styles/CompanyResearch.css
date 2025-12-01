@@ -190,6 +190,8 @@
   flex: 1;
   width: 100%;
   box-sizing: border-box;
+  color: var(--brand-navy);
+
 }
 
 
@@ -280,7 +282,8 @@
 .section-text {
   margin: 0;
   line-height: 1.6;
-  color: #FFFFFF;
+    color: var(--brand-navy);
+
 }
 
 .section-link {
@@ -315,6 +318,7 @@
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 0.5rem;
   transition: background-color 0.2s ease;
+  
 }
 
 .news-article:hover {
@@ -324,14 +328,14 @@
 /* Metadata Line */
 .news-meta {
   font-size: 0.875rem;
-  color: #d1d5db;
+  color: var(--brand-navy);
   margin-top: 0.25rem;
 }
 
 /* Summary Text */
 .news-summary {
   font-size: 0.95rem;
-  color: #e5e7eb;
+  color: var(--brand-navy);
   margin-top: 0.5rem;
   line-height: 1.5;
 }

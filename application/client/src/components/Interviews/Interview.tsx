@@ -1,5 +1,7 @@
 // src/pages/Interview.tsx
 import { useState } from 'react';
+import MockPractice from './MockPractice';
+import '../../styles/InterviewStyles/Interview.css';
 import InterviewPrepResearch from './CompanyResearch';
 import Questions from './Questions';
 import '../../styles/InterviewPrepUI.css';
@@ -173,21 +175,37 @@ const DetailView = ({
 
 const Interview = () => {
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
+  const [activeFeature, setActiveFeature] = useState<string | null>(null); // ✅ Add this
 
   const handleCardClick = (index: number) => {
+    const card = cardData[index];
+    
+    // ✅ Check if it's Mock Interview card
+    if (card.label === 'Mock Interviews/Tech Prep') {
+      setActiveFeature('mock-interview');
+      return; // Don't set selectedCardIndex
+    }
+    
+    // For other cards, show the detail view
     setSelectedCardIndex(index);
   };
 
   const handleBack = () => {
     setSelectedCardIndex(null);
+    setActiveFeature(null); // ✅ Reset both
   };
 
-  // 🔍 Detail Mode
+  // ✅ Show Mock Interview feature
+  if (activeFeature === 'mock-interview') {
+    return <MockPractice onBack={handleBack} />;
+  }
+
+  // 🔍 Detail Mode (existing)
   if (selectedCardIndex !== null) {
     return <DetailView card={cardData[selectedCardIndex]} onBack={handleBack} />;
   }
 
-  // 📊 Grid Mode
+  // 📊 Grid Mode (existing)
   return (
     <div className="magic-bento-container">
       <div className="card-grid">
