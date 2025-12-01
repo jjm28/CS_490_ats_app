@@ -455,3 +455,87 @@ export async function fetchAccountabilityInsights(
 
   return res.json();
 }
+
+export type DiscussionReactionType = "thumbs_up" | "celebrate" | "fire";
+
+export interface DiscussionReaction {
+  userId: string;
+  type: DiscussionReactionType;
+}
+
+export interface DiscussionMessage {
+  _id: string;
+  ownerUserId: string;
+  senderUserId: string;
+  text: string;
+  contextType?: "goal" | "milestone" | "report" | "general";
+  contextId?: string | null;
+  reactions: DiscussionReaction[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchDiscussionMessages(
+  ownerId: string,
+  viewerId: string,
+  limit: number = 50
+): Promise<DiscussionMessage[]> {
+  const params = new URLSearchParams();
+  params.set("ownerId", ownerId);
+  params.set("viewerId", viewerId);
+  params.set("limit", String(limit));
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/discussion?${params.toString()}`,
+    { credentials: "include" }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load discussion messages");
+  }
+
+  return res.json();
+}
+
+export async function postDiscussionMessageApi(input: {
+  ownerUserId: string;
+  senderUserId: string;
+  text: string;
+  contextType?: "goal" | "milestone" | "report" | "general";
+  contextId?: string;
+}): Promise<DiscussionMessage> {
+  const res = await fetch(`${API_BASE}/api/job-search/discussion`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to post discussion message");
+  }
+
+  return res.json();
+}
+
+export async function reactToDiscussionMessageApi(input: {
+  messageId: string;
+  userId: string;
+  type: DiscussionReactionType;
+}): Promise<DiscussionMessage> {
+  const res = await fetch(
+    `${API_BASE}/api/job-search/discussion/${input.messageId}/react`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ userId: input.userId, type: input.type }),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to react to discussion message");
+  }
+
+  return res.json();
+}

@@ -4,6 +4,7 @@ import JobSearchMilestone from "../models/JobSharing/JobSearchMilestone.js";
 import JobSearchGoalProgress from "../models/JobSharing/JobSearchGoalProgress.js";
 import JobSharingEncouragement from "../models/JobSharing/JobSharingEncouragement.js";
 import JobSharingEngagement from "../models/JobSharing/JobSharingEngagement.js";
+import JobSharingDiscussionMessage from "../models/JobSharing/JobSharingDiscussionMessage.js";
 
 function startOfDayUTC(date) {
   const d = new Date(date);
@@ -1115,4 +1116,134 @@ export async function getAccountabilityInsights({
     suggestions,
     summaryForAi, // <-- easy hook for future AI analysis
   };
+}
+
+export async function listDiscussionMessages({
+  ownerUserId,
+  viewerUserId,
+  limit = 50,
+}) {
+  const ownerUserIdStr = String(ownerUserId);
+  const viewerUserIdStr = String(viewerUserId);
+
+  const profile = await getOrCreateSharingProfile(ownerUserIdStr);
+  const allowed = Array.isArray(profile.allowedUserIds)
+    ? profile.allowedUserIds
+    : [];
+
+  const isOwner = viewerUserIdStr === ownerUserIdStr;
+  const isPartner = allowed.includes(viewerUserIdStr);
+
+  if (!isOwner && !isPartner) {
+    const err = new Error("You are not allowed to view this discussion");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const messages = await JobSharingDiscussionMessage.find({
+    ownerUserId: ownerUserIdStr,
+  })
+    .sort({ createdAt: -1 })
+    .limit(limit);
+
+  return messages;
+}
+
+export async function postDiscussionMessage({
+  ownerUserId,
+  senderUserId,
+  text,
+  contextType,
+  contextId,
+}) {
+  const ownerUserIdStr = String(ownerUserId);
+  const senderUserIdStr = String(senderUserId);
+
+  if (!text || !text.trim()) {
+    const err = new Error("Message text is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const profile = await getOrCreateSharingProfile(ownerUserIdStr);
+  const allowed = Array.isArray(profile.allowedUserIds)
+    ? profile.allowedUserIds
+    : [];
+
+  const isOwner = senderUserIdStr === ownerUserIdStr;
+  const isPartner = allowed.includes(senderUserIdStr);
+
+  if (!isOwner && !isPartner) {
+    const err = new Error("You are not allowed to post in this discussion");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const msg = await JobSharingDiscussionMessage.create({
+    ownerUserId: ownerUserIdStr,
+    senderUserId: senderUserIdStr,
+    text: text.trim(),
+    contextType: contextType || "general",
+    contextId: contextId || null,
+    reactions: [],
+  });
+
+  return msg;
+}
+
+export async function reactToDiscussionMessage({
+  messageId,
+  userId,
+  type,
+}) {
+  const userIdStr = String(userId);
+
+  if (!messageId || !userId || !type) {
+    const err = new Error("messageId, userId, and type are required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const allowedTypes = ["thumbs_up", "celebrate", "fire"];
+  if (!allowedTypes.includes(type)) {
+    const err = new Error("Invalid reaction type");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const msg = await JobSharingDiscussionMessage.findById(messageId);
+  if (!msg) {
+    const err = new Error("Discussion message not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // permission: same as posting
+  const profile = await getOrCreateSharingProfile(msg.ownerUserId);
+  const allowed = Array.isArray(profile.allowedUserIds)
+    ? profile.allowedUserIds
+    : [];
+
+  const isOwner = userIdStr === msg.ownerUserId;
+  const isPartner = allowed.includes(userIdStr);
+
+  if (!isOwner && !isPartner) {
+    const err = new Error("You are not allowed to react in this discussion");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const existingIndex = msg.reactions.findIndex(
+    (r) => r.userId === userIdStr && r.type === type
+  );
+
+  if (existingIndex >= 0) {
+    // toggle off
+    msg.reactions.splice(existingIndex, 1);
+  } else {
+    msg.reactions.push({ userId: userIdStr, type });
+  }
+
+  await msg.save();
+  return msg;
 }

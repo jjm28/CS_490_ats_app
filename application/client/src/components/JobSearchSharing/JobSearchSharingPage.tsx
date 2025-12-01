@@ -9,7 +9,7 @@ import JobSearchPartnerEngagement from "./JobSearchPartnerEngagement.tsx";
 import JobSearchMotivationPanel from "./JobSearchMotivationPanel.tsx";
 import { ToastContainer, toast ,Bounce} from 'react-toastify';
 import JobSearchAccountabilityInsights from "./JobSearchAccountabilityInsights";
-
+import JobSearchDiscussionPanel from "./JobSearchDiscussionPanel.tsx";
 type CelebrationToast = {
   id: number;
   message: string;
@@ -82,6 +82,7 @@ transition: Bounce,
 />
       <JobSearchPartnerEngagement currentUserId={currentUserId} />
             <JobSearchAccountabilityInsights currentUserId={currentUserId} />
+      <JobSearchDiscussionPanel currentUserId={currentUserId} />
 
     </div>
   );

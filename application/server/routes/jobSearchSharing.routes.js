@@ -10,7 +10,9 @@ import {
   listEncouragementEvents,
   generateProgressReport,
   logPartnerEngagement,
-  getPartnerEngagementSummary, getMotivationStats,getAccountabilityInsights
+  getPartnerEngagementSummary, getMotivationStats,getAccountabilityInsights,listDiscussionMessages,
+  postDiscussionMessage,
+  reactToDiscussionMessage,
 } from "../services/jobSearchSharing.service.js";
 
 const router = express.Router();
@@ -352,6 +354,96 @@ router.get("/job-search/insights", async (req, res) => {
     console.error("Error getting accountability insights:", err);
     res.status(err.statusCode || 500).json({
       error: err.message || "Server error getting accountability insights",
+    });
+  }
+});
+
+/**
+ * GET /api/job-search/discussion?ownerId=...&viewerId=...&limit=50
+ */
+router.get("/job-search/discussion", async (req, res) => {
+  try {
+    const { ownerId, viewerId, limit } = req.query;
+
+    if (!ownerId || !viewerId) {
+      return res
+        .status(400)
+        .json({ error: "ownerId and viewerId are required" });
+    }
+
+    const messages = await listDiscussionMessages({
+      ownerUserId: String(ownerId),
+      viewerUserId: String(viewerId),
+      limit: limit ? Number(limit) : 50,
+    });
+
+    res.json(messages);
+  } catch (err) {
+    console.error("Error listing discussion messages:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error listing discussion messages",
+    });
+  }
+});
+
+/**
+ * POST /api/job-search/discussion
+ * Body: { ownerUserId, senderUserId, text, contextType?, contextId? }
+ */
+router.post("/job-search/discussion", async (req, res) => {
+  try {
+    const { ownerUserId, senderUserId, text, contextType, contextId } =
+      req.body || {};
+
+    if (!ownerUserId || !senderUserId) {
+      return res
+        .status(400)
+        .json({ error: "ownerUserId and senderUserId are required" });
+    }
+
+    const msg = await postDiscussionMessage({
+      ownerUserId: String(ownerUserId),
+      senderUserId: String(senderUserId),
+      text,
+      contextType,
+      contextId,
+    });
+
+    res.json(msg);
+  } catch (err) {
+    console.error("Error posting discussion message:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error posting discussion message",
+    });
+  }
+});
+
+/**
+ * POST /api/job-search/discussion/:messageId/react
+ * Body: { userId, type }
+ */
+router.post("/job-search/discussion/:messageId/react", async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { userId, type } = req.body || {};
+
+    if (!messageId || !userId || !type) {
+      return res
+        .status(400)
+        .json({ error: "messageId, userId, and type are required" });
+    }
+
+    const msg = await reactToDiscussionMessage({
+      messageId: String(messageId),
+      userId: String(userId),
+      type,
+    });
+
+    res.json(msg);
+  } catch (err) {
+    console.error("Error reacting to discussion message:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error reacting to discussion message",
     });
   }
 });
