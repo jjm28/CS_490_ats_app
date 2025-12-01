@@ -5,7 +5,7 @@ import JobSearchReportGenerator from "./JobSearchReportGenerator";
 import JobSearchEncouragementFeed from "./JobSearchEncouragementFeed";
 import Card from "../StyledComponents/Card";
 import fireConfetti from "./confetti.ts";
-
+import JobSearchPartnerEngagement from "./JobSearchPartnerEngagement.tsx";
 type CelebrationToast = {
   id: number;
   message: string;
@@ -58,6 +58,8 @@ export default function JobSearchSharingPage() {
 
       <JobSearchReportGenerator currentUserId={currentUserId} />
       <JobSearchEncouragementFeed currentUserId={currentUserId} />
+            <JobSearchPartnerEngagement currentUserId={currentUserId} />
+
     </div>
   );
 }

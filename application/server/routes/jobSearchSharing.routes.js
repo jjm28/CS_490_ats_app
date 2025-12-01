@@ -9,6 +9,8 @@ import {
   createJobSearchMilestone, 
   listEncouragementEvents,
   generateProgressReport,
+  logPartnerEngagement,
+  getPartnerEngagementSummary,
 } from "../services/jobSearchSharing.service.js";
 
 const router = express.Router();
@@ -233,6 +235,72 @@ router.get("/job-search/encouragement", async (req, res) => {
     res.status(500).json({ error: "Server error listing encouragement events" });
   }
 });
+
+
+/**
+ * POST /api/job-search/engagement/log
+ *
+ * Log an accountability partner engagement event.
+ *
+ * Body:
+ *   ownerUserId   - whose job search this is
+ *   partnerUserId - the partner who is engaging
+ *   type          - "view_progress" | "view_report" | "view_milestones" | "encouragement_reaction"
+ *   contextId?    - optional, e.g. reportId or goalId
+ */
+router.post("/job-search/engagement/log", async (req, res) => {
+  try {
+    const { ownerUserId, partnerUserId, type, contextId } = req.body || {};
+
+    if (!ownerUserId || !partnerUserId || !type) {
+      return res.status(400).json({
+        error: "ownerUserId, partnerUserId, and type are required",
+      });
+    }
+
+    const event = await logPartnerEngagement({
+      ownerUserId: String(ownerUserId),
+      partnerUserId: String(partnerUserId),
+      type,
+      contextId,
+    });
+
+    res.json(event);
+  } catch (err) {
+    console.error("Error logging partner engagement:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error logging partner engagement",
+    });
+  }
+});
+
+/**
+ * GET /api/job-search/engagement/summary?ownerId=...&sinceDays=30
+ *
+ * Returns aggregated partner engagement + simple effectiveness stats.
+ */
+router.get("/job-search/engagement/summary", async (req, res) => {
+  try {
+    const { ownerId, sinceDays } = req.query;
+
+    if (!ownerId) {
+      return res.status(400).json({ error: "ownerId is required" });
+    }
+
+    const summary = await getPartnerEngagementSummary({
+      ownerUserId: String(ownerId),
+      sinceDays: sinceDays ? Number(sinceDays) : 30,
+    });
+
+    res.json(summary);
+  } catch (err) {
+    console.error("Error getting partner engagement summary:", err);
+    res.status(err.statusCode || 500).json({
+      error: err.message || "Server error getting partner engagement summary",
+    });
+  }
+});
+
 
 export default router;
 

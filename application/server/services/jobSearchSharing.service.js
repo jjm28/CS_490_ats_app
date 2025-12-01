@@ -3,6 +3,7 @@ import JobSearchGoal from "../models/JobSharing/JobSearchGoal.js";
 import JobSearchMilestone from "../models/JobSharing/JobSearchMilestone.js";
 import JobSearchGoalProgress from "../models/JobSharing/JobSearchGoalProgress.js";
 import JobSharingEncouragement from "../models/JobSharing/JobSharingEncouragement.js";
+import JobSharingEngagement from "../models/JobSharing/JobSharingEngagement.js";
 
 
 /**
@@ -445,4 +446,147 @@ export async function listEncouragementEvents(ownerUserId, limit = 20) {
     .limit(limit);
 
   return events;
+}
+
+
+export async function logPartnerEngagement({
+  ownerUserId,
+  partnerUserId,
+  type,
+  contextId,
+}) {
+  if (!ownerUserId || !partnerUserId || !type) {
+    const err = new Error("ownerUserId, partnerUserId, and type are required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const allowedTypes = [
+    "view_progress",
+    "view_report",
+    "view_milestones",
+    "encouragement_reaction",
+  ];
+  if (!allowedTypes.includes(type)) {
+    const err = new Error("Invalid engagement type");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const event = await JobSharingEngagement.create({
+    ownerUserId,
+    partnerUserId,
+    type,
+    contextId: contextId || null,
+  });
+
+  return event;
+}
+export async function getPartnerEngagementSummary({
+  ownerUserId,
+  sinceDays = 30,
+}) {
+  const now = new Date();
+  const since = new Date(now.getTime() - sinceDays * 24 * 60 * 60 * 1000);
+
+  // Get sharing profile to know who the partners are
+  const profile = await getOrCreateSharingProfile(ownerUserId);
+  const allowedPartners = Array.isArray(profile.allowedUserIds)
+    ? profile.allowedUserIds
+    : [];
+
+  // Fetch engagement events in the window
+  const events = await JobSharingEngagement.find({
+    ownerUserId,
+    createdAt: { $gte: since, $lte: now },
+  });
+
+  // Aggregate per partner in plain JS
+  const perPartner = new Map();
+
+  for (const ev of events) {
+    const pid = ev.partnerUserId;
+    if (!perPartner.has(pid)) {
+      perPartner.set(pid, {
+        partnerUserId: pid,
+        viewsProgress: 0,
+        viewsReport: 0,
+        viewsMilestones: 0,
+        reactions: 0,
+        totalEvents: 0,
+        lastEngagedAt: null,
+      });
+    }
+
+    const agg = perPartner.get(pid);
+    if (ev.type === "view_progress") agg.viewsProgress += 1;
+    if (ev.type === "view_report") agg.viewsReport += 1;
+    if (ev.type === "view_milestones") agg.viewsMilestones += 1;
+    if (ev.type === "encouragement_reaction") agg.reactions += 1;
+
+    agg.totalEvents += 1;
+    if (!agg.lastEngagedAt || ev.createdAt > agg.lastEngagedAt) {
+      agg.lastEngagedAt = ev.createdAt;
+    }
+  }
+
+  // Ensure every allowed partner has an entry (even if no events)
+  for (const partnerId of allowedPartners) {
+    if (!perPartner.has(partnerId)) {
+      perPartner.set(partnerId, {
+        partnerUserId: partnerId,
+        viewsProgress: 0,
+        viewsReport: 0,
+        viewsMilestones: 0,
+        reactions: 0,
+        totalEvents: 0,
+        lastEngagedAt: null,
+      });
+    }
+  }
+
+  const partnerSummaries = Array.from(perPartner.values()).map((p) => {
+    const engagementScore =
+      p.viewsProgress * 1 + p.viewsReport * 2 + p.reactions * 3;
+
+    let engagementLevel = "none";
+    if (engagementScore >= 10) engagementLevel = "high";
+    else if (engagementScore >= 4) engagementLevel = "moderate";
+    else if (engagementScore >= 1) engagementLevel = "low";
+
+    return {
+      ...p,
+      engagementScore,
+      engagementLevel,
+    };
+  });
+
+  const totalEvents = events.length;
+  const engagedPartners = partnerSummaries.filter(
+    (p) => p.totalEvents > 0
+  ).length;
+
+  // For a simple "effectiveness" hint, count goals completed and milestones added in the same window
+  const goalsCompleted = await JobSearchGoal.countDocuments({
+    ownerUserId,
+    status: "completed",
+    updatedAt: { $gte: since, $lte: now },
+  });
+
+  const milestonesAdded = await JobSearchMilestone.countDocuments({
+    ownerUserId,
+    achievedAt: { $gte: since, $lte: now },
+  });
+
+  return {
+    ownerUserId,
+    since,
+    until: now,
+    totalPartners: allowedPartners.length,
+    engagedPartners,
+    totalEvents,
+    goalsCompleted,
+    milestonesAdded,
+    partners: partnerSummaries,
+  };
 }

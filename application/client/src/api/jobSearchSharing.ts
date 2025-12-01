@@ -305,3 +305,49 @@ export async function fetchEncouragementEvents(
   }
   return res.json();
 }
+
+
+
+export interface PartnerEngagementItem {
+  partnerUserId: string;
+  viewsProgress: number;
+  viewsReport: number;
+  viewsMilestones: number;
+  reactions: number;
+  totalEvents: number;
+  lastEngagedAt: string | null;
+  engagementScore: number;
+  engagementLevel: "none" | "low" | "moderate" | "high" | string;
+}
+
+export interface PartnerEngagementSummary {
+  ownerUserId: string;
+  since: string;
+  until: string;
+  totalPartners: number;
+  engagedPartners: number;
+  totalEvents: number;
+  goalsCompleted: number;
+  milestonesAdded: number;
+  partners: PartnerEngagementItem[];
+}
+
+export async function fetchPartnerEngagementSummary(
+  ownerId: string,
+  sinceDays: number = 30
+): Promise<PartnerEngagementSummary> {
+  const params = new URLSearchParams();
+  params.set("ownerId", ownerId);
+  params.set("sinceDays", String(sinceDays));
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/engagement/summary?${params.toString()}`,
+    { credentials: "include" }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load partner engagement summary");
+  }
+
+  return res.json();
+}
