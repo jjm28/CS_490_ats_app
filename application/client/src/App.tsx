@@ -73,14 +73,13 @@ import SalaryProgressDetail from "./components/Analytics/Salary/SalaryProgressDe
 import CompProgressDetail from "./components/Analytics/Salary/CompProgressDetail";
 import GoalNew from "./components/Analytics/SmartGoals/GoalNew";
 import JobCompetitiveAnalysisDashboard from "./components/Jobs/JobCompetitiveAnalysisDashboard";
-
+import JobSearchSharingPage from './components/JobSearchSharing/JobSearchSharingPage';
 
 import SupportPage from './components/Support/SupportPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
-  const userId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -203,7 +202,7 @@ function App() {
   path="/support"
   element={
     <PrivateRoute>
-      <SupportPage userId={userId} />
+      <SupportPage/>
     </PrivateRoute>
   }
 />
@@ -248,7 +247,14 @@ function App() {
             path="/Jobs/CompetitiveAnalysis"
             element={<PrivateRoute><JobCompetitiveAnalysisDashboard /></PrivateRoute>}
           />
-
+        <Route
+          path="/job-search/sharing"
+          element={
+            <PrivateRoute>
+              <JobSearchSharingPage />
+            </PrivateRoute>
+          }
+  />
         </Routes>
 
       </div>

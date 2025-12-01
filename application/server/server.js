@@ -42,6 +42,8 @@ import jobSalaryRoutes from "./routes/jobs-salary.js";
 import smartGoalsRoutes from "./routes/smartGoals.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import salaryRoutes from  "./routes/salary.js"
+import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
+
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -138,6 +140,8 @@ try {
 
   //competitive applicant analysis
   app.use("/api/competitive-analysis", attachDevUser,competitiveAnalysisRouter);
+
+  app.use("/api", jobSearchSharingRoutes);
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
