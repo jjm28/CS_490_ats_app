@@ -182,6 +182,13 @@ function Navbar() {
                 className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                   Family Support
                   </NavLink>
+
+                  <NavLink
+                    to="/networking"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Networking Hub
+                  </NavLink>
                 {/* DIVIDER */}
                 <div className="border-t border-gray-200 my-2"></div>
 
