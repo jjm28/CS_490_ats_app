@@ -6,13 +6,13 @@ import WellbeingCheckinPanel from "./WellbeingCheckinPanel";
 import WellbeingSupportPanel from "./WellbeingSupportPanel";
 import MySupportedPeople from "./MySupportedPeople";
 
-interface Props {
-  userId: string;
-}
+
 
 type SupportTab = "network" | "wellbeing" | "supporting";
 
-export default function SupportPage({ userId }: Props) {
+export default function SupportPage() {
+    const userId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
+  
   const [activeTab, setActiveTab] = useState<SupportTab>("network");
 
   return (
