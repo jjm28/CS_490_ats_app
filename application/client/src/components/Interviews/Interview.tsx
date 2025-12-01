@@ -1,7 +1,8 @@
 // src/pages/Interview.tsx
 import { useState } from 'react';
 import InterviewPrepResearch from './CompanyResearch';
-import '../../styles/Interview.css';
+import Questions from './Questions';
+import '../../styles/InterviewPrepUI.css';
 
 type CardData = {
   label: string;
@@ -9,7 +10,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | null; // Add component type
+  component?: 'research' | 'questions' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -27,7 +28,7 @@ const cardData: CardData[] = [
     description: 'Tailored questions for your position',
     color: '#0E3B43',
     details: 'Get a database of real interview questions asked for this exact role at this company. Filter by round (phone screen, onsite), experience level, and question type (coding, behavioral, system design).',
-    component: null
+    component: 'questions' // Link to questions component
   },
   {
     label: 'AI Coaching',
@@ -100,6 +101,9 @@ const DetailView = ({
   // If the card has a component, render it
   if (card.component === 'research') {
     return <InterviewPrepResearch onBack={onBack} />;
+  }
+  if (card.component === 'questions') {
+    return <Questions onBack={onBack} />;
   }
 
   // Otherwise, show the default detail view

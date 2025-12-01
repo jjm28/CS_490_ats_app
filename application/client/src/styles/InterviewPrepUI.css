@@ -43,6 +43,8 @@
   border-radius: 20px;
   border: 1px solid var(--border-color);
   background: var(--background-dark);
+  font-family: 'League Spartan', system-ui, sans-serif;
+
   font-weight: 300;
   overflow: hidden;
   transition: all 0.3s ease;
