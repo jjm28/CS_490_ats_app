@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import InterviewPrepResearch from './CompanyResearch';
 import '../../styles/Interview.css';
+import InterviewPrepChecklist from './InterviewPrepChecklist';
 
 type CardData = {
   label: string;
@@ -9,7 +10,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | null; // Add component type
+  component?: 'research' | 'checklist' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -60,7 +61,15 @@ const cardData: CardData[] = [
     color: '#0E3B43',
     details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
     component: null
-  }
+  },
+  {
+    label: 'Preparation',
+    title: 'Preparation Checklist',
+    description: 'Customized prep tasks for each interview',
+    color: '#0E3B43',
+    details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
+    component: 'checklist' // 🆕 Add this
+  },
 ];
 
 type InterviewCardProps = {
@@ -100,6 +109,10 @@ const DetailView = ({
   // If the card has a component, render it
   if (card.component === 'research') {
     return <InterviewPrepResearch onBack={onBack} />;
+  }
+
+  if (card.component === 'checklist') {
+    return <InterviewPrepChecklist onBack={onBack} />;
   }
 
   // Otherwise, show the default detail view

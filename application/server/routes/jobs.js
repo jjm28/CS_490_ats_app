@@ -23,7 +23,8 @@ import {
   addApplicationHistory,
   updateApplicationHistory,
   deleteApplicationHistory,
-  getJobStats
+  getJobStats,
+  generateChecklistItems
 } from "../services/jobs.service.js";
 import {
   getUserPreferences,
@@ -430,6 +431,142 @@ router.patch("/:id/interview/eventId", async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to save eventId:", err);
     res.status(500).json({ error: "Failed to save eventId" });
+  }
+});
+
+// ============================================
+// UC-081: PRE-INTERVIEW PREPARATION CHECKLIST
+// ============================================
+
+/**
+ * POST /api/jobs/:id/interview/:interviewId/generate-checklist
+ * Generate a personalized preparation checklist for an interview
+ */
+router.post("/:id/interview/:interviewId/generate-checklist", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { id: jobId, interviewId } = req.params;
+    
+    // Fetch the job to get context
+    const job = await Jobs.findOne({ _id: jobId, userId });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    // Find the specific interview
+    const interview = job.interviews.find(i => i._id.toString() === interviewId);
+    if (!interview) return res.status(404).json({ error: "Interview not found" });
+    
+    // Check if checklist already exists
+    if (interview.preparationChecklist?.items?.length > 0) {
+      return res.status(200).json({ 
+        message: "Checklist already exists",
+        checklist: interview.preparationChecklist 
+      });
+    }
+    
+    // Generate checklist items based on job and interview context
+    const checklistItems = generateChecklistItems(job, interview);
+    
+    // Initialize the checklist
+    interview.preparationChecklist = {
+      items: checklistItems,
+      generatedAt: new Date(),
+      lastUpdatedAt: new Date()
+    };
+    
+    await job.save();
+    
+    res.status(201).json({
+      message: "Checklist generated successfully",
+      checklist: interview.preparationChecklist
+    });
+    
+  } catch (err) {
+    console.error("Error generating checklist:", err);
+    res.status(500).json({ error: err.message || "Failed to generate checklist" });
+  }
+});
+
+/**
+ * PATCH /api/jobs/:id/interview/:interviewId/checklist/:itemId
+ * Toggle completion status of a checklist item
+ */
+router.patch("/:id/interview/:interviewId/checklist/:itemId", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { id: jobId, interviewId, itemId } = req.params;
+    const { completed } = req.body;
+    
+    const job = await Jobs.findOne({ _id: jobId, userId });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    const interview = job.interviews.find(i => i._id.toString() === interviewId);
+    if (!interview) return res.status(404).json({ error: "Interview not found" });
+    
+    if (!interview.preparationChecklist?.items) {
+      return res.status(404).json({ error: "Checklist not found. Generate it first." });
+    }
+    
+    // Find and update the specific item
+    const item = interview.preparationChecklist.items.find(i => i.id === itemId);
+    if (!item) return res.status(404).json({ error: "Checklist item not found" });
+    
+    item.completed = completed;
+    item.completedAt = completed ? new Date() : null;
+    interview.preparationChecklist.lastUpdatedAt = new Date();
+    
+    await job.save();
+    
+    res.json({
+      message: "Checklist item updated",
+      item: item,
+      checklist: interview.preparationChecklist
+    });
+    
+  } catch (err) {
+    console.error("Error updating checklist item:", err);
+    res.status(500).json({ error: err.message || "Failed to update checklist item" });
+  }
+});
+
+/**
+ * GET /api/jobs/:id/interview/:interviewId/checklist
+ * Get the preparation checklist for an interview
+ */
+router.get("/:id/interview/:interviewId/checklist", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { id: jobId, interviewId } = req.params;
+    
+    const job = await Jobs.findOne({ _id: jobId, userId }).lean();
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    const interview = job.interviews.find(i => i._id.toString() === interviewId);
+    if (!interview) return res.status(404).json({ error: "Interview not found" });
+    
+    if (!interview.preparationChecklist) {
+      return res.status(404).json({ 
+        error: "Checklist not generated yet",
+        checklistExists: false 
+      });
+    }
+    
+    res.json({
+      checklist: interview.preparationChecklist,
+      interviewDate: interview.date,
+      interviewType: interview.type,
+      company: job.company,
+      jobTitle: job.jobTitle
+    });
+    
+  } catch (err) {
+    console.error("Error fetching checklist:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch checklist" });
   }
 });
 

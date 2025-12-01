@@ -398,3 +398,328 @@ export async function deleteApplicationHistory({ userId, id, historyIndex }) {
     throw err;
   }
 }
+
+/**
+ * Get all upcoming interviews for a user across all jobs
+ */
+export async function getUpcomingInterviews({ userId }) {
+  try {
+    const now = new Date();
+    const jobs = await Jobs.find({ 
+      userId, 
+      archived: { $ne: true },
+      'interviews.0': { $exists: true } // Only get jobs that have interviews
+    }).lean();
+
+    const upcomingInterviews = [];
+
+    for (const job of jobs) {
+      if (job.interviews && job.interviews.length > 0) {
+        for (const interview of job.interviews) {
+          const interviewDate = new Date(interview.date);
+          
+          // Only include future interviews
+          if (interviewDate >= now) {
+            upcomingInterviews.push({
+              _id: interview._id.toString(),
+              jobId: job._id.toString(),
+              company: job.company,
+              jobTitle: job.jobTitle,
+              type: interview.type,
+              date: interview.date,
+              interviewer: interview.interviewer,
+              locationOrLink: interview.locationOrLink,
+              preparationChecklist: interview.preparationChecklist,
+              hasChecklist: interview.preparationChecklist?.items?.length > 0 || false,
+            });
+          }
+        }
+      }
+    }
+
+    // Sort by date (soonest first)
+    upcomingInterviews.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    return upcomingInterviews;
+  } catch (err) {
+    console.error("Error fetching upcoming interviews:", err);
+    throw err;
+  }
+}
+
+/**
+ * Generate checklist items for an interview
+ */
+export function generateChecklistItems(job, interview) {
+  const items = [];
+  let order = 1;
+  const jobTitleLower = job.jobTitle?.toLowerCase() || '';
+  
+  // RESEARCH CATEGORY
+  items.push({
+    id: 'research-company-mission',
+    category: 'research',
+    task: `Review ${job.company}'s mission, values, and company culture`,
+    completed: false,
+    order: order++
+  });
+  
+  items.push({
+    id: 'research-recent-news',
+    category: 'research',
+    task: `Research recent news and developments about ${job.company}`,
+    completed: false,
+    order: order++
+  });
+  
+  if (interview.interviewer) {
+    items.push({
+      id: 'research-interviewer',
+      category: 'research',
+      task: `Look up ${interview.interviewer} on LinkedIn and review their background`,
+      completed: false,
+      order: order++
+    });
+  }
+  
+  items.push({
+    id: 'research-competitors',
+    category: 'research',
+    task: `Understand ${job.company}'s competitive landscape and market position`,
+    completed: false,
+    order: order++
+  });
+  
+  // LOGISTICS CATEGORY
+  if (interview.type === 'video') {
+    items.push({
+      id: 'logistics-tech-check',
+      category: 'logistics',
+      task: 'Test camera, microphone, and internet connection',
+      completed: false,
+      order: order++
+    });
+    
+    items.push({
+      id: 'logistics-background',
+      category: 'logistics',
+      task: 'Prepare professional background and lighting for video call',
+      completed: false,
+      order: order++
+    });
+  }
+  
+  if (interview.type === 'in-person') {
+    items.push({
+      id: 'logistics-directions',
+      category: 'logistics',
+      task: `Plan route and travel time to ${interview.locationOrLink || 'interview location'}`,
+      completed: false,
+      order: order++
+    });
+    
+    items.push({
+      id: 'logistics-attire',
+      category: 'logistics',
+      task: 'Choose and prepare professional attire appropriate for company culture',
+      completed: false,
+      order: order++
+    });
+
+    // Enhanced attire suggestion
+    const companyName = job.company?.toLowerCase() || '';
+    let attireGuidance = 'Choose and prepare professional attire';
+    
+    // Check for startup indicators
+    if (companyName.includes('startup') || 
+        job.companySize === 'Small' || 
+        jobTitleLower.includes('founder')) {
+      attireGuidance += ' (business casual likely appropriate for startup culture)';
+    } 
+    // Check for corporate indicators
+    else if (companyName.includes('bank') || 
+            companyName.includes('consulting') || 
+            companyName.includes('finance') ||
+            companyName.includes('law')) {
+      attireGuidance += ' (business formal recommended for corporate environment)';
+    }
+    // Tech companies
+    else if (jobTitleLower.includes('engineer') || jobTitleLower.includes('developer')) {
+      attireGuidance += ' (smart casual is often appropriate for tech roles)';
+    }
+    
+    items.push({
+      id: 'logistics-attire',
+      category: 'logistics',
+      task: attireGuidance,
+      completed: false,
+      order: order++
+    });
+  }
+  
+  items.push({
+    id: 'logistics-materials',
+    category: 'logistics',
+    task: 'Have copies of resume, portfolio, and notepad ready',
+    completed: false,
+    order: order++
+  });
+  
+  // MATERIALS CATEGORY
+  items.push({
+    id: 'materials-resume-review',
+    category: 'materials',
+    task: 'Review your resume and be ready to discuss each experience',
+    completed: false,
+    order: order++
+  });
+  
+  items.push({
+    id: 'materials-questions',
+    category: 'materials',
+    task: `Prepare 3-5 thoughtful questions to ask about ${job.jobTitle} role`,
+    completed: false,
+    order: order++
+  });
+  
+  items.push({
+    id: 'materials-examples',
+    category: 'materials',
+    task: 'Prepare specific examples demonstrating key skills for this role',
+    completed: false,
+    order: order++
+  });
+  
+  // PRACTICE CATEGORY
+  items.push({
+    id: 'practice-common-questions',
+    category: 'practice',
+    task: 'Practice answers to common interview questions (Tell me about yourself, strengths/weaknesses)',
+    completed: false,
+    order: order++
+  });
+  
+  items.push({
+    id: 'practice-star-method',
+    category: 'practice',
+    task: 'Practice behavioral responses using STAR method (Situation, Task, Action, Result)',
+    completed: false,
+    order: order++
+  });
+  
+  if (jobTitleLower.includes('engineer') || 
+      jobTitleLower.includes('developer') ||
+      jobTitleLower.includes('technical')) {
+    items.push({
+      id: 'practice-technical',
+      category: 'practice',
+      task: 'Review technical concepts and practice coding challenges relevant to the role',
+      completed: false,
+      order: order++
+    });
+  }
+
+  // Design roles
+  if (jobTitleLower.includes('designer') || jobTitleLower.includes('ux') || jobTitleLower.includes('ui')) {
+    items.push({
+      id: 'materials-portfolio-design',
+      category: 'materials',
+      task: 'Prepare design portfolio with 3-5 best projects and be ready to discuss design decisions',
+      completed: false,
+      order: order++
+    });
+  }
+
+  // Sales/Business roles
+  if (jobTitleLower.includes('sales') || jobTitleLower.includes('business development') || jobTitleLower.includes('account')) {
+    items.push({
+      id: 'practice-sales-pitch',
+      category: 'practice',
+      task: 'Practice your elevator pitch and prepare examples of successful deals/relationships',
+      completed: false,
+      order: order++
+    });
+  }
+
+  // Product Manager roles
+  if (jobTitleLower.includes('product manager') || jobTitleLower.includes('product owner')) {
+    items.push({
+      id: 'practice-product-case',
+      category: 'practice',
+      task: 'Practice product case studies and be ready to discuss prioritization frameworks',
+      completed: false,
+      order: order++
+    });
+  }
+
+  // Data/Analytics roles
+  if (jobTitleLower.includes('data') || jobTitleLower.includes('analyst') || jobTitleLower.includes('analytics')) {
+    items.push({
+      id: 'practice-data-case',
+      category: 'practice',
+      task: 'Prepare to discuss data projects and analytical approaches you\'ve used',
+      completed: false,
+      order: order++
+    });
+  }
+  
+  // MINDSET CATEGORY (enhanced)
+  items.push({
+    id: 'mindset-achievements',
+    category: 'mindset',
+    task: 'Review your key achievements and remind yourself of your value',
+    completed: false,
+    order: order++
+  });
+
+  // 🆕 Specific exercises
+  items.push({
+    id: 'mindset-breathing-exercise',
+    category: 'mindset',
+    task: 'Practice box breathing (4-4-4-4) to manage interview nerves',
+    completed: false,
+    order: order++
+  });
+
+  items.push({
+    id: 'mindset-power-pose',
+    category: 'mindset',
+    task: 'Do a 2-minute power pose before the interview to boost confidence',
+    completed: false,
+    order: order++
+  });
+
+  items.push({
+    id: 'mindset-visualization',
+    category: 'mindset',
+    task: 'Visualize a successful interview outcome and positive interactions',
+    completed: false,
+    order: order++
+  });
+
+  items.push({
+    id: 'mindset-sleep',
+    category: 'mindset',
+    task: 'Get good rest the night before the interview',
+    completed: false,
+    order: order++
+  });
+
+  items.push({
+    id: 'mindset-arrive-early',
+    category: 'mindset',
+    task: 'Plan to arrive/log in 10-15 minutes early',
+    completed: false,
+    order: order++
+  });
+
+  items.push({
+    id: 'follow-up-thank-you',
+    category: 'mindset', // Keep in mindset for now
+    task: 'Send thank-you email within 24 hours of interview',
+    completed: false,
+    order: order++
+  });
+  
+  return items;
+}

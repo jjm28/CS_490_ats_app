@@ -1,14 +1,82 @@
 // server/routes/interviews.js
 import express from "express";
 import Jobs from "../models/jobs.js"; // path to your Jobs model
+import { verifyJWT } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// function getUserId(req) {
+//   // In dev you’ve been using x-dev-user-id on the client
+//   // If you also have auth middleware, you can prefer req.user._id
+//   return req.user?._id || req.headers["x-dev-user-id"];
+// }
+
+router.use((req, res, next) => {
+  if (req.headers["x-dev-user-id"]) {
+    req.user = { _id: req.headers["x-dev-user-id"] };
+    return next();
+  }
+  verifyJWT(req, res, next);
+});
+
 function getUserId(req) {
-  // In dev you’ve been using x-dev-user-id on the client
-  // If you also have auth middleware, you can prefer req.user._id
-  return req.user?._id || req.headers["x-dev-user-id"];
+  if (req.user?._id) return req.user._id.toString();
+  if (req.user?.id) return req.user.id.toString();
+  const dev = req.headers["x-dev-user-id"];
+  return dev ? dev.toString() : null;
 }
+
+function getDevId(req) {
+  const dev = req.headers["x-dev-user-id"];
+  return dev ? dev.toString() : null;
+}
+
+router.get("/upcoming", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(400).json({ error: "Missing user id" });
+    }
+
+    // Fetch all jobs for this user
+    const jobs = await Jobs.find({ userId, archived: { $ne: true } }).lean();
+
+    const upcomingInterviews = [];
+    const now = new Date();
+
+    for (const job of jobs) {
+      if (job.interviews && job.interviews.length > 0) {
+        for (const interview of job.interviews) {
+          const interviewDate = new Date(interview.date);
+          
+          // Only include future interviews
+          if (interviewDate >= now) {
+            upcomingInterviews.push({
+              _id: interview._id.toString(),
+              jobId: job._id.toString(),
+              company: job.company,
+              jobTitle: job.jobTitle,
+              type: interview.type,
+              date: interview.date,
+              interviewer: interview.interviewer,
+              locationOrLink: interview.locationOrLink,
+              preparationChecklist: interview.preparationChecklist,
+              hasChecklist: interview.preparationChecklist?.items?.length > 0 || false,
+            });
+          }
+        }
+      }
+    }
+
+    // Sort by date (soonest first)
+    upcomingInterviews.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    res.json(upcomingInterviews);
+  } catch (err) {
+    console.error("❌ Error fetching upcoming interviews:", err);
+    res.status(500).json({ error: "Failed to fetch upcoming interviews" });
+  }
+});
 
 router.get("/analytics", async (req, res) => {
   try {

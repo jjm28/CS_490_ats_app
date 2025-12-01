@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import API_BASE from "../../utils/apiBase";
 import Button from "../StyledComponents/Button";
+import InterviewChecklist from "../Interviews/InterviewChecklist";
 import {
   initGapi,
   signIn,
@@ -20,6 +21,18 @@ interface Interview {
   interviewer?: string;
   contactInfo?: string;
   eventId?: string;
+  preparationChecklist?: {
+    items: Array<{
+      id: string;
+      category: "research" | "logistics" | "materials" | "practice" | "mindset";
+      task: string;
+      completed: boolean;
+      completedAt?: Date;
+      order: number;
+    }>;
+    generatedAt: Date;
+    lastUpdatedAt: Date;
+  };
 }
 
 async function moveJobToInterviewStage(jobId: string, token: string) {
@@ -121,7 +134,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       ).toISOString();
 
       const hasConflict = await checkCalendarConflicts(startISO, endISO);
-      if (hasConflict && !confirm("⚠️ Conflict detected. Continue anyway?")) return;
+      if (hasConflict && !confirm("⚠️ Conflict detected. Continue anyway?"))
+        return;
     }
 
     try {
@@ -160,7 +174,9 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             await updateCalendarEvent((currentInterview as any).eventId, form);
             alert("Interview and calendar event updated ✅");
           } else {
-            console.warn("⚠️ No eventId found for this interview, cannot update calendar");
+            console.warn(
+              "⚠️ No eventId found for this interview, cannot update calendar"
+            );
           }
         } else {
           // ✅ Create new calendar event and save its ID
@@ -186,7 +202,6 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         }
       }
 
-
       // ✅ Reset form
       setForm({
         type: "phone",
@@ -197,12 +212,10 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         contactInfo: "",
       });
       setEditingId(null);
-
     } catch (err) {
       console.error("Error saving interview:", err);
     }
   };
-
 
   /** ✅ Delete Interview **/
   const handleDelete = async (interviewId: string) => {
@@ -225,7 +238,9 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             await deleteCalendarEvent(interview.eventId);
             console.log("✅ Deleted Google event:", interview.eventId);
           } else {
-            console.warn("⚠️ No eventId for this interview — skipping Google Calendar delete");
+            console.warn(
+              "⚠️ No eventId for this interview — skipping Google Calendar delete"
+            );
           }
         }
         await fetchInterviews();
@@ -366,7 +381,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         </Button>
       </div>
 
-      {/* ✅ Preparation Checklist */}
+      {/* ✅ Preparation Checklist
       {prepTasks.length > 0 && (
         <div className="mt-6 bg-blue-50 border border-blue-200 p-4 rounded">
           <h5 className="font-semibold mb-2">Preparation Checklist</h5>
@@ -376,7 +391,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             ))}
           </ul>
         </div>
-      )}
+      )} */}
 
       {/* ✅ Scheduled Interviews List */}
       {interviews.length > 0 && (
@@ -449,6 +464,16 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                         <option value="pending">Awaiting feedback</option>
                       </select>
                     </div>
+                  )}
+
+                  {!isPast && (
+                    <InterviewChecklist
+                      jobId={jobId}
+                      interviewId={i._id!}
+                      checklist={i.preparationChecklist}
+                      onChecklistUpdate={fetchInterviews}
+                      compact={false}
+                    />
                   )}
                 </li>
               );

@@ -210,6 +210,22 @@ const JobSchema = new Schema({
             },
             reminderSent: { type: Boolean, default: false },
             eventId: { type: String, default: "" },
+            preparationChecklist: {
+                items: [{
+                    id: { type: String, required: true },
+                    category: { 
+                        type: String, 
+                        enum: ['research', 'logistics', 'materials', 'practice', 'mindset'],
+                        required: true 
+                    },
+                    task: { type: String, required: true },
+                    completed: { type: Boolean, default: false },
+                    completedAt: { type: Date },
+                    order: { type: Number, required: true } 
+                }],
+                generatedAt: { type: Date },
+                lastUpdatedAt: { type: Date }
+            }
         },
     ],
     source: {
