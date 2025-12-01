@@ -75,12 +75,10 @@ import productivityRoutes from "./routes/productivity.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
+import salaryRoutes from  "./routes/salary.js"
+import networkingRoutes from "./routes/networking.js";
+import outreachRoutes from "./routes/outreach.js";
 
-//
-// ===============================
-// ⚙️ APP CONFIG
-// ===============================
-//
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -165,9 +163,9 @@ try {
   app.use('/api/resume-templates', attachDevUser, templatesRoute);
   app.use("/api/resume-versions", resumeVersionsRouter);
 
-  // ⚙️ AUTOMATION
-  app.use("/api/automation", automationRoutes);
-  startAutomationRunner();
+  //networking 
+  app.use("/api/networking", networkingRoutes);
+  app.use("/api/networking/outreach", outreachRoutes);
 
   // 🔔 NOTIFICATIONS (Must be after DB)
   setupNotificationCron();
