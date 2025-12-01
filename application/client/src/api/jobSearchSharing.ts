@@ -275,3 +275,33 @@ export async function generateProgressReportApi(params: {
 
   return res.json();
 }
+
+export interface EncouragementEvent {
+  _id: string;
+  ownerUserId: string;
+  sourceUserId: string;
+  type: "goal_completed" | "milestone_added" | "streak" | "custom" | string;
+  targetGoalId?: string;
+  targetMilestoneId?: string;
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchEncouragementEvents(
+  userId: string,
+  limit: number = 20
+): Promise<EncouragementEvent[]> {
+  const params = new URLSearchParams();
+  params.set("userId", userId);
+  params.set("limit", String(limit));
+
+  const res = await fetch(
+    `${API_BASE}/api/job-search/encouragement?${params.toString()}`,
+    { credentials: "include" }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to load encouragement events");
+  }
+  return res.json();
+}

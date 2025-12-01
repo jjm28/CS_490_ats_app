@@ -15,9 +15,10 @@ import {
 
 interface Props {
   currentUserId: string;
+  onCelebrate?: (message: string) => void; // changed to accept message
 }
 
-export default function JobSearchProgressPanel({ currentUserId }: Props) {
+export default function JobSearchProgressPanel({ currentUserId, onCelebrate }: Props) {
   const [goals, setGoals] = useState<JobSearchGoal[]>([]);
   const [milestones, setMilestones] = useState<JobSearchMilestone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,46 +98,66 @@ export default function JobSearchProgressPanel({ currentUserId }: Props) {
     }));
   };
 
-  const handleAddGoalProgress = async (goal: JobSearchGoal) => {
-    const input = goalProgressInputs[goal._id] || { delta: "", note: "" };
-    const deltaNum = Number(input.delta);
-    if (!deltaNum || isNaN(deltaNum)) return;
+const handleAddGoalProgress = async (goal: JobSearchGoal) => {
+  const input = goalProgressInputs[goal._id] || { delta: "", note: "" };
+  const deltaNum = Number(input.delta);
+  if (!deltaNum || isNaN(deltaNum)) return;
 
-    try {
-      const { goal: updatedGoal } = await addGoalProgressApi(currentUserId, goal._id, {
+  const wasCompletedBefore = goal.status === "completed";
+
+  try {
+    const { goal: updatedGoal } = await addGoalProgressApi(
+      currentUserId,
+      goal._id,
+      {
         delta: deltaNum,
         note: input.note,
-      });
+      }
+    );
 
-      setGoals((prev) =>
-        prev.map((g) => (g._id === updatedGoal._id ? updatedGoal : g))
-      );
+    setGoals((prev) =>
+      prev.map((g) => (g._id === updatedGoal._id ? updatedGoal : g))
+    );
 
-      setGoalProgressInputs((prev) => ({
-        ...prev,
-        [goal._id]: { delta: "", note: "" },
-      }));
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Error updating goal progress");
+    setGoalProgressInputs((prev) => ({
+      ...prev,
+      [goal._id]: { delta: "", note: "" },
+    }));
+
+    // only celebrate when it *just* became completed
+    if (!wasCompletedBefore && updatedGoal.status === "completed" && onCelebrate) {
+      const title = updatedGoal.title || "your goal";
+      onCelebrate(`Goal completed: "${title}"`);
     }
-  };
+  } catch (err: any) {
+    console.error(err);
+    setError(err.message || "Error updating goal progress");
+  }
+};
 
-  const handleCreateMilestone = async () => {
-    try {
-      if (!newMilestoneTitle.trim()) return;
-      const milestone = await createMilestone(currentUserId, {
-        title: newMilestoneTitle.trim(),
-        description: newMilestoneDescription.trim(),
-      });
-      setMilestones((prev) => [milestone, ...prev]);
-      setNewMilestoneTitle("");
-      setNewMilestoneDescription("");
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Error creating milestone");
+const handleCreateMilestone = async () => {
+  try {
+    if (!newMilestoneTitle.trim()) return;
+
+    const title = newMilestoneTitle.trim();
+
+    const milestone = await createMilestone(currentUserId, {
+      title,
+      description: newMilestoneDescription.trim(),
+    });
+
+    setMilestones((prev) => [milestone, ...prev]);
+    setNewMilestoneTitle("");
+    setNewMilestoneDescription("");
+
+    if (onCelebrate) {
+      onCelebrate(`Milestone added: "${title}"`);
     }
-  };
+  } catch (err: any) {
+    console.error(err);
+    setError(err.message || "Error creating milestone");
+  }
+};
 
   if (loading) {
     return (

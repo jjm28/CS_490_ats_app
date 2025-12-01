@@ -2,6 +2,7 @@ import JobSearchSharingProfile from "../models/JobSharing/JobSearchSharingProfil
 import JobSearchGoal from "../models/JobSharing/JobSearchGoal.js";
 import JobSearchMilestone from "../models/JobSharing/JobSearchMilestone.js";
 import JobSearchGoalProgress from "../models/JobSharing/JobSearchGoalProgress.js";
+import JobSharingEncouragement from "../models/JobSharing/JobSharingEncouragement.js";
 
 
 /**
@@ -150,6 +151,8 @@ export async function addGoalProgress({
     throw err;
   }
 
+  const wasCompletedBefore = goal.status === "completed";
+
   goal.currentValue += increment;
 
   if (goal.currentValue >= goal.targetValue && goal.status === "active") {
@@ -165,6 +168,17 @@ export async function addGoalProgress({
     newValue: goal.currentValue,
     note: note || "",
   });
+
+  // NEW: encouragement when goal becomes completed (only once)
+  if (!wasCompletedBefore && goal.status === "completed") {
+    const title = goal.title || "your goal";
+    await createEncouragementEvent({
+      ownerUserId,
+      type: "goal_completed",
+      targetGoalId: goal._id.toString(),
+      message: `You completed your goal: "${title}". Amazing work!`,
+    });
+  }
 
   return { goal, progressEntry };
 }
@@ -186,6 +200,8 @@ export async function incrementApplicationGoalsForUser(ownerUserId, note) {
 
   const results = [];
   for (const goal of applicationGoals) {
+    const wasCompletedBefore = goal.status === "completed";
+
     goal.currentValue += 1;
     if (goal.currentValue >= goal.targetValue && goal.status === "active") {
       goal.status = "completed";
@@ -200,11 +216,23 @@ export async function incrementApplicationGoalsForUser(ownerUserId, note) {
       note: note || "Incremented automatically when a new job was added",
     });
 
+    // encouragement when auto-completion happens
+    if (!wasCompletedBefore && goal.status === "completed") {
+      const title = goal.title || "your goal";
+      await createEncouragementEvent({
+        ownerUserId,
+        type: "goal_completed",
+        targetGoalId: goal._id.toString(),
+        message: `You completed your goal: "${title}" by adding applications. Nice work!`,
+      });
+    }
+
     results.push({ goal, progressEntry });
   }
 
   return results;
 }
+
 
 // ---------- MILESTONES ----------
 
@@ -238,8 +266,17 @@ export async function createJobSearchMilestone({
     type: type || null,
   });
 
+  // NEW: encouragement event for milestone
+  await createEncouragementEvent({
+    ownerUserId,
+    type: "milestone_added",
+    targetMilestoneId: milestone._id.toString(),
+    message: `New milestone: "${title}". Big step forward!`,
+  });
+
   return milestone;
 }
+
 
 
 function applyScopesToReport(report, scopes) {
@@ -373,4 +410,39 @@ export async function generateProgressReport({
   const finalReport = applyScopesToReport(baseReport, effectiveScopes);
 
   return finalReport;
+}
+
+
+export async function createEncouragementEvent({
+  ownerUserId,
+  sourceUserId = "system",
+  type,
+  targetGoalId,
+  targetMilestoneId,
+  message,
+}) {
+  if (!ownerUserId || !type || !message) {
+    const err = new Error("ownerUserId, type and message are required for encouragement");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const event = await JobSharingEncouragement.create({
+    ownerUserId,
+    sourceUserId,
+    type,
+    targetGoalId: targetGoalId || null,
+    targetMilestoneId: targetMilestoneId || null,
+    message,
+  });
+
+  return event;
+}
+
+export async function listEncouragementEvents(ownerUserId, limit = 20) {
+  const events = await JobSharingEncouragement.find({ ownerUserId })
+    .sort({ createdAt: -1 })
+    .limit(limit);
+
+  return events;
 }

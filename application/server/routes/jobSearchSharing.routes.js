@@ -7,7 +7,7 @@ import {
   addGoalProgress,
   listJobSearchMilestones,
   createJobSearchMilestone, 
-  
+  listEncouragementEvents,
   generateProgressReport,
 } from "../services/jobSearchSharing.service.js";
 
@@ -209,6 +209,28 @@ router.post("/job-search/reports/generate", async (req, res) => {
     res.status(err.statusCode || 500).json({
       error: err.message || "Server error generating progress report",
     });
+  }
+});
+/**
+ * GET /api/job-search/encouragement?userId=...
+ * List recent encouragement events for a user.
+ */
+router.get("/job-search/encouragement", async (req, res) => {
+  try {
+    const { userId, limit } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const events = await listEncouragementEvents(
+      String(userId),
+      limit ? Number(limit) : 20
+    );
+
+    res.json(events);
+  } catch (err) {
+    console.error("Error listing encouragement events:", err);
+    res.status(500).json({ error: "Server error listing encouragement events" });
   }
 });
 
