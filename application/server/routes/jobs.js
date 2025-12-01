@@ -337,7 +337,7 @@ router.post("/:id/interview", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const { type, date, locationOrLink, notes, interviewer, contactInfo } = req.body;
+    const { type, date, locationOrLink, notes, interviewer, contactInfo, confidenceLevel, anxietyLevel } = req.body;
     if (!type || !date) return res.status(400).json({ error: "Type and date are required" });
     const job = await Jobs.findOne({ _id: req.params.id, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
@@ -349,6 +349,8 @@ router.post("/:id/interview", async (req, res) => {
       notes,
       interviewer,
       contactInfo,
+      confidenceLevel,
+      anxietyLevel,
       outcome: "pending",
       reminderSent: false
     };
@@ -379,7 +381,7 @@ router.put("/:id/interview/:interviewId", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const { id, interviewId } = req.params;
-    const { type, date, locationOrLink, notes, interviewer, contactInfo, outcome } = req.body;
+    const { type, date, locationOrLink, notes, interviewer, contactInfo, confidenceLevel, anxietyLevel, outcome } = req.body;
     const job = await Jobs.findOne({ _id: id, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
     const interview = job.interviews.find(i => i._id.toString() === interviewId);
@@ -390,6 +392,8 @@ router.put("/:id/interview/:interviewId", async (req, res) => {
     if (notes !== undefined) interview.notes = notes;
     if (interviewer !== undefined) interview.interviewer = interviewer;
     if (contactInfo !== undefined) interview.contactInfo = contactInfo;
+    if (confidenceLevel !== undefined) interview.confidenceLevel = confidenceLevel;
+    if (anxietyLevel !== undefined) interview.anxietyLevel = anxietyLevel;
     if (outcome !== undefined) interview.outcome = outcome;
     await job.save();
     res.json(interview);

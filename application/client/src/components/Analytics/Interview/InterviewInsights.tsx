@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getInterviewAnalytics } from "../../../api/interviews";
 import { getJobStats } from "../../../api/jobs";
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
 
 export default function InterviewInsights() {
   const [data, setData] = useState<any>(null);
@@ -51,67 +52,27 @@ export default function InterviewInsights() {
         Track your interview progress, strengths, weaknesses, and improvement over time.
       </p>
 
-      {/* =============================== */}
-      {/* INTERVIEW → OFFER CONVERSION   */}
-      {/* =============================== */}
-      <section className="space-y-3">
-        <h2 className="text-2xl font-semibold text-(--brand-navy)">
-          Interview-to-Offer Conversion Rate
-        </h2>
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        <div className="bg-white border rounded-xl shadow-sm p-5 space-y-2">
-          <p className="text-lg">
-            <strong>Interview → Offer:</strong>{" "}
-            {stats.conversion.interviewToOffer}%
-          </p>
-
+        {/* Conversion Rate */}
+        <div className="bg-white border rounded-xl shadow-md p-5 space-y-2">
+          <h2 className="text-xl font-semibold text-(--brand-navy)">Interview-to-Offer Conversion</h2>
+          <p className="text-3xl font-bold">{stats.conversion.interviewToOffer}%</p>
           <p className="text-gray-600 text-sm">
-            Based only on jobs that reached the Interview stage — whether
-            scheduled or dragged manually.
+            Based on all interviews you've logged.
           </p>
         </div>
-      </section>
 
-      {/* =============================== */}
-      {/* Format Performance */}
-      {/* =============================== */}
-      <section className="space-y-3">
-        <h2 className="text-2xl font-semibold text-(--brand-navy)">
-          Performance by Interview Format
-        </h2>
-
-        <div className="bg-white border rounded-xl shadow-sm p-5 space-y-2">
-          {analytics.formatPerformance.length === 0 ? (
-            <p className="text-gray-500">No interview format data available.</p>
-          ) : (
-            analytics.formatPerformance.map((f: any) => (
-              <p key={f.format}>
-                {f.format}: <strong>{f.successRate}% success</strong> ({f.count} interviews)
-              </p>
-            ))
-          )}
+        {/* Format Performance */}
+        <div className="bg-white border rounded-xl shadow-md p-5 space-y-2">
+          <h2 className="text-xl font-semibold text-(--brand-navy)">Performance by Format</h2>
+          {analytics.formatPerformance.map((f: any) => (
+            <p key={f.format} className="text-gray-700">
+              {f.format}: <strong>{f.successRate}% success</strong> ({f.count} interviews)
+            </p>
+          ))}
         </div>
-      </section>
 
-      {/* =============================== */}
-      {/* Improvement Trends */}
-      {/* =============================== */}
-      <section className="space-y-3">
-        <h2 className="text-2xl font-semibold text-(--brand-navy)">
-          Improvement Trends
-        </h2>
-
-        <div className="bg-white border rounded-xl shadow-sm p-5 space-y-2">
-          {analytics.improvementTrends.points.length === 0 ? (
-            <p className="text-gray-500">No improvement trend data.</p>
-          ) : (
-            analytics.improvementTrends.points.map((p: any) => (
-              <p key={p.label}>
-                {p.label} — Score: {p.realScore}
-              </p>
-            ))
-          )}
-        </div>
       </section>
 
       {/* =============================== */}
@@ -119,7 +80,7 @@ export default function InterviewInsights() {
       {/* =============================== */}
       <section className="space-y-3">
         <h2 className="text-2xl font-semibold text-(--brand-navy)">
-          Industry & Company Culture Comparison
+          Industry Comparison
         </h2>
 
         <div className="bg-white border rounded-xl shadow-sm p-5 space-y-2">
@@ -135,88 +96,109 @@ export default function InterviewInsights() {
         </div>
       </section>
 
-      {/* =============================== */}
-      {/* FEEDBACK THEMES */}
-      {/* =============================== */}
       <section className="space-y-3">
         <h2 className="text-2xl font-semibold text-(--brand-navy)">
-          Feedback Themes
+          Mental Prep Score
         </h2>
 
-        <div className="bg-white border rounded-xl shadow-sm p-5">
-          <strong>Strengths:</strong>
-          <ul className="list-disc pl-6 text-gray-700">
-            {analytics.feedbackThemes.strengths.map((s: any, i: number) => (
-              <li key={i}>{s.theme} ({s.count})</li>
-            ))}
-          </ul>
+        <div className="bg-white border rounded-xl shadow-sm p-5 space-y-3">
+          <p className="text-3xl font-bold">
+            {analytics.mentalPrep.score}/100
+          </p>
+          <p className="text-gray-600 text-lg">
+            {analytics.mentalPrep.label}
+          </p>
 
-          <strong className="block mt-4">Weaknesses:</strong>
-          <ul className="list-disc pl-6 text-gray-700">
-            {analytics.feedbackThemes.weaknesses.map((w: any, i: number) => (
-              <li key={i}>{w.theme} ({w.count})</li>
-            ))}
-          </ul>
+          <p className="text-sm text-gray-500">
+            Your Mental Prep Score combines confidence, anxiety control, and improvement trends to show how mentally prepared you are for interviews.
+          </p>
         </div>
       </section>
 
-      {/* =============================== */}
-      {/* CONFIDENCE / ANXIETY */}
-      {/* =============================== */}
       <section className="space-y-3">
         <h2 className="text-2xl font-semibold text-(--brand-navy)">
           Confidence & Anxiety Tracking
         </h2>
 
-        <div className="bg-white border rounded-xl shadow-sm p-5 space-y-2">
-          {analytics.confidenceTracking.points.map((p: any) => (
-            <p key={p.label}>
-              {p.label}: Confidence {p.confidence} / Anxiety {p.anxiety}
-            </p>
-          ))}
+        <div className="bg-white border rounded-xl shadow-sm p-5 space-y-6">
+
+          {/* AVG + TREND DISPLAY */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-lg font-semibold">Average Confidence: {analytics.confidenceTracking.avgConfidence.toFixed(1)}</p>
+              <p className={`text-sm ${analytics.confidenceTracking.confidenceTrend > 0 ? "text-green-600" : analytics.confidenceTracking.confidenceTrend < 0 ? "text-red-600" : "text-yellow-600"}`}>
+                Trend: {analytics.confidenceTracking.confidenceTrend > 0 ? `↑ +${analytics.confidenceTracking.confidenceTrend}` :
+                  analytics.confidenceTracking.confidenceTrend < 0 ? `↓ ${analytics.confidenceTracking.confidenceTrend}` :
+                    "→ No change"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-lg font-semibold">Average Anxiety: {analytics.confidenceTracking.avgAnxiety.toFixed(1)}</p>
+              <p className={`text-sm ${analytics.confidenceTracking.anxietyTrend > 0 ? "text-green-600" : analytics.confidenceTracking.anxietyTrend < 0 ? "text-red-600" : "text-yellow-600"}`}>
+                Trend: {analytics.confidenceTracking.anxietyTrend > 0 ? `↓ -${analytics.confidenceTracking.anxietyTrend}` :
+                  analytics.confidenceTracking.anxietyTrend < 0 ? `↑ ${analytics.confidenceTracking.anxietyTrend}` :
+                    "→ No change"}
+              </p>
+            </div>
+          </div>
+
+          {/* DUAL LINE CHART */}
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={analytics.confidenceTracking.points}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" />
+                <YAxis domain={[0, 5]} />
+                <Tooltip />
+                <Legend />
+
+                <Line type="monotone" dataKey="confidence" stroke="#0ea5e9" strokeWidth={3} />
+                <Line type="monotone" dataKey="anxiety" stroke="#f43f5e" strokeWidth={3} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
         </div>
       </section>
 
       {/* =============================== */}
-      {/* COACHING RECOMMENDATIONS */}
+      {/* IMPROVED COACHING INSIGHTS     */}
       {/* =============================== */}
       <section className="space-y-3">
         <h2 className="text-2xl font-semibold text-(--brand-navy)">
-          Coaching Recommendations
+          Coaching Insights
         </h2>
 
-        <div className="bg-white border rounded-xl shadow-sm p-5">
-          <ul className="list-disc pl-6 text-gray-700 space-y-2">
-            {analytics.coachingRecommendations.map((r: string, i: number) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
+        <div className="bg-white border rounded-xl shadow-md p-6 space-y-6">
+
+          <div>
+            <p className="font-semibold text-lg text-(--brand-navy)">Conversion Rate</p>
+            <p className="text-gray-700">{analytics.coachingRecommendations[0]}</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-lg text-(--brand-navy)">Format Performance</p>
+            <p className="text-gray-700">{analytics.coachingRecommendations[1]}</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-lg text-(--brand-navy)">Industry Fit</p>
+            <p className="text-gray-700">{analytics.coachingRecommendations[2]}</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-lg text-(--brand-navy)">Confidence Levels</p>
+            <p className="text-gray-700">{analytics.coachingRecommendations[3]}</p>
+          </div>
+
+          <div>
+            <p className="font-semibold text-lg text-(--brand-navy)">Anxiety Management</p>
+            <p className="text-gray-700">{analytics.coachingRecommendations[4]}</p>
+          </div>
+
         </div>
       </section>
-
-      {/* =============================== */}
-      {/* BENCHMARKS */}
-      {/* =============================== */}
-      <section className="space-y-3 mb-10">
-        <h2 className="text-2xl font-semibold text-(--brand-navy)">
-          Benchmark Comparison
-        </h2>
-
-        <div className="bg-white border rounded-xl shadow-sm p-5 space-y-2">
-          <p>
-            <strong>Overall:</strong> You {analytics.benchmarks.overallRate.you}% —
-            Average {analytics.benchmarks.overallRate.average}% —
-            Top {analytics.benchmarks.overallRate.top}%
-          </p>
-
-          {analytics.benchmarks.formatRates.map((f: any) => (
-            <p key={f.format}>
-              {f.format}: You {f.you}% — Avg {f.average}% — Top {f.top}%
-            </p>
-          ))}
-        </div>
-      </section>
-
     </div>
   );
 }
