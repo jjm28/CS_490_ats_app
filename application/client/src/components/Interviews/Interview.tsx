@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import InterviewPrepResearch from './CompanyResearch';
 import Questions from './Questions';
-import '../../styles/Interview.css';
+import '../../styles/InterviewPrepUI.css';
 
 type CardData = {
   label: string;

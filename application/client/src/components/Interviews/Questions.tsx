@@ -1,5 +1,6 @@
 // src/pages/Questions.tsx
 import { useEffect, useState } from "react";
+import "../../styles/Questions.css";
 
 type Job = {
   _id: string;
@@ -21,18 +22,38 @@ type Insights = {
   error?: string;
 };
 
-// Map category to display name
+type QuestionsProps = {
+  onBack?: () => void;
+};
+
 const CATEGORY_LABELS: Record<Question['category'], string> = {
   behavioral: 'Behavioral',
   technical: 'Technical',
   situational: 'Situational',
 };
 
-// STAR Guide (only for behavioral)
-const STAR_GUIDE = `💡 Use the STAR method:
-Situation • Task • Action • Result`;
+const CATEGORY_COLORS: Record<Question['category'], string> = {
+  behavioral: '#4A90E2',
+  technical: '#50C878',
+  situational: '#FFA500',
+};
 
-// Question Card with Practice Support
+// Enhanced STAR Guide with example
+const STARGuide = () => (
+  <div className="star-guide">
+    <div className="star-guide-title">
+      💡 Use the STAR Method
+    </div>
+    <div className="star-guide-content">
+      <strong>S</strong>ituation • <strong>T</strong>ask • <strong>A</strong>ction • <strong>R</strong>esult
+    </div>
+    <div className="star-example">
+      <strong>Example:</strong> "In my previous role <em>(Situation)</em>, I needed to reduce page load time <em>(Task)</em>. 
+      I implemented lazy loading and code splitting <em>(Action)</em>, which decreased load time by 40% <em>(Result)</em>."
+    </div>
+  </div>
+);
+
 function QuestionCard({
   question,
   index,
@@ -42,7 +63,6 @@ function QuestionCard({
   index: number;
   jobId: string;
 }) {
-  // Load saved response from localStorage
   const storageKey = `practice_${jobId}_${question.id}`;
   const [response, setResponse] = useState(() => {
     return localStorage.getItem(storageKey) || '';
@@ -58,112 +78,74 @@ function QuestionCard({
   const handleResponseChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setResponse(e.target.value);
   };
-  return (
-    <div
-      className="p-5 rounded-xl border hover:shadow-md transition-all"
-      style={{
-        background: 'linear-gradient(to bottom right, #ffffff, #e8f3ef)',
-        borderColor: practiced ? '#357266' : '#6DA598',
-      }}
-    >
-      <div className="flex items-start gap-4">
-        <span
-          className="flex-shrink-0 w-8 h-8 text-white rounded-lg flex items-center justify-center text-sm font-bold"
-          style={{ backgroundColor: '#357266' }}
-        >
-          Q{index + 1}
-        </span>
-        <div className="flex-1">
-          <p className="font-medium leading-relaxed" style={{ color: '#0E3B43' }}>
-            {question.text}
-          </p>
 
-          {/* Skills & Difficulty */}
-          <div className="flex flex-wrap gap-2 mt-2">
-            <span
-              className="px-2 py-1 text-xs rounded-full"
-              style={{
-                background: '#e8f3ef',
-                color: '#0E3B43',
-                border: '1px solid #A3BBAD',
-              }}
-            >
-              {question.difficulty}
-            </span>
+  return (
+    <div className={`question-card ${practiced ? 'practiced' : ''}`}>
+      <div style={{ display: 'flex', alignItems: 'start', gap: '1.25rem' }}>
+        <div className="question-number">
+          Q{index}
+        </div>
+        
+        <div className="question-content">
+          <div className="question-tags">
+            <span className="tag tag-difficulty">{question.difficulty}</span>
             {question.skills.map((skill) => (
-              <span
-                key={skill}
-                className="px-2 py-1 text-xs rounded-full"
-                style={{
-                  background: '#f0f7f5',
-                  color: '#0E3B43',
-                }}
-              >
+              <span key={skill} className="tag tag-skill">
                 {skill}
               </span>
             ))}
             {question.companySpecific && (
-              <span
-                className="px-2 py-1 text-xs rounded-full"
-                style={{
-                  background: '#fff8e1',
-                  color: '#5D4037',
-                }}
-              >
+              <span className="tag tag-company-specific">
                 Company-Specific
               </span>
             )}
           </div>
 
-          {/* STAR Tip (behavioral only) */}
+          <p className="question-text">{question.text}</p>
+
+          {/* STAR Guide for behavioral questions */}
           {question.category === 'behavioral' && !isEditing && !practiced && (
-            <p className="text-sm mt-3 text-blue-700 bg-blue-50 p-2 rounded">
-              {STAR_GUIDE}
-            </p>
+            <STARGuide />
           )}
 
-          {/* Practice UI */}
-          <div className="mt-4">
+          {/* Practice Section */}
+          <div className="practice-section">
             {isEditing ? (
               <div>
                 <textarea
                   value={response}
                   onChange={handleResponseChange}
-                  placeholder="Write your response..."
-                  className="w-full p-3 border rounded-lg mb-2"
-                  style={{
-                    borderColor: '#6DA598',
-                    minHeight: '100px',
-                    color: '#0E3B43',
-                  }}
+                  placeholder="Write your STAR response here...&#10;&#10;Situation: ...&#10;Task: ...&#10;Action: ...&#10;Result: ..."
+                  className="practice-textarea"
                 />
-                <div className="flex gap-2">
-                  <button
-                    onClick={saveResponse}
-                    className="px-4 py-2 rounded-lg font-medium"
-                    style={{
-                      backgroundColor: '#357266',
-                      color: 'white',
-                    }}
-                  >
-                    Save Response
+                <div className="practice-buttons">
+                  <button onClick={saveResponse} className="btn btn-primary">
+                    💾 Save Response
                   </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 rounded-lg font-medium text-gray-600 border"
-                  >
+                  <button onClick={() => setIsEditing(false)} className="btn btn-secondary">
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="text-sm font-medium flex items-center gap-1"
-                style={{ color: practiced ? '#357266' : '#6DA598' }}
-              >
-                {practiced ? '✅ Practiced – Edit Response' : '✏️ Practice This Question'}
-              </button>
+              <div className="practice-section-centered">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className={`practice-trigger ${practiced ? 'practiced' : 'not-practiced'}`}
+                >
+                  {practiced ? (
+                    <>
+                      <span>✅</span>
+                      <span>Practiced – Edit Response</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>✏️</span>
+                      <span>Practice This Question</span>
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -172,7 +154,7 @@ function QuestionCard({
   );
 }
 
-export default function InterviewQuestionsOnly() {
+export default function InterviewQuestionsOnly({ onBack }: QuestionsProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -180,8 +162,6 @@ export default function InterviewQuestionsOnly() {
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<Question['category'] | 'all'>('all');
 
-
-  // Fetch jobs
   useEffect(() => {
     const fetchJobs = async () => {
       try {
@@ -199,7 +179,6 @@ export default function InterviewQuestionsOnly() {
     fetchJobs();
   }, []);
 
-  // Fetch questions by job
   useEffect(() => {
     if (!selectedJobId) {
       setQuestions([]);
@@ -237,7 +216,6 @@ export default function InterviewQuestionsOnly() {
     fetchQuestions();
   }, [selectedJobId]);
 
-  // Group questions by category
   const grouped = questions.reduce(
     (acc, q) => {
       acc[q.category].push(q);
@@ -248,53 +226,50 @@ export default function InterviewQuestionsOnly() {
       Question[]
     >
   );
-  // Filter questions based on selected category
-    const filteredQuestions = categoryFilter === 'all' 
-      ? questions 
-      : questions.filter(q => q.category === categoryFilter);
 
-    // Group filtered questions
-    const filteredGrouped = filteredQuestions.reduce(
-      (acc, q) => {
+  const filteredQuestions = categoryFilter === 'all' 
+    ? questions 
+    : questions.filter(q => q.category === categoryFilter);
+
+  const filteredGrouped = filteredQuestions.reduce(
+    (acc, q) => {
       acc[q.category].push(q);
       return acc;
-      },
-      { behavioral: [], technical: [], situational: [] } as Record<
-        Question['category'],
-        Question[]
-      >
-    );
+    },
+    { behavioral: [], technical: [], situational: [] } as Record<
+      Question['category'],
+      Question[]
+    >
+  );
 
   const selectedJob = jobs.find((j) => j._id === selectedJobId);
 
   return (
-    <div
-      className="min-h-screen p-6"
-      style={{ background: 'linear-gradient(to bottom right, #357266, #0E3B43, #357266)' }}
-    >
-      <div className="max-w-5xl mx-auto">
-        <h1
-          className="text-4xl md:text-5xl font-bold text-center mb-6"
-          style={{
-            color: '#FFFFFF',
-            textShadow: '2px 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(255,255,255,0.3)',
-          }}
+    <div className="questions-container">
+      <div className="questions-content">
+        {/* Back Button */}
+        <button 
+          onClick={onBack || (() => window.history.back())} 
+          className="back-button"
         >
-          🎯 Interview Questions
-        </h1>
+          <span>←</span>
+          <span>Back to Overview</span>
+        </button>
+
+        {/* Page Header */}
+        <div className="page-header">
+          <h1 className="page-title">
+            Role Based Questions
+          </h1>
+        </div>
 
         {/* Job Selector */}
-        <div className="bg-white rounded-3xl p-6 mb-8 shadow-2xl">
-          <label className="block text-lg font-semibold mb-2" style={{ color: '#0E3B43' }}>
+        <div className="job-selector-card">
+          <label className="job-selector-label">
             Select a Job:
           </label>
           <select
-            className="w-full px-5 py-3 rounded-xl border-2 focus:outline-none text-lg"
-            style={{
-              borderColor: '#6DA598',
-              color: '#0E3B43',
-              backgroundColor: 'white',
-            }}
+            className="job-selector-select"
             value={selectedJobId}
             onChange={(e) => setSelectedJobId(e.target.value)}
           >
@@ -306,95 +281,97 @@ export default function InterviewQuestionsOnly() {
             ))}
           </select>
         </div>
-            {/* Category Filter */}
-          {/* Category Filter */}
-{questions.length > 0 && (
-  <div className="bg-white rounded-3xl p-6 mb-8 shadow-2xl">
-    <label className="block text-lg font-semibold mb-3" style={{ color: '#0E3B43' }}>
-      Filter by Category:
-    </label>
-    <div className="flex flex-wrap gap-3">
-      <button
-        onClick={() => setCategoryFilter('all')}
-        className="px-5 py-2 rounded-xl font-medium transition-all"
-        style={{
-          backgroundColor: categoryFilter === 'all' ? '#357266' : '#f0f7f5',
-          color: categoryFilter === 'all' ? 'white' : '#0E3B43',
-          border: categoryFilter === 'all' ? 'none' : '2px solid #6DA598',
-        }}
-      >
-        All ({questions.length})
-      </button>
-      <button
-            onClick={() => setCategoryFilter('behavioral')}
-            className="px-5 py-2 rounded-xl font-medium transition-all"
-            style={{
-              backgroundColor: categoryFilter === 'behavioral' ? '#4A90E2' : '#f0f7f5',
-              color: categoryFilter === 'behavioral' ? 'white' : '#0E3B43',
-              border: categoryFilter === 'behavioral' ? 'none' : '2px solid #6DA598',
-            }}
-          >
-            Behavioral ({grouped.behavioral.length})
-          </button>
-          <button
-            onClick={() => setCategoryFilter('technical')}
-            className="px-5 py-2 rounded-xl font-medium transition-all"
-            style={{
-              backgroundColor: categoryFilter === 'technical' ? '#50C878' : '#f0f7f5',
-              color: categoryFilter === 'technical' ? 'white' : '#0E3B43',
-              border: categoryFilter === 'technical' ? 'none' : '2px solid #6DA598',
-            }}
-          >
-            Technical ({grouped.technical.length})
-          </button>
-          <button
-            onClick={() => setCategoryFilter('situational')}
-            className="px-5 py-2 rounded-xl font-medium transition-all"
-            style={{
-              backgroundColor: categoryFilter === 'situational' ? '#FFA500' : '#f0f7f5',
-              color: categoryFilter === 'situational' ? 'white' : '#0E3B43',
-              border: categoryFilter === 'situational' ? 'none' : '2px solid #6DA598',
-            }}
-          >
-            Situational ({grouped.situational.length})
-          </button>
-        </div>
-      </div>
-    )}
+
+        {/* Category Filter */}
+        {questions.length > 0 && (
+          <div className="category-filter-card">
+            <label className="category-filter-label">
+              Filter by Category:
+            </label>
+            <div className="category-filter-buttons">
+              <button
+                onClick={() => setCategoryFilter('all')}
+                className={`category-filter-btn ${categoryFilter === 'all' ? 'active' : ''}`}
+                style={{
+                  backgroundColor: categoryFilter === 'all' ? '#357266' : '#f0f7f5',
+                  color: categoryFilter === 'all' ? 'white' : '#0E3B43',
+                  border: categoryFilter === 'all' ? 'none' : '2px solid #6DA598',
+                }}
+              >
+                All ({questions.length})
+              </button>
+              <button
+                onClick={() => setCategoryFilter('behavioral')}
+                className={`category-filter-btn ${categoryFilter === 'behavioral' ? 'active' : ''}`}
+                style={{
+                  backgroundColor: categoryFilter === 'behavioral' ? '#4A90E2' : '#f0f7f5',
+                  color: categoryFilter === 'behavioral' ? 'white' : '#0E3B43',
+                  border: categoryFilter === 'behavioral' ? 'none' : '2px solid #6DA598',
+                }}
+              >
+                💬 Behavioral ({grouped.behavioral.length})
+              </button>
+              <button
+                onClick={() => setCategoryFilter('technical')}
+                className={`category-filter-btn ${categoryFilter === 'technical' ? 'active' : ''}`}
+                style={{
+                  backgroundColor: categoryFilter === 'technical' ? '#50C878' : '#f0f7f5',
+                  color: categoryFilter === 'technical' ? 'white' : '#0E3B43',
+                  border: categoryFilter === 'technical' ? 'none' : '2px solid #6DA598',
+                }}
+              >
+                💻 Technical ({grouped.technical.length})
+              </button>
+              <button
+                onClick={() => setCategoryFilter('situational')}
+                className={`category-filter-btn ${categoryFilter === 'situational' ? 'active' : ''}`}
+                style={{
+                  backgroundColor: categoryFilter === 'situational' ? '#FFA500' : '#f0f7f5',
+                  color: categoryFilter === 'situational' ? 'white' : '#0E3B43',
+                  border: categoryFilter === 'situational' ? 'none' : '2px solid #6DA598',
+                }}
+              >
+                🎭 Situational ({grouped.situational.length})
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading && (
-          <div className="bg-white rounded-3xl p-10 shadow-2xl text-center">
-            <p className="text-xl text-gray-600">Loading questions...</p>
+          <div className="state-card">
+            <p className="loading-text">Loading questions...</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-white rounded-3xl p-6 shadow-2xl">
-            <p className="text-red-600 font-medium">⚠️ {error}</p>
+          <div className="state-card">
+            <p className="error-text">⚠️ {error}</p>
           </div>
         )}
 
         {!loading && !error && questions.length > 0 && (
-          <div className="space-y-10">
+          <div className="sections-container">
             {(['behavioral', 'technical', 'situational'] as const).map((cat) => {
               if (filteredGrouped[cat].length === 0) return null;
+              
+              // Number questions sequentially within each category
+              let questionNumber = 1;
+              
               return (
-                <div key={cat} className="bg-white rounded-3xl p-8 shadow-2xl">
-                  <h2
-                    className="text-2xl font-bold mb-6 flex items-center gap-2"
-                    style={{ color: '#0E3B43' }}
-                  >
-                    <span
-                      className="inline-block w-4 h-4 rounded-full"
-                      style={{ backgroundColor: cat === 'behavioral' ? '#4A90E2' : cat === 'technical' ? '#50C878' : '#FFA500' }}
-                    ></span>
+                <div key={cat} className="category-section">
+                  <h2 className="category-title">
+                    <span 
+                      className="category-indicator"
+                      style={{ backgroundColor: CATEGORY_COLORS[cat] }}
+                    />
                     {CATEGORY_LABELS[cat]} Questions
                   </h2>
-                  <div className="space-y-5">
-                    {grouped[cat].map((q, idx) => (
+                  <div className="category-questions">
+                    {filteredGrouped[cat].map((q) => (
                       <QuestionCard
                         key={q.id}
                         question={q}
-                        index={idx + 1}
+                        index={questionNumber++}
                         jobId={selectedJobId}
                       />
                     ))}
@@ -406,8 +383,8 @@ export default function InterviewQuestionsOnly() {
         )}
 
         {!loading && !error && questions.length === 0 && selectedJobId && (
-          <div className="bg-white rounded-3xl p-8 shadow-2xl text-center">
-            <p className="text-gray-500 italic">
+          <div className="state-card">
+            <p className="empty-text">
               No interview questions available for {selectedJob?.jobTitle} at {selectedJob?.company}.
             </p>
           </div>

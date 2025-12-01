@@ -160,7 +160,7 @@ const userId = JSON.parse(localStorage.getItem("authUser") || "{}")?.user?._id ?
             element={<InterviewInsightsPage/>}
           />/
           <Route
-            path="/interviews"
+            path="/Interview-Prep"
             element={<InterviewHome/>}
             />/
           <Route path="/manage-references" element={<PrivateRoute><ManageReferences /></PrivateRoute>} />
