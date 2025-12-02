@@ -86,7 +86,15 @@ import AiOutreachGenerator from './components/Networking/AiOutreachGenerator';
 import InteractionHistory from './components/Networking/InteractionHistory';
 import AllInteractionsPage from './components/Networking/AllInteractionsPage';
 import ImportGoogle from "./components/Networking/ImportGoogle";
-
+import AdvisorsPage from './components/Advisors/AdvisorsPage';
+import AdvisorAcceptInvitePage from './components/Advisors/AdvisorAcceptInvitePage';
+import AdvisorClientsPage from './components/Advisors/AdvisorClientsPage';
+import AdvisorClientProfilePage from './components/Advisors/AdvisorClientProfilePage';
+import AdvisorMessagesPage from './components/Advisors/AdvisorMessaging/AdvisorMessagesPage';
+import AdvisorClientMessagesPage from './components/Advisors/AdvisorMessaging/AdvisorClientMessagesPage';
+import AdvisorRecommendationsPage from './components/Advisors/AdvisorRecommendationsPage';
+import AdvisorSessionsPage from './components/Advisors/AdvisorSessionsPage';
+import AdvisorAvailabilityPage from './components/Advisors/AdvisorAvailabilityPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -371,6 +379,45 @@ function App() {
     </PrivateRoute>
   }
 />
+  <Route
+  path="/advisors"
+  element={
+    <PrivateRoute>
+      <AdvisorsPage />
+    </PrivateRoute>
+  }
+/>
+      <Route
+        path="/advisor/accept"
+        element={ <PrivateRoute><AdvisorAcceptInvitePage /></PrivateRoute>}
+      />
+      <Route
+        path="/advisor/clients"
+        element={ <PrivateRoute><AdvisorClientsPage /></PrivateRoute>}
+      />
+      <Route
+        path="/advisor/clients/:relationshipId"
+        element={ <PrivateRoute><AdvisorClientProfilePage /></PrivateRoute>}
+      />
+      <Route
+  path="/advisors/:relationshipId/messages"
+  element={<PrivateRoute><AdvisorMessagesPage /></PrivateRoute>}
+/>
+<Route
+  path="/advisors/:relationshipId/sessions"
+  element={<PrivateRoute><AdvisorSessionsPage /></PrivateRoute>}
+/>
+// advisor side
+<Route
+  path="/advisor/clients/:relationshipId/messages"
+  element={<PrivateRoute><AdvisorClientMessagesPage /></PrivateRoute>}
+/>
+<Route
+  path="/advisors/:relationshipId/recommendations"
+  element={<AdvisorRecommendationsPage />}
+/>
+<Route path="/advisor/availability" element={<AdvisorAvailabilityPage />} />
+
         </Routes>
 
       </div>
