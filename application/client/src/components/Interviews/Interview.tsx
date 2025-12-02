@@ -10,7 +10,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'checklist' | null; // Add component type
+  component?: 'research' | 'checklist' | 'followup' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -69,6 +69,14 @@ const cardData: CardData[] = [
     color: '#0E3B43',
     details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
     component: 'checklist' // 🆕 Add this
+  },
+  {
+    label: 'Follow-Up',
+    title: 'Interview Follow-Up',
+    description: 'Send professional follow-up emails',
+    color: '#0E3B43',
+    details: 'Generate and send thank you emails, status inquiries, feedback requests, and networking follow-ups after your interviews.',
+    component: 'followup' // 🆕 Add this
   },
 ];
 

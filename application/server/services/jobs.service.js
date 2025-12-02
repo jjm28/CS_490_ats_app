@@ -1,6 +1,9 @@
 // services/jobs.service.js
 import Jobs from "../models/jobs.js";
 import mongoose from "mongoose";
+import { generateFollowUpContent } from "./followup_ai.service.js";
+import notificationService from './notifications.service.js';
+import { getDb } from "../db/connection.js";
 
 export async function createJob({ userId, payload }) {
   // Prevent empty package
@@ -450,11 +453,11 @@ export async function getUpcomingInterviews({ userId }) {
 /**
  * Generate checklist items for an interview
  */
-export function generateChecklistItems(job, interview) {
+export async function generateChecklistItems(job, interview) {
   const items = [];
   let order = 1;
   const jobTitleLower = job.jobTitle?.toLowerCase() || '';
-  
+
   // RESEARCH CATEGORY
   items.push({
     id: 'research-company-mission',
@@ -722,4 +725,311 @@ export function generateChecklistItems(job, interview) {
   });
   
   return items;
+}
+
+// 1. Generate the template (Does not save to DB, just returns to UI)
+export async function createFollowUpTemplate({ userId, jobId, interviewId, type }) {
+  try {
+    const jobIdValid = mongoose.Types.ObjectId.isValid(jobId);
+    const interviewIdValid = mongoose.Types.ObjectId.isValid(interviewId);
+    if (!jobIdValid) {
+      throw new Error("Invalid job ID format");
+    }
+    if (!interviewIdValid) {
+      throw new Error("Invalid interview ID format");
+    }
+
+    // ✅ Find job
+    const job = await Jobs.findOne({ _id: jobId, userId }).lean();
+    if (!job) {
+      throw new Error("Job not found or does not belong to user");
+    }
+
+    const interview = job.interviews?.find(
+      (i) => i._id.toString() === interviewId.toString()
+    );
+    
+    if (!interview) {
+      throw new Error("Interview not found in this job");
+    }
+
+    // 🆕 Fetch user information for personalization
+    const db = getDb(); // Make sure you import getDb from your connection file
+    const user = await db.collection('users').findOne({ _id: userId });
+    
+    const userInfo = {
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      email: user?.email || ''
+    };
+
+    // 🆕 Call the AI Service with user info
+    const template = await generateFollowUpContent(job, interview, type, userInfo);
+    
+    return { ...template, type };
+  } catch (err) {
+    console.error("Error in createFollowUpTemplate:", err);
+    throw err;
+  }
+}
+
+// 2. Save a generated/edited follow-up to the DB
+export async function saveFollowUp({ userId, jobId, interviewId, payload }) {
+  try {
+    // Normalize IDs to strings and trim whitespace
+    const normalizedUserId = String(userId).trim();
+    const normalizedJobId = String(jobId).trim();
+    const normalizedInterviewId = String(interviewId).trim();
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(normalizedJobId)) {
+      throw new Error("Invalid job ID format");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(normalizedInterviewId)) {
+      throw new Error("Invalid interview ID format");
+    }
+
+    // Find job (NOT using .lean() because we need to modify it)
+    const job = await Jobs.findOne({ _id: normalizedJobId, userId: normalizedUserId });
+    if (!job) {
+      throw new Error("Job not found or does not belong to user");
+    }
+
+    // Find interview using Mongoose .id() method
+    const interview = job.interviews.id(normalizedInterviewId);
+    if (!interview) {
+      throw new Error("Interview not found in this job");
+    }
+
+    // Validate email if user wants to send
+    if (payload.sendEmail && !interview.contactInfo) {
+      throw new Error(
+        "Cannot send email: No contact email found for this interview. " +
+        "Please add the interviewer's email in the interview details first."
+      );
+    }
+
+    // Validate email format if provided
+    if (payload.sendEmail && interview.contactInfo) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(interview.contactInfo)) {
+        throw new Error(
+          `Invalid email format: "${interview.contactInfo}". ` +
+          "Please update the interviewer's contact info with a valid email."
+        );
+      }
+    }
+
+    // Create follow-up record
+    const followUp = {
+      type: payload.type,
+      subject: payload.subject,
+      body: payload.body,
+      customized: payload.customized || false,
+      sent: payload.sendEmail || false,
+      sentAt: payload.sendEmail ? new Date() : null,
+      sentVia: payload.sendEmail ? 'email' : 'copied',
+      generatedAt: new Date()
+    };
+
+    // Push to array and save
+    interview.followUps.push(followUp);
+    await job.save();
+
+    // Get the newly created follow-up
+    const savedFollowUp = interview.followUps[interview.followUps.length - 1];
+
+    // Send email if requested
+    if (payload.sendEmail && interview.contactInfo) {
+      try {
+        // Fetch user info for sender name
+        const db = getDb();
+        const user = await db.collection('users').findOne({ _id: normalizedUserId });
+        
+        const senderName = user?.firstName 
+          ? `${user.firstName} ${user.lastName || ''}`.trim()
+          : null;
+
+        await notificationService.sendFollowUpEmail(
+          interview.contactInfo,
+          payload.subject,
+          payload.body,
+          senderName
+        );
+      } catch (emailError) {
+        // Email failed but we still saved the follow-up
+        // Update the follow-up to mark it as failed
+        savedFollowUp.sent = false;
+        savedFollowUp.sentVia = 'copied';
+        await job.save();
+        
+        throw new Error(
+          `Follow-up saved as draft, but email failed to send: ${emailError.message}. ` +
+          "You can copy the email content and send it manually."
+        );
+      }
+    }
+    
+    // Return the newly created item
+    return savedFollowUp.toObject ? savedFollowUp.toObject() : savedFollowUp;
+  } catch (err) {
+    console.error("Error in saveFollowUp:", err.message);
+    throw err;
+  }
+}
+
+// 3. Mark a follow-up as sent (if user sends it later via 'copy to clipboard')
+export async function updateFollowUpStatus({ userId, jobId, interviewId, followUpId, updates }) {
+  try {
+    console.log('🔍 ===== DEBUG: updateFollowUpStatus =====');
+    console.log('📥 Received params:');
+    console.log('  userId:', userId, '| type:', typeof userId);
+    console.log('  jobId:', jobId, '| type:', typeof jobId);
+    console.log('  interviewId:', interviewId, '| type:', typeof interviewId);
+    console.log('  followUpId:', followUpId, '| type:', typeof followUpId);
+    console.log('  updates:', updates);
+
+    // 🆕 Normalize IDs to strings and trim whitespace
+    const normalizedUserId = String(userId).trim();
+    const normalizedJobId = String(jobId).trim();
+    const normalizedInterviewId = String(interviewId).trim();
+    const normalizedFollowUpId = String(followUpId).trim();
+
+    console.log('🔍 Normalized IDs:');
+    console.log('  userId:', normalizedUserId);
+    console.log('  jobId:', normalizedJobId);
+    console.log('  interviewId:', normalizedInterviewId);
+    console.log('  followUpId:', normalizedFollowUpId);
+
+    // ✅ Validate ObjectId formats
+    console.log('🔑 Validating ObjectIds...');
+    const jobIdValid = mongoose.Types.ObjectId.isValid(normalizedJobId);
+    const interviewIdValid = mongoose.Types.ObjectId.isValid(normalizedInterviewId);
+    const followUpIdValid = mongoose.Types.ObjectId.isValid(normalizedFollowUpId);
+    
+    console.log('  jobId valid?', jobIdValid);
+    console.log('  interviewId valid?', interviewIdValid);
+    console.log('  followUpId valid?', followUpIdValid);
+
+    if (!jobIdValid) {
+      throw new Error("Invalid job ID format");
+    }
+
+    if (!interviewIdValid) {
+      throw new Error("Invalid interview ID format");
+    }
+
+    if (!followUpIdValid) {
+      throw new Error("Invalid follow-up ID format");
+    }
+
+    // ✅ Find job (NOT using .lean() because we need to modify it)
+    console.log('🔎 Searching for job with query:', { _id: normalizedJobId, userId: normalizedUserId });
+    const job = await Jobs.findOne({ _id: normalizedJobId, userId: normalizedUserId });
+    
+    console.log('📊 Job found?', !!job);
+    if (job) {
+      console.log('  Job ID:', job._id);
+      console.log('  Job userId:', job.userId, '| type:', typeof job.userId);
+      console.log('  Company:', job.company);
+      console.log('  Number of interviews:', job.interviews?.length || 0);
+    } else {
+      // Check if job exists without userId
+      console.log('❌ Job not found with userId. Checking if job exists without userId...');
+      const jobWithoutUser = await Jobs.findOne({ _id: normalizedJobId });
+      if (jobWithoutUser) {
+        console.log('⚠️  Job EXISTS but with different userId!');
+        console.log('  Expected userId:', normalizedUserId, '| type:', typeof normalizedUserId);
+        console.log('  Actual userId:', jobWithoutUser.userId, '| type:', typeof jobWithoutUser.userId);
+        console.log('  Are they equal?', normalizedUserId === jobWithoutUser.userId);
+      } else {
+        console.log('❌ Job does not exist in database at all');
+      }
+    }
+
+    if (!job) {
+      throw new Error("Job not found or does not belong to user");
+    }
+
+    // ✅ Find interview
+    console.log('🔎 Searching for interview...');
+    const interview = job.interviews.id(normalizedInterviewId);
+    
+    console.log('📊 Interview found?', !!interview);
+    if (interview) {
+      console.log('  Interview ID:', interview._id);
+      console.log('  Interview type:', interview.type);
+      console.log('  Number of follow-ups:', interview.followUps?.length || 0);
+      if (interview.followUps && interview.followUps.length > 0) {
+        console.log('  Available follow-up IDs:', interview.followUps.map(f => f._id.toString()));
+      }
+    } else {
+      console.log('  Available interview IDs:', job.interviews?.map(i => i._id.toString()));
+    }
+
+    if (!interview) {
+      throw new Error("Interview not found in this job");
+    }
+
+    // ✅ Find follow-up
+    console.log('🔎 Searching for follow-up...');
+    const followUp = interview.followUps?.id(normalizedFollowUpId);
+    
+    console.log('📊 Follow-up found?', !!followUp);
+    if (followUp) {
+      console.log('  Follow-up ID:', followUp._id);
+      console.log('  Follow-up type:', followUp.type);
+      console.log('  Current sent status:', followUp.sent);
+      console.log('  Current sentVia:', followUp.sentVia);
+    }
+
+    if (!followUp) {
+      throw new Error("Follow-up not found in this interview");
+    }
+
+    // ✅ Validate updates
+    console.log('🔍 Validating update fields...');
+    const allowedUpdates = ['sent', 'sentAt', 'sentVia', 'responseReceived', 'responseDate', 'customized'];
+    const updateKeys = Object.keys(updates);
+    
+    const invalidKeys = updateKeys.filter(key => !allowedUpdates.includes(key));
+    if (invalidKeys.length > 0) {
+      console.log('❌ Invalid update fields detected:', invalidKeys);
+      throw new Error(`Invalid update fields: ${invalidKeys.join(', ')}`);
+    }
+    
+    console.log('✅ All update fields are valid:', updateKeys);
+
+    // ✅ Apply updates
+    console.log('📝 Applying updates to follow-up...');
+    Object.assign(followUp, updates);
+    
+    // ✅ Auto-set sentAt if marking as sent
+    if (updates.sent === true && !followUp.sentAt) {
+      console.log('📅 Auto-setting sentAt timestamp');
+      followUp.sentAt = new Date();
+    }
+
+    // ✅ Auto-set responseDate if marking response received
+    if (updates.responseReceived === true && !followUp.responseDate) {
+      console.log('📅 Auto-setting responseDate timestamp');
+      followUp.responseDate = new Date();
+    }
+
+    console.log('💾 Saving job to database...');
+    await job.save();
+    console.log('✅ Job saved successfully');
+
+    // ✅ Return updated follow-up
+    console.log('✅ Returning updated follow-up');
+    const result = followUp.toObject ? followUp.toObject() : followUp;
+    console.log('📊 Result:', result);
+    
+    return result;
+  } catch (err) {
+    console.error("❌ Error in updateFollowUpStatus:", err.message);
+    console.error("Stack trace:", err.stack);
+    throw err;
+  }
 }

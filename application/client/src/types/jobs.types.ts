@@ -306,3 +306,42 @@ export interface JobReferenceUsage {
   },
   feedback_collected_at: { type: Date },
 }
+
+export interface Interview {
+  _id?: string;
+  type: string;
+  date: string;
+  location?: string;
+  notes?: string;
+  outcome?: string;
+  interviewer?: string;
+  contactInfo?: string;
+  eventId?: string;
+  preparationChecklist?: {
+    items: Array<{
+      id: string;
+      category: "research" | "logistics" | "materials" | "practice" | "mindset";
+      task: string;
+      completed: boolean;
+      completedAt?: Date;
+      order: number;
+    }>;
+    generatedAt: Date;
+    lastUpdatedAt: Date;
+  };
+  followUps?: FollowUp[];
+}
+
+export interface FollowUp {
+  _id: string;
+  type: 'thank_you' | 'status_inquiry' | 'feedback_request' | 'networking';
+  subject: string;
+  body: string;
+  generatedAt: Date;
+  customized: boolean;
+  sent: boolean;
+  sentAt?: Date;
+  sentVia: 'email' | 'copied';
+  responseReceived: boolean;
+  responseDate?: Date;
+}

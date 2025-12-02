@@ -225,7 +225,28 @@ const JobSchema = new Schema({
                 }],
                 generatedAt: { type: Date },
                 lastUpdatedAt: { type: Date }
-            }
+            },
+            followUps: [{
+                _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+                type: {
+                    type: String,
+                    enum: ['thank_you', 'status_inquiry', 'feedback_request', 'networking'],
+                    required: true
+                },
+                subject: { type: String, default: "" },
+                body: { type: String, required: true },
+                generatedAt: { type: Date, default: Date.now },
+                customized: { type: Boolean, default: false }, // Did user edit it?
+                sent: { type: Boolean, default: false },
+                sentAt: { type: Date },
+                sentVia: { 
+                    type: String, 
+                    enum: ['email', 'copied'], // 'email' = sent via nodemailer, 'copied' = user copied it
+                    default: 'copied'
+                },
+                responseReceived: { type: Boolean, default: false },
+                responseDate: { type: Date }
+            }]
         },
     ],
     source: {

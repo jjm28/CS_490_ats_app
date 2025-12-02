@@ -24,7 +24,10 @@ import {
   updateApplicationHistory,
   deleteApplicationHistory,
   getJobStats,
-  generateChecklistItems
+  generateChecklistItems,
+  createFollowUpTemplate,
+  saveFollowUp,
+  updateFollowUpStatus
 } from "../services/jobs.service.js";
 import {
   getUserPreferences,
@@ -466,7 +469,9 @@ router.post("/:id/interview/:interviewId/generate-checklist", async (req, res) =
     }
     
     // Generate checklist items based on job and interview context
-    const checklistItems = generateChecklistItems(job, interview);
+    const checklistItems = await generateChecklistItems(job, interview);
+
+    console.log("Generated checklist items:", checklistItems);
     
     // Initialize the checklist
     interview.preparationChecklist = {
@@ -474,6 +479,9 @@ router.post("/:id/interview/:interviewId/generate-checklist", async (req, res) =
       generatedAt: new Date(),
       lastUpdatedAt: new Date()
     };
+
+    console.log("Assigned checklist to interview:", interview.preparationChecklist);
+    console.log("Saved items to checklist:", interview.preparationChecklist.items);
     
     await job.save();
     
@@ -987,6 +995,126 @@ router.patch("/:id/archive", async (req, res) => {
   } catch (err) {
     console.error("Archive update failed:", err);
     res.status(500).json({ error: err.message || "Server error" });
+  }
+});
+
+// ============================================
+// FOLLOW-UP EMAIL ROUTES (UC-082)
+// ============================================
+
+// POST: Generate AI Template
+router.post("/:id/interview/:interviewId/follow-up/generate", async (req, res) => {
+  try {
+    console.log('🌐 ===== ROUTE: Generate Follow-Up =====');
+    console.log('📥 Route params:', req.params);
+    console.log('📥 Route body:', req.body);
+    console.log('👤 req.user:', req.user);
+    
+    const userId = getUserId(req); // ← Make sure this function exists
+    console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
+    
+    if (!userId) {
+      console.log('❌ No userId - returning 401');
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log('📞 Calling createFollowUpTemplate with:', {
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      type: req.body.type
+    });
+
+    const result = await createFollowUpTemplate({
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      type: req.body.type
+    });
+    
+    console.log('✅ Success - returning result');
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Route error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST: Save a new Follow-Up
+router.post("/:id/interview/:interviewId/follow-up", async (req, res) => {
+  try {
+    console.log('🌐 ===== ROUTE: Save Follow-Up =====');
+    console.log('📥 Route params:', req.params);
+    console.log('📥 Route body:', req.body);
+    console.log('👤 req.user:', req.user);
+    
+    const userId = getUserId(req);
+    console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
+    
+    if (!userId) {
+      console.log('❌ No userId - returning 401');
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log('📞 Calling saveFollowUp with:', {
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      payload: req.body
+    });
+
+    const result = await saveFollowUp({
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      payload: req.body
+    });
+    
+    console.log('✅ Success - returning result');
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Route error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH: Update Follow-Up (e.g. mark as sent or response received)
+router.patch("/:id/interview/:interviewId/follow-up/:followUpId", async (req, res) => {
+  try {
+    console.log('🌐 ===== ROUTE: Update Follow-Up Status =====');
+    console.log('📥 Route params:', req.params);
+    console.log('📥 Route body:', req.body);
+    console.log('👤 req.user:', req.user);
+    
+    const userId = getUserId(req);
+    console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
+    
+    if (!userId) {
+      console.log('❌ No userId - returning 401');
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log('📞 Calling updateFollowUpStatus with:', {
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      followUpId: req.params.followUpId,
+      updates: req.body
+    });
+
+    const result = await updateFollowUpStatus({
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      followUpId: req.params.followUpId,
+      updates: req.body
+    });
+    
+    console.log('✅ Success - returning result');
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Route error:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

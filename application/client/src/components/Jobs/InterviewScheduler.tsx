@@ -11,29 +11,9 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from "../../utils/gcalService";
-interface Interview {
-  _id?: string;
-  type: string;
-  date: string;
-  location?: string;
-  notes?: string;
-  outcome?: string;
-  interviewer?: string;
-  contactInfo?: string;
-  eventId?: string;
-  preparationChecklist?: {
-    items: Array<{
-      id: string;
-      category: "research" | "logistics" | "materials" | "practice" | "mindset";
-      task: string;
-      completed: boolean;
-      completedAt?: Date;
-      order: number;
-    }>;
-    generatedAt: Date;
-    lastUpdatedAt: Date;
-  };
-}
+import type{ Interview, FollowUp } from "../../types/jobs.types";
+import FollowUpModal from "../Interviews/FollowUpModal";
+import InterviewFollowUp from "../Interviews/InterviewFollowUp";
 
 async function moveJobToInterviewStage(jobId: string, token: string) {
   try {
@@ -65,6 +45,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
   const [gcalReady, setGcalReady] = useState(false);
   const [gcalSignedIn, setGcalSignedIn] = useState(false);
   const [prepTasks, setPrepTasks] = useState<string[]>([]);
+  const [followUpModal, setFollowUpModal] = useState<{ jobId: string; interviewId: string; email?: string } | null>(null);
 
   const token = useMemo(
     () =>
@@ -464,6 +445,28 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                         <option value="pending">Awaiting feedback</option>
                       </select>
                     </div>
+                  )}
+                  
+                  {isPast && i.outcome && (
+                    <InterviewFollowUp
+                      jobId={jobId}
+                      interviewId={i._id!}
+                      interviewerEmail={i.contactInfo}
+                      existingFollowUps={i.followUps || []}
+                      onFollowUpUpdate={fetchInterviews}
+                      compact={false}
+                    />
+                  )}
+
+                  {/* Modal */}
+                  {followUpModal && (
+                    <FollowUpModal
+                      jobId={followUpModal.jobId}
+                      interviewId={followUpModal.interviewId}
+                      interviewerEmail={followUpModal.email}
+                      onClose={() => setFollowUpModal(null)}
+                      onSuccess={fetchInterviews}
+                    />
                   )}
 
                   {!isPast && (
