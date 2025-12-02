@@ -42,7 +42,22 @@ const AdvisorRelationshipSchema = new Schema(
     // Invite token handling
     inviteToken: { type: String, required: true, unique: true, index: true },
     inviteExpiresAt: { type: Date, required: true },
-
+    sharedResumeIds: {
+      type: [String],
+      default: [],
+    },
+    sharedCoverLetterIds: {
+      type: [String],
+      default: [],
+    },
+    sharedJobIds: {
+      type: [String],
+      default: [],
+    },
+    shareProgressSummary: {
+      type: Boolean,
+      default: false,
+    },
     // Optional notes / metadata
     relationshipNote: { type: String, default: "" },
   },

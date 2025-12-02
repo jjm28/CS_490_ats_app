@@ -10,6 +10,8 @@ import {
   updateAdvisorMetadata,
   revokeAdvisor,
   deleteAdvisorRelationship,
+   listAdvisorMessages,
+  createAdvisorMessage,
 } from "../services/advisor.service.js";
 
 const router = express.Router();
@@ -322,5 +324,85 @@ router.get(
     }
   }
 );
+
+
+
+/**
+ * GET /api/advisors/clients/:relationshipId/messages
+ * List messages for a relationship (candidate or advisor).
+ * Query: role=candidate|advisor, userId=<currentUserId>
+ */
+router.get(
+  "/advisors/clients/:relationshipId/messages",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const { role, userId } = req.query;
+
+      if (!role || !userId) {
+        return res.status(400).json({
+          error: "role and userId are required",
+        });
+      }
+
+      const messages = await listAdvisorMessages({
+        relationshipId,
+        role: String(role),
+        userId: String(userId),
+      });
+
+      res.json(messages);
+    } catch (err) {
+      console.error("Error listing advisor messages:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error listing advisor messages",
+        });
+    }
+  }
+);
+
+/**
+ * POST /api/advisors/clients/:relationshipId/messages
+ * Create a new message in a relationship (candidate or advisor).
+ * Body: { role, userId, body }
+ */
+router.post(
+  "/advisors/clients/:relationshipId/messages",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const { role, userId, body } = req.body;
+
+      if (!role || !userId) {
+        return res.status(400).json({
+          error: "role and userId are required",
+        });
+      }
+
+      const message = await createAdvisorMessage({
+        relationshipId,
+        role: String(role),
+        userId: String(userId),
+        body,
+      });
+
+      res.status(201).json(message);
+    } catch (err) {
+      console.error("Error creating advisor message:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error creating advisor message",
+        });
+    }
+  }
+);
+
 
 export default router;

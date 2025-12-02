@@ -134,6 +134,17 @@ export default function AdvisorClientsPage() {
               >
                 View client
               </button>
+              <button
+              type="button"
+              className="text-sm text-blue-600 hover:underline"
+              onClick={() =>
+                navigate(
+                  `/advisor/clients/${c.relationshipId}/messages`
+                )
+              }
+            >
+              Messages
+                </button>
             </Card>
           ))}
         </div>

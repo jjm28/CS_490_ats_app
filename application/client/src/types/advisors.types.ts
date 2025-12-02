@@ -72,3 +72,17 @@ export interface AdvisorClientProfile {
     coverLetterCount: number | null;
   } | null;
 }
+
+export interface AdvisorMessage {
+  id: string;
+  relationshipId: string;
+  ownerUserId: string;
+  advisorUserId: string;
+  senderRole: "candidate" | "advisor";
+  senderUserId: string;
+  body: string;
+  isReadByCandidate: boolean;
+  isReadByAdvisor: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -9,6 +9,7 @@ import type {
 } from "../../types/advisors.types";
 import AdvisorInviteModal from "./AdvisorInviteModal";
 import AdvisorSettingsModal from "./AdvisorSettingsModal";
+import { useNavigate } from "react-router-dom";
 
 function getCurrentUserId(): string | null {
   try {
@@ -22,6 +23,8 @@ function getCurrentUserId(): string | null {
 }
 
 export default function AdvisorsPage() {
+    const navigate = useNavigate();
+
   const [advisors, setAdvisors] = useState<
     AdvisorRelationshipSummary[]
   >([]);
@@ -253,31 +256,42 @@ export default function AdvisorsPage() {
               </div>
 
               <div className="flex gap-2 justify-end text-xs">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setEditingAdvisor(advisor)}
-                >
-                  Edit
-                </Button>
-                {advisor.status === "pending" ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => handleDelete(advisor)}
-                  >
-                    Delete invite
-                  </Button>
-                ) : advisor.status === "active" ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => handleRevoke(advisor)}
-                  >
-                    Revoke access
-                  </Button>
-                ) : null}
-              </div>
+  <Button
+    type="button"
+    variant="secondary"
+    onClick={() => setEditingAdvisor(advisor)}
+  >
+    Edit
+  </Button>
+  {advisor.status === "pending" ? (
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={() => handleDelete(advisor)}
+    >
+      Delete invite
+    </Button>
+  ) : advisor.status === "active" ? (
+    <>
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={() => handleRevoke(advisor)}
+      >
+        Revoke access
+      </Button>
+      <Button
+        type="button"
+        onClick={() =>
+          navigate(`/advisors/${advisor.id}/messages`)
+        }
+      >
+        Message
+      </Button>
+    </>
+  ) : null}
+</div>
+
             </Card>
           ))}
         </div>

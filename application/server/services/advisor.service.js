@@ -4,6 +4,8 @@ import AdvisorRelationship from "../models/Advisor/AdvisorRelationship.js";
 import AdvisorProfile from "../models/Advisor/AdvisorProfile.js";
 import Profile from "../models/profile.js";
 import Jobs from "../models/jobs.js"; // note: using your actual filenames
+import AdvisorMessage from "../models/Advisor/AdvisorMessage.js";
+
 import { sendAdvisorInviteEmail } from "./emailService.js";
 
 function addDays(date, days) {
@@ -477,4 +479,172 @@ export async function deleteAdvisorRelationship({
   await AdvisorRelationship.deleteOne({ _id: relationshipId });
 
   return { deleted: true };
+}
+
+
+
+/**
+ * List messages for an advisor relationship, with access control.
+ */
+export async function listAdvisorMessages({
+  relationshipId,
+  role,
+  userId,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  ).lean();
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Access control
+  if (role === "candidate") {
+    if (relationship.ownerUserId !== String(userId)) {
+      const err = new Error(
+        "You do not have access to this conversation"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (role === "advisor") {
+    if (
+      relationship.advisorUserId !== String(userId) ||
+      relationship.status !== "active"
+    ) {
+      const err = new Error(
+        "You do not have access to this conversation"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+  } else {
+    const err = new Error("Invalid role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const messages = await AdvisorMessage.find({
+    relationshipId: relationship._id,
+  })
+    .sort({ createdAt: 1 })
+    .lean();
+
+  // Mark as read for this side (basic behavior)
+  if (role === "candidate") {
+    await AdvisorMessage.updateMany(
+      {
+        relationshipId: relationship._id,
+        isReadByCandidate: false,
+      },
+      { $set: { isReadByCandidate: true } }
+    );
+  } else if (role === "advisor") {
+    await AdvisorMessage.updateMany(
+      {
+        relationshipId: relationship._id,
+        isReadByAdvisor: false,
+      },
+      { $set: { isReadByAdvisor: true } }
+    );
+  }
+
+  return messages.map((m) => ({
+    id: m._id.toString(),
+    relationshipId: m.relationshipId.toString(),
+    ownerUserId: m.ownerUserId,
+    advisorUserId: m.advisorUserId,
+    senderRole: m.senderRole,
+    senderUserId: m.senderUserId,
+    body: m.body,
+    isReadByCandidate: m.isReadByCandidate,
+    isReadByAdvisor: m.isReadByAdvisor,
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+  }));
+}
+
+/**
+ * Create a new message in an advisor relationship.
+ */
+export async function createAdvisorMessage({
+  relationshipId,
+  role,
+  userId,
+  body,
+}) {
+  const trimmed = (body || "").trim();
+  if (!trimmed) {
+    const err = new Error("Message body cannot be empty");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  ).lean();
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Access control
+  if (role === "candidate") {
+    if (relationship.ownerUserId !== String(userId)) {
+      const err = new Error(
+        "You do not have access to this conversation"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (role === "advisor") {
+    if (
+      relationship.advisorUserId !== String(userId) ||
+      relationship.status !== "active"
+    ) {
+      const err = new Error(
+        "You do not have access to this conversation"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+  } else {
+    const err = new Error("Invalid role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const isCandidate = role === "candidate";
+
+  const message = await AdvisorMessage.create({
+    relationshipId: relationship._id,
+    ownerUserId: relationship.ownerUserId,
+    advisorUserId: relationship.advisorUserId || "",
+
+    senderRole: role,
+    senderUserId: String(userId),
+    body: trimmed,
+
+    isReadByCandidate: isCandidate,
+    isReadByAdvisor: !isCandidate,
+  });
+
+  return {
+    id: message._id.toString(),
+    relationshipId: message.relationshipId.toString(),
+    ownerUserId: message.ownerUserId,
+    advisorUserId: message.advisorUserId,
+    senderRole: message.senderRole,
+    senderUserId: message.senderUserId,
+    body: message.body,
+    isReadByCandidate: message.isReadByCandidate,
+    isReadByAdvisor: message.isReadByAdvisor,
+    createdAt: message.createdAt,
+    updatedAt: message.updatedAt,
+  };
 }
