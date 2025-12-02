@@ -3,6 +3,7 @@ import { useState } from 'react';
 import InterviewPrepResearch from './CompanyResearch';
 import '../../styles/Interview.css';
 import InterviewPrepChecklist from './InterviewPrepChecklist';
+import SalaryNegotiationPage from './SalaryNegotiationPage';
 
 type CardData = {
   label: string;
@@ -10,7 +11,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'checklist' | 'followup' | null; // Add component type
+  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -78,6 +79,14 @@ const cardData: CardData[] = [
     details: 'Generate and send thank you emails, status inquiries, feedback requests, and networking follow-ups after your interviews.',
     component: 'followup' // 🆕 Add this
   },
+  {
+    label: 'Salary Negotiation',
+    title: 'Salary Negotiation',
+    description: 'AI-powered negotiation preparation and strategy',
+    color: '#0E3B43',
+    details: 'Get personalized negotiation talking points, scripts for different scenarios, market salary analysis, and counter-offer recommendations based on real market data.',
+    component: 'negotiation' // 🆕 Add this
+  },
 ];
 
 type InterviewCardProps = {
@@ -121,6 +130,10 @@ const DetailView = ({
 
   if (card.component === 'checklist') {
     return <InterviewPrepChecklist onBack={onBack} />;
+  }
+
+  if (card.component === 'negotiation') {
+    return <SalaryNegotiationPage onBack={onBack} />;
   }
 
   // Otherwise, show the default detail view

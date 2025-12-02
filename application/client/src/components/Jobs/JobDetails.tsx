@@ -854,6 +854,31 @@ export default function JobDetails({
             )}
 
             <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
+              {job.status === 'offer' && job.finalSalary && (
+                <section className="border-t pt-4">
+                  <button
+                    onClick={() => {
+                      // Open in Interview Suite
+                      window.location.href = '/Interviews#negotiation';
+                    }}
+                    className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">💰</span>
+                      <div className="text-left">
+                        <div className="font-semibold text-gray-900">
+                          Salary Negotiation Preparation
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          Get AI-powered strategies and scripts
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-gray-400">→</span>
+                  </button>
+                </section>
+              )}
+              
               {job.applicationHistory && job.applicationHistory.length > 0 ? (
                 [...job.applicationHistory].reverse().map((entry, i) => {
                   const actualIndex = job.applicationHistory!.length - 1 - i;

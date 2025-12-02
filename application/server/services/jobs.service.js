@@ -4,6 +4,14 @@ import mongoose from "mongoose";
 import { generateFollowUpContent } from "./followup_ai.service.js";
 import notificationService from './notifications.service.js';
 import { getDb } from "../db/connection.js";
+import {
+  generateTalkingPoints,
+  generateNegotiationScripts,
+  generateCounterOffer,
+  generateNegotiationStrategy
+} from './negotiation_ai.service.js';
+import { getSalaryResearch } from './salary.service.js';
+import axios from 'axios';
 
 export async function createJob({ userId, payload }) {
   // Prevent empty package
@@ -1030,6 +1038,160 @@ export async function updateFollowUpStatus({ userId, jobId, interviewId, followU
   } catch (err) {
     console.error("❌ Error in updateFollowUpStatus:", err.message);
     console.error("Stack trace:", err.stack);
+    throw err;
+  }
+}
+
+/**
+ * Generate complete negotiation preparation
+ */
+export async function generateNegotiationPrep({ userId, jobId }) {
+  try {
+    // 1. Fetch job
+    const job = await Jobs.findOne({ _id: jobId, userId });
+    if (!job) throw new Error("Job not found");
+    
+    if (job.status !== 'offer') {
+      throw new Error("Negotiation prep is only available for jobs with offer status");
+    }
+    
+    if (!job.finalSalary) {
+      throw new Error("Please enter the offered salary first (in job details)");
+    }
+
+    // 2. Fetch user info
+    const db = getDb();
+    const user = await db.collection("users").findOne({ _id: userId });
+    if (!user) throw new Error("User not found");
+    
+    const userInfo = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email
+    };
+
+    // 3. Get or fetch market salary data
+    let marketData = await getSalaryResearch(jobId);
+    
+    // If no cached data or data is old (>7 days), fetch new data
+    const needsFreshData = !marketData || 
+      (marketData.cachedAt && (Date.now() - new Date(marketData.cachedAt).getTime() > 7 * 24 * 60 * 60 * 1000));
+    
+    if (needsFreshData) {
+      // Call Adzuna API (reuse existing logic)
+      try {
+        const ADZUNA_API_ID = process.env.ADZUNA_APP_ID;
+        const ADZUNA_API_KEY = process.env.ADZUNA_API_KEY;
+        
+        if (!ADZUNA_API_ID || !ADZUNA_API_KEY) {
+          console.warn('Adzuna API credentials not found, using default market data');
+          marketData = {
+            average: job.finalSalary * 1.1,
+            min: job.finalSalary * 0.8,
+            max: job.finalSalary * 1.3,
+            sourceCount: 0
+          };
+        } else {
+          const searchLocation = job.location || "us";
+          const adzunaURL = `https://api.adzuna.com/v1/api/jobs/us/search/1?app_id=${ADZUNA_API_ID}&app_key=${ADZUNA_API_KEY}&what=${encodeURIComponent(job.jobTitle)}&where=${encodeURIComponent(searchLocation)}&results_per_page=100`;
+          
+          const response = await axios.get(adzunaURL, { timeout: 10000 });
+          const salaryResults = response.data.results || [];
+          
+          const salaryNumbers = salaryResults
+            .map(r => {
+              const min = r.salary_min || r.salary_max;
+              const max = r.salary_max || r.salary_min;
+              if (min || max) return { min, max, avg: (min + max) / 2 };
+              return null;
+            })
+            .filter(n => n !== null);
+
+          if (salaryNumbers.length > 0) {
+            marketData = {
+              average: Math.round(salaryNumbers.reduce((a, b) => a + b.avg, 0) / salaryNumbers.length),
+              min: Math.min(...salaryNumbers.map(s => s.min).filter(Boolean)),
+              max: Math.max(...salaryNumbers.map(s => s.max).filter(Boolean)),
+              sourceCount: salaryResults.length,
+              cachedAt: new Date()
+            };
+            
+            // Cache it
+            await db.collection("salaryResearch").updateOne(
+              { jobId: jobId },
+              { $set: { ...marketData, jobId: jobId, updatedAt: new Date() } },
+              { upsert: true }
+            );
+          } else {
+            // No data found, use estimates
+            marketData = {
+              average: job.finalSalary * 1.1,
+              min: job.finalSalary * 0.8,
+              max: job.finalSalary * 1.3,
+              sourceCount: 0
+            };
+          }
+        }
+      } catch (apiError) {
+        console.error("Error fetching Adzuna data:", apiError);
+        // Fallback to estimates
+        marketData = {
+          average: job.finalSalary * 1.1,
+          min: job.finalSalary * 0.8,
+          max: job.finalSalary * 1.3,
+          sourceCount: 0
+        };
+      }
+    }
+
+    // 4. Generate AI content in parallel
+    console.log("Generating AI negotiation content...");
+    const [talkingPoints, scripts, counterOffer, strategy] = await Promise.all([
+      generateTalkingPoints(job, userInfo, marketData),
+      generateNegotiationScripts(job, userInfo, marketData),
+      generateCounterOffer(job, userInfo, marketData),
+      generateNegotiationStrategy(job, userInfo, marketData)
+    ]);
+
+    // 5. Calculate percentile
+    const percentile = marketData.average && marketData.min && marketData.max
+      ? Math.round(((job.finalSalary - marketData.min) / (marketData.max - marketData.min)) * 100)
+      : 50;
+
+    // 6. Save to database
+    job.negotiationPrep = {
+      generatedAt: new Date(),
+      lastUpdatedAt: new Date(),
+      marketData: {
+        yourOffer: job.finalSalary,
+        marketMin: marketData.min,
+        marketMedian: marketData.average,
+        marketMax: marketData.max,
+        percentile: Math.max(0, Math.min(100, percentile)),
+        dataSource: 'Adzuna',
+        fetchedAt: marketData.cachedAt || new Date()
+      },
+      talkingPoints,
+      scripts,
+      counterOffer,
+      strategy,
+      outcome: {
+        attempted: false,
+        result: 'pending',
+        finalSalary: null,
+        improvementAmount: null,
+        notes: ''
+      }
+    };
+
+    job.markModified('negotiationPrep');
+    await job.save();
+
+    console.log("✅ Negotiation prep generated successfully");
+    return job.negotiationPrep;
+
+  } catch (err) {
+    console.error("Error generating negotiation prep:", err);
     throw err;
   }
 }

@@ -27,7 +27,8 @@ import {
   generateChecklistItems,
   createFollowUpTemplate,
   saveFollowUp,
-  updateFollowUpStatus
+  updateFollowUpStatus,
+  generateNegotiationPrep
 } from "../services/jobs.service.js";
 import {
   getUserPreferences,
@@ -1115,6 +1116,159 @@ router.patch("/:id/interview/:interviewId/follow-up/:followUpId", async (req, re
   } catch (err) {
     console.error("❌ Route error:", err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
+// UC-083: SALARY NEGOTIATION PREPARATION
+// ============================================
+
+/**
+ * POST /api/jobs/:id/negotiation/generate
+ * Generate AI-powered negotiation preparation
+ */
+router.post("/:id/negotiation/generate", async (req, res) => {
+  try {
+    console.log('🎯 ===== ROUTE: Generate Negotiation Prep =====');
+    console.log('📥 Route params:', req.params);
+    console.log('👤 req.user:', req.user);
+    
+    const userId = getUserId(req);
+    console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
+    
+    if (!userId) {
+      console.log('❌ No userId - returning 401');
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log('📞 Calling generateNegotiationPrep with:', {
+      userId,
+      jobId: req.params.id
+    });
+
+    const result = await generateNegotiationPrep({
+      userId,
+      jobId: req.params.id
+    });
+    
+    console.log('✅ Success - returning result');
+    res.json(result);
+    
+  } catch (err) {
+    console.error("❌ Route error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to generate negotiation prep" });
+  }
+});
+
+/**
+ * GET /api/jobs/:id/negotiation
+ * Get existing negotiation prep for a job
+ */
+router.get("/:id/negotiation", async (req, res) => {
+  try {
+    console.log('🎯 ===== ROUTE: Get Negotiation Prep =====');
+    
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const job = await Jobs.findOne({ _id: req.params.id, userId }).lean();
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    if (!job.negotiationPrep) {
+      return res.status(404).json({ 
+        error: "Negotiation prep not generated yet",
+        exists: false 
+      });
+    }
+    
+    res.json({
+      negotiationPrep: job.negotiationPrep,
+      jobTitle: job.jobTitle,
+      company: job.company,
+      currentOffer: job.finalSalary
+    });
+    
+  } catch (err) {
+    console.error("❌ Error fetching negotiation prep:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch negotiation prep" });
+  }
+});
+
+/**
+ * PATCH /api/jobs/:id/negotiation
+ * Update/customize negotiation prep
+ */
+router.patch("/:id/negotiation", async (req, res) => {
+  try {
+    console.log('🎯 ===== ROUTE: Update Negotiation Prep =====');
+    console.log('📥 Route body:', req.body);
+    
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { counterOffer, strategy, outcome } = req.body;
+    
+    const job = await Jobs.findOne({ _id: req.params.id, userId });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    if (!job.negotiationPrep) {
+      return res.status(404).json({ error: "Generate negotiation prep first" });
+    }
+    
+    // Update fields
+    if (counterOffer) {
+      job.negotiationPrep.counterOffer = {
+        ...job.negotiationPrep.counterOffer,
+        ...counterOffer
+      };
+    }
+    
+    if (strategy) {
+      job.negotiationPrep.strategy = {
+        ...job.negotiationPrep.strategy,
+        ...strategy
+      };
+    }
+    
+    if (outcome) {
+      job.negotiationPrep.outcome = {
+        ...job.negotiationPrep.outcome,
+        ...outcome
+      };
+      
+      // 🔗 Sync to salaryAnalysis for future UC-100 analytics
+      if (outcome.attempted) {
+        job.salaryAnalysis = job.salaryAnalysis || {};
+        job.salaryAnalysis.negotiation = job.salaryAnalysis.negotiation || {};
+        job.salaryAnalysis.negotiation.attempted = true;
+        
+        if (outcome.result) {
+          job.salaryAnalysis.negotiation.outcome = outcome.result;
+        }
+        if (outcome.finalSalary) {
+          job.salaryAnalysis.negotiation.finalOffer = outcome.finalSalary;
+          job.salaryAnalysis.negotiation.initialOffer = job.negotiationPrep.marketData.yourOffer;
+          job.salaryAnalysis.negotiation.improvedAmount = 
+            outcome.finalSalary - job.negotiationPrep.marketData.yourOffer;
+        }
+      }
+    }
+    
+    job.negotiationPrep.lastUpdatedAt = new Date();
+    job.markModified('negotiationPrep');
+    job.markModified('salaryAnalysis');
+    
+    await job.save();
+    
+    console.log('✅ Negotiation prep updated successfully');
+    res.json({
+      message: "Negotiation prep updated",
+      negotiationPrep: job.negotiationPrep
+    });
+    
+  } catch (err) {
+    console.error("❌ Error updating negotiation prep:", err);
+    res.status(500).json({ error: err.message || "Failed to update negotiation prep" });
   }
 });
 

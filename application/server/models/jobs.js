@@ -304,6 +304,80 @@ const JobSchema = new Schema({
         default: {}
     },
 
+    // UC-083: Salary Negotiation Preparation
+    negotiationPrep: {
+    type: {
+        generatedAt: { type: Date },
+        lastUpdatedAt: { type: Date },
+        
+        // Market comparison (snapshot for this negotiation)
+        marketData: {
+        yourOffer: { type: Number },
+        marketMin: { type: Number },
+        marketMedian: { type: Number },
+        marketMax: { type: Number },
+        percentile: { type: Number }, // Where your offer ranks (0-100)
+        dataSource: { type: String, default: 'Adzuna' },
+        fetchedAt: { type: Date }
+        },
+        
+        // AI-generated talking points
+        talkingPoints: [{
+        category: { 
+            type: String, 
+            enum: ['experience', 'skills', 'market_value', 'total_comp', 'unique_value', 'other'] 
+        },
+        point: { type: String },
+        order: { type: Number }
+        }],
+        
+        // Negotiation scripts for different scenarios
+        scripts: [{
+        scenario: { 
+            type: String, 
+            enum: ['initial_response', 'counter_offer', 'benefits_discussion', 'timeline_discussion', 'final_decision'] 
+        },
+        script: { type: String },
+        tips: [String]
+        }],
+        
+        // Counter-offer calculation
+        counterOffer: {
+        targetSalary: { type: Number },
+        minimumAcceptable: { type: Number },
+        justification: { type: String },
+        confidenceLevel: { 
+            type: String, 
+            enum: ['low', 'medium', 'high'],
+            default: 'medium'
+        }
+        },
+        
+        // Negotiation strategy
+        strategy: {
+        timing: { type: String },
+        leverage: [String],
+        risks: [String],
+        alternatives: [String],
+        notes: { type: String }
+        },
+        
+        // Track the outcome
+        outcome: {
+        attempted: { type: Boolean, default: false },
+        result: {
+            type: String,
+            enum: ['accepted_as_is', 'negotiated_higher', 'negotiated_benefits', 'declined_offer', 'pending'],
+            default: 'pending'
+        },
+        finalSalary: { type: Number },
+        improvementAmount: { type: Number },
+        notes: { type: String }
+        }
+    },
+    default: null
+    },
+
     salaryBonus: { type: Number, default: null },
     salaryEquity: { type: Number, default: null },
     benefitsValue: { type: Number, default: null },
