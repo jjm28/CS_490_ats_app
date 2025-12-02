@@ -39,7 +39,7 @@ import certificationRoutes from "./routes/certifications.js";
 // 💼 JOBS & SALARY
 import jobRoutes from './routes/jobs.js';
 import jobSalaryRoutes from "./routes/jobs-salary.js";
-import salaryRoutes from "./routes/salary.js";
+
 import salaryRouter from "./routes/salary.js";
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 
@@ -85,7 +85,7 @@ import advisorRoutes from "./routes/advisor.routes.js";
 import salaryRoutes from  "./routes/salary.js"
 import networkingRoutes from "./routes/networking.js";
 import outreachRoutes from "./routes/outreach.js";
-import referralSources from "./routes/referralSources.js";
+//import referralSources from "./routes/referralSources.js";
 import referralRoutes from "./routes/referrals.js";
 
 
@@ -174,8 +174,8 @@ try {
   app.use("/api/resume-versions", resumeVersionsRouter);
 
   //networking 
-  //app.use("/api/networking", networkingRoutes);
-  //app.use("/api/networking/outreach", outreachRoutes);
+  app.use("/api/networking", networkingRoutes);
+  app.use("/api/networking/outreach", outreachRoutes);
 
 
   // 🔔 NOTIFICATIONS (Must be after DB)
