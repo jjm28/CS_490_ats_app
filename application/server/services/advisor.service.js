@@ -1677,24 +1677,7 @@ export async function listAdvisorSessions({
     .sort({ startTime: 1 })
     .lean();
 
-  return sessions.map((s) => ({
-    id: s._id.toString(),
-    relationshipId: s.relationshipId.toString(),
-    ownerUserId: s.ownerUserId,
-    advisorUserId: s.advisorUserId,
-    createdByRole: s.createdByRole,
-    createdByUserId: s.createdByUserId,
-    startTime: s.startTime,
-    endTime: s.endTime,
-    sessionType: s.sessionType,
-    status: s.status,
-    jobId: s.jobId,
-    resumeId: s.resumeId,
-    coverLetterId: s.coverLetterId,
-    note: s.note,
-    createdAt: s.createdAt,
-    updatedAt: s.updatedAt,
-  }));
+  return sessions.map((s) => (mapAdvisorSession(s)));
 }
 export async function bookAdvisorSession({
   relationshipId,
@@ -1822,6 +1805,28 @@ export async function bookAdvisorSession({
   const status =
     role === "advisor" ? "confirmed" : "requested";
 
+      const profile = await AdvisorProfile.findOne({
+    userId: String(advisorUserId),
+  }).lean();
+
+  let isBillable = false;
+  let rateAmount = null;
+  let currency = "USD";
+  let paymentStatus = "untracked";
+
+  if (profile && profile.isPaidCoach) {
+    isBillable = true;
+    if (
+      typeof profile.billingRateAmount === "number" &&
+      !Number.isNaN(profile.billingRateAmount)
+    ) {
+      rateAmount = profile.billingRateAmount;
+    }
+    if (profile.billingCurrency) {
+      currency = profile.billingCurrency;
+    }
+    paymentStatus = "pending";
+  }
   const session = await AdvisorSession.create({
     relationshipId: relationship._id,
     ownerUserId,
@@ -1833,26 +1838,13 @@ export async function bookAdvisorSession({
     sessionType,
     status,
     note: (note || "").trim().slice(0, 2000),
+      isBillable,
+    rateAmount,
+    currency,
+    paymentStatus,
   });
 
-  return {
-    id: session._id.toString(),
-    relationshipId: session.relationshipId.toString(),
-    ownerUserId: session.ownerUserId,
-    advisorUserId: session.advisorUserId,
-    createdByRole: session.createdByRole,
-    createdByUserId: session.createdByUserId,
-    startTime: session.startTime,
-    endTime: session.endTime,
-    sessionType: session.sessionType,
-    status: session.status,
-    jobId: session.jobId,
-    resumeId: session.resumeId,
-    coverLetterId: session.coverLetterId,
-    note: session.note,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-  };
+  return mapAdvisorSession(session)
 }
 export async function updateAdvisorSession({
   sessionId,
@@ -1979,4 +1971,119 @@ export async function updateAdvisorSession({
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
   };
+}
+
+
+function mapAdvisorSession(session) {
+  return {
+    id: session._id.toString(),
+    relationshipId: session.relationshipId.toString(),
+    ownerUserId: session.ownerUserId,
+    advisorUserId: session.advisorUserId,
+    createdByRole: session.createdByRole,
+    createdByUserId: session.createdByUserId,
+    startTime: session.startTime,
+    endTime: session.endTime,
+    sessionType: session.sessionType,
+    status: session.status,
+    jobId: session.jobId,
+    resumeId: session.resumeId,
+    coverLetterId: session.coverLetterId,
+    note: session.note,
+    // NEW billing-related fields
+    isBillable: !!session.isBillable,
+    rateAmount:
+      typeof session.rateAmount === "number"
+        ? session.rateAmount
+        : null,
+    currency: session.currency || "USD",
+    paymentStatus: session.paymentStatus || "untracked",
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+  };
+}
+export async function getAdvisorBillingSettings(advisorUserId) {
+  const profile = await AdvisorProfile.findOne({
+    userId: String(advisorUserId),
+  }).lean();
+
+  if (!profile) {
+    return {
+      isPaidCoach: false,
+      rateAmount: 0,
+      currency: "USD",
+    };
+  }
+
+  return {
+    isPaidCoach: !!profile.isPaidCoach,
+    rateAmount:
+      typeof profile.billingRateAmount === "number"
+        ? profile.billingRateAmount
+        : 0,
+    currency: profile.billingCurrency || "USD",
+  };
+}
+
+export async function updateAdvisorBillingSettings({
+  advisorUserId,
+  isPaidCoach,
+  rateAmount,
+  currency,
+}) {
+  const update = {
+    isPaidCoach: !!isPaidCoach,
+    billingRateAmount:
+      typeof rateAmount === "number" && !Number.isNaN(rateAmount)
+        ? rateAmount
+        : 0,
+    billingCurrency: currency || "USD",
+  };
+
+  const profile = await AdvisorProfile.findOneAndUpdate(
+    { userId: String(advisorUserId) },
+    { $set: update },
+    { upsert: true, new: true }
+  ).lean();
+
+  return {
+    isPaidCoach: !!profile.isPaidCoach,
+    rateAmount:
+      typeof profile.billingRateAmount === "number"
+        ? profile.billingRateAmount
+        : 0,
+    currency: profile.billingCurrency || "USD",
+  };
+}
+
+
+export async function updateAdvisorSessionPayment({
+  sessionId,
+  advisorUserId,
+  paymentStatus,
+}) {
+  const allowed = ["pending", "paid", "refunded", "untracked"];
+  if (!allowed.includes(paymentStatus)) {
+    const err = new Error("Invalid paymentStatus");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const session = await AdvisorSession.findById(sessionId);
+  if (!session) {
+    const err = new Error("Session not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (session.advisorUserId !== String(advisorUserId)) {
+    const err = new Error("Not authorized to update payment for this session");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  session.paymentStatus = paymentStatus;
+  await session.save();
+
+  return mapAdvisorSession(session);
 }

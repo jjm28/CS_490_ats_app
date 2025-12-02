@@ -233,9 +233,20 @@ export interface AdvisorSession {
   note?: string;
   createdAt: string;
   updatedAt: string;
+    isBillable?: boolean;
+  rateAmount?: number | null;
+  currency?: string | null;
+  paymentStatus?: "pending" | "paid" | "refunded" | "untracked"
 }
 
 export interface AdvisorSlot {
   startTime: string;
   endTime: string;
+}
+
+
+export interface AdvisorBillingSettings {
+  isPaidCoach: boolean;
+  rateAmount: number;
+  currency: string;
 }

@@ -10,6 +10,15 @@ const AdvisorProfileSchema = new Schema(
     specialties: { type: [String], default: [] }, // ["resume", "interview", ...]
     isPaidCoach: { type: Boolean, default: false },
     timezone: { type: String, default: "" },
+        billingRateAmount: {
+      type: Number,
+      default: 0,
+    },
+    billingCurrency: {
+      type: String,
+      default: "USD",
+      trim: true,
+    },
   },
   { timestamps: true }
 );

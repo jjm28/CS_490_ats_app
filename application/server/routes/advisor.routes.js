@@ -20,7 +20,9 @@ import {
   generateUpcomingSlots,
   listAdvisorSessions,
   bookAdvisorSession,
-  updateAdvisorSession,
+  updateAdvisorSession, getAdvisorBillingSettings,
+  updateAdvisorBillingSettings,
+  updateAdvisorSessionPayment,
 } from "../services/advisor.service.js";
 
 const router = express.Router();
@@ -899,6 +901,103 @@ router.patch(
           error:
             err.message ||
             "Server error updating session",
+        });
+    }
+  }
+);
+/**
+ * GET /api/advisors/me/billing-settings?advisorUserId=...
+ */
+router.get("/advisors/me/billing-settings", async (req, res) => {
+  try {
+    const { advisorUserId } = req.query;
+    if (!advisorUserId) {
+      return res
+        .status(400)
+        .json({ error: "advisorUserId is required" });
+    }
+
+    const settings = await getAdvisorBillingSettings(
+      String(advisorUserId)
+    );
+    res.json(settings);
+  } catch (err) {
+    console.error("Error fetching billing settings:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({
+        error:
+          err.message || "Server error fetching billing settings",
+      });
+  }
+});
+
+/**
+ * PUT /api/advisors/me/billing-settings
+ * Body: { advisorUserId, isPaidCoach, rateAmount, currency }
+ */
+router.put("/advisors/me/billing-settings", async (req, res) => {
+  try {
+    const { advisorUserId, isPaidCoach, rateAmount, currency } =
+      req.body;
+
+    if (!advisorUserId) {
+      return res
+        .status(400)
+        .json({ error: "advisorUserId is required" });
+    }
+
+    const updated = await updateAdvisorBillingSettings({
+      advisorUserId: String(advisorUserId),
+      isPaidCoach,
+      rateAmount,
+      currency,
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Error updating billing settings:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({
+        error:
+          err.message || "Server error updating billing settings",
+      });
+  }
+});
+
+/**
+ * PATCH /api/advisors/sessions/:sessionId/payment
+ * Body: { advisorUserId, paymentStatus }
+ */
+router.patch(
+  "/advisors/sessions/:sessionId/payment",
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { advisorUserId, paymentStatus } = req.body;
+
+      if (!advisorUserId) {
+        return res
+          .status(400)
+          .json({ error: "advisorUserId is required" });
+      }
+
+      const updated = await updateAdvisorSessionPayment({
+        sessionId,
+        advisorUserId: String(advisorUserId),
+        paymentStatus,
+      });
+
+      res.json(updated);
+    } catch (err) {
+      console.error("Error updating session payment:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error updating session payment",
         });
     }
   }

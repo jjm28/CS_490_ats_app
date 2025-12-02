@@ -117,6 +117,24 @@ export default function AdvisorClientSessionsForCandidate({
       s.status === "completed" || s.status === "canceled"
   );
 
+  const renderBillingLine = (s: AdvisorSession) => {
+    if (!s.isBillable || !s.rateAmount) return null;
+    const label =
+      s.paymentStatus === "paid"
+        ? "Paid"
+        : s.paymentStatus === "pending"
+        ? "Payment pending"
+        : s.paymentStatus === "refunded"
+        ? "Refunded"
+        : "Not tracked";
+    return (
+      <div className="text-[11px] text-gray-500">
+        Billing: {s.currency || "USD"} {s.rateAmount.toFixed(2)} ·{" "}
+        {label}
+      </div>
+    );
+  };
+
   return (
     <>
       <Card className="p-4 space-y-4">
@@ -177,6 +195,7 @@ export default function AdvisorClientSessionsForCandidate({
                               ? "Pending advisor confirmation"
                               : "Confirmed"}
                           </div>
+                          {renderBillingLine(s)}
                         </div>
                         {s.status !== "canceled" && (
                           <Button
@@ -224,6 +243,7 @@ export default function AdvisorClientSessionsForCandidate({
                         {start.toLocaleString()} ·{" "}
                         {s.status}
                       </div>
+                      {renderBillingLine(s)}
                       {s.note && (
                         <p className="text-xs text-gray-700">
                           Your note: {s.note}
@@ -251,3 +271,4 @@ export default function AdvisorClientSessionsForCandidate({
     </>
   );
 }
+

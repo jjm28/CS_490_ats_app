@@ -14,6 +14,12 @@ interface Props {
   ownerUserId: string;
 }
 
+type AdvisorPaymentStatus =
+  | "pending"
+  | "paid"
+  | "refunded"
+  | "untracked";
+
 export default function AdvisorClientSessionsSection({
   relationshipId,
   advisorUserId,
@@ -65,9 +71,11 @@ export default function AdvisorClientSessionsSection({
   }, [relationshipId, advisorUserId]);
 
   const handleCreated = (s: AdvisorSession) => {
-    setSessions((prev) => [...prev, s].sort((a, b) =>
-      a.startTime.localeCompare(b.startTime)
-    ));
+    setSessions((prev) =>
+      [...prev, s].sort((a, b) =>
+        a.startTime.localeCompare(b.startTime)
+      )
+    );
   };
 
   const updateStatus = async (
@@ -110,6 +118,45 @@ export default function AdvisorClientSessionsSection({
     }
   };
 
+  const updatePaymentStatus = async (
+    s: AdvisorSession,
+    paymentStatus: AdvisorPaymentStatus
+  ) => {
+    setUpdatingId(s.id);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/advisors/sessions/${s.id}/payment`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            advisorUserId,
+            paymentStatus,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(
+          body?.error ||
+            "Failed to update payment"
+        );
+      }
+
+      const updated =
+        (await res.json()) as AdvisorSession;
+      setSessions((prev) =>
+        prev.map((x) => (x.id === updated.id ? updated : x))
+      );
+    } catch (err: any) {
+      console.error("Error updating session payment:", err);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const upcoming = sessions.filter(
     (s) =>
       s.status === "requested" ||
@@ -119,6 +166,24 @@ export default function AdvisorClientSessionsSection({
     (s) =>
       s.status === "completed" || s.status === "canceled"
   );
+
+  const renderBillingLine = (s: AdvisorSession) => {
+    if (!s.isBillable || !s.rateAmount) return null;
+    const label =
+      s.paymentStatus === "paid"
+        ? "Paid"
+        : s.paymentStatus === "pending"
+        ? "Payment pending"
+        : s.paymentStatus === "refunded"
+        ? "Refunded"
+        : "Not tracked";
+    return (
+      <div className="text-[11px] text-gray-500">
+        Billing: {s.currency || "USD"} {s.rateAmount.toFixed(2)} ·{" "}
+        {label}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -180,6 +245,7 @@ export default function AdvisorClientSessionsSection({
                               ? "Requested by client"
                               : "Scheduled by you"}
                           </div>
+                          {renderBillingLine(s)}
                         </div>
                         <div className="flex flex-col gap-1">
                           {s.status === "requested" && (
@@ -252,6 +318,36 @@ export default function AdvisorClientSessionsSection({
                               </Button>
                             </>
                           )}
+
+                          {s.isBillable && (
+                            <select
+                              className="mt-1 text-[11px] border rounded px-2 py-1 bg-white"
+                              value={
+                                s.paymentStatus || "untracked"
+                              }
+                              disabled={updatingId === s.id}
+                              onChange={(e) =>
+                                updatePaymentStatus(
+                                  s,
+                                  e.target
+                                    .value as AdvisorPaymentStatus
+                                )
+                              }
+                            >
+                              <option value="untracked">
+                                Not tracked
+                              </option>
+                              <option value="pending">
+                                Payment pending
+                              </option>
+                              <option value="paid">
+                                Paid
+                              </option>
+                              <option value="refunded">
+                                Refunded
+                              </option>
+                            </select>
+                          )}
                         </div>
                       </div>
                       {s.note && (
@@ -288,6 +384,7 @@ export default function AdvisorClientSessionsSection({
                         {start.toLocaleString()} ·{" "}
                         {s.status}
                       </div>
+                      {renderBillingLine(s)}
                       {s.note && (
                         <p className="text-xs text-gray-700">
                           Note: {s.note}

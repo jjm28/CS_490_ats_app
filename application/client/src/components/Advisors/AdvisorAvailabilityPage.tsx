@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 import API_BASE from "../../utils/apiBase";
 import Card from "../StyledComponents/Card";
 import Button from "../StyledComponents/Button";
-import type { AdvisorAvailability } from "../../types/advisors.types";
+import type {
+  AdvisorAvailability,
+  AdvisorBillingSettings,
+} from "../../types/advisors.types";
 
 const dayLabels = [
   "Sunday",
@@ -27,48 +30,83 @@ function getCurrentUserId(): string | null {
 
 export default function AdvisorAvailabilityPage() {
   const advisorUserId = getCurrentUserId();
+
   const [availability, setAvailability] =
     useState<AdvisorAvailability | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingAvailability, setSavingAvailability] =
+    useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [sessionTypesInput, setSessionTypesInput] =
     useState("");
+
+  // NEW: billing state
+  const [billing, setBilling] =
+    useState<AdvisorBillingSettings | null>(null);
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [billingSaving, setBillingSaving] = useState(false);
+  const [billingError, setBillingError] =
+    useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!advisorUserId) return;
       try {
         setLoading(true);
+        setBillingLoading(true);
         setError(null);
-        const res = await fetch(
-          `${API_BASE}/api/advisors/me/availability?advisorUserId=${encodeURIComponent(
-            advisorUserId
-          )}`,
-          { credentials: "include" }
-        );
+        setBillingError(null);
 
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
+        const [availRes, billingRes] = await Promise.all([
+          fetch(
+            `${API_BASE}/api/advisors/me/availability?advisorUserId=${encodeURIComponent(
+              advisorUserId
+            )}`,
+            { credentials: "include" }
+          ),
+          fetch(
+            `${API_BASE}/api/advisors/me/billing-settings?advisorUserId=${encodeURIComponent(
+              advisorUserId
+            )}`,
+            { credentials: "include" }
+          ),
+        ]);
+
+        if (!availRes.ok) {
+          const body = await availRes.json().catch(() => ({}));
           throw new Error(
             body?.error ||
               "Failed to load availability"
           );
         }
 
-        const data = (await res.json()) as AdvisorAvailability;
-        setAvailability(data);
+        const availJson =
+          (await availRes.json()) as AdvisorAvailability;
+        setAvailability(availJson);
         setSessionTypesInput(
-          (data.sessionTypes || []).join(", ")
+          (availJson.sessionTypes || []).join(", ")
         );
+
+        if (billingRes.ok) {
+          const billJson =
+            (await billingRes.json()) as AdvisorBillingSettings;
+          setBilling(billJson);
+        } else {
+          // If billing not configured yet, use a sensible default
+          setBilling({
+            isPaidCoach: false,
+            rateAmount: 0,
+            currency: "USD",
+          });
+        }
       } catch (err: any) {
-        console.error("Error loading availability:", err);
+        console.error("Error loading availability/billing:", err);
         setError(
           err.message || "Failed to load availability"
         );
       } finally {
         setLoading(false);
+        setBillingLoading(false);
       }
     };
 
@@ -132,9 +170,9 @@ export default function AdvisorAvailabilityPage() {
     });
   };
 
-  const handleSave = async () => {
+  const handleSaveAvailability = async () => {
     if (!advisorUserId || !availability) return;
-    setSaving(true);
+    setSavingAvailability(true);
     setError(null);
 
     const sessionTypes = sessionTypesInput
@@ -176,7 +214,49 @@ export default function AdvisorAvailabilityPage() {
       console.error("Error saving availability:", err);
       setError(err.message || "Failed to save availability");
     } finally {
-      setSaving(false);
+      setSavingAvailability(false);
+    }
+  };
+
+  const handleSaveBilling = async () => {
+    if (!advisorUserId || !billing) return;
+    setBillingSaving(true);
+    setBillingError(null);
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/advisors/me/billing-settings`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            advisorUserId,
+            isPaidCoach: billing.isPaidCoach,
+            rateAmount: billing.rateAmount,
+            currency: billing.currency,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(
+          body?.error ||
+            "Failed to save billing settings"
+        );
+      }
+
+      const updated =
+        (await res.json()) as AdvisorBillingSettings;
+      setBilling(updated);
+    } catch (err: any) {
+      console.error("Error saving billing settings:", err);
+      setBillingError(
+        err.message || "Failed to save billing settings"
+      );
+    } finally {
+      setBillingSaving(false);
     }
   };
 
@@ -205,6 +285,7 @@ export default function AdvisorAvailabilityPage() {
 
       {!loading && availability && (
         <>
+          {/* Weekly availability */}
           <Card className="p-4 space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-sm font-semibold">
@@ -212,10 +293,12 @@ export default function AdvisorAvailabilityPage() {
               </h2>
               <Button
                 type="button"
-                onClick={handleSave}
-                disabled={saving}
+                onClick={handleSaveAvailability}
+                disabled={savingAvailability}
               >
-                {saving ? "Saving..." : "Save changes"}
+                {savingAvailability
+                  ? "Saving..."
+                  : "Save changes"}
               </Button>
             </div>
 
@@ -313,6 +396,7 @@ export default function AdvisorAvailabilityPage() {
             </div>
           </Card>
 
+          {/* Session types */}
           <Card className="p-4 space-y-3">
             <h2 className="text-sm font-semibold">
               Session types
@@ -331,6 +415,118 @@ export default function AdvisorAvailabilityPage() {
               className="w-full border rounded px-3 py-2 text-sm"
               placeholder="Resume review, Mock interview, Career strategy"
             />
+          </Card>
+
+          {/* NEW: Billing settings */}
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">
+                Billing &amp; rates
+              </h2>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveBilling}
+                disabled={billingSaving || billingLoading}
+              >
+                {billingSaving
+                  ? "Saving..."
+                  : "Save billing"}
+              </Button>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              Set whether you charge for sessions and your
+              default rate. We&apos;ll attach this to each new
+              booking.
+            </p>
+
+            {billingError && (
+              <p className="text-xs text-red-600">
+                {billingError}
+              </p>
+            )}
+
+            {billingLoading ? (
+              <p className="text-sm">Loading billing...</p>
+            ) : billing ? (
+              <div className="space-y-3 text-sm">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={billing.isPaidCoach}
+                    onChange={(e) =>
+                      setBilling((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              isPaidCoach: e.target.checked,
+                            }
+                          : {
+                              isPaidCoach: e.target.checked,
+                              rateAmount: 0,
+                              currency: "USD",
+                            }
+                      )
+                    }
+                  />
+                  <span>
+                    I offer paid coaching sessions
+                  </span>
+                </label>
+
+                {billing.isPaidCoach && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">
+                        Default rate
+                      </span>
+                      <select
+                        value={billing.currency}
+                        onChange={(e) =>
+                          setBilling((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  currency: e.target.value,
+                                }
+                              : null
+                          )
+                        }
+                        className="border rounded px-2 py-1 text-xs"
+                      >
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                      </select>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={billing.rateAmount}
+                        onChange={(e) =>
+                          setBilling((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  rateAmount:
+                                    Number(
+                                      e.target.value
+                                    ) || 0,
+                                }
+                              : null
+                          )
+                        }
+                        className="border rounded px-2 py-1 text-xs w-24"
+                      />
+                      <span className="text-xs text-gray-500">
+                        per session
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </Card>
         </>
       )}

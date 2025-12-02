@@ -40,6 +40,26 @@ const AdvisorSessionSchema = new Schema(
     coverLetterId: { type: String, default: null },
 
     note: { type: String, default: "", maxlength: 2000 },
+     isBillable: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    rateAmount: {
+      type: Number,
+      default: null,
+    },
+    currency: {
+      type: String,
+      default: "USD",
+      trim: true,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "paid", "refunded", "untracked"],
+      default: "untracked",
+      index: true,
+    },
   },
   { timestamps: true }
 );
