@@ -14,6 +14,7 @@ import {
 import type{ Interview, FollowUp } from "../../types/jobs.types";
 import FollowUpModal from "../Interviews/FollowUpModal";
 import InterviewFollowUp from "../Interviews/InterviewFollowUp";
+import { useInterviewPredictionSync } from "../../hooks/useInterviewPredictionSync";
 
 async function moveJobToInterviewStage(jobId: string, token: string) {
   try {
@@ -52,6 +53,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       localStorage.getItem("authToken") || localStorage.getItem("token") || "",
     []
   );
+
+  const { triggerRecalculation } = useInterviewPredictionSync();
 
   /** ✅ Initialize Google API Client safely **/
   useEffect(() => {
@@ -135,6 +138,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         return;
       }
 
+      const saved = await res.json(); // 🆕 CAPTURE THE RESPONSE
+
       await fetchInterviews();
 
       await moveJobToInterviewStage(jobId, token);
@@ -181,6 +186,11 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
           }
           alert("Interview added to Google Calendar ✅");
         }
+      }
+
+      const interviewId = editingId || saved._id;
+      if (interviewId) {
+        triggerRecalculation(jobId, interviewId);
       }
 
       // ✅ Reset form
@@ -248,8 +258,14 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
           body: JSON.stringify({ outcome }),
         }
       );
-      if (res.ok) fetchInterviews();
-      else console.error("Failed to update outcome:", res.status);
+      if (res.ok) {
+        await fetchInterviews();
+        
+        // 🆕 ADD THIS - Trigger recalculation when outcome changes
+        triggerRecalculation(jobId, interviewId);
+      } else {
+        console.error("Failed to update outcome:", res.status);
+      }
     } catch (err) {
       console.error("Error updating outcome:", err);
     }
@@ -475,7 +491,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                       jobId={jobId}
                       interviewId={i._id!}
                       checklist={i.preparationChecklist}
-                      onChecklistUpdate={fetchInterviews}
+                      // onChecklistUpdate={fetchInterviews}
                       compact={false}
                     />
                   )}
