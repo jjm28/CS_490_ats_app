@@ -611,6 +611,7 @@ export interface PartnerInvite {
   status: "pending" | "accepted" | "rejected" | "cancelled";
   createdAt: string;
   updatedAt: string;
+  alreadyexist? : boolean;
 }
 
 export interface OwnerPartnerOf {

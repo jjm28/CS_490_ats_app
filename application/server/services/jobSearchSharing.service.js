@@ -1143,7 +1143,7 @@ export async function listDiscussionMessages({
   }
 
   const messages = await JobSharingDiscussionMessage.find({
-    ownerUserId: ownerUserIdStr,
+    ownerUserId: ownerUserIdStr
   })
     .sort({ createdAt: -1 })
     .limit(limit);
@@ -1304,18 +1304,24 @@ export async function createPartnerInvite({
   }
 
   // ensure profile exists
+  
   await getOrCreateSharingProfile(ownerUserIdStr);
-
   // generate a unique token
   const inviteToken = crypto.randomBytes(32).toString("hex");
-
-  const invite = await JobSearchPartnerInvite.create({
+  const invitationexist =   await JobSearchPartnerInvite.find({invitedEmail: invitedEmail, ownerUserId: ownerUserId})
+  let invite
+if (invitationexist.length == 0){
+   invite = await JobSearchPartnerInvite.create({
     ownerUserId: ownerUserIdStr,
     invitedEmail: email,
     inviteToken,
     status: "pending",
   });
-
+}
+else{
+   invite = invitationexist[0]
+   console.log(invitationexist)
+}
   try {
     await sendPartnerInviteEmail({
       toEmail: email,

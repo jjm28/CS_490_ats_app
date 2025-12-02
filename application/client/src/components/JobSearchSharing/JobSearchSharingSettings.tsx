@@ -68,9 +68,9 @@ const [ownersWhereImPartner, setOwnersWhereImPartner] = useState<
         setProfile(data);
         const invites = await fetchPartnerInvitesForOwner(currentUserId);
         if (isMounted) {
-          console.log(invites)
           setPartnerInvites(invites);
         }
+console.log(invites)
 
         // Load owners where I am a partner
         const owners = await fetchOwnersWhereUserIsPartner(currentUserId);
@@ -120,7 +120,6 @@ setPartnerInvites(prev => {
   if (exists) return prev;
   return [invite, ...prev]; // or whatever your object shape is
 });
-
     setNewPartnerEmail("");
     setSuccessMessage("Invitation sent.");
   } catch (err: any) {
