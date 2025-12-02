@@ -73,9 +73,10 @@ import SalaryProgressDetail from "./components/Analytics/Salary/SalaryProgressDe
 import CompProgressDetail from "./components/Analytics/Salary/CompProgressDetail";
 import GoalNew from "./components/Analytics/SmartGoals/GoalNew";
 import JobCompetitiveAnalysisDashboard from "./components/Jobs/JobCompetitiveAnalysisDashboard";
-
-
+import JobSearchSharingPage from './components/JobSearchSharing/JobSearchSharingPage';
+import JobSearchSharingPartnerPage from './components/JobSearchSharing/JobSearchSharingPartnerPage';
 import SupportPage from './components/Support/SupportPage';
+import JobSearchPartnerInviteAcceptPage from './components/JobSearchSharing/JobSearchPartnerInviteAcceptPage';
 import NetworkingDashboard from './components/Networking/NetworkingDashboard';
 import ContactList from './components/Networking/ContactList';
 import ContactDetails from './components/Networking/ContactDetails';
@@ -85,13 +86,29 @@ import AiOutreachGenerator from './components/Networking/AiOutreachGenerator';
 import InteractionHistory from './components/Networking/InteractionHistory';
 import AllInteractionsPage from './components/Networking/AllInteractionsPage';
 import ImportGoogle from "./components/Networking/ImportGoogle";
-
+import AdvisorsPage from './components/Advisors/AdvisorsPage';
+import AdvisorAcceptInvitePage from './components/Advisors/AdvisorAcceptInvitePage';
+import AdvisorClientsPage from './components/Advisors/AdvisorClientsPage';
+import AdvisorClientProfilePage from './components/Advisors/AdvisorClientProfilePage';
+import AdvisorMessagesPage from './components/Advisors/AdvisorMessaging/AdvisorMessagesPage';
+import AdvisorClientMessagesPage from './components/Advisors/AdvisorMessaging/AdvisorClientMessagesPage';
+import AdvisorRecommendationsPage from './components/Advisors/AdvisorRecommendationsPage';
+import AdvisorSessionsPage from './components/Advisors/AdvisorSessionsPage';
+import AdvisorAvailabilityPage from './components/Advisors/AdvisorAvailabilityPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
-  const userId = JSON.parse(localStorage.getItem("authUser") || "{}")?.user?._id || null;
-
+  const getAuthUserId = () => {
+    try {
+      const authUser = localStorage.getItem("authUser");
+      return authUser ? JSON.parse(authUser).user?._id : null;
+    } catch (error) {
+      console.error("Error parsing authUser:", error);
+      return null;
+    }
+  };
+  const userId = getAuthUserId();
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -294,7 +311,7 @@ function App() {
   path="/support"
   element={
     <PrivateRoute>
-      <SupportPage  />
+      <SupportPage/>
     </PrivateRoute>
   }
 />
@@ -339,6 +356,67 @@ function App() {
             path="/Jobs/CompetitiveAnalysis"
             element={<PrivateRoute><JobCompetitiveAnalysisDashboard /></PrivateRoute>}
           />
+        <Route
+          path="/job-search/sharing"
+          element={
+            <PrivateRoute>
+              <JobSearchSharingPage />
+            </PrivateRoute>
+          }/>
+          <Route
+  path="/job-sharing/:ownerId"
+  element={
+    <PrivateRoute>
+      <JobSearchSharingPartnerPage />
+    </PrivateRoute>
+  }
+  />
+  <Route
+  path="/job-sharing/accept"
+  element={
+    <PrivateRoute>
+      <JobSearchPartnerInviteAcceptPage />
+    </PrivateRoute>
+  }
+/>
+  <Route
+  path="/advisors"
+  element={
+    <PrivateRoute>
+      <AdvisorsPage />
+    </PrivateRoute>
+  }
+/>
+      <Route
+        path="/advisor/accept"
+        element={ <PrivateRoute><AdvisorAcceptInvitePage /></PrivateRoute>}
+      />
+      <Route
+        path="/advisor/clients"
+        element={ <PrivateRoute><AdvisorClientsPage /></PrivateRoute>}
+      />
+      <Route
+        path="/advisor/clients/:relationshipId"
+        element={ <PrivateRoute><AdvisorClientProfilePage /></PrivateRoute>}
+      />
+      <Route
+  path="/advisors/:relationshipId/messages"
+  element={<PrivateRoute><AdvisorMessagesPage /></PrivateRoute>}
+/>
+<Route
+  path="/advisors/:relationshipId/sessions"
+  element={<PrivateRoute><AdvisorSessionsPage /></PrivateRoute>}
+/>
+// advisor side
+<Route
+  path="/advisor/clients/:relationshipId/messages"
+  element={<PrivateRoute><AdvisorClientMessagesPage /></PrivateRoute>}
+/>
+<Route
+  path="/advisors/:relationshipId/recommendations"
+  element={<AdvisorRecommendationsPage />}
+/>
+<Route path="/advisor/availability" element={<AdvisorAvailabilityPage />} />
 
         </Routes>
 

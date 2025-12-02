@@ -90,7 +90,7 @@ router.get("/:jobId", async (req, res) => {
     // ✅ ADD TO QUEUE TO RESPECT RATE LIMITS
     const insights = await geminiQueue.add(async () => {
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash', // ✅ Use the latest stable version
+        model: 'gemini-2.0-flash-exp', // ✅ Use the latest stable version
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 2096, // Reduced to save tokens
@@ -236,7 +236,7 @@ router.post("/evaluate-session", async (req, res) => {
     // Use your existing queue
     const result = await geminiQueue.add(async () => {
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash-exp",
         generationConfig: { temperature: 0.6, maxOutputTokens: 1500 }
       });
 
@@ -298,7 +298,7 @@ router.post("/generate-questions", async (req, res) => {
 
     const result = await geminiQueue.add(async () => {
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash-exp",
         generationConfig: { temperature: 0.6, maxOutputTokens: 1500 }
       });
 
@@ -340,4 +340,335 @@ Requirements:
     res.status(500).json({ error: "Failed to generate questions" });
   }
 });
+
+// Add this to routes/interview-insights.js after your existing routes
+
+// ===================================
+// UC-084: Writing Practice AI Analysis
+// ===================================
+
+router.post("/analyze-response", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not logged in" });
+    }
+
+    const { question, response, category, jobTitle, company } = req.body;
+
+    if (!question || !response || !category) {
+      return res.status(400).json({ 
+        error: "Missing required fields: question, response, category" 
+      });
+    }
+
+    console.log(`[Writing Analysis] Analyzing ${category} response for ${jobTitle || 'position'}`);
+
+    // Word count and basic metrics
+    const wordCount = response.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const hasSTARKeywords = /\b(situation|task|action|result|challenge|problem|solution)\b/i.test(response);
+
+    // Generate prompt based on category
+    const analysisPrompt = generateAnalysisPrompt(question, response, category, jobTitle, company);
+
+    // Use Gemini to analyze
+    const analysis = await geminiQueue.add(async () => {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 1500
+        }
+      });
+
+      const result = await model.generateContent(analysisPrompt);
+      let rawText = result.response.text();
+      
+      // Clean and parse JSON
+      rawText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) {
+        throw new Error('No JSON found in AI response');
+      }
+      
+      return JSON.parse(jsonMatch[0]);
+    });
+
+    // Validate analysis structure
+    if (!analysis.overallScore || !analysis.feedback) {
+      throw new Error('Invalid analysis format from AI');
+    }
+
+    // Construct response
+    const analysisResult = {
+      overallScore: Math.min(100, Math.max(0, analysis.overallScore)),
+      structureScore: analysis.structureScore || null,
+      clarityScore: analysis.clarityScore || null,
+      storytellingScore: analysis.storytellingScore || null,
+      
+      feedback: analysis.feedback,
+      strengths: analysis.strengths || [],
+      improvements: analysis.improvements || [],
+      
+      // Metadata
+      wordCount,
+      hasSTARElements: category === 'behavioral' ? hasSTARKeywords : null,
+      analyzedAt: new Date()
+    };
+
+    console.log(`[Writing Analysis] Score: ${analysisResult.overallScore}/100`);
+
+    res.json(analysisResult);
+
+  } catch (err) {
+    console.error('[Writing Analysis] Error:', err);
+    
+    if (err.message?.includes("429") || err.message?.includes("quota")) {
+      return res.status(429).json({
+        error: "API rate limit reached. Please try again in a few moments.",
+        retryAfter: 60
+      });
+    }
+
+    res.status(500).json({
+      error: "Failed to analyze response",
+      details: err.message || "Unknown error"
+    });
+  }
+});
+
+// Helper function to generate analysis prompts
+function generateAnalysisPrompt(question, response, category, jobTitle, company) {
+  const baseContext = `You are an expert interview coach analyzing a written interview response.
+
+Position: ${jobTitle || 'Not specified'}
+Company: ${company || 'Not specified'}
+Question Category: ${category}
+
+Question: "${question}"
+
+Candidate's Response: "${response}"
+
+`;
+
+  const categoryGuidelines = {
+    behavioral: `
+BEHAVIORAL RESPONSE EVALUATION:
+- STAR Method: Does it include Situation, Task, Action, Result?
+- Specificity: Are there concrete examples and metrics?
+- Relevance: Does it directly answer the question?
+- Professionalism: Is the language appropriate and confident?
+
+Score on:
+1. Structure (STAR adherence, logical flow)
+2. Clarity (conciseness, easy to follow)
+3. Storytelling (engagement, specificity, impact)
+`,
+    technical: `
+TECHNICAL RESPONSE EVALUATION:
+- Problem Understanding: Does it show clear comprehension?
+- Approach: Is the solution logical and well-explained?
+- Technical Accuracy: Are concepts/terms used correctly?
+- Communication: Can a non-technical person follow the logic?
+
+Score on:
+1. Structure (problem → approach → solution flow)
+2. Clarity (technical communication, avoiding jargon when unnecessary)
+3. Storytelling (explaining the "why" behind decisions, showing thought process)
+`,
+    situational: `
+SITUATIONAL RESPONSE EVALUATION:
+- Scenario Understanding: Does it address the hypothetical situation?
+- Critical Thinking: Is there thoughtful analysis of trade-offs?
+- Action Plan: Is there a clear approach to handling the situation?
+- Professionalism: Does it show maturity and good judgment?
+
+Score on:
+1. Structure (situation analysis → approach → outcomes)
+2. Clarity (clear reasoning, logical steps)
+3. Storytelling (demonstrating thought process, anticipating consequences)
+`
+  };
+
+  const promptTemplate = baseContext + categoryGuidelines[category] + `
+
+RESPOND IN JSON FORMAT ONLY:
+{
+  "overallScore": 85,
+  "structureScore": 90,
+  "clarityScore": 85,
+  "storytellingScore": 80,
+  "feedback": "2-3 sentence overall assessment",
+  "strengths": ["strength 1", "strength 2", "strength 3"],
+  "improvements": ["improvement 1", "improvement 2", "improvement 3"]
+}
+
+SCORING GUIDELINES:
+- 90-100: Exceptional, ready for top-tier interviews
+- 80-89: Strong, minor refinements needed
+- 70-79: Good foundation, some improvements needed
+- 60-69: Adequate, significant improvements needed
+- Below 60: Needs substantial work
+
+Be constructive and specific. Focus on actionable improvements.`;
+
+  return promptTemplate;
+}
+
+export { generateAnalysisPrompt };
+
+// Add this to routes/interview-insights.js
+
+// ===================================
+// UC-084: Generate Virtual Interview Tips
+// ===================================
+router.post("/generate-virtual-tips", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not logged in" });
+    }
+
+    const { jobTitle, company, interviewType } = req.body;
+
+    if (!jobTitle) {
+      return res.status(400).json({ error: "Job title is required" });
+    }
+
+    console.log(`[Virtual Tips] Generating for ${jobTitle} at ${company || 'company'}`);
+
+    const tips = await geminiQueue.add(async () => {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1200
+        }
+      });
+
+      const prompt = `Generate virtual/remote interview tips for a ${jobTitle} position at ${company || 'a company'}.
+
+Interview Type: ${interviewType || 'Video interview (Zoom/Teams)'}
+
+Provide practical, actionable tips in the following categories:
+1. Technical Setup (camera, lighting, background, audio)
+2. Professional Presence (eye contact, body language, attire)
+3. Communication Best Practices (speaking pace, clarity, engagement)
+4. Common Pitfalls to Avoid
+5. Pre-Interview Checklist
+
+Respond in JSON format ONLY:
+{
+  "technicalSetup": [
+    "tip 1",
+    "tip 2",
+    "tip 3"
+  ],
+  "professionalPresence": [
+    "tip 1",
+    "tip 2",
+    "tip 3"
+  ],
+  "communicationBestPractices": [
+    "tip 1",
+    "tip 2",
+    "tip 3"
+  ],
+  "commonPitfalls": [
+    "pitfall 1",
+    "pitfall 2",
+    "pitfall 3"
+  ],
+  "preInterviewChecklist": [
+    "checklist item 1",
+    "checklist item 2",
+    "checklist item 3"
+  ]
+}
+
+Make tips specific to the role when relevant (e.g., for technical roles mention screen sharing, for design roles mention portfolio presentation).`;
+
+      const result = await model.generateContent(prompt);
+      let rawText = result.response.text();
+      
+      rawText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) {
+        throw new Error('No JSON found in AI response');
+      }
+      
+      return JSON.parse(jsonMatch[0]);
+    });
+
+    console.log('[Virtual Tips] Generated successfully');
+
+    res.json({
+      tips,
+      generatedFor: {
+        jobTitle,
+        company,
+        interviewType
+      },
+      generatedAt: new Date()
+    });
+
+  } catch (err) {
+    console.error('[Virtual Tips] Error:', err);
+    
+    if (err.message?.includes("429") || err.message?.includes("quota")) {
+      return res.status(429).json({
+        error: "API rate limit reached. Please try again in a few moments.",
+        retryAfter: 60
+      });
+    }
+
+    // Return fallback tips if AI fails
+    const fallbackTips = {
+      technicalSetup: [
+        "Test your camera, microphone, and internet connection 30 minutes before",
+        "Position camera at eye level with good lighting from the front",
+        "Use a neutral, clutter-free background or virtual background",
+        "Close unnecessary applications to prevent notifications"
+      ],
+      professionalPresence: [
+        "Dress professionally from head to toe (you might need to stand up)",
+        "Look at the camera when speaking to simulate eye contact",
+        "Sit up straight with good posture throughout the interview",
+        "Use natural hand gestures but keep them in frame"
+      ],
+      communicationBestPractices: [
+        "Speak slightly slower than normal to account for audio lag",
+        "Pause after answering to give the interviewer time to respond",
+        "Use the chat feature to share links or clarify spellings if needed",
+        "Smile and nod to show engagement even when not speaking"
+      ],
+      commonPitfalls: [
+        "Avoid looking at yourself on screen - focus on the camera or interviewer",
+        "Don't interrupt - video lag can make this awkward",
+        "Mute when not speaking to avoid background noise",
+        "Don't read directly from notes - it's obvious on video"
+      ],
+      preInterviewChecklist: [
+        "Join the call 5 minutes early to handle any technical issues",
+        "Have the job description and your resume visible on second screen",
+        "Keep water nearby (out of frame)",
+        "Test screen sharing if you'll need to demonstrate anything"
+      ]
+    };
+
+    res.json({
+      tips: fallbackTips,
+      generatedFor: {
+        jobTitle: req.body.jobTitle,
+        company: req.body.company,
+        interviewType: req.body.interviewType
+      },
+      generatedAt: new Date(),
+      fallback: true
+    });
+  }
+});
+
 export default router;

@@ -76,8 +76,10 @@ import productivityRoutes from "./routes/productivity.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
+import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
+import advisorRoutes from "./routes/advisor.routes.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -156,6 +158,7 @@ try {
   app.use(companyResearch); // stand alone research for ANY company
   app.use("/api/interview-questions", interviewQuestions);
   app.use("/api/coaching-insights", coachingInsights);
+  app.use('/api/writing-practice', writingPracticeRoutes);
 
   // 📄 RESUMES + COVER LETTERS
   app.use('/api/coverletter', coverletter);
@@ -187,6 +190,21 @@ try {
   app.use("/api/success-patterns", successPatternsRouter);
   app.use("/api/competitive-analysis", attachDevUser, competitiveAnalysisRouter);
 
+  app.use("/api/interviews", interviewAnalyticsRoutes);
+  app.use("/api/supporters", supportersRoutes);
+
+  //productivity 
+  app.use("/api/productivity", productivityRoutes);
+  app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
+  app.use("/api/productivity", attachDevUser,productivityRoutes);
+
+  //competitive applicant analysis
+  app.use("/api/competitive-analysis", attachDevUser,competitiveAnalysisRouter);
+
+  app.use("/api", jobSearchSharingRoutes);
+  app.use("/api", advisorRoutes);
+
+  // Health check
   // ❤️ Health Check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
 

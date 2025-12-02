@@ -22,21 +22,23 @@ export interface Job {
   location?: string;
   salaryMin?: number | { $numberDecimal?: string };
   salaryMax?: number | { $numberDecimal?: string };
+  finalSalary?: number | null;  // 🆕 Added from schema line 134
   jobPostingUrl?: string;
   applicationDeadline?: string;
   description?: string;
   industry: string;
+  companySize?: string;  // 🆕 Added from schema line 75
   type: string;
   applicationMethod?: string;
   applicationSource?: string;
-  autoArchiveDays?: string;
+  autoArchiveDays?: number;  // Changed from string to number to match schema
   autoArchiveDate?: string | Date;
 
   // Status tracking
   status: JobStatus;
   statusHistory?: StatusHistoryEntry[];
 
-  // UPDATED: Structured contact information
+  // Structured contact information
   recruiter?: Contact;
   hiringManager?: Contact;
   additionalContacts?: Contact[];
@@ -46,9 +48,22 @@ export interface Job {
   salaryNotes?: string;
   interviewNotes?: string;
 
+  // Salary tracking (from schema)
+  salaryHistory?: Array<{
+    finalSalary: number;
+    negotiationOutcome: string;
+    date: Date | string;
+  }>;
+  
+  compHistory?: Array<{
+    totalComp: number;
+    date: Date | string;
+  }>;
+
   // Application history
   applicationHistory?: ApplicationHistoryEntry[];
 
+  // Matching (from schema)
   matchScore?: number | null;
   matchBreakdown?: {
     skills: number | null;
@@ -57,16 +72,72 @@ export interface Job {
   };
   skillGaps?: string[];
 
+  // Timestamps
   createdAt?: string;
   updatedAt?: string;
 
+  // Archive
   archived?: boolean;
-  archiveReason?: string;
-  archivedAt?: string;
+  archiveReason?: string | null;
+  archivedAt?: string | null;
 
+  // Application package
   applicationPackage?: ApplicationPackage | null;
-  // To store or edit references used in an application
+  
+  // References
   references?: JobReferenceUsage[];
+
+  // Interviews (from schema)
+  interviews?: Interview[];
+
+  // Source tracking (from schema)
+  source?: string;
+  sourcePeerGroupId?: string;
+  sourceOpportunityId?: string;
+
+  // Analytics helpers (from schema)
+  responseReceived?: boolean;
+  offerDate?: Date | string | null;
+  stageDurations?: Record<string, number>;
+
+  // UC-100: Salary Analysis (from schema)
+  salaryAnalysis?: {
+    base?: number | null;
+    bonus?: number | null;
+    equity?: number | null;
+    otherComp?: number | null;
+    totalComp?: number | null;
+    
+    negotiation?: {
+      attempted?: boolean;
+      outcome?: string;
+      initialOffer?: number | null;
+      finalOffer?: number | null;
+      improvedAmount?: number | null;
+    };
+    
+    market?: {
+      role?: string | null;
+      level?: string | null;
+      benchmarkMedian?: number | null;
+      benchmarkTop?: number | null;
+      benchmarkRange?: number[];
+      location?: string | null;
+      industry?: string | null;
+    };
+  };
+
+  // UC-083: Salary Negotiation Preparation (from schema)
+  negotiationPrep?: NegotiationPrep | null;
+
+  // Additional salary fields (from schema)
+  salaryBonus?: number | null;
+  salaryEquity?: number | null;
+  benefitsValue?: number | null;
+
+  // Offer tracking (from schema)
+  offerStage?: "Applied" | "Interviewing" | "Offer Received" | "Offer Accepted" | "Offer Declined";
+  negotiationOutcome?: "Not attempted" | "Improved" | "No change" | "Worse" | "Lost offer";
 }
 
 // Job status enum
@@ -305,4 +376,100 @@ export interface JobReferenceUsage {
     enum: ["recruiter", "hiring_manager", "other"],
   },
   feedback_collected_at: { type: Date },
+}
+
+export interface Interview {
+  _id?: string;
+  type: string;
+  date: string;
+  location?: string;
+  notes?: string;
+  outcome?: string;
+  interviewer?: string;
+  contactInfo?: string;
+  eventId?: string;
+  preparationChecklist?: {
+    items: Array<{
+      id: string;
+      category: "research" | "logistics" | "materials" | "practice" | "mindset";
+      task: string;
+      completed: boolean;
+      completedAt?: Date;
+      order: number;
+    }>;
+    generatedAt: Date;
+    lastUpdatedAt: Date;
+  };
+  followUps?: FollowUp[];
+}
+
+export interface FollowUp {
+  _id: string;
+  type: 'thank_you' | 'status_inquiry' | 'feedback_request' | 'networking';
+  subject: string;
+  body: string;
+  generatedAt: Date;
+  customized: boolean;
+  sent: boolean;
+  sentAt?: Date;
+  sentVia: 'email' | 'copied';
+  responseReceived: boolean;
+  responseDate?: Date;
+}
+
+// UC-083: Salary Negotiation Preparation Types
+export interface NegotiationPrep {
+  generatedAt: Date;
+  lastUpdatedAt: Date;
+  
+  marketData: {
+    yourOffer: number;
+    marketMin: number;
+    marketMedian: number;
+    marketMax: number;
+    percentile: number;
+    dataSource: string;
+    fetchedAt: Date;
+  };
+  
+  talkingPoints: TalkingPoint[];
+  scripts: NegotiationScript[];
+  counterOffer: CounterOffer;
+  strategy: NegotiationStrategy;
+  outcome: NegotiationOutcome;
+}
+
+export interface TalkingPoint {
+  category: 'experience' | 'skills' | 'market_value' | 'total_comp' | 'unique_value' | 'other';
+  point: string;
+  order: number;
+}
+
+export interface NegotiationScript {
+  scenario: 'initial_response' | 'counter_offer' | 'benefits_discussion' | 'timeline_discussion' | 'final_decision';
+  script: string;
+  tips: string[];
+}
+
+export interface CounterOffer {
+  targetSalary: number;
+  minimumAcceptable: number;
+  justification: string;
+  confidenceLevel: 'low' | 'medium' | 'high';
+}
+
+export interface NegotiationStrategy {
+  timing: string;
+  leverage: string[];
+  risks: string[];
+  alternatives: string[];
+  notes?: string;
+}
+
+export interface NegotiationOutcome {
+  attempted: boolean;
+  result: 'accepted_as_is' | 'negotiated_higher' | 'negotiated_benefits' | 'declined_offer' | 'pending';
+  finalSalary?: number;
+  improvementAmount?: number;
+  notes?: string;
 }
