@@ -92,6 +92,7 @@ import AdvisorClientsPage from './components/Advisors/AdvisorClientsPage';
 import AdvisorClientProfilePage from './components/Advisors/AdvisorClientProfilePage';
 import AdvisorMessagesPage from './components/Advisors/AdvisorMessaging/AdvisorMessagesPage';
 import AdvisorClientMessagesPage from './components/Advisors/AdvisorMessaging/AdvisorClientMessagesPage';
+import AdvisorRecommendationsPage from './components/Advisors/AdvisorRecommendationsPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -396,6 +397,11 @@ function App() {
   path="/advisor/clients/:relationshipId/messages"
   element={<PrivateRoute><AdvisorClientMessagesPage /></PrivateRoute>}
 />
+<Route
+  path="/advisors/:relationshipId/recommendations"
+  element={<AdvisorRecommendationsPage />}
+/>
+
         </Routes>
 
       </div>

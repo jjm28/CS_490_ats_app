@@ -1131,7 +1131,7 @@ export async function createAdvisorRecommendation({
     }
     const resume = await Resume.findOne({
       _id: asString,
-      userId: ownerUserId,
+      owner: ownerUserId,
     }).select("_id");
     if (!resume) {
       const err = new Error(
@@ -1367,7 +1367,7 @@ export async function updateAdvisorRecommendation({
         }
         const resume = await Resume.findOne({
           _id: asString,
-          userId: ownerUserId,
+          owner: ownerUserId,
         }).select("_id");
         if (!resume) {
           const err = new Error(

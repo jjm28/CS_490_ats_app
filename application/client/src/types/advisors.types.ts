@@ -94,6 +94,42 @@ export interface AdvisorSharingConfig {
   shareProgressSummary: boolean;
 }
 
+
+
+// types/advisors.types.ts
+
+export type AdvisorRecommendationCategory =
+  | "resume"
+  | "cover_letter"
+  | "job"
+  | "interview"
+  | "general";
+
+export type AdvisorRecommendationStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "declined";
+
+export interface AdvisorRecommendation {
+  id: string;
+  relationshipId: string;
+  ownerUserId: string;
+  advisorUserId: string;
+  title: string;
+  description: string;
+  category: AdvisorRecommendationCategory;
+  jobId: string | null;
+  resumeId: string | null;
+  coverLetterId: string | null;
+  status: AdvisorRecommendationStatus;
+  createdBy: "advisor";
+  candidateNote?: string;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdvisorSharingOptions {
   resumes: {
     id: string;
@@ -116,3 +152,48 @@ export interface AdvisorSharingOptions {
   }[];
 }
 
+// For advisor-side materials, reused in section + modal:
+export interface AdvisorClientMaterials {
+  documents: {
+    resumes: {
+      id: string;
+      filename: string;
+      templateKey: string;
+      updatedAt: string;
+    }[];
+    coverLetters: {
+      id: string;
+      filename: string;
+      templateKey: string;
+      updatedAt: string;
+    }[];
+  } | null;
+  applications: {
+    jobs: {
+      id: string;
+      jobTitle: string;
+      company: string;
+      status: string;
+      updatedAt: string;
+      createdAt: string;
+      applicationDeadline?: string;
+    }[];
+  } | null;
+  progress: {
+    enabled: boolean;
+    jobStatusCounts?: Record<string, number>;
+    recentGoals?: {
+      id: string;
+      title: string;
+      status: string;
+      createdAt: string;
+      targetDate?: string;
+    }[];
+    recentMilestones?: {
+      id: string;
+      title: string;
+      description: string;
+      achievedAt: string;
+    }[];
+  } | null;
+}

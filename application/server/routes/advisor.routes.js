@@ -533,4 +533,129 @@ router.get(
   }
 );
 
+
+/**
+ * GET /api/advisors/clients/:relationshipId/recommendations
+ * role=candidate|advisor, userId=<id>
+ */
+router.get(
+  "/advisors/clients/:relationshipId/recommendations",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const { role, userId } = req.query;
+
+      if (!role || !userId) {
+        return res
+          .status(400)
+          .json({ error: "role and userId are required" });
+      }
+
+      const recs = await listAdvisorRecommendations({
+        relationshipId,
+        role: String(role),
+        userId: String(userId),
+      });
+
+      res.json(recs);
+    } catch (err) {
+      console.error("Error listing recommendations:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error listing recommendations",
+        });
+    }
+  }
+);
+/**
+ * POST /api/advisors/clients/:relationshipId/recommendations
+ * Advisor creates a recommendation.
+ * Body: { advisorUserId, title, description?, category?, jobId?, resumeId?, coverLetterId? }
+ */
+router.post(
+  "/advisors/clients/:relationshipId/recommendations",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const {
+        advisorUserId,
+        title,
+        description,
+        category,
+        jobId,
+        resumeId,
+        coverLetterId,
+      } = req.body;
+
+      if (!advisorUserId) {
+        return res
+          .status(400)
+          .json({ error: "advisorUserId is required" });
+      }
+
+      const rec = await createAdvisorRecommendation({
+        relationshipId,
+        advisorUserId: String(advisorUserId),
+        title,
+        description,
+        category,
+        jobId,
+        resumeId,
+        coverLetterId,
+      });
+
+      res.status(201).json(rec);
+    } catch (err) {
+      console.error("Error creating recommendation:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error creating recommendation",
+        });
+    }
+  }
+);
+/**
+ * PATCH /api/advisors/recommendations/:recommendationId
+ * Body: { role, userId, ...fields }
+ */
+router.patch(
+  "/advisors/recommendations/:recommendationId",
+  async (req, res) => {
+    try {
+      const { recommendationId } = req.params;
+      const { role, userId, ...fields } = req.body;
+
+      if (!role || !userId) {
+        return res
+          .status(400)
+          .json({ error: "role and userId are required" });
+      }
+
+      const updated = await updateAdvisorRecommendation({
+        recommendationId,
+        role: String(role),
+        userId: String(userId),
+        fields,
+      });
+
+      res.json(updated);
+    } catch (err) {
+      console.error("Error updating recommendation:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error updating recommendation",
+        });
+    }
+  }
+);
+
 export default router;

@@ -5,6 +5,7 @@ import API_BASE from "../../utils/apiBase";
 import Card from "../StyledComponents/Card";
 import type { AdvisorClientProfile } from "../../types/advisors.types";
 import AdvisorClientMaterialsSection from "./AdvisorClientMaterialsSection";
+import AdvisorClientRecommendationsSection from "./AdvisorClientRecommendationsSection";
 
 function getCurrentUserId(): string | null {
   try {
@@ -198,6 +199,10 @@ export default function AdvisorClientProfilePage() {
               relationshipId={relationshipId || ""}
               advisorUserId={currentUserId}
             />
+            <AdvisorClientRecommendationsSection
+  relationshipId={relationshipId || ""}
+  advisorUserId={currentUserId}
+/>
         </div>
       )}
     </div>
