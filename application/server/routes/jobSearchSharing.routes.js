@@ -588,7 +588,7 @@ router.post("/job-search/partners/invites/accept-token", async (req, res) => {
         .status(400)
         .json({ error: "token and userId are required" });
     }
-
+    
     const invite = await respondToPartnerInviteByToken({
       token,
       userId: String(userId),

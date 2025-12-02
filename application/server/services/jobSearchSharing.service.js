@@ -8,6 +8,7 @@ import JobSharingDiscussionMessage from "../models/JobSharing/JobSharingDiscussi
 import JobSearchPartnerInvite from "../models/JobSharing/JobSearchPartnerInvite.js";
 import { sendPartnerInviteEmail } from "./emailService.js";
 import crypto from "crypto";
+import { ReturnDocument } from "mongodb";
 function startOfDayUTC(date) {
   const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
@@ -1319,8 +1320,7 @@ if (invitationexist.length == 0){
   });
 }
 else{
-   invite = invitationexist[0]
-   console.log(invitationexist)
+    invite = await JobSearchPartnerInvite.findOneAndUpdate({invitedEmail: invitedEmail, ownerUserId: ownerUserId},{inviteToken:inviteToken},{returnDocument: 'after'})
 }
   try {
     await sendPartnerInviteEmail({
