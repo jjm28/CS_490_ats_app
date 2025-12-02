@@ -73,9 +73,10 @@ import SalaryProgressDetail from "./components/Analytics/Salary/SalaryProgressDe
 import CompProgressDetail from "./components/Analytics/Salary/CompProgressDetail";
 import GoalNew from "./components/Analytics/SmartGoals/GoalNew";
 import JobCompetitiveAnalysisDashboard from "./components/Jobs/JobCompetitiveAnalysisDashboard";
-
-
+import JobSearchSharingPage from './components/JobSearchSharing/JobSearchSharingPage';
+import JobSearchSharingPartnerPage from './components/JobSearchSharing/JobSearchSharingPartnerPage';
 import SupportPage from './components/Support/SupportPage';
+import JobSearchPartnerInviteAcceptPage from './components/JobSearchSharing/JobSearchPartnerInviteAcceptPage';
 import NetworkingDashboard from './components/Networking/NetworkingDashboard';
 import ContactList from './components/Networking/ContactList';
 import ContactDetails from './components/Networking/ContactDetails';
@@ -90,8 +91,6 @@ function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
-  const userId = JSON.parse(localStorage.getItem("authUser") || "{}")?.user?._id || null;
-
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -294,7 +293,7 @@ function App() {
   path="/support"
   element={
     <PrivateRoute>
-      <SupportPage  />
+      <SupportPage/>
     </PrivateRoute>
   }
 />
@@ -339,7 +338,29 @@ function App() {
             path="/Jobs/CompetitiveAnalysis"
             element={<PrivateRoute><JobCompetitiveAnalysisDashboard /></PrivateRoute>}
           />
-
+        <Route
+          path="/job-search/sharing"
+          element={
+            <PrivateRoute>
+              <JobSearchSharingPage />
+            </PrivateRoute>
+          }/>
+          <Route
+  path="/job-sharing/:ownerId"
+  element={
+    <PrivateRoute>
+      <JobSearchSharingPartnerPage />
+    </PrivateRoute>
+  }
+  />
+  <Route
+  path="/job-sharing/accept"
+  element={
+    <PrivateRoute>
+      <JobSearchPartnerInviteAcceptPage />
+    </PrivateRoute>
+  }
+/>
         </Routes>
 
       </div>

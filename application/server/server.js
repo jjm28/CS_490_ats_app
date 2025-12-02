@@ -75,6 +75,8 @@ import productivityRoutes from "./routes/productivity.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
+import salaryRoutes from  "./routes/salary.js"
+import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
 
@@ -185,6 +187,20 @@ try {
   app.use("/api/success-patterns", successPatternsRouter);
   app.use("/api/competitive-analysis", attachDevUser, competitiveAnalysisRouter);
 
+  app.use("/api/interviews", interviewAnalyticsRoutes);
+  app.use("/api/supporters", supportersRoutes);
+
+  //productivity 
+  app.use("/api/productivity", productivityRoutes);
+  app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
+  app.use("/api/productivity", attachDevUser,productivityRoutes);
+
+  //competitive applicant analysis
+  app.use("/api/competitive-analysis", attachDevUser,competitiveAnalysisRouter);
+
+  app.use("/api", jobSearchSharingRoutes);
+
+  // Health check
   // ❤️ Health Check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
 

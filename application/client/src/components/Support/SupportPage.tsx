@@ -11,8 +11,8 @@ import MySupportedPeople from "./MySupportedPeople";
 type SupportTab = "network" | "wellbeing" | "supporting";
 
 export default function SupportPage() {
-    const userId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
-  
+    const userId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id || "dfs";
+
   const [activeTab, setActiveTab] = useState<SupportTab>("network");
 
   return (
