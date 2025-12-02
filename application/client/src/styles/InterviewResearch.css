@@ -1,0 +1,216 @@
+/* ======================================================== */
+/* 🎨 BRAND VARIABLES (KEEP THESE AT THE TOP) */
+/* ======================================================== */
+
+:root {
+  --brand-navy: #0E3B43;
+  --brand-teal: #357266;
+  --brand-teal-light: #6DA598;
+  --brand-sage: #A3BBAD;
+
+  --brand-olive: #98AB72; /* for buttons & accents */
+
+  --success: #2E8B57;
+  --warning: #BE6400;
+  --error: #CC0000;
+
+  --text-dark: var(--brand-navy);
+  --bg-light: var(--brand-sage);
+  --link: var(--brand-teal);
+  --link-hover: var(--brand-teal-light);
+}
+
+/* ======================================================== */
+/* 🌿 GLOBAL STYLES */
+/* ======================================================== */
+
+.company-research {
+  min-height: 100vh;
+  background: #F6F4EF;
+  padding: 2rem;
+  font-family: 'League Spartan', system-ui, sans-serif;
+  color: var(--text-dark);
+}
+
+.company-research-container {
+  max-width: 1150px;
+  margin: 0 auto;
+}
+
+/* ======================================================== */
+/* 🧭 HEADER SECTION */
+/* ======================================================== */
+
+.header-section {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.main-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--brand-navy);
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--brand-teal);
+}
+
+/* ======================================================== */
+/* 🔙 BACK BUTTON */
+/* ======================================================== */
+
+.back-button-wrapper {
+  display: flex;
+  justify-content: center; /* centers horizontally */
+  margin-bottom: 2rem; /* optional */
+}
+
+.back-button {
+  transition: all 0.2s ease;
+  background: var(--brand-navy) !important;
+  color: white !important;
+  border: none !important;
+  align-items: center !important;
+}
+
+.back-button:hover {
+  background: var(--brand-teal) !important;
+}
+
+/* ======================================================== */
+/* ⏳ LOADING + EMPTY STATES */
+/* ======================================================== */
+
+.loading-state,
+.empty-state,
+.error-message {
+  text-align: center;
+  margin-top: 2rem;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+.loader-icon {
+  animation: spin 1s linear infinite;
+  color: var(--brand-navy);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty-icon {
+  color: var(--brand-olive);
+  opacity: 0.8;
+  width: 40px;
+  height: 40px;
+}
+
+/* ======================================================== */
+/* 🔍 SEARCH / SELECT DROPDOWN */
+/* ======================================================== */
+
+.job-selector select {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.job-selector select:hover {
+  border-color: var(--brand-teal);
+}
+
+.job-selector select:focus {
+  border-color: var(--brand-teal);
+  box-shadow: 0 4px 12px rgba(53, 114, 102, 0.15); /* brand-teal w/ opacity */
+}
+
+/* ======================================================== */
+/* 📄 RESULTS GRID */
+/* ======================================================== */
+
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 0.9fr;
+  gap: 2rem;
+}
+
+.results-wrapper {
+  margin-top: 2rem;
+}
+
+/* ======================================================== */
+/* 📦 SECTION CARDS */
+/* ======================================================== */
+
+.section-card {
+  background: white;
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, border-left 0.2s ease;
+  border-left: 4px solid var(--brand-teal);
+  color: var(--brand-navy);
+}
+
+.section-card:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  border-left-color: var(--brand-teal-light);
+}
+
+.section-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--brand-navy);
+  margin-bottom: 1rem;
+}
+
+.section-text {
+  line-height: 1.6;
+  color: var(--brand-teal); 
+}
+
+.about-details li {
+  margin-bottom: 0.5rem;
+}
+
+/* ======================================================== */
+/* 🔗 LINKS */
+/* ======================================================== */
+
+.section-link {
+  display: block;
+  margin-bottom: 0.6rem;
+  text-decoration: none;
+  color: var(--link);
+  font-weight: 500;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.section-link:hover {
+  transform: translateX(4px);
+  opacity: 0.8;
+  color: var(--link-hover);
+}
+
+/* ======================================================== */
+/* ✔ STATUS TAGS (Saved / Success / Error) */
+/* ======================================================== */
+
+.saved-tag {
+  color: var(--success);
+  font-weight: bold;
+}
+
+/* ======================================================== */
+/* 📱 RESPONSIVE DESIGN */
+/* ======================================================== */
+
+@media (max-width: 900px) {
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+}

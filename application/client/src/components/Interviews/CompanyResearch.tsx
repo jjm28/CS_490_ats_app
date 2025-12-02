@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Briefcase, Loader2, ChevronDown, ArrowLeft } from 'lucide-react';
 import NewsColumn from './NewsSection';
-import '../../styles/CompanyResearch.css';
+import '../../styles/InterviewResearch.css';
 
 interface NewsArticle {
   title: string;
@@ -203,6 +203,7 @@ console.log("companyInfo:", companyInfo);
     <div className="company-research">
       <div className="company-research-container">
         {onBack && (
+          <div className="back-button-wrapper">  {/* NEW */}
           <button
             onClick={onBack}
             className="back-button"
@@ -223,6 +224,7 @@ console.log("companyInfo:", companyInfo);
             <ArrowLeft size={16} />
             Back to Overview
           </button>
+           </div>
         )}
         
         <div className="header-section">
