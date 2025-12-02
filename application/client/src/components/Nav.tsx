@@ -209,20 +209,29 @@ function Navbar() {
                 </NavLink>
                 <NavLink
                   to="/job-search/sharing"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  Sharing & Accountability
-                </NavLink>
-              </PopoverPanel>
-            </Popover>
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
+                Sharing & Accountability
+              </NavLink>
+              <NavLink
+                  to="/advisors"
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
+                Advisors & Coaches
+              </NavLink>
+                  <NavLink
+                    to="/networking"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Networking Hub
+                  </NavLink>
+                {/* DIVIDER */}
+                <div className="border-t border-gray-200 my-2"></div>
 
-            {/* Analytics Dropdown */}
-            <Popover className="relative">
-              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
-                Analytics
-                <ChevronDown size={16} />
-              </PopoverButton>
-              <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
+                {/* ANALYTICS SUBMENU HEADER */}
+                <div className="px-4 py-2 text-gray-500 text-sm font-semibold select-none">
+                  Analytics
+                </div>
+
+                {/* ANALYTICS SUB PAGES */}
                 <NavLink
                   to="/analytics/overview"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
