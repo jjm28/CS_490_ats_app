@@ -75,7 +75,6 @@ import productivityRoutes from "./routes/productivity.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
-import salaryRoutes from  "./routes/salary.js"
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
