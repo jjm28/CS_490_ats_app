@@ -237,6 +237,16 @@ export interface AdvisorSession {
   rateAmount?: number | null;
   currency?: string | null;
   paymentStatus?: "pending" | "paid" | "refunded" | "untracked"
+   candidateRating?: number | null;
+  candidateFeedback?: string | null;
+}
+export interface AdvisorPerformanceSummary {
+  advisorUserId: string;
+  totalClients: number;
+  totalSessions: number;
+  completedSessions: number;
+  ratedSessions: number;
+  averageRating: number | null;
 }
 
 export interface AdvisorSlot {

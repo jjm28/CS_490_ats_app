@@ -7,6 +7,7 @@ import type {
   AdvisorSessionStatus,
 } from "../../types/advisors.types";
 import AdvisorScheduleSessionModal from "./AdvisorScheduleSessionModal";
+import AdvisorSessionFeedbackModal from "./AdvisorSessionFeedbackModal";
 
 interface Props {
   relationshipId: string;
@@ -26,6 +27,8 @@ export default function AdvisorClientSessionsForCandidate({
     null
   );
   const [showModal, setShowModal] = useState(false);
+const [feedbackSession, setFeedbackSession] =
+  useState<AdvisorSession | null>(null);
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -69,6 +72,11 @@ export default function AdvisorClientSessionsForCandidate({
       a.startTime.localeCompare(b.startTime)
     ));
   };
+const handleFeedbackUpdated = (updated: AdvisorSession) => {
+  setSessions((prev) =>
+    prev.map((s) => (s.id === updated.id ? updated : s))
+  );
+};
 
   const cancelSession = async (s: AdvisorSession) => {
     setUpdatingId(s.id);
@@ -243,12 +251,31 @@ export default function AdvisorClientSessionsForCandidate({
                         {start.toLocaleString()} ·{" "}
                         {s.status}
                       </div>
-                      {renderBillingLine(s)}
-                      {s.note && (
-                        <p className="text-xs text-gray-700">
-                          Your note: {s.note}
-                        </p>
+                      {s.candidateRating && (
+                        <div className="text-[11px] text-yellow-700">
+                          Rating: {s.candidateRating}/5
+                        </div>
                       )}
+                      {renderBillingLine(s)}
+                    <div className="flex items-center justify-between mt-1">
+                        {s.note && (
+                          <p className="text-xs text-gray-700">
+                            Your note: {s.note}
+                          </p>
+                        )}
+                        {s.status === "completed" &&
+                          !s.candidateRating && (
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="secondary"
+                              onClick={() => setFeedbackSession(s)}
+                            >
+                              Rate session
+                            </Button>
+                          )}
+                      </div>
+
                     </div>
                   );
                 })
@@ -268,6 +295,16 @@ export default function AdvisorClientSessionsForCandidate({
           onCreated={handleCreated}
         />
       )}
+
+      {feedbackSession && (
+  <AdvisorSessionFeedbackModal
+    session={feedbackSession}
+    ownerUserId={ownerUserId}
+    onClose={() => setFeedbackSession(null)}
+    onUpdated={handleFeedbackUpdated}
+  />
+)}
+
     </>
   );
 }

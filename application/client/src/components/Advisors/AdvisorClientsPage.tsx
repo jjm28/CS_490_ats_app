@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE from "../../utils/apiBase";
 import Card from "../StyledComponents/Card";
-import type { AdvisorClientSummary } from "../../types/advisors.types";
+import type { AdvisorClientSummary,AdvisorPerformanceSummary } from "../../types/advisors.types";
 import { Button } from "@headlessui/react";
 
 function getCurrentUserId(): string | null {
@@ -24,6 +24,8 @@ export default function AdvisorClientsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+const [performance, setPerformance] =
+  useState<AdvisorPerformanceSummary | null>(null);
 
   const advisorUserId = getCurrentUserId();
 
@@ -33,7 +35,29 @@ export default function AdvisorClientsPage() {
       setError("You must be logged in as an advisor.");
       return;
     }
-
+const fetchPerformance = async () => {
+  try {
+    if (!advisorUserId) return;
+    const res = await fetch(
+      `${API_BASE}/api/advisors/performance?advisorUserId=${encodeURIComponent(
+        advisorUserId
+      )}`,
+      { credentials: "include" }
+    );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(
+        body?.error || "Failed to load advisor performance"
+      );
+    }
+    const data =
+      (await res.json()) as AdvisorPerformanceSummary;
+    setPerformance(data);
+  } catch (err) {
+    console.error("Error loading advisor performance:", err);
+    // soft-fail, don't block page
+  }
+};
     const fetchClients = async () => {
       try {
         setLoading(true);
@@ -61,6 +85,7 @@ export default function AdvisorClientsPage() {
     };
 
     fetchClients();
+    fetchPerformance();
   }, [advisorUserId]);
 
   return (
@@ -154,7 +179,56 @@ export default function AdvisorClientsPage() {
       </Button>
             </Card>
           ))}
+
+
+
+          {performance && (
+  <Card className="p-4">
+    <h2 className="text-sm font-semibold mb-2">
+      Performance overview
+    </h2>
+    <div className="flex flex-wrap gap-4 text-sm">
+      <div>
+        <div className="text-xs text-gray-500">
+          Active clients
         </div>
+        <div className="font-medium">
+          {performance.totalClients}
+        </div>
+      </div>
+      <div>
+        <div className="text-xs text-gray-500">
+          Completed sessions
+        </div>
+        <div className="font-medium">
+          {performance.completedSessions}
+        </div>
+      </div>
+      <div>
+        <div className="text-xs text-gray-500">
+          Rated sessions
+        </div>
+        <div className="font-medium">
+          {performance.ratedSessions}
+        </div>
+      </div>
+      <div>
+        <div className="text-xs text-gray-500">
+          Avg rating
+        </div>
+        <div className="font-medium">
+          {performance.averageRating
+            ? performance.averageRating.toFixed(1)
+            : "—"}
+        </div>
+      </div>
+    </div>
+  </Card>
+)}
+
+        </div>
+
+        
       )}
     </div>
   );

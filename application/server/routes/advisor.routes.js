@@ -22,10 +22,79 @@ import {
   bookAdvisorSession,
   updateAdvisorSession, getAdvisorBillingSettings,
   updateAdvisorBillingSettings,
-  updateAdvisorSessionPayment,
+  updateAdvisorSessionPayment, updateAdvisorSessionFeedback,
+  getAdvisorPerformanceSummary,
 } from "../services/advisor.service.js";
 
 const router = express.Router();
+
+
+/**
+ * POST /api/advisors/sessions/:sessionId/feedback
+ * Body: { role, userId, rating, feedback }
+ */
+router.post(
+  "/advisors/sessions/:sessionId/feedback",
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { role, userId, rating, feedback } = req.body;
+
+      if (!role || !userId) {
+        return res.status(400).json({
+          error: "role and userId are required",
+        });
+      }
+
+      const updated = await updateAdvisorSessionFeedback({
+        sessionId,
+        role: String(role),
+        userId: String(userId),
+        rating,
+        feedback,
+      });
+
+      res.json(updated);
+    } catch (err) {
+      console.error(
+        "Error updating advisor session feedback:",
+        err
+      );
+      res.status(err.statusCode || 500).json({
+        error:
+          err.message ||
+          "Server error updating session feedback",
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/advisors/performance?advisorUserId=
+ */
+router.get("/advisors/performance", async (req, res) => {
+  try {
+    const { advisorUserId } = req.query;
+    if (!advisorUserId) {
+      return res.status(400).json({
+        error: "advisorUserId is required",
+      });
+    }
+
+    const summary = await getAdvisorPerformanceSummary({
+      advisorUserId: String(advisorUserId),
+    });
+
+    res.json(summary);
+  } catch (err) {
+    console.error("Error getting advisor performance:", err);
+    res.status(err.statusCode || 500).json({
+      error:
+        err.message ||
+        "Server error getting advisor performance",
+    });
+  }
+});
 
 /**
  * POST /api/advisors/invite

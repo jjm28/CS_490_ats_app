@@ -2000,6 +2000,11 @@ function mapAdvisorSession(session) {
     paymentStatus: session.paymentStatus || "untracked",
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
+    candidateRating:
+    typeof session.candidateRating === "number"
+      ? session.candidateRating
+      : null,
+  candidateFeedback: session.candidateFeedback || "",
   };
 }
 export async function getAdvisorBillingSettings(advisorUserId) {
@@ -2086,4 +2091,130 @@ export async function updateAdvisorSessionPayment({
   await session.save();
 
   return mapAdvisorSession(session);
+}
+
+
+export async function updateAdvisorSessionFeedback({
+  sessionId,
+  role,
+  userId,
+  rating,
+  feedback,
+}) {
+  const session = await AdvisorSession.findById(sessionId);
+  if (!session) {
+    const err = new Error("Session not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const relationship = await AdvisorRelationship.findById(
+    session.relationshipId
+  ).lean();
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const now = new Date();
+  if (session.status !== "completed" ) {
+    const err = new Error(
+      "Feedback can only be left on completed sessions"
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (role === "candidate") {
+    if (relationship.ownerUserId !== String(userId)) {
+      const err = new Error(
+        "You do not have permission to rate this session"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (typeof rating !== "number" || rating < 1 || rating > 5) {
+      const err = new Error("Rating must be between 1 and 5");
+      err.statusCode = 400;
+      throw err;
+    }
+
+    session.candidateRating = rating;
+    session.candidateFeedback =
+      (feedback || "").toString().trim().slice(0, 2000);
+  } else if (role === "advisor") {
+    // (Optional) later we can support advisor-only notes here.
+    const err = new Error(
+      "Advisor feedback updates not implemented yet"
+    );
+    err.statusCode = 400;
+    throw err;
+  } else {
+    const err = new Error("Invalid role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await session.save();
+
+  return mapAdvisorSession(session)
+}
+
+
+export async function getAdvisorPerformanceSummary({
+  advisorUserId,
+}) {
+  // Find all active relationships for this advisor
+  const relationships = await AdvisorRelationship.find({
+    advisorUserId: String(advisorUserId),
+    status: "active",
+  }).lean();
+
+  if (relationships.length === 0) {
+    return {
+      advisorUserId: String(advisorUserId),
+      totalClients: 0,
+      totalSessions: 0,
+      completedSessions: 0,
+      ratedSessions: 0,
+      averageRating: null,
+    };
+  }
+
+  const relationshipIds = relationships.map((r) => r._id);
+
+  const sessions = await AdvisorSession.find({
+    advisorUserId: String(advisorUserId),
+    relationshipId: { $in: relationshipIds },
+  }).lean();
+
+  const totalSessions = sessions.length;
+  const completedSessions = sessions.filter(
+    (s) => s.status === "completed"
+  );
+
+  const ratedSessions = completedSessions.filter(
+    (s) =>
+      typeof s.candidateRating === "number" &&
+      !Number.isNaN(s.candidateRating)
+  );
+
+  const averageRating =
+    ratedSessions.length > 0
+      ? ratedSessions.reduce(
+          (sum, s) => sum + s.candidateRating,
+          0
+        ) / ratedSessions.length
+      : null;
+
+  return {
+    advisorUserId: String(advisorUserId),
+    totalClients: relationships.length,
+    totalSessions,
+    completedSessions: completedSessions.length,
+    ratedSessions: ratedSessions.length,
+    averageRating,
+  };
 }

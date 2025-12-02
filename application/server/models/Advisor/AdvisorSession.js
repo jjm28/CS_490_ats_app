@@ -60,6 +60,18 @@ const AdvisorSessionSchema = new Schema(
       default: "untracked",
       index: true,
     },
+
+    candidateRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null,
+    },
+    candidateFeedback: {
+      type: String,
+      maxlength: 2000,
+      default: "",
+    },
   },
   { timestamps: true }
 );

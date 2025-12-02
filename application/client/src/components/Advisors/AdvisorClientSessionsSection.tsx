@@ -384,6 +384,17 @@ export default function AdvisorClientSessionsSection({
                         {start.toLocaleString()} ·{" "}
                         {s.status}
                       </div>
+
+                      {s.candidateRating && (
+                          <div className="text-[11px] text-yellow-700">
+                            Client rating: {s.candidateRating}/5
+                          </div>
+                        )}
+                        {s.candidateFeedback && (
+                          <p className="text-xs text-gray-700 mt-1">
+                            Client feedback: {s.candidateFeedback}
+                          </p>
+                        )}
                       {renderBillingLine(s)}
                       {s.note && (
                         <p className="text-xs text-gray-700">
