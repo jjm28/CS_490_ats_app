@@ -23,10 +23,83 @@ import {
   updateAdvisorSession, getAdvisorBillingSettings,
   updateAdvisorBillingSettings,
   updateAdvisorSessionPayment, updateAdvisorSessionFeedback,
-  getAdvisorPerformanceSummary,
+  getAdvisorPerformanceSummary,  
+  getAdvisorRelationshipImpact,
 } from "../services/advisor.service.js";
 
 const router = express.Router();
+/**
+ * GET /api/advisors/performance?advisorUserId=
+ * Overall performance + impact summary for an advisor
+ */
+router.get("/advisors/performance", async (req, res) => {
+  try {
+    const { advisorUserId } = req.query;
+    if (!advisorUserId) {
+      return res
+        .status(400)
+        .json({ error: "advisorUserId is required" });
+    }
+
+    const summary = await getAdvisorPerformanceSummary(
+      advisorUserId
+    );
+    res.json(summary);
+  } catch (err) {
+    console.error(
+      "Error fetching advisor performance:",
+      err
+    );
+    res
+      .status(err.statusCode || 500)
+      .json({
+        error:
+          err.message ||
+          "Server error fetching advisor performance",
+      });
+  }
+});
+
+/**
+ * GET /api/advisors/clients/:relationshipId/impact?advisorUserId=
+ * Per-relationship impact of an advisor on a specific client
+ */
+router.get(
+  "/advisors/clients/:relationshipId/impact",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const { advisorUserId } = req.query;
+
+      if (!advisorUserId) {
+        return res
+          .status(400)
+          .json({
+            error: "advisorUserId is required",
+          });
+      }
+
+      const impact = await getAdvisorRelationshipImpact({
+        relationshipId,
+        advisorUserId,
+      });
+
+      res.json(impact);
+    } catch (err) {
+      console.error(
+        "Error fetching advisor relationship impact:",
+        err
+      );
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error fetching advisor impact",
+        });
+    }
+  }
+);
 
 
 /**

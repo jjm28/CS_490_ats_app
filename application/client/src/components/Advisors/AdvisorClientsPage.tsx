@@ -3,7 +3,10 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE from "../../utils/apiBase";
 import Card from "../StyledComponents/Card";
-import type { AdvisorClientSummary,AdvisorPerformanceSummary } from "../../types/advisors.types";
+import type {
+  AdvisorClientSummary,
+  AdvisorPerformanceSummary,
+} from "../../types/advisors.types";
 import { Button } from "@headlessui/react";
 
 function getCurrentUserId(): string | null {
@@ -21,11 +24,11 @@ export default function AdvisorClientsPage() {
   const [clients, setClients] = useState<AdvisorClientSummary[]>(
     []
   );
+  const [performance, setPerformance] =
+    useState<AdvisorPerformanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-const [performance, setPerformance] =
-  useState<AdvisorPerformanceSummary | null>(null);
 
   const advisorUserId = getCurrentUserId();
 
@@ -35,57 +38,59 @@ const [performance, setPerformance] =
       setError("You must be logged in as an advisor.");
       return;
     }
-const fetchPerformance = async () => {
-  try {
-    if (!advisorUserId) return;
-    const res = await fetch(
-      `${API_BASE}/api/advisors/performance?advisorUserId=${encodeURIComponent(
-        advisorUserId
-      )}`,
-      { credentials: "include" }
-    );
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(
-        body?.error || "Failed to load advisor performance"
-      );
-    }
-    const data =
-      (await res.json()) as AdvisorPerformanceSummary;
-    setPerformance(data);
-  } catch (err) {
-    console.error("Error loading advisor performance:", err);
-    // soft-fail, don't block page
-  }
-};
-    const fetchClients = async () => {
+
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(
-          `${API_BASE}/api/advisors/clients?advisorUserId=${encodeURIComponent(
-            advisorUserId
-          )}`,
-          { credentials: "include" }
-        );
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
+
+        const [clientsRes, perfRes] = await Promise.all([
+          fetch(
+            `${API_BASE}/api/advisors/clients?advisorUserId=${encodeURIComponent(
+              advisorUserId
+            )}`,
+            { credentials: "include" }
+          ),
+          fetch(
+            `${API_BASE}/api/advisors/performance?advisorUserId=${encodeURIComponent(
+              advisorUserId
+            )}`,
+            { credentials: "include" }
+          ),
+        ]);
+
+        if (!clientsRes.ok) {
+          const body = await clientsRes.json().catch(() => ({}));
           throw new Error(
             body?.error || "Failed to load clients"
           );
         }
-        const data = await res.json();
-        setClients(data);
+        if (!perfRes.ok) {
+          const body = await perfRes.json().catch(() => ({}));
+          throw new Error(
+            body?.error ||
+              "Failed to load performance overview"
+          );
+        }
+
+        const clientsJson =
+          (await clientsRes.json()) as AdvisorClientSummary[];
+        const perfJson =
+          (await perfRes.json()) as AdvisorPerformanceSummary;
+
+        setClients(clientsJson);
+        setPerformance(perfJson);
       } catch (err: any) {
         console.error("Error loading advisor clients:", err);
-        setError(err.message || "Failed to load clients");
+        setError(
+          err.message || "Failed to load advisor clients"
+        );
       } finally {
         setLoading(false);
       }
     };
 
-    fetchClients();
-    fetchPerformance();
+    fetchData();
   }, [advisorUserId]);
 
   return (
@@ -95,6 +100,66 @@ const fetchPerformance = async () => {
         View the candidates who’ve invited you and their job
         search summaries.
       </p>
+
+      {performance && (
+        <Card className="p-4">
+          <h2 className="text-sm font-semibold mb-2">
+            Performance overview
+          </h2>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div>
+              <div className="text-xs text-gray-500">
+                Active clients
+              </div>
+              <div className="font-medium">
+                {performance.totalClients}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">
+                Completed sessions
+              </div>
+              <div className="font-medium">
+                {performance.completedSessions}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">
+                Rated sessions
+              </div>
+              <div className="font-medium">
+                {performance.ratedSessions}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">
+                Avg rating
+              </div>
+              <div className="font-medium">
+                {performance.averageRating
+                  ? performance.averageRating.toFixed(1)
+                  : "—"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">
+                Shared jobs at interview stage
+              </div>
+              <div className="font-medium">
+                {performance.sharedJobsAtInterviewStage}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">
+                Shared jobs with offers
+              </div>
+              <div className="font-medium">
+                {performance.sharedJobsWithOffers}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {loading && (
         <Card className="p-4">
@@ -111,8 +176,8 @@ const fetchPerformance = async () => {
       {!loading && !error && clients.length === 0 && (
         <Card className="p-6">
           <p className="text-sm text-gray-600">
-            You don’t have any clients yet. When a candidate invites
-            you, they’ll appear here.
+            You don’t have any clients yet. When a candidate
+            invites you, they’ll appear here.
           </p>
         </Card>
       )}
@@ -127,7 +192,8 @@ const fetchPerformance = async () => {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">
-                    {c.candidate.fullName || "Unnamed candidate"}
+                    {c.candidate.fullName ||
+                      "Unnamed candidate"}
                   </span>
                   {c.candidate.headline && (
                     <span className="text-xs text-gray-500">
@@ -142,93 +208,46 @@ const fetchPerformance = async () => {
                       "Profile",
                     c.permissions.canViewJobSummary &&
                       "Job summary",
-                    c.permissions.canViewDocumentsSummary &&
-                      "Documents",
+                    c.permissions
+                      .canViewDocumentsSummary && "Documents",
                   ]
                     .filter(Boolean)
                     .join(", ")}
                 </div>
               </div>
-              <button
-                type="button"
-                className="text-sm text-blue-600 hover:underline"
-                onClick={() =>
-                  navigate(
-                    `/advisor/clients/${c.relationshipId}`
-                  )
-                }
-              >
-                View client
-              </button>
-              <button
-              type="button"
-              className="text-sm text-blue-600 hover:underline"
-              onClick={() =>
-                navigate(
-                  `/advisor/clients/${c.relationshipId}/messages`
-                )
-              }
-            >
-              Messages
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="text-sm text-blue-600 hover:underline"
+                  onClick={() =>
+                    navigate(
+                      `/advisor/clients/${c.relationshipId}`
+                    )
+                  }
+                >
+                  View client
                 </button>
-                      <Button
+                <button
+                  type="button"
+                  className="text-sm text-blue-600 hover:underline"
+                  onClick={() =>
+                    navigate(
+                      `/advisor/clients/${c.relationshipId}/messages`
+                    )
+                  }
+                >
+                  Messages
+                </button>
+                                      <Button
         type="button"
         onClick={() => navigate("/advisor/availability")}
       >
         Availability &amp; session types
       </Button>
+              </div>
             </Card>
           ))}
-
-
-
-          {performance && (
-  <Card className="p-4">
-    <h2 className="text-sm font-semibold mb-2">
-      Performance overview
-    </h2>
-    <div className="flex flex-wrap gap-4 text-sm">
-      <div>
-        <div className="text-xs text-gray-500">
-          Active clients
         </div>
-        <div className="font-medium">
-          {performance.totalClients}
-        </div>
-      </div>
-      <div>
-        <div className="text-xs text-gray-500">
-          Completed sessions
-        </div>
-        <div className="font-medium">
-          {performance.completedSessions}
-        </div>
-      </div>
-      <div>
-        <div className="text-xs text-gray-500">
-          Rated sessions
-        </div>
-        <div className="font-medium">
-          {performance.ratedSessions}
-        </div>
-      </div>
-      <div>
-        <div className="text-xs text-gray-500">
-          Avg rating
-        </div>
-        <div className="font-medium">
-          {performance.averageRating
-            ? performance.averageRating.toFixed(1)
-            : "—"}
-        </div>
-      </div>
-    </div>
-  </Card>
-)}
-
-        </div>
-
-        
       )}
     </div>
   );

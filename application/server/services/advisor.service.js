@@ -2163,58 +2163,283 @@ export async function updateAdvisorSessionFeedback({
 }
 
 
-export async function getAdvisorPerformanceSummary({
-  advisorUserId,
-}) {
-  // Find all active relationships for this advisor
-  const relationships = await AdvisorRelationship.find({
-    advisorUserId: String(advisorUserId),
-    status: "active",
-  }).lean();
+// export async function getAdvisorPerformanceSummary({
+//   advisorUserId,
+// }) {
+//   // Find all active relationships for this advisor
+//   const relationships = await AdvisorRelationship.find({
+//     advisorUserId: String(advisorUserId),
+//     status: "active",
+//   }).lean();
 
-  if (relationships.length === 0) {
+//   if (relationships.length === 0) {
+//     return {
+//       advisorUserId: String(advisorUserId),
+//       totalClients: 0,
+//       totalSessions: 0,
+//       completedSessions: 0,
+//       ratedSessions: 0,
+//       averageRating: null,
+//     };
+//   }
+
+//   const relationshipIds = relationships.map((r) => r._id);
+
+//   const sessions = await AdvisorSession.find({
+//     advisorUserId: String(advisorUserId),
+//     relationshipId: { $in: relationshipIds },
+//   }).lean();
+
+//   const totalSessions = sessions.length;
+//   const completedSessions = sessions.filter(
+//     (s) => s.status === "completed"
+//   );
+
+//   const ratedSessions = completedSessions.filter(
+//     (s) =>
+//       typeof s.candidateRating === "number" &&
+//       !Number.isNaN(s.candidateRating)
+//   );
+
+//   const averageRating =
+//     ratedSessions.length > 0
+//       ? ratedSessions.reduce(
+//           (sum, s) => sum + s.candidateRating,
+//           0
+//         ) / ratedSessions.length
+//       : null;
+
+//   return {
+//     advisorUserId: String(advisorUserId),
+//     totalClients: relationships.length,
+//     totalSessions,
+//     completedSessions: completedSessions.length,
+//     ratedSessions: ratedSessions.length,
+//     averageRating,
+//   };
+// }
+
+export async function getAdvisorPerformanceSummary(advisorUserId) {
+  const advisorId = String(advisorUserId);
+
+  const relationships = await AdvisorRelationship.find({
+    advisorUserId: advisorId,
+    status: "active",
+  })
+    .select("_id ownerUserId sharedJobIds")
+    .lean();
+
+  if (!relationships.length) {
     return {
-      advisorUserId: String(advisorUserId),
       totalClients: 0,
-      totalSessions: 0,
       completedSessions: 0,
       ratedSessions: 0,
       averageRating: null,
+      sharedJobsAtInterviewStage: 0,
+      sharedJobsWithOffers: 0,
     };
   }
 
   const relationshipIds = relationships.map((r) => r._id);
 
+  // Sessions across all active clients for this advisor
   const sessions = await AdvisorSession.find({
-    advisorUserId: String(advisorUserId),
+    advisorUserId: advisorId,
     relationshipId: { $in: relationshipIds },
-  }).lean();
+  })
+    .select("status candidateRating")
+    .lean();
 
-  const totalSessions = sessions.length;
   const completedSessions = sessions.filter(
     (s) => s.status === "completed"
-  );
+  ).length;
 
-  const ratedSessions = completedSessions.filter(
-    (s) =>
-      typeof s.candidateRating === "number" &&
-      !Number.isNaN(s.candidateRating)
-  );
-
+  // Rating is future-proofed: if you later add candidateRating to the model,
+  // this starts working automatically.
+  let ratedSessions = 0;
+  let ratingSum = 0;
+  for (const s of sessions) {
+    if (typeof s.candidateRating === "number") {
+      ratedSessions += 1;
+      ratingSum += s.candidateRating;
+    }
+  }
   const averageRating =
-    ratedSessions.length > 0
-      ? ratedSessions.reduce(
-          (sum, s) => sum + s.candidateRating,
-          0
-        ) / ratedSessions.length
-      : null;
+    ratedSessions > 0 ? ratingSum / ratedSessions : null;
+
+  // Impact: look only at jobs that have been explicitly shared
+  const allSharedJobIds = [
+    ...new Set(
+      relationships.flatMap((r) =>
+        Array.isArray(r.sharedJobIds)
+          ? r.sharedJobIds.map((id) => String(id))
+          : []
+      )
+    ),
+  ];
+
+  let sharedJobsAtInterviewStage = 0;
+  let sharedJobsWithOffers = 0;
+
+  if (allSharedJobIds.length > 0) {
+    const jobs = await Job.find({
+      _id: { $in: allSharedJobIds },
+    })
+      .select("status")
+      .lean();
+
+    for (const j of jobs) {
+      if (
+        j.status === "phone_screen" ||
+        j.status === "interview"
+      ) {
+        sharedJobsAtInterviewStage += 1;
+      }
+      if (j.status === "offer") {
+        sharedJobsWithOffers += 1;
+      }
+    }
+  }
 
   return {
-    advisorUserId: String(advisorUserId),
     totalClients: relationships.length,
-    totalSessions,
-    completedSessions: completedSessions.length,
-    ratedSessions: ratedSessions.length,
+    completedSessions,
+    ratedSessions,
     averageRating,
+    sharedJobsAtInterviewStage,
+    sharedJobsWithOffers,
+  };
+}
+
+
+// --- NEW: per-relationship impact (advisor ↔ client) ---
+export async function getAdvisorRelationshipImpact({
+  relationshipId,
+  advisorUserId,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  )
+    .select(
+      "ownerUserId advisorUserId sharedJobIds status"
+    )
+    .lean();
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (String(relationship.advisorUserId) !== String(advisorUserId)) {
+    const err = new Error(
+      "You are not allowed to view impact for this relationship"
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (relationship.status !== "active") {
+    return {
+      relationshipId: String(relationshipId),
+      ownerUserId: String(relationship.ownerUserId),
+      advisorUserId: String(relationship.advisorUserId),
+      sharedJobCount: 0,
+      sharedJobsAtInterviewStage: 0,
+      sharedJobsWithOffers: 0,
+      totalRecommendations: 0,
+      completedRecommendations: 0,
+      declinedRecommendations: 0,
+      completedSessions: 0,
+      upcomingSessions: 0,
+    };
+  }
+
+  const ownerUserId = String(relationship.ownerUserId);
+  const advisorId = String(relationship.advisorUserId);
+
+  // Jobs that were explicitly shared with this advisor
+  const sharedJobIds = Array.isArray(relationship.sharedJobIds)
+    ? relationship.sharedJobIds
+    : [];
+
+  let sharedJobsAtInterviewStage = 0;
+  let sharedJobsWithOffers = 0;
+
+  if (sharedJobIds.length > 0) {
+    const jobs = await Job.find({
+      _id: { $in: sharedJobIds },
+      userId: ownerUserId, // adjust field name if your Job uses ownerUserId instead
+    })
+      .select("status")
+      .lean();
+
+    for (const j of jobs) {
+      if (
+        j.status === "phone_screen" ||
+        j.status === "interview"
+      ) {
+        sharedJobsAtInterviewStage += 1;
+      }
+      if (j.status === "offer") {
+        sharedJobsWithOffers += 1;
+      }
+    }
+  }
+
+  const sharedJobCount = sharedJobIds.length;
+
+  // Recommendations for this relationship
+  const recs = await AdvisorRecommendation.find({
+    relationshipId,
+    advisorUserId: advisorId,
+  })
+    .select("status")
+    .lean();
+
+  const totalRecommendations = recs.length;
+  const completedRecommendations = recs.filter(
+    (r) => r.status === "completed"
+  ).length;
+  const declinedRecommendations = recs.filter(
+    (r) => r.status === "declined"
+  ).length;
+
+  // Sessions for this relationship
+  const sessions = await AdvisorSession.find({
+    relationshipId,
+    advisorUserId: advisorId,
+  })
+    .select("status startTime")
+    .lean();
+
+  const now = new Date();
+  let completedSessions = 0;
+  let upcomingSessions = 0;
+
+  for (const s of sessions) {
+    if (s.status === "completed") {
+      completedSessions += 1;
+    } else if (
+      (s.status === "requested" ||
+        s.status === "confirmed") &&
+      s.startTime > now
+    ) {
+      upcomingSessions += 1;
+    }
+  }
+
+  return {
+    relationshipId: String(relationshipId),
+    ownerUserId,
+    advisorUserId: advisorId,
+    sharedJobCount,
+    sharedJobsAtInterviewStage,
+    sharedJobsWithOffers,
+    totalRecommendations,
+    completedRecommendations,
+    declinedRecommendations,
+    completedSessions,
+    upcomingSessions,
   };
 }

@@ -240,14 +240,14 @@ export interface AdvisorSession {
    candidateRating?: number | null;
   candidateFeedback?: string | null;
 }
-export interface AdvisorPerformanceSummary {
-  advisorUserId: string;
-  totalClients: number;
-  totalSessions: number;
-  completedSessions: number;
-  ratedSessions: number;
-  averageRating: number | null;
-}
+// export interface AdvisorPerformanceSummary {
+//   advisorUserId: string;
+//   totalClients: number;
+//   totalSessions: number;
+//   completedSessions: number;
+//   ratedSessions: number;
+//   averageRating: number | null;
+// }
 
 export interface AdvisorSlot {
   startTime: string;
@@ -259,4 +259,27 @@ export interface AdvisorBillingSettings {
   isPaidCoach: boolean;
   rateAmount: number;
   currency: string;
+}
+
+export interface AdvisorPerformanceSummary {
+  totalClients: number;
+  completedSessions: number;
+  ratedSessions: number;
+  averageRating: number | null;
+  sharedJobsAtInterviewStage: number;
+  sharedJobsWithOffers: number;
+}
+
+export interface AdvisorRelationshipImpact {
+  relationshipId: string;
+  ownerUserId: string;
+  advisorUserId: string;
+  sharedJobCount: number;
+  sharedJobsAtInterviewStage: number;
+  sharedJobsWithOffers: number;
+  totalRecommendations: number;
+  completedRecommendations: number;
+  declinedRecommendations: number;
+  completedSessions: number;
+  upcomingSessions: number;
 }
