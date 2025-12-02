@@ -10,6 +10,7 @@ import type {
 import AdvisorInviteModal from "./AdvisorInviteModal";
 import AdvisorSettingsModal from "./AdvisorSettingsModal";
 import { useNavigate } from "react-router-dom";
+import AdvisorSharingConfigModal from "./AdvisorSharingConfigModal";
 
 function getCurrentUserId(): string | null {
   try {
@@ -34,6 +35,8 @@ export default function AdvisorsPage() {
     useState<boolean>(false);
   const [editingAdvisor, setEditingAdvisor] =
     useState<AdvisorRelationshipSummary | null>(null);
+const [sharingAdvisor, setSharingAdvisor] =
+  useState<AdvisorRelationshipSummary | null>(null);
 
   const ownerUserId = getCurrentUserId();
 
@@ -256,6 +259,47 @@ export default function AdvisorsPage() {
               </div>
 
               <div className="flex gap-2 justify-end text-xs">
+{advisor.status === "pending" ? (
+  <Button
+    type="button"
+    variant="secondary"
+    onClick={() => handleDelete(advisor)}
+  >
+    Delete invite
+  </Button>
+) : advisor.status === "active" ? (
+  <>
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={() => setEditingAdvisor(advisor)}
+    >
+      Edit
+    </Button>
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={() => setSharingAdvisor(advisor)}
+    >
+      Configure sharing
+    </Button>
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={() => handleRevoke(advisor)}
+    >
+      Revoke access
+    </Button>
+    <Button
+      type="button"
+      onClick={() =>
+        navigate(`/advisors/${advisor.id}/messages`)
+      }
+    >
+      Message
+    </Button>
+  </>
+) : (
   <Button
     type="button"
     variant="secondary"
@@ -263,33 +307,8 @@ export default function AdvisorsPage() {
   >
     Edit
   </Button>
-  {advisor.status === "pending" ? (
-    <Button
-      type="button"
-      variant="secondary"
-      onClick={() => handleDelete(advisor)}
-    >
-      Delete invite
-    </Button>
-  ) : advisor.status === "active" ? (
-    <>
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={() => handleRevoke(advisor)}
-      >
-        Revoke access
-      </Button>
-      <Button
-        type="button"
-        onClick={() =>
-          navigate(`/advisors/${advisor.id}/messages`)
-        }
-      >
-        Message
-      </Button>
-    </>
-  ) : null}
+)}
+
 </div>
 
             </Card>
@@ -313,6 +332,14 @@ export default function AdvisorsPage() {
           onUpdated={handleUpdatedAdvisor}
         />
       )}
+      {sharingAdvisor && ownerUserId && (
+  <AdvisorSharingConfigModal
+    advisor={sharingAdvisor}
+    ownerUserId={ownerUserId}
+    onClose={() => setSharingAdvisor(null)}
+  />
+)}
+
     </div>
   );
 }

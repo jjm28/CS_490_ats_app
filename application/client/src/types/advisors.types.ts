@@ -86,3 +86,33 @@ export interface AdvisorMessage {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface AdvisorSharingConfig {
+  sharedResumeIds: string[];
+  sharedCoverLetterIds: string[];
+  sharedJobIds: string[];
+  shareProgressSummary: boolean;
+}
+
+export interface AdvisorSharingOptions {
+  resumes: {
+    id: string;
+    filename: string;
+    templateKey: string;
+    updatedAt: string;
+  }[];
+  coverLetters: {
+    id: string;
+    filename: string;
+    templateKey: string;
+    updatedAt: string;
+  }[];
+  jobs: {
+    id: string;
+    jobTitle: string;
+    company: string;
+    status: string;
+    updatedAt: string;
+  }[];
+}
+

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import API_BASE from "../../utils/apiBase";
 import Card from "../StyledComponents/Card";
 import type { AdvisorClientProfile } from "../../types/advisors.types";
+import AdvisorClientMaterialsSection from "./AdvisorClientMaterialsSection";
 
 function getCurrentUserId(): string | null {
   try {
@@ -24,6 +25,7 @@ export default function AdvisorClientProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const advisorUserId = getCurrentUserId();
+    const currentUserId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id || "dfs";
 
   useEffect(() => {
     if (!advisorUserId || !relationshipId) {
@@ -191,6 +193,11 @@ export default function AdvisorClientProfilePage() {
                 </p>
               </Card>
             )}
+
+            <AdvisorClientMaterialsSection
+              relationshipId={relationshipId || ""}
+              advisorUserId={currentUserId}
+            />
         </div>
       )}
     </div>

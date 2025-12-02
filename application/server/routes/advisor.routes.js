@@ -11,7 +11,11 @@ import {
   revokeAdvisor,
   deleteAdvisorRelationship,
    listAdvisorMessages,
-  createAdvisorMessage,
+  createAdvisorMessage,  getAdvisorSharingConfig,
+  updateAdvisorSharingConfig,
+  getAdvisorClientMaterials,  listAdvisorRecommendations,
+  createAdvisorRecommendation,
+  updateAdvisorRecommendation,
 } from "../services/advisor.service.js";
 
 const router = express.Router();
@@ -404,5 +408,129 @@ router.post(
   }
 );
 
+/**
+ * GET /api/advisors/:relationshipId/sharing-config
+ * Candidate: view current sharing config and available items.
+ */
+router.get(
+  "/advisors/:relationshipId/sharing-config",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const { ownerUserId } = req.query;
+
+      if (!ownerUserId) {
+        return res
+          .status(400)
+          .json({ error: "ownerUserId is required" });
+      }
+
+      const result = await getAdvisorSharingConfig({
+        ownerUserId: String(ownerUserId),
+        relationshipId,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(
+        "Error fetching advisor sharing config:",
+        err
+      );
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error fetching advisor sharing config",
+        });
+    }
+  }
+);
+/**
+ * PATCH /api/advisors/:relationshipId/sharing-config
+ * Candidate: update which resumes, cover letters, jobs, and progress are shared.
+ */
+router.patch(
+  "/advisors/:relationshipId/sharing-config",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const {
+        ownerUserId,
+        sharedResumeIds,
+        sharedCoverLetterIds,
+        sharedJobIds,
+        shareProgressSummary,
+      } = req.body;
+
+      if (!ownerUserId) {
+        return res
+          .status(400)
+          .json({ error: "ownerUserId is required" });
+      }
+
+      const updated = await updateAdvisorSharingConfig({
+        ownerUserId: String(ownerUserId),
+        relationshipId,
+        sharedResumeIds,
+        sharedCoverLetterIds,
+        sharedJobIds,
+        shareProgressSummary,
+      });
+
+      res.json(updated);
+    } catch (err) {
+      console.error(
+        "Error updating advisor sharing config:",
+        err
+      );
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error updating sharing config",
+        });
+    }
+  }
+);
+/**
+ * GET /api/advisors/clients/:relationshipId/materials
+ * Advisor portal: view client documents, applications, and progress.
+ */
+router.get(
+  "/advisors/clients/:relationshipId/materials",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const { advisorUserId } = req.query;
+
+      if (!advisorUserId) {
+        return res
+          .status(400)
+          .json({ error: "advisorUserId is required" });
+      }
+
+      const result = await getAdvisorClientMaterials({
+        relationshipId,
+        advisorUserId: String(advisorUserId),
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(
+        "Error fetching advisor client materials:",
+        err
+      );
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error fetching client materials",
+        });
+    }
+  }
+);
 
 export default router;

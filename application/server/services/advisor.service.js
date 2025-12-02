@@ -5,8 +5,14 @@ import AdvisorProfile from "../models/Advisor/AdvisorProfile.js";
 import Profile from "../models/profile.js";
 import Jobs from "../models/jobs.js"; // note: using your actual filenames
 import AdvisorMessage from "../models/Advisor/AdvisorMessage.js";
-
+import Resume from "../models/resume.js"; // or "../models/Resume.js"
+import Coverletter from "../models/coverletters.js"; // adjust to real filename
+import Job from "../models/jobs.js";
+import JobSearchGoal from "../models/JobSharing/JobSearchGoal.js";
+import JobSearchMilestone from "../models/JobSharing/JobSearchMilestone.js";
+import JobSearchGoalProgress from "../models/JobSharing/JobSearchGoalProgress.js";
 import { sendAdvisorInviteEmail } from "./emailService.js";
+import AdvisorRecommendation from "../models/Advisor/AdvisorRecommendation.js";
 
 function addDays(date, days) {
   const d = new Date(date);
@@ -646,5 +652,807 @@ export async function createAdvisorMessage({
     isReadByAdvisor: message.isReadByAdvisor,
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
+  };
+}
+
+async function filterIdsByOwner({
+  model,
+  ids,
+  ownerUserId,
+  ownerField = "userId",
+}) {
+  if (!ids || ids.length === 0) return [];
+
+  const docs = await model
+    .find({
+      _id: { $in: ids },
+      [ownerField]: String(ownerUserId),
+    })
+    .select("_id")
+    .lean();
+
+  return docs.map((d) => d._id.toString());
+}
+
+export async function getAdvisorSharingConfig({
+  ownerUserId,
+  relationshipId,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  ).lean();
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (relationship.ownerUserId !== String(ownerUserId)) {
+    const err = new Error(
+      "You do not have permission to view this sharing config"
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Load available options for this user
+  const [resumes, coverLetters, jobs] = await Promise.all([
+    Resume.find({ owner: ownerUserId, archived: { $ne: true } })
+      .select("_id filename templateKey updatedAt")
+      .sort({ updatedAt: -1 })
+      .lean(),
+    Coverletter.find({ owner: ownerUserId })
+      .select("_id filename templateKey updatedAt")
+      .sort({ updatedAt: -1 })
+      .lean(),
+    Job.find({ userId: ownerUserId, archived: { $ne: true } })
+      .select("_id jobTitle company status updatedAt")
+      .sort({ updatedAt: -1 })
+      .lean(),
+  ]);
+
+  return {
+    config: {
+      sharedResumeIds: relationship.sharedResumeIds || [],
+      sharedCoverLetterIds:
+        relationship.sharedCoverLetterIds || [],
+      sharedJobIds: relationship.sharedJobIds || [],
+      shareProgressSummary:
+        relationship.shareProgressSummary || false,
+    },
+    options: {
+      resumes: resumes.map((r) => ({
+        id: r._id.toString(),
+        filename: r.filename,
+        templateKey: r.templateKey,
+        updatedAt: r.updatedAt,
+      })),
+      coverLetters: coverLetters.map((c) => ({
+        id: c._id.toString(),
+        filename: c.filename,
+        templateKey: c.templateKey,
+        updatedAt: c.updatedAt,
+      })),
+      jobs: jobs.map((j) => ({
+        id: j._id.toString(),
+        jobTitle: j.jobTitle,
+        company: j.company,
+        status: j.status,
+        updatedAt: j.updatedAt,
+      })),
+    },
+  };
+}
+export async function updateAdvisorSharingConfig({
+  ownerUserId,
+  relationshipId,
+  sharedResumeIds,
+  sharedCoverLetterIds,
+  sharedJobIds,
+  shareProgressSummary,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  );
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (relationship.ownerUserId !== String(ownerUserId)) {
+    const err = new Error(
+      "You do not have permission to update this sharing config"
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Normalize arrays
+  const resumeIds = Array.isArray(sharedResumeIds)
+    ? [...new Set(sharedResumeIds.map(String))]
+    : [];
+  const coverLetterIds = Array.isArray(sharedCoverLetterIds)
+    ? [...new Set(sharedCoverLetterIds.map(String))]
+    : [];
+  const jobIds = Array.isArray(sharedJobIds)
+    ? [...new Set(sharedJobIds.map(String))]
+    : [];
+
+  // Filter by ownership to avoid sharing someone else's docs
+  const [safeResumeIds, safeCoverLetterIds, safeJobIds] =
+    await Promise.all([
+      filterIdsByOwner({
+        model: Resume,
+        ids: resumeIds,
+        ownerUserId,
+        ownerField: "owner",
+      }),
+      filterIdsByOwner({
+        model: Coverletter,
+        ids: coverLetterIds,
+        ownerUserId,
+        ownerField: "owner",
+      }),
+      filterIdsByOwner({
+        model: Job,
+        ids: jobIds,
+        ownerUserId,
+        ownerField: "userId",
+      }),
+    ]);
+
+  relationship.sharedResumeIds = safeResumeIds;
+  relationship.sharedCoverLetterIds = safeCoverLetterIds;
+  relationship.sharedJobIds = safeJobIds;
+
+  if (typeof shareProgressSummary === "boolean") {
+    relationship.shareProgressSummary = shareProgressSummary;
+  }
+
+  await relationship.save();
+
+  return {
+    sharedResumeIds: relationship.sharedResumeIds,
+    sharedCoverLetterIds: relationship.sharedCoverLetterIds,
+    sharedJobIds: relationship.sharedJobIds,
+    shareProgressSummary: relationship.shareProgressSummary,
+  };
+}
+
+export async function getAdvisorClientMaterials({
+  relationshipId,
+  advisorUserId,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  ).lean();
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (relationship.advisorUserId !== String(advisorUserId)) {
+    const err = new Error(
+      "You do not have access to this client"
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (relationship.status !== "active") {
+    const err = new Error(
+      "Advisor relationship is not active"
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const { ownerUserId, permissions } = relationship;
+
+  // Documents
+  let documents = null;
+
+  if (permissions?.canViewDocumentsSummary) {
+    const [resumes, coverLetters] = await Promise.all([
+      Resume.find({
+        _id: { $in: relationship.sharedResumeIds || [] },
+        owner: ownerUserId,
+      })
+        .select("_id filename templateKey updatedAt")
+        .lean(),
+      Coverletter.find({
+        _id: { $in: relationship.sharedCoverLetterIds || [] },
+        owner: ownerUserId,
+      })
+        .select("_id filename templateKey updatedAt")
+        .lean(),
+    ]);
+
+    documents = {
+      resumes: resumes.map((r) => ({
+        id: r._id.toString(),
+        filename: r.filename,
+        templateKey: r.templateKey,
+        updatedAt: r.updatedAt,
+      })),
+      coverLetters: coverLetters.map((c) => ({
+        id: c._id.toString(),
+        filename: c.filename,
+        templateKey: c.templateKey,
+        updatedAt: c.updatedAt,
+      })),
+    };
+  }
+
+  // Applications & Progress
+  let applications = null;
+  let progress = null;
+
+  if (permissions?.canViewJobSummary) {
+    const sharedJobIds = relationship.sharedJobIds || [];
+
+    const jobs = await Job.find({
+      _id: { $in: sharedJobIds },
+      userId: ownerUserId,
+    })
+      .select(
+        "_id jobTitle company status updatedAt applicationDeadline createdAt"
+      )
+      .lean();
+
+    applications = {
+      jobs: jobs.map((j) => ({
+        id: j._id.toString(),
+        jobTitle: j.jobTitle,
+        company: j.company,
+        status: j.status,
+        updatedAt: j.updatedAt,
+        applicationDeadline: j.applicationDeadline,
+        createdAt: j.createdAt,
+      })),
+    };
+
+    if (relationship.shareProgressSummary) {
+      // Status counts from shared jobs only
+      const statusCounts = {
+        interested: 0,
+        applied: 0,
+        phone_screen: 0,
+        interview: 0,
+        offer: 0,
+        rejected: 0,
+      };
+
+      jobs.forEach((j) => {
+        if (statusCounts.hasOwnProperty(j.status)) {
+          statusCounts[j.status] += 1;
+        }
+      });
+
+      // Reuse job-sharing models for goals & milestones
+      const [goals, milestones] = await Promise.all([
+        JobSearchGoal.find({ ownerUserId })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+        JobSearchMilestone.find({ ownerUserId })
+          .sort({ achievedAt: -1, createdAt: -1 })
+          .limit(5)
+          .lean(),
+      ]);
+
+      progress = {
+        enabled: true,
+        jobStatusCounts: statusCounts,
+        recentGoals: goals.map((g) => ({
+          id: g._id.toString(),
+          title: g.title || g.name,
+          createdAt: g.createdAt,
+          targetDate: g.targetDate,
+          status: g.status,
+        })),
+        recentMilestones: milestones.map((m) => ({
+          id: m._id.toString(),
+          title: m.title,
+          description: m.description || "",
+          achievedAt: m.achievedAt || m.createdAt,
+        })),
+      };
+    } else {
+      progress = { enabled: false };
+    }
+  }
+
+  return {
+    documents,
+    applications,
+    progress,
+  };
+}
+
+
+export async function listAdvisorRecommendations({
+  relationshipId,
+  role,
+  userId,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  ).lean();
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (role === "candidate") {
+    if (relationship.ownerUserId !== String(userId)) {
+      const err = new Error("You do not have access to this client");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (role === "advisor") {
+    if (
+      relationship.advisorUserId !== String(userId) ||
+      relationship.status !== "active"
+    ) {
+      const err = new Error("You do not have access to this client");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else {
+    const err = new Error("Invalid role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const recs = await AdvisorRecommendation.find({
+    relationshipId: relationship._id,
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return recs.map((r) => ({
+    id: r._id.toString(),
+    relationshipId: r.relationshipId.toString(),
+    ownerUserId: r.ownerUserId,
+    advisorUserId: r.advisorUserId,
+    title: r.title,
+    description: r.description,
+    category: r.category,
+    jobId: r.jobId,
+    resumeId: r.resumeId,
+    coverLetterId: r.coverLetterId,
+    status: r.status,
+    createdBy: r.createdBy,
+    candidateNote: r.candidateNote,
+    completedAt: r.completedAt,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
+}
+
+export async function createAdvisorRecommendation({
+  relationshipId,
+  advisorUserId,
+  title,
+  description,
+  category,
+  jobId,
+  resumeId,
+  coverLetterId,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  );
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (
+    relationship.advisorUserId !== String(advisorUserId) ||
+    relationship.status !== "active"
+  ) {
+    const err = new Error("You do not have access to this client");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const ownerUserId = relationship.ownerUserId;
+
+  const trimmedTitle = (title || "").trim();
+  if (!trimmedTitle) {
+    const err = new Error("Recommendation title is required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const allowedCategories = [
+    "resume",
+    "cover_letter",
+    "job",
+    "interview",
+    "general",
+  ];
+  const finalCategory = allowedCategories.includes(category)
+    ? category
+    : "general";
+
+  // Validate linked entities if provided, and ensure they are also shared
+  let finalJobId = null;
+  let finalResumeId = null;
+  let finalCoverLetterId = null;
+
+  if (finalCategory === "job" && jobId) {
+    const asString = String(jobId);
+    if (
+      !(relationship.sharedJobIds || []).includes(asString)
+    ) {
+      const err = new Error(
+        "Job is not shared with this advisor"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    // Double-check ownership
+    const job = await Job.findOne({
+      _id: asString,
+      userId: ownerUserId,
+    }).select("_id");
+    if (!job) {
+      const err = new Error(
+        "Invalid job for this recommendation"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    finalJobId = asString;
+  }
+
+  if (finalCategory === "resume" && resumeId) {
+    const asString = String(resumeId);
+    if (
+      !(relationship.sharedResumeIds || []).includes(asString)
+    ) {
+      const err = new Error(
+        "Resume is not shared with this advisor"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    const resume = await Resume.findOne({
+      _id: asString,
+      userId: ownerUserId,
+    }).select("_id");
+    if (!resume) {
+      const err = new Error(
+        "Invalid resume for this recommendation"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    finalResumeId = asString;
+  }
+
+  if (finalCategory === "cover_letter" && coverLetterId) {
+    const asString = String(coverLetterId);
+    if (
+      !(relationship.sharedCoverLetterIds || []).includes(
+        asString
+      )
+    ) {
+      const err = new Error(
+        "Cover letter is not shared with this advisor"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    const cl = await Coverletter.findOne({
+      _id: asString,
+      owner: ownerUserId,
+    }).select("_id");
+    if (!cl) {
+      const err = new Error(
+        "Invalid cover letter for this recommendation"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+    finalCoverLetterId = asString;
+  }
+
+  const rec = await AdvisorRecommendation.create({
+    relationshipId: relationship._id,
+    ownerUserId,
+    advisorUserId: relationship.advisorUserId,
+    title: trimmedTitle,
+    description: (description || "").trim(),
+    category: finalCategory,
+    jobId: finalJobId,
+    resumeId: finalResumeId,
+    coverLetterId: finalCoverLetterId,
+    status: "pending",
+    createdBy: "advisor",
+  });
+
+  return {
+    id: rec._id.toString(),
+    relationshipId: rec.relationshipId.toString(),
+    ownerUserId: rec.ownerUserId,
+    advisorUserId: rec.advisorUserId,
+    title: rec.title,
+    description: rec.description,
+    category: rec.category,
+    jobId: rec.jobId,
+    resumeId: rec.resumeId,
+    coverLetterId: rec.coverLetterId,
+    status: rec.status,
+    createdBy: rec.createdBy,
+    candidateNote: rec.candidateNote,
+    completedAt: rec.completedAt,
+    createdAt: rec.createdAt,
+    updatedAt: rec.updatedAt,
+  };
+}
+
+export async function updateAdvisorRecommendation({
+  recommendationId,
+  role,
+  userId,
+  fields,
+}) {
+  const rec = await AdvisorRecommendation.findById(
+    recommendationId
+  );
+  if (!rec) {
+    const err = new Error("Recommendation not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const relationship = await AdvisorRelationship.findById(
+    rec.relationshipId
+  );
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (role === "candidate") {
+    if (relationship.ownerUserId !== String(userId)) {
+      const err = new Error(
+        "You do not have access to this recommendation"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+
+    // Candidate can update status + candidateNote
+    if (fields.status) {
+      const allowedStatuses = [
+        "pending",
+        "in_progress",
+        "completed",
+        "declined",
+      ];
+      if (!allowedStatuses.includes(fields.status)) {
+        const err = new Error("Invalid status");
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const prevStatus = rec.status;
+      rec.status = fields.status;
+
+      if (
+        fields.status === "completed" &&
+        (!rec.completedAt || prevStatus !== "completed")
+      ) {
+        rec.completedAt = new Date();
+      } else if (fields.status !== "completed") {
+        // If they move away from completed, we can keep completedAt
+        // or clear it; I'll keep it to preserve history.
+      }
+    }
+
+    if (typeof fields.candidateNote === "string") {
+      rec.candidateNote = fields.candidateNote.slice(0, 1000);
+    }
+  } else if (role === "advisor") {
+    if (
+      relationship.advisorUserId !== String(userId) ||
+      relationship.status !== "active"
+    ) {
+      const err = new Error(
+        "You do not have access to this recommendation"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+
+    // Advisor can update core content + category/links; they shouldn't overwrite candidate note.
+    if (typeof fields.title === "string") {
+      const trimmedTitle = fields.title.trim();
+      if (!trimmedTitle) {
+        const err = new Error("Title cannot be empty");
+        err.statusCode = 400;
+        throw err;
+      }
+      rec.title = trimmedTitle;
+    }
+
+    if (typeof fields.description === "string") {
+      rec.description = fields.description.trim();
+    }
+
+    if (fields.category) {
+      const allowedCategories = [
+        "resume",
+        "cover_letter",
+        "job",
+        "interview",
+        "general",
+      ];
+      if (!allowedCategories.includes(fields.category)) {
+        const err = new Error("Invalid category");
+        err.statusCode = 400;
+        throw err;
+      }
+      rec.category = fields.category;
+      // Reset links when category changes
+      rec.jobId = null;
+      rec.resumeId = null;
+      rec.coverLetterId = null;
+    }
+
+    // Handle entity linking updates, same checks as create
+    const ownerUserId = relationship.ownerUserId;
+
+    if (fields.jobId !== undefined) {
+      if (!fields.jobId) {
+        rec.jobId = null;
+      } else {
+        const asString = String(fields.jobId);
+        if (
+          !(relationship.sharedJobIds || []).includes(
+            asString
+          )
+        ) {
+          const err = new Error(
+            "Job is not shared with this advisor"
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+        const job = await Job.findOne({
+          _id: asString,
+          userId: ownerUserId,
+        }).select("_id");
+        if (!job) {
+          const err = new Error(
+            "Invalid job for this recommendation"
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+        rec.jobId = asString;
+      }
+    }
+
+    if (fields.resumeId !== undefined) {
+      if (!fields.resumeId) {
+        rec.resumeId = null;
+      } else {
+        const asString = String(fields.resumeId);
+        if (
+          !(relationship.sharedResumeIds || []).includes(
+            asString
+          )
+        ) {
+          const err = new Error(
+            "Resume is not shared with this advisor"
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+        const resume = await Resume.findOne({
+          _id: asString,
+          userId: ownerUserId,
+        }).select("_id");
+        if (!resume) {
+          const err = new Error(
+            "Invalid resume for this recommendation"
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+        rec.resumeId = asString;
+      }
+    }
+
+    if (fields.coverLetterId !== undefined) {
+      if (!fields.coverLetterId) {
+        rec.coverLetterId = null;
+      } else {
+        const asString = String(fields.coverLetterId);
+        if (
+          !(relationship.sharedCoverLetterIds || []).includes(
+            asString
+          )
+        ) {
+          const err = new Error(
+            "Cover letter is not shared with this advisor"
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+        const cl = await Coverletter.findOne({
+          _id: asString,
+          owner: ownerUserId,
+        }).select("_id");
+        if (!cl) {
+          const err = new Error(
+            "Invalid cover letter for this recommendation"
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+        rec.coverLetterId = asString;
+      }
+    }
+
+    // Optional: Advisor sets status to 'declined' to close it
+    if (fields.status) {
+      const allowedStatuses = [
+        "pending",
+        "in_progress",
+        "completed",
+        "declined",
+      ];
+      if (!allowedStatuses.includes(fields.status)) {
+        const err = new Error("Invalid status");
+        err.statusCode = 400;
+        throw err;
+      }
+      rec.status = fields.status;
+      if (fields.status === "completed" && !rec.completedAt) {
+        rec.completedAt = new Date();
+      }
+    }
+  } else {
+    const err = new Error("Invalid role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await rec.save();
+
+  return {
+    id: rec._id.toString(),
+    relationshipId: rec.relationshipId.toString(),
+    ownerUserId: rec.ownerUserId,
+    advisorUserId: rec.advisorUserId,
+    title: rec.title,
+    description: rec.description,
+    category: rec.category,
+    jobId: rec.jobId,
+    resumeId: rec.resumeId,
+    coverLetterId: rec.coverLetterId,
+    status: rec.status,
+    createdBy: rec.createdBy,
+    candidateNote: rec.candidateNote,
+    completedAt: rec.completedAt,
+    createdAt: rec.createdAt,
+    updatedAt: rec.updatedAt,
   };
 }
