@@ -8,6 +8,7 @@ import InterviewPrepChecklist from './InterviewPrepChecklist';
 import SalaryNegotiationPage from './SalaryNegotiationPage';
 import Questions from './Questions';
 import '../../styles/InterviewPrepUI.css';
+import WritingPractice from '../../components/Interviews/WritingPractice';
 
 type CardData = {
   label: string;
@@ -15,7 +16,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | null; // Add component type
+  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -74,6 +75,38 @@ const cardData: CardData[] = [
     color: '#0E3B43',
     details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
     component: 'checklist' // 🆕 Add this
+  },
+   {
+    label: 'Writing Practice',
+    title: 'Response Writing Practice',
+    description: 'Improve clarity, structure, and storytelling',
+    color: '#0E3B43',
+    details: 'Practice writing interview responses with timed exercises, get AI feedback on clarity and structure, track improvement over time, and build confidence for virtual interviews.',
+    component: 'writing-practice'
+  },
+  {
+    label: 'Calendar',
+    title: 'Calendar Integration',
+    description: 'Schedule and track your interviews',
+    color: '#0E3B43',
+    details: 'Sync with Google Calendar to auto-schedule prep time, track upcoming interviews, set reminders, and log feedback after each round.',
+    component: null
+  },
+  {
+    label: 'Analytics',
+    title: 'Performance Analytics',
+    description: 'Track your progress and improvements',
+    color: '#0E3B43',
+    details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
+    component: null
+  },
+  {
+    label: 'Preparation',
+    title: 'Preparation Checklist',
+    description: 'Customized prep tasks for each interview',
+    color: '#0E3B43',
+    details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
+    component: 'checklist'
   },
   {
     label: 'Follow-Up',
@@ -220,6 +253,11 @@ const Interview = () => {
       setActiveFeature('mock-interview');
       return; // Don't set selectedCardIndex
     }
+
+    if (card.component === 'writing-practice') {
+      setActiveFeature('writing-practice');
+      return;
+    }
     
     // For other cards, show the detail view
     setSelectedCardIndex(index);
@@ -233,6 +271,10 @@ const Interview = () => {
   // ✅ Show Mock Interview feature
   if (activeFeature === 'mock-interview') {
     return <MockPractice onBack={handleBack} />;
+  }
+
+  if (activeFeature === 'writing-practice') {
+    return <WritingPractice onBack={handleBack} />;
   }
 
   // 🔍 Detail Mode (existing)
