@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Send, TrendingUp, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import '../../styles/InterviewStyles/ResponseCoach.css';
+import { ArrowLeft, Send, TrendingUp, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
+
+interface Job {
+  _id: string;
+  jobTitle: string;
+  company: string;
+  jobDescription: string;
+}
 
 interface Question {
   question: string;
@@ -33,6 +39,12 @@ interface FeedbackData {
   overallFeedback: string;
 }
 
+interface AnalysisResponse {
+  message: string;
+  analysis: FeedbackData;
+  insight: any;
+}
+
 interface Session {
   id: number;
   question: string;
@@ -44,6 +56,8 @@ interface Session {
 
 export default function InterviewCoach() {
   const [view, setView] = useState<'browse' | 'practice' | 'feedback'>('browse');
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJob, setSelectedJob] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [filteredQuestions, setFilteredQuestions] = useState<Question[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -53,7 +67,8 @@ export default function InterviewCoach() {
   const [feedback, setFeedback] = useState<FeedbackData | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [error, setError] = useState<string>('');
-  const [loadingQuestions, setLoadingQuestions] = useState<boolean>(true);
+  const [loadingJobs, setLoadingJobs] = useState<boolean>(true);
+  const [loadingQuestions, setLoadingQuestions] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'detailed'>('overview');
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
     star: false,
@@ -64,14 +79,46 @@ export default function InterviewCoach() {
   });
 
   useEffect(() => {
-    fetchQuestions();
+    fetchJobs();
   }, []);
+
+  useEffect(() => {
+    if (selectedJob) {
+      fetchQuestionsForJob(selectedJob);
+    }
+  }, [selectedJob]);
 
   useEffect(() => {
     filterQuestions();
   }, [selectedCategory, questions]);
 
-  const fetchQuestions = async () => {
+  const fetchJobs = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('User not logged in');
+        setLoadingJobs(false);
+        return;
+      }
+
+      const res = await fetch(`http://localhost:5050/api/jobs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      setJobs(data);
+    } catch (err) {
+      setError('Failed to load jobs');
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  const fetchQuestionsForJob = async (jobId: string) => {
+    setLoadingQuestions(true);
+    setError('');
+    
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -80,41 +127,27 @@ export default function InterviewCoach() {
         return;
       }
 
-      const res = await fetch(`http://localhost:5050/api/interview-questions`, {
+      const res = await fetch(`http://localhost:5050/api/interview-questions/${jobId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+      
       const data = await res.json();
-
+      
+      // Transform the questions from the API response
       const allQuestions: Question[] = [];
       
-      data.forEach((item: any) => {
-        item.technicalQuestions?.forEach((q: any) => {
+      if (data.questions && Array.isArray(data.questions)) {
+        data.questions.forEach((q: any) => {
           allQuestions.push({
-            question: q.question,
-            category: 'technical',
-            jobTitle: item.jobTitle,
-            company: item.company
+            question: q.text,
+            category: q.category,
+            jobTitle: jobs.find(j => j._id === jobId)?.jobTitle,
+            company: jobs.find(j => j._id === jobId)?.company
           });
         });
-        item.behavioralQuestions?.forEach((q: any) => {
-          allQuestions.push({
-            question: q.question,
-            category: 'behavioral',
-            jobTitle: item.jobTitle,
-            company: item.company
-          });
-        });
-        item.generalQuestions?.forEach((q: any) => {
-          allQuestions.push({
-            question: q.question,
-            category: 'general',
-            jobTitle: item.jobTitle,
-            company: item.company
-          });
-        });
-      });
+      }
 
       setQuestions(allQuestions);
       setFilteredQuestions(allQuestions);
@@ -141,46 +174,7 @@ export default function InterviewCoach() {
     setFeedback(null);
     setView('practice');
   };
-  const saveCoachingInsight = async (
-    question: string,
-    response: string,
-    feedback: FeedbackData
-    ) => {
-    try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        await fetch(`http://localhost:5050/api/coaching-insights`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-            question,
-            response,
-            scores: {
-            relevance: feedback.relevanceScore,
-            specificity: feedback.specificityScore,
-            impact: feedback.impactScore,
-            clarity: feedback.overallScore, // or create its own if needed
-            },
-            star: {
-            situation: feedback.starAdherence.situation,
-            task: feedback.starAdherence.task,
-            action: feedback.starAdherence.action,
-            result: feedback.starAdherence.result,
-            },
-            weaknesses: feedback.weaknesses,
-            suggestions: feedback.suggestions,
-            alternativeApproach: feedback.alternativeApproach,
-        }),
-        });
-    } catch (err) {
-        console.error("Failed to save coaching insight:", err);
-    }
-    };
-
+  
   const analyzeResponse = async () => {
     if (!response.trim()) {
       setError('Please enter a response');
@@ -198,7 +192,7 @@ export default function InterviewCoach() {
         return;
       }
 
-      const res = await fetch(`http://localhost:5050/api/interview-questions/analyze`, {
+      const res = await fetch(`http://localhost:5050/api/coaching-insights/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -210,11 +204,13 @@ export default function InterviewCoach() {
         })
       });
 
-      const analysis: FeedbackData = await res.json();
+      const data: AnalysisResponse = await res.json();
       
       if (!res.ok) {
-        throw new Error(analysis.error || 'API request failed');
+        throw new Error('API request failed');
       }
+      
+      const analysis: FeedbackData = data.analysis;
       
       const previousAttempts = sessions.filter(s => s.question === currentQuestion);
       const attemptNumber = previousAttempts.length + 1;
@@ -231,7 +227,6 @@ export default function InterviewCoach() {
       setSessions(prev => [newSession, ...prev]);
       setFeedback(analysis);
       setView('feedback');
-      await saveCoachingInsight(currentQuestion, response, analysis);
     } catch (err) {
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error occurred'}`);
     } finally {
@@ -276,21 +271,32 @@ export default function InterviewCoach() {
   };
 
   const ScoreCircle: React.FC<{ score: number; label: string }> = ({ score, label }) => (
-    <div className="score-circle-wrapper">
-      <div className={`score-circle score-${Math.floor(score / 3)}`}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+      <div style={{
+        width: '80px',
+        height: '80px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '24px',
+        fontWeight: 'bold',
+        background: score >= 7 ? '#10b981' : score >= 4 ? '#f59e0b' : '#ef4444',
+        color: 'white'
+      }}>
         {score}
       </div>
-      <p className="score-label">{label}</p>
+      <p style={{ fontSize: '14px', color: '#666' }}>{label}</p>
     </div>
   );
 
   const getCategoryClass = (category: string) => {
-    switch (category) {
-      case 'technical': return 'category-technical';
-      case 'behavioral': return 'category-behavioral';
-      case 'general': return 'category-general';
-      default: return 'category-default';
-    }
+    const colors = {
+      technical: '#3b82f6',
+      behavioral: '#8b5cf6',
+      general: '#06b6d4'
+    };
+    return colors[category as keyof typeof colors] || '#6b7280';
   };
 
   const getImprovementData = () => {
@@ -320,39 +326,120 @@ export default function InterviewCoach() {
   // Browse View
   if (view === 'browse') {
     return (
-      <div className="coach-container">
-        <div className="coach-content">
-          <header className="coach-header">
-            <h1 className="coach-title">AI Interview Coach</h1>
-            <p className="coach-subtitle">Select a question to practice and get instant feedback</p>
-          </header>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
+        <header style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '8px' }}>AI Interview Coach</h1>
+          <p style={{ color: '#666' }}>Select a job and practice interview questions with instant AI feedback</p>
+        </header>
 
-          {sessions.length > 0 && (
-            <div className="stats-card">
-              <div className="stat-item">
-                <TrendingUp className="stat-icon" size={28} />
-                <div className="stat-content">
-                  <p className="stat-label">Total Sessions</p>
-                  <p className="stat-value">{sessions.length}</p>
-                </div>
-              </div>
-              <div className="stat-divider" />
-              <div className="stat-item">
-                <div className="stat-content">
-                  <p className="stat-label">Average Score</p>
-                  <p className="stat-value">{avgScore}<span className="stat-unit">/10</span></p>
-                </div>
+        {sessions.length > 0 && (
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            marginBottom: '24px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            display: 'flex',
+            gap: '32px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <TrendingUp size={28} color="#10b981" />
+              <div>
+                <p style={{ color: '#666', fontSize: '14px' }}>Total Sessions</p>
+                <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{sessions.length}</p>
               </div>
             </div>
-          )}
+            <div style={{ borderLeft: '1px solid #e5e7eb', paddingLeft: '32px' }}>
+              <p style={{ color: '#666', fontSize: '14px' }}>Average Score</p>
+              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                {avgScore}<span style={{ fontSize: '16px', color: '#666' }}>/10</span>
+              </p>
+            </div>
+          </div>
+        )}
 
-          <div className="questions-section">
-            <div className="section-header">
-              <h2 className="section-title">Question Bank</h2>
+        {/* Job Selection */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          marginBottom: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <Briefcase size={24} color="#3b82f6" />
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Select a Job</h2>
+          </div>
+          
+          {loadingJobs ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                border: '4px solid #e5e7eb',
+                borderTopColor: '#3b82f6',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto'
+              }} />
+              <p style={{ marginTop: '12px', color: '#666' }}>Loading jobs...</p>
+            </div>
+          ) : jobs.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '40px',
+              color: '#666',
+              background: '#f9fafb',
+              borderRadius: '8px'
+            }}>
+              <p>No jobs found. Add a job first to generate interview questions.</p>
+            </div>
+          ) : (
+            <select
+              value={selectedJob}
+              onChange={(e) => setSelectedJob(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '16px',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">-- Choose a job to practice --</option>
+              {jobs.map((job) => (
+                <option key={job._id} value={job._id}>
+                  {job.jobTitle} at {job.company}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {selectedJob && (
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Interview Questions</h2>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="category-select"
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
               >
                 <option value="all">All Categories</option>
                 <option value="technical">Technical</option>
@@ -362,57 +449,101 @@ export default function InterviewCoach() {
             </div>
 
             {loadingQuestions ? (
-              <div className="loading-state">
-                <div className="spinner" />
-                <p>Loading questions...</p>
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  border: '4px solid #e5e7eb',
+                  borderTopColor: '#3b82f6',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto'
+                }} />
+                <p style={{ marginTop: '12px', color: '#666' }}>Generating questions...</p>
               </div>
             ) : filteredQuestions.length === 0 ? (
-              <div className="empty-state">
-                <p>No questions found</p>
+              <div style={{
+                textAlign: 'center',
+                padding: '40px',
+                color: '#666',
+                background: '#f9fafb',
+                borderRadius: '8px'
+              }}>
+                <p>No questions found for this category</p>
               </div>
             ) : (
-              <div className="questions-grid">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
                 {filteredQuestions.map((q, idx) => (
                   <div
                     key={idx}
                     onClick={() => selectQuestion(q.question)}
-                    className="question-card"
+                    style={{
+                      padding: '20px',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      ':hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }
+                    }}
                   >
-                    <div className="question-card-header">
-                      <span className={`category-badge ${getCategoryClass(q.category)}`}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        background: getCategoryClass(q.category) + '20',
+                        color: getCategoryClass(q.category)
+                      }}>
                         {q.category.charAt(0).toUpperCase() + q.category.slice(1)}
                       </span>
-                      {q.jobTitle && (
-                        <span className="job-title">{q.jobTitle}</span>
-                      )}
                     </div>
-                    <p className="question-text">{q.question}</p>
-                    {q.company && (
-                      <p className="company-name">{q.company}</p>
-                    )}
+                    <p style={{ fontSize: '15px', lineHeight: '1.5', color: '#333' }}>{q.question}</p>
                   </div>
                 ))}
               </div>
             )}
           </div>
+        )}
 
-          <div className="custom-question-section">
-            <h3 className="section-title">Or Enter Your Own Question</h3>
-            <textarea
-              placeholder="Type any interview question you want to practice..."
-              rows={3}
-              className="custom-question-input"
-              onChange={(e) => setCurrentQuestion(e.target.value)}
-              value={currentQuestion}
-            />
-            <button
-              onClick={() => currentQuestion.trim() && selectQuestion(currentQuestion)}
-              disabled={!currentQuestion.trim()}
-              className="primary-button"
-            >
-              Practice This Question
-            </button>
-          </div>
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          marginTop: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Or Enter Your Own Question</h3>
+          <textarea
+            placeholder="Type any interview question you want to practice..."
+            rows={3}
+            value={currentQuestion}
+            onChange={(e) => setCurrentQuestion(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '15px',
+              resize: 'vertical',
+              marginBottom: '12px'
+            }}
+          />
+          <button
+            onClick={() => currentQuestion.trim() && selectQuestion(currentQuestion)}
+            disabled={!currentQuestion.trim()}
+            style={{
+              padding: '12px 24px',
+              background: currentQuestion.trim() ? '#3b82f6' : '#e5e7eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '500',
+              cursor: currentQuestion.trim() ? 'pointer' : 'not-allowed'
+            }}
+          >
+            Practice This Question
+          </button>
         </div>
       </div>
     );
@@ -421,349 +552,197 @@ export default function InterviewCoach() {
   // Practice View
   if (view === 'practice') {
     return (
-      <div className="coach-container">
-        <div className="coach-content narrow">
-          <button onClick={backToBrowse} className="back-button">
-            <ArrowLeft size={20} />
-            Back to Questions
-          </button>
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px' }}>
+        <button onClick={backToBrowse} style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 16px',
+          background: 'none',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          marginBottom: '24px'
+        }}>
+          <ArrowLeft size={20} />
+          Back to Questions
+        </button>
 
-          <div className="question-display-card">
-            <h2 className="card-title">Interview Question</h2>
-            <p className="question-display-text">{currentQuestion}</p>
-          </div>
-
-          <div className="response-card">
-            <h2 className="card-title">Your Response</h2>
-            <textarea
-              value={response}
-              onChange={(e) => setResponse(e.target.value)}
-              placeholder="Type your response here. Try to use the STAR method: Situation, Task, Action, Result..."
-              rows={14}
-              className="response-textarea"
-            />
-
-            {error && (
-              <div className="error-message">
-                <p>{error}</p>
-              </div>
-            )}
-
-            <button
-              onClick={analyzeResponse}
-              disabled={loading}
-              className="primary-button"
-            >
-              {loading ? (
-                <>
-                  <div className="button-spinner" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Send size={20} />
-                  Get AI Feedback
-                </>
-              )}
-            </button>
-          </div>
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          marginBottom: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Interview Question</h2>
+          <p style={{ fontSize: '17px', lineHeight: '1.6', color: '#333' }}>{currentQuestion}</p>
         </div>
+
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Your Response</h2>
+          <textarea
+            value={response}
+            onChange={(e) => setResponse(e.target.value)}
+            placeholder="Type your response here. Try to use the STAR method: Situation, Task, Action, Result..."
+            rows={14}
+            style={{
+              width: '100%',
+              padding: '12px',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              fontSize: '15px',
+              lineHeight: '1.6',
+              resize: 'vertical',
+              marginBottom: '16px'
+            }}
+          />
+
+          {error && (
+            <div style={{
+              padding: '12px',
+              background: '#fee2e2',
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              color: '#dc2626',
+              marginBottom: '16px'
+            }}>
+              <p>{error}</p>
+            </div>
+          )}
+
+          <button
+            onClick={analyzeResponse}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '14px',
+              background: loading ? '#9ca3af' : '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '500',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            {loading ? (
+              <>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  border: '3px solid rgba(255,255,255,0.3)',
+                  borderTopColor: 'white',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Send size={20} />
+                Get AI Feedback
+              </>
+            )}
+          </button>
+        </div>
+
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
-  // Feedback View
+  // Feedback View - simplified for artifact
   if (view === 'feedback' && feedback) {
-    const improvementData = getImprovementData();
-
     return (
-      <div className="coach-container">
-        <div className="coach-content">
-          <div className="feedback-header">
-            <button onClick={backToBrowse} className="back-button">
-              <ArrowLeft size={20} />
-              Back to Questions
-            </button>
-            <button onClick={tryAgain} className="secondary-button">
-              <RefreshCw size={20} />
-              Try Again
-            </button>
+      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
+          <button onClick={backToBrowse} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            background: 'none',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}>
+            <ArrowLeft size={20} />
+            Back to Questions
+          </button>
+          <button onClick={tryAgain} style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            background: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}>
+            <RefreshCw size={20} />
+            Try Again
+          </button>
+        </div>
+
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '32px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          marginBottom: '24px'
+        }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px' }}>Analysis Results</h2>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '32px' }}>
+            <ScoreCircle score={feedback.overallScore} label="Overall" />
+            <ScoreCircle score={feedback.relevanceScore} label="Relevance" />
+            <ScoreCircle score={feedback.specificityScore} label="Specificity" />
+            <ScoreCircle score={feedback.impactScore} label="Impact" />
           </div>
 
-          {improvementData && (
-            <div className="progress-card">
-              <h3 className="card-title">Progress Tracking</h3>
-              <div className="progress-stats">
-                <div className="progress-stat">
-                  <p className="progress-label">Attempts</p>
-                  <p className="progress-value">{improvementData.attempts}</p>
-                </div>
-                <div className="progress-stat">
-                  <p className="progress-label">First Score</p>
-                  <p className="progress-value">{improvementData.firstScore}/10</p>
-                </div>
-                <div className="progress-stat">
-                  <p className="progress-label">Latest Score</p>
-                  <p className="progress-value">{improvementData.latestScore}/10</p>
-                </div>
-                <div className="progress-stat">
-                  <p className="progress-label">Improvement</p>
-                  <p className={`progress-value ${improvementData.improvement >= 0 ? 'positive' : 'negative'}`}>
-                    {improvementData.improvement >= 0 ? '+' : ''}{improvementData.improvement}
-                  </p>
-                </div>
-              </div>
-              <div className="progress-chart">
-                <p className="chart-label">Score History</p>
-                <div className="chart-bars">
-                  {improvementData.scores.map((score, idx) => (
-                    <div key={idx} className="chart-bar-wrapper">
-                      <div className="chart-bar" style={{ height: `${score * 10}%` }} />
-                      <p className="chart-bar-label">{idx + 1}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div style={{ marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '12px' }}>Summary</h3>
+            <p style={{ lineHeight: '1.6', color: '#333' }}>{feedback.overallFeedback}</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+            <div>
+              <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px', color: '#10b981' }}>✓ Strengths</h4>
+              <ul style={{ listStyle: 'none', padding: 0, lineHeight: '1.8' }}>
+                {feedback.strengths.map((strength, idx) => (
+                  <li key={idx} style={{ color: '#333' }}>• {strength}</li>
+                ))}
+              </ul>
             </div>
-          )}
-
-          {/* Tab Navigation */}
-          <div className="feedback-tabs">
-            <button 
-              className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveTab('overview')}
-            >
-              Overview
-            </button>
-            <button 
-              className={`tab-button ${activeTab === 'detailed' ? 'active' : ''}`}
-              onClick={() => setActiveTab('detailed')}
-            >
-              Detailed Analysis
-            </button>
+            <div>
+              <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px', color: '#ef4444' }}>! Areas to Improve</h4>
+              <ul style={{ listStyle: 'none', padding: 0, lineHeight: '1.8' }}>
+                {feedback.weaknesses.map((weakness, idx) => (
+                  <li key={idx} style={{ color: '#333' }}>• {weakness}</li>
+                ))}
+              </ul>
+            </div>
           </div>
 
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <>
-              <div className="feedback-overview-card">
-                <div className="scores-grid-compact">
-                  <ScoreCircle score={feedback.overallScore} label="Overall" />
-                  <ScoreCircle score={feedback.relevanceScore} label="Relevance" />
-                  <ScoreCircle score={feedback.specificityScore} label="Specificity" />
-                  <ScoreCircle score={feedback.impactScore} label="Impact" />
-                </div>
-
-                <div className="overall-feedback-highlight">
-                  <h3 className="highlight-title">Summary</h3>
-                  <p>{feedback.overallFeedback}</p>
-                </div>
-
-                <div className="quick-insights">
-                  <div className="insight-column">
-                    <h4 className="insight-title">✓ Key Strengths</h4>
-                    <ul className="insight-list">
-                      {feedback.strengths.slice(0, 2).map((strength, idx) => (
-                        <li key={idx}>{strength}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="insight-column">
-                    <h4 className="insight-title">! Priority Improvements</h4>
-                    <ul className="insight-list">
-                      {feedback.weaknesses.slice(0, 2).map((weakness, idx) => (
-                        <li key={idx}>{weakness}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="timing-quick">
-                  <strong>{feedback.wordCount}</strong> words · <strong>{feedback.estimatedTime}</strong> speaking time
-                </div>
-
-                <p className="view-details-hint">
-                  Switch to "Detailed Analysis" tab for in-depth feedback →
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* Detailed Tab */}
-          {activeTab === 'detailed' && (
-            <>
-              <div className="feedback-context-card">
-                <h2 className="card-title">Your Answer</h2>
-                <div className="context-question-box">
-                  <strong>Q:</strong> {currentQuestion}
-                </div>
-                <div className="context-response">{response}</div>
-              </div>
-
-              <div className="detailed-feedback-card">
-                {/* STAR Analysis - Collapsible */}
-                <div className="collapsible-section">
-                  <button 
-                    className="section-header-button"
-                    onClick={() => toggleSection('star')}
-                  >
-                    <h3 className="subsection-title">STAR Method Analysis</h3>
-                    {expandedSections.star ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                  </button>
-                  
-                  <div className="star-indicators-inline">
-                    <div className={`star-indicator-mini ${feedback.starAdherence.situation === 'Yes' ? 'yes' : 'no'}`}>
-                      S
-                    </div>
-                    <div className={`star-indicator-mini ${feedback.starAdherence.task === 'Yes' ? 'yes' : 'no'}`}>
-                      T
-                    </div>
-                    <div className={`star-indicator-mini ${feedback.starAdherence.action === 'Yes' ? 'yes' : 'no'}`}>
-                      A
-                    </div>
-                    <div className={`star-indicator-mini ${feedback.starAdherence.result === 'Yes' ? 'yes' : 'no'}`}>
-                      R
-                    </div>
-                  </div>
-
-                  {expandedSections.star && (
-                    <div className="section-content">
-                      <div className="star-indicators">
-                        <div className="star-indicator">
-                          {feedback.starAdherence.situation === 'Yes' ? 
-                            <CheckCircle className="star-icon yes" size={18} /> : 
-                            <XCircle className="star-icon no" size={18} />
-                          }
-                          <span>Situation</span>
-                        </div>
-                        <div className="star-indicator">
-                          {feedback.starAdherence.task === 'Yes' ? 
-                            <CheckCircle className="star-icon yes" size={18} /> : 
-                            <XCircle className="star-icon no" size={18} />
-                          }
-                          <span>Task</span>
-                        </div>
-                        <div className="star-indicator">
-                          {feedback.starAdherence.action === 'Yes' ? 
-                            <CheckCircle className="star-icon yes" size={18} /> : 
-                            <XCircle className="star-icon no" size={18} />
-                          }
-                          <span>Action</span>
-                        </div>
-                        <div className="star-indicator">
-                          {feedback.starAdherence.result === 'Yes' ? 
-                            <CheckCircle className="star-icon yes" size={18} /> : 
-                            <XCircle className="star-icon no" size={18} />
-                          }
-                          <span>Result</span>
-                        </div>
-                      </div>
-                      <p className="star-feedback">{feedback.starAdherence.feedback}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Strengths - Collapsible */}
-                <div className="collapsible-section">
-                  <button 
-                    className="section-header-button"
-                    onClick={() => toggleSection('strengths')}
-                  >
-                    <h3 className="subsection-title">Strengths ({feedback.strengths.length})</h3>
-                    {expandedSections.strengths ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                  </button>
-                  {expandedSections.strengths && (
-                    <div className="section-content">
-                      <ul className="feedback-list strengths">
-                        {feedback.strengths.map((strength, idx) => (
-                          <li key={idx}>{strength}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                {/* Weaknesses - Collapsible */}
-                <div className="collapsible-section">
-                  <button 
-                    className="section-header-button"
-                    onClick={() => toggleSection('weaknesses')}
-                  >
-                    <h3 className="subsection-title">Areas to Improve ({feedback.weaknesses.length})</h3>
-                    {expandedSections.weaknesses ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                  </button>
-                  {expandedSections.weaknesses && (
-                    <div className="section-content">
-                      <ul className="feedback-list weaknesses">
-                        {feedback.weaknesses.map((weakness, idx) => (
-                          <li key={idx}>{weakness}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                {/* Weak Language Patterns */}
-                {feedback.weakLanguagePatterns.length > 0 && (
-                  <div className="weak-patterns-compact">
-                    <h4 className="compact-title">Weak Language Patterns</h4>
-                    <div className="pattern-tags">
-                      {feedback.weakLanguagePatterns.map((pattern, idx) => (
-                        <span key={idx} className="pattern-tag">{pattern}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Suggestions - Collapsible */}
-                <div className="collapsible-section">
-                  <button 
-                    className="section-header-button"
-                    onClick={() => toggleSection('suggestions')}
-                  >
-                    <h3 className="subsection-title">Suggestions ({feedback.suggestions.length})</h3>
-                    {expandedSections.suggestions ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                  </button>
-                  {expandedSections.suggestions && (
-                    <div className="section-content">
-                      <ul className="feedback-list suggestions">
-                        {feedback.suggestions.map((suggestion, idx) => (
-                          <li key={idx}>{suggestion}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                {/* Alternative Approach - Collapsible */}
-                <div className="collapsible-section">
-                  <button 
-                    className="section-header-button"
-                    onClick={() => toggleSection('alternative')}
-                  >
-                    <h3 className="subsection-title">Alternative Approach</h3>
-                    {expandedSections.alternative ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                  </button>
-                  {expandedSections.alternative && (
-                    <div className="section-content">
-                      <div className="alternative-approach">
-                        <p>{feedback.alternativeApproach}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="action-buttons">
-            <button onClick={tryAgain} className="primary-button">
-              <RefreshCw size={20} />
-              Try This Question Again
-            </button>
-            <button onClick={backToBrowse} className="secondary-button">
-              Practice New Question
-            </button>
+          <div style={{ marginTop: '24px', padding: '16px', background: '#f9fafb', borderRadius: '8px' }}>
+            <p style={{ fontSize: '14px', color: '#666' }}>
+              <strong>{feedback.wordCount}</strong> words · <strong>{feedback.estimatedTime}</strong> speaking time
+            </p>
           </div>
         </div>
       </div>
