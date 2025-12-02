@@ -78,6 +78,7 @@ import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
+import advisorRoutes from "./routes/advisor.routes.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -198,6 +199,7 @@ try {
   app.use("/api/competitive-analysis", attachDevUser,competitiveAnalysisRouter);
 
   app.use("/api", jobSearchSharingRoutes);
+  app.use("/api", advisorRoutes);
 
   // Health check
   // ❤️ Health Check

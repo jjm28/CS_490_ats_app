@@ -86,7 +86,10 @@ import AiOutreachGenerator from './components/Networking/AiOutreachGenerator';
 import InteractionHistory from './components/Networking/InteractionHistory';
 import AllInteractionsPage from './components/Networking/AllInteractionsPage';
 import ImportGoogle from "./components/Networking/ImportGoogle";
-
+import AdvisorsPage from './components/Advisors/AdvisorsPage';
+import AdvisorAcceptInvitePage from './components/Advisors/AdvisorAcceptInvitePage';
+import AdvisorClientsPage from './components/Advisors/AdvisorClientsPage';
+import AdvisorClientProfilePage from './components/Advisors/AdvisorClientProfilePage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -361,6 +364,26 @@ function App() {
     </PrivateRoute>
   }
 />
+  <Route
+  path="/advisors"
+  element={
+    <PrivateRoute>
+      <AdvisorsPage />
+    </PrivateRoute>
+  }
+/>
+      <Route
+        path="/advisor/accept"
+        element={ <PrivateRoute><AdvisorAcceptInvitePage /></PrivateRoute>}
+      />
+      <Route
+        path="/advisor/clients"
+        element={ <PrivateRoute><AdvisorClientsPage /></PrivateRoute>}
+      />
+      <Route
+        path="/advisor/clients/:relationshipId"
+        element={ <PrivateRoute><AdvisorClientProfilePage /></PrivateRoute>}
+      />
         </Routes>
 
       </div>

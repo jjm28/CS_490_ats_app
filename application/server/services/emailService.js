@@ -161,3 +161,72 @@ If you weren’t expecting this email, you can ignore it.
   });
 }
 
+
+export async function sendAdvisorInviteEmail({
+  toEmail,
+  advisorName,
+  jobSeekerName,
+  inviteToken,
+}) {
+  if (!FRONTEND_ORIGIN) {
+    console.warn(
+      "FRONTEND_ORIGIN is not set, cannot build advisor invite link"
+    );
+    return;
+  }
+
+  const acceptUrl = `${FRONTEND_ORIGIN}/advisor/accept?token=${encodeURIComponent(
+    inviteToken
+  )}`;
+
+  const subject = `${
+    jobSeekerName || "A job seeker"
+  } invited you to advise their job search`;
+  const greetingName = advisorName || "there";
+
+  const textBody = `
+Hi ${greetingName},
+
+${
+  jobSeekerName || "A job seeker"
+} has invited you to advise them in their job search using the ATS for Candidates platform.
+
+You’ll get access to a privacy-friendly client dashboard where you can see their overall profile and job search summary, based on the permissions they selected.
+
+To accept the invite and view their client dashboard, click this link:
+${acceptUrl}
+
+If you weren’t expecting this email, you can ignore it.
+`;
+
+  const htmlBody = `
+  <p>Hi ${greetingName},</p>
+  <p>
+    <strong>${jobSeekerName || "A job seeker"}</strong> has invited you to advise them
+    in their job search using the ATS for Candidates platform.
+  </p>
+  <p>
+    You’ll get access to a privacy-friendly client dashboard where you can see their overall
+    profile and job search summary, based on the permissions they selected.
+  </p>
+  <p style="margin: 16px 0;">
+    <a href="${acceptUrl}"
+       style="background-color:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;">
+      Accept invite &amp; view client dashboard
+    </a>
+  </p>
+  <p>If the button doesn’t work, copy and paste this link into your browser:</p>
+  <p><code style="font-size:12px;">${acceptUrl}</code></p>
+  <p style="font-size:12px;color:#888;">
+    If you weren’t expecting this email, you can ignore it.
+  </p>
+  `;
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text: textBody,
+    html: htmlBody,
+  });
+}
