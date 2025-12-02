@@ -197,3 +197,45 @@ export interface AdvisorClientMaterials {
     }[];
   } | null;
 }
+
+
+export type AdvisorSessionStatus =
+  | "requested"
+  | "confirmed"
+  | "completed"
+  | "canceled";
+
+export interface AdvisorAvailability {
+  advisorUserId: string;
+  weeklySlots: {
+    dayOfWeek: number; // 0-6
+    startTime: string; // "HH:MM"
+    endTime: string; // "HH:MM"
+  }[];
+  sessionTypes: string[];
+  timezone: string;
+}
+
+export interface AdvisorSession {
+  id: string;
+  relationshipId: string;
+  ownerUserId: string;
+  advisorUserId: string;
+  createdByRole: "candidate" | "advisor";
+  createdByUserId: string;
+  startTime: string;
+  endTime: string;
+  sessionType: string;
+  status: AdvisorSessionStatus;
+  jobId?: string | null;
+  resumeId?: string | null;
+  coverLetterId?: string | null;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdvisorSlot {
+  startTime: string;
+  endTime: string;
+}

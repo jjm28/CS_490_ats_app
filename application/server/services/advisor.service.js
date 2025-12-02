@@ -13,11 +13,32 @@ import JobSearchMilestone from "../models/JobSharing/JobSearchMilestone.js";
 import JobSearchGoalProgress from "../models/JobSharing/JobSearchGoalProgress.js";
 import { sendAdvisorInviteEmail } from "./emailService.js";
 import AdvisorRecommendation from "../models/Advisor/AdvisorRecommendation.js";
+import AdvisorAvailability from "../models/Advisor/AdvisorAvailability.js";
+import AdvisorSession from "../models/Advisor/AdvisorSession.js";
 
 function addDays(date, days) {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
   return d;
+}
+function minutesFromTimeStr(t) {
+  // t = "HH:MM"
+  const [h, m] = t.split(":").map((x) => Number(x));
+  return h * 60 + m;
+}
+
+function isWithinWeeklySlot(date, slot) {
+  const dayOfWeek = date.getUTCDay(); // 0-6
+  if (dayOfWeek !== slot.dayOfWeek) return false;
+
+  const mins = date.getUTCHours() * 60 + date.getUTCMinutes();
+  const startMins = minutesFromTimeStr(slot.startTime);
+  const endMins = minutesFromTimeStr(slot.endTime);
+  return mins >= startMins && mins + 1 <= endMins; // +1 to avoid equal end
+}
+
+function sessionsOverlap(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
 }
 
 /**
@@ -1454,5 +1475,508 @@ export async function updateAdvisorRecommendation({
     completedAt: rec.completedAt,
     createdAt: rec.createdAt,
     updatedAt: rec.updatedAt,
+  };
+}
+export async function getAdvisorAvailability(advisorUserId) {
+  let availability = await AdvisorAvailability.findOne({
+    advisorUserId,
+  }).lean();
+
+  if (!availability) {
+    // lazy default: no slots
+    availability = {
+      advisorUserId,
+      weeklySlots: [],
+      sessionTypes: [],
+      timezone: "America/New_York",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  return availability;
+}
+
+export async function upsertAdvisorAvailability({
+  advisorUserId,
+  weeklySlots,
+  sessionTypes,
+  timezone,
+}) {
+  const normalizedSlots = Array.isArray(weeklySlots)
+    ? weeklySlots
+        .map((s) => ({
+          dayOfWeek: Number(s.dayOfWeek),
+          startTime: String(s.startTime),
+          endTime: String(s.endTime),
+        }))
+        .filter(
+          (s) =>
+            !Number.isNaN(s.dayOfWeek) &&
+            s.startTime &&
+            s.endTime &&
+            minutesFromTimeStr(s.endTime) >
+              minutesFromTimeStr(s.startTime)
+        )
+    : [];
+
+  const normalizedTypes = Array.isArray(sessionTypes)
+    ? [...new Set(sessionTypes.map((t) => String(t).trim()))].filter(
+        (t) => t.length > 0
+      )
+    : [];
+
+  const doc = await AdvisorAvailability.findOneAndUpdate(
+    { advisorUserId },
+    {
+      advisorUserId,
+      weeklySlots: normalizedSlots,
+      sessionTypes: normalizedTypes,
+      timezone: timezone || "America/New_York",
+    },
+    { upsert: true, new: true }
+  ).lean();
+
+  return doc;
+}
+export async function generateUpcomingSlots({
+  advisorUserId,
+  daysAhead = 14,
+}) {
+  const availability = await AdvisorAvailability.findOne({
+    advisorUserId,
+  }).lean();
+
+  if (!availability || !availability.weeklySlots.length) {
+    return [];
+  }
+
+  const now = new Date();
+  const endDate = new Date(
+    now.getTime() + daysAhead * 24 * 60 * 60 * 1000
+  );
+
+  const slots = [];
+
+  // Load existing sessions to avoid conflicts
+  const sessions = await AdvisorSession.find({
+    advisorUserId,
+    status: { $in: ["requested", "confirmed"] },
+    startTime: { $lt: endDate },
+    endTime: { $gt: now },
+  })
+    .select("startTime endTime status")
+    .lean();
+
+  for (
+    let d = new Date(now);
+    d <= endDate;
+    d.setUTCDate(d.getUTCDate() + 1)
+  ) {
+    const dayOfWeek = d.getUTCDay();
+
+    const daySlots =
+      availability.weeklySlots.filter(
+        (s) => s.dayOfWeek === dayOfWeek
+      ) || [];
+
+    for (const ws of daySlots) {
+      const startMins = minutesFromTimeStr(ws.startTime);
+      const endMins = minutesFromTimeStr(ws.endTime);
+
+      for (
+        let m = startMins;
+        m + 30 <= endMins;
+        m += 30
+      ) {
+        const slotStart = new Date(
+          Date.UTC(
+            d.getUTCFullYear(),
+            d.getUTCMonth(),
+            d.getUTCDate(),
+            Math.floor(m / 60),
+            m % 60,
+            0,
+            0
+          )
+        );
+        const slotEnd = new Date(
+          Date.UTC(
+            d.getUTCFullYear(),
+            d.getUTCMonth(),
+            d.getUTCDate(),
+            Math.floor((m + 30) / 60),
+            (m + 30) % 60,
+            0,
+            0
+          )
+        );
+
+        if (slotEnd <= now) continue;
+
+        const overlaps = sessions.some((s) =>
+          sessionsOverlap(
+            slotStart,
+            slotEnd,
+            s.startTime,
+            s.endTime
+          )
+        );
+
+        if (!overlaps) {
+          slots.push({
+            startTime: slotStart,
+            endTime: slotEnd,
+          });
+        }
+      }
+    }
+  }
+
+  return slots;
+}
+export async function listAdvisorSessions({
+  relationshipId,
+  role,
+  userId,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  ).lean();
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (role === "candidate") {
+    if (relationship.ownerUserId !== String(userId)) {
+      const err = new Error("You do not have access");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (role === "advisor") {
+    if (
+      relationship.advisorUserId !== String(userId) ||
+      relationship.status !== "active"
+    ) {
+      const err = new Error("You do not have access");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else {
+    const err = new Error("Invalid role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const sessions = await AdvisorSession.find({
+    relationshipId: relationship._id,
+  })
+    .sort({ startTime: 1 })
+    .lean();
+
+  return sessions.map((s) => ({
+    id: s._id.toString(),
+    relationshipId: s.relationshipId.toString(),
+    ownerUserId: s.ownerUserId,
+    advisorUserId: s.advisorUserId,
+    createdByRole: s.createdByRole,
+    createdByUserId: s.createdByUserId,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    sessionType: s.sessionType,
+    status: s.status,
+    jobId: s.jobId,
+    resumeId: s.resumeId,
+    coverLetterId: s.coverLetterId,
+    note: s.note,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+  }));
+}
+export async function bookAdvisorSession({
+  relationshipId,
+  role,
+  createdByUserId,
+  ownerUserId,
+  advisorUserId,
+  startTime,
+  endTime,
+  sessionType,
+  note,
+}) {
+  const relationship = await AdvisorRelationship.findById(
+    relationshipId
+  ).lean();
+
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (
+    relationship.ownerUserId !== String(ownerUserId) ||
+    relationship.advisorUserId !== String(advisorUserId)
+  ) {
+    const err = new Error("User IDs do not match relationship");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (relationship.status !== "active") {
+    const err = new Error("Advisor relationship is not active");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const now = new Date();
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  if (!(start instanceof Date) || !(end instanceof Date)) {
+    const err = new Error("Invalid start/end time");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (end <= start) {
+    const err = new Error("End time must be after start time");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (start <= now) {
+    const err = new Error("Session must be in the future");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Role + identity checks
+  if (role === "candidate") {
+    if (relationship.ownerUserId !== String(createdByUserId)) {
+      const err = new Error("You cannot book for this client");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else if (role === "advisor") {
+    if (relationship.advisorUserId !== String(createdByUserId)) {
+      const err = new Error("You cannot book for this client");
+      err.statusCode = 403;
+      throw err;
+    }
+  } else {
+    const err = new Error("Invalid role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check it falls within advisor availability
+  const availability = await AdvisorAvailability.findOne({
+    advisorUserId,
+  }).lean();
+
+  if (!availability || !availability.weeklySlots.length) {
+    const err = new Error(
+      "Advisor has no availability configured"
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const validSlot = availability.weeklySlots.some((slot) => {
+    return (
+      isWithinWeeklySlot(start, slot) &&
+      isWithinWeeklySlot(new Date(end.getTime() - 1), slot)
+    );
+  });
+
+  if (!validSlot) {
+    const err = new Error(
+      "Requested time is outside advisor availability"
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check for overlap with existing sessions
+  const overlapping = await AdvisorSession.findOne({
+    advisorUserId,
+    status: { $in: ["requested", "confirmed"] },
+    startTime: { $lt: end },
+    endTime: { $gt: start },
+  })
+    .select("_id")
+    .lean();
+
+  if (overlapping) {
+    const err = new Error(
+      "Requested time conflicts with another session"
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const status =
+    role === "advisor" ? "confirmed" : "requested";
+
+  const session = await AdvisorSession.create({
+    relationshipId: relationship._id,
+    ownerUserId,
+    advisorUserId,
+    createdByRole: role,
+    createdByUserId: createdByUserId,
+    startTime: start,
+    endTime: end,
+    sessionType,
+    status,
+    note: (note || "").trim().slice(0, 2000),
+  });
+
+  return {
+    id: session._id.toString(),
+    relationshipId: session.relationshipId.toString(),
+    ownerUserId: session.ownerUserId,
+    advisorUserId: session.advisorUserId,
+    createdByRole: session.createdByRole,
+    createdByUserId: session.createdByUserId,
+    startTime: session.startTime,
+    endTime: session.endTime,
+    sessionType: session.sessionType,
+    status: session.status,
+    jobId: session.jobId,
+    resumeId: session.resumeId,
+    coverLetterId: session.coverLetterId,
+    note: session.note,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+  };
+}
+export async function updateAdvisorSession({
+  sessionId,
+  role,
+  userId,
+  status,
+}) {
+  const session = await AdvisorSession.findById(sessionId);
+  if (!session) {
+    const err = new Error("Session not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const relationship = await AdvisorRelationship.findById(
+    session.relationshipId
+  ).lean();
+  if (!relationship) {
+    const err = new Error("Advisor relationship not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const now = new Date();
+
+  if (role === "candidate") {
+    if (relationship.ownerUserId !== String(userId)) {
+      const err = new Error(
+        "You do not have access to this session"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+
+    // Candidate can cancel upcoming requested/confirmed sessions
+    if (
+      status === "canceled" &&
+      session.startTime > now &&
+      ["requested", "confirmed"].includes(session.status)
+    ) {
+      session.status = "canceled";
+    } else {
+      const err = new Error(
+        "You cannot perform this status change"
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+  } else if (role === "advisor") {
+    if (relationship.advisorUserId !== String(userId)) {
+      const err = new Error(
+        "You do not have access to this session"
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (status === "confirmed") {
+      if (session.status === "requested") {
+        session.status = "confirmed";
+      } else {
+        const err = new Error(
+          "Only requested sessions can be confirmed"
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+    } else if (status === "canceled") {
+      if (
+        ["requested", "confirmed"].includes(
+          session.status
+        ) &&
+        session.startTime > now
+      ) {
+        session.status = "canceled";
+      } else {
+        const err = new Error(
+          "Cannot cancel this session"
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+    } else if (status === "completed") {
+      if (
+        ["confirmed"].includes(session.status) &&
+        session.startTime <= now
+      ) {
+        session.status = "completed";
+      } else {
+        const err = new Error(
+          "Cannot mark this session as completed"
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+    } else {
+      const err = new Error("Invalid status");
+      err.statusCode = 400;
+      throw err;
+    }
+  } else {
+    const err = new Error("Invalid role");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await session.save();
+
+  return {
+    id: session._id.toString(),
+    relationshipId: session.relationshipId.toString(),
+    ownerUserId: session.ownerUserId,
+    advisorUserId: session.advisorUserId,
+    createdByRole: session.createdByRole,
+    createdByUserId: session.createdByUserId,
+    startTime: session.startTime,
+    endTime: session.endTime,
+    sessionType: session.sessionType,
+    status: session.status,
+    jobId: session.jobId,
+    resumeId: session.resumeId,
+    coverLetterId: session.coverLetterId,
+    note: session.note,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
   };
 }

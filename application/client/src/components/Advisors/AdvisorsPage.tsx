@@ -307,6 +307,16 @@ const [sharingAdvisor, setSharingAdvisor] =
 >
   View recommendations
 </Button>
+<Button
+  type="button"
+  variant="secondary"
+  onClick={() =>
+    navigate(`/advisors/${advisor.id}/sessions`)
+  }
+>
+  Sessions
+</Button>
+
   </>
 ) : (
   <Button

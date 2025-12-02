@@ -15,7 +15,12 @@ import {
   updateAdvisorSharingConfig,
   getAdvisorClientMaterials,  listAdvisorRecommendations,
   createAdvisorRecommendation,
-  updateAdvisorRecommendation,
+  updateAdvisorRecommendation,  getAdvisorAvailability,
+  upsertAdvisorAvailability,
+  generateUpcomingSlots,
+  listAdvisorSessions,
+  bookAdvisorSession,
+  updateAdvisorSession,
 } from "../services/advisor.service.js";
 
 const router = express.Router();
@@ -653,6 +658,247 @@ router.patch(
           error:
             err.message ||
             "Server error updating recommendation",
+        });
+    }
+  }
+);
+
+/**
+ * GET /api/advisors/me/availability?advisorUserId=...
+ */
+router.get("/advisors/me/availability", async (req, res) => {
+  try {
+    const { advisorUserId } = req.query;
+    if (!advisorUserId) {
+      return res
+        .status(400)
+        .json({ error: "advisorUserId is required" });
+    }
+
+    const availability = await getAdvisorAvailability(
+      String(advisorUserId)
+    );
+    res.json(availability);
+  } catch (err) {
+    console.error("Error fetching availability:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({
+        error:
+          err.message || "Server error fetching availability",
+      });
+  }
+});
+
+/**
+ * PUT /api/advisors/me/availability
+ * Body: { advisorUserId, weeklySlots, sessionTypes, timezone? }
+ */
+router.put("/advisors/me/availability", async (req, res) => {
+  try {
+    const { advisorUserId, weeklySlots, sessionTypes, timezone } =
+      req.body;
+
+    if (!advisorUserId) {
+      return res
+        .status(400)
+        .json({ error: "advisorUserId is required" });
+    }
+
+    const updated = await upsertAdvisorAvailability({
+      advisorUserId: String(advisorUserId),
+      weeklySlots,
+      sessionTypes,
+      timezone,
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Error updating availability:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({
+        error:
+          err.message ||
+          "Server error updating availability",
+      });
+  }
+});
+/**
+ * GET /api/advisors/clients/:relationshipId/slots
+ * Query: advisorUserId, daysAhead?
+ */
+router.get(
+  "/advisors/clients/:relationshipId/slots",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const { advisorUserId, daysAhead = 14 } = req.query;
+
+      if (!advisorUserId) {
+        return res
+          .status(400)
+          .json({ error: "advisorUserId is required" });
+      }
+
+      // Optional: you could validate relationship here if you want,
+      // but main purpose is to show advisor's availability.
+      const slots = await generateUpcomingSlots({
+        advisorUserId: String(advisorUserId),
+        daysAhead: Number(daysAhead) || 14,
+      });
+
+      res.json(
+        slots.map((s) => ({
+          startTime: s.startTime,
+          endTime: s.endTime,
+        }))
+      );
+    } catch (err) {
+      console.error("Error fetching advisor slots:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error fetching advisor slots",
+        });
+    }
+  }
+);
+/**
+ * GET /api/advisors/clients/:relationshipId/sessions?role=&userId=
+ */
+router.get(
+  "/advisors/clients/:relationshipId/sessions",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const { role, userId } = req.query;
+
+      if (!role || !userId) {
+        return res
+          .status(400)
+          .json({
+            error: "role and userId are required",
+          });
+      }
+
+      const sessions = await listAdvisorSessions({
+        relationshipId,
+        role: String(role),
+        userId: String(userId),
+      });
+
+      res.json(sessions);
+    } catch (err) {
+      console.error("Error listing advisor sessions:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error listing sessions",
+        });
+    }
+  }
+);
+
+/**
+ * POST /api/advisors/clients/:relationshipId/sessions
+ * Body: { role, createdByUserId, ownerUserId, advisorUserId, startTime, endTime, sessionType, note? }
+ */
+router.post(
+  "/advisors/clients/:relationshipId/sessions",
+  async (req, res) => {
+    try {
+      const { relationshipId } = req.params;
+      const {
+        role,
+        createdByUserId,
+        ownerUserId,
+        advisorUserId,
+        startTime,
+        endTime,
+        sessionType,
+        note,
+      } = req.body;
+
+      if (
+        !role ||
+        !createdByUserId ||
+        !ownerUserId ||
+        !advisorUserId ||
+        !startTime ||
+        !endTime ||
+        !sessionType
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Missing required fields" });
+      }
+
+      const session = await bookAdvisorSession({
+        relationshipId,
+        role: String(role),
+        createdByUserId: String(createdByUserId),
+        ownerUserId: String(ownerUserId),
+        advisorUserId: String(advisorUserId),
+        startTime,
+        endTime,
+        sessionType,
+        note,
+      });
+
+      res.status(201).json(session);
+    } catch (err) {
+      console.error("Error booking advisor session:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error booking session",
+        });
+    }
+  }
+);
+
+/**
+ * PATCH /api/advisors/sessions/:sessionId
+ * Body: { role, userId, status }
+ */
+router.patch(
+  "/advisors/sessions/:sessionId",
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { role, userId, status } = req.body;
+
+      if (!role || !userId || !status) {
+        return res
+          .status(400)
+          .json({
+            error: "role, userId and status are required",
+          });
+      }
+
+      const updated = await updateAdvisorSession({
+        sessionId,
+        role: String(role),
+        userId: String(userId),
+        status: String(status),
+      });
+
+      res.json(updated);
+    } catch (err) {
+      console.error("Error updating advisor session:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({
+          error:
+            err.message ||
+            "Server error updating session",
         });
     }
   }

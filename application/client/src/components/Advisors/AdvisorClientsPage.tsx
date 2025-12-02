@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import API_BASE from "../../utils/apiBase";
 import Card from "../StyledComponents/Card";
 import type { AdvisorClientSummary } from "../../types/advisors.types";
+import { Button } from "@headlessui/react";
 
 function getCurrentUserId(): string | null {
   try {
@@ -145,6 +146,12 @@ export default function AdvisorClientsPage() {
             >
               Messages
                 </button>
+                      <Button
+        type="button"
+        onClick={() => navigate("/advisor/availability")}
+      >
+        Availability &amp; session types
+      </Button>
             </Card>
           ))}
         </div>
