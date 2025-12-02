@@ -5,14 +5,14 @@ import '../../styles/InterviewStyles/Interview.css';
 import InterviewPrepResearch from './CompanyResearch';
 import Questions from './Questions';
 import '../../styles/InterviewPrepUI.css';
-
+import ResponseCoaching from './ResponseCoach';
 type CardData = {
   label: string;
   title: string;
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'questions' | null; // Add component type
+  component?: 'research' | 'questions' | 'aicoaching' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -37,8 +37,8 @@ const cardData: CardData[] = [
     title: 'AI Coaching',
     description: 'Real-time feedback on your responses',
     color: '#0E3B43',
-    details: 'Record yourself answering questions and receive instant AI feedback on clarity, structure, technical accuracy, and communication style. Compare your answers to strong examples.',
-    component: null
+    details: 'Answer interview questions and receive instant AI feedback on clarity, structure, technical accuracy, and communication style. Compare your answers to strong examples.',
+    component: 'aicoaching'
   },
   {
     label: 'Mock Interviews/Tech Prep',
@@ -106,6 +106,9 @@ const DetailView = ({
   }
   if (card.component === 'questions') {
     return <Questions onBack={onBack} />;
+  }
+  if (card.component === 'aicoaching') {
+    return <ResponseCoaching onBack={onBack} />;
   }
 
   // Otherwise, show the default detail view
