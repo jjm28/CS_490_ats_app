@@ -210,6 +210,43 @@ const JobSchema = new Schema({
             },
             reminderSent: { type: Boolean, default: false },
             eventId: { type: String, default: "" },
+            preparationChecklist: {
+                items: [{
+                    id: { type: String, required: true },
+                    category: { 
+                        type: String, 
+                        enum: ['research', 'logistics', 'materials', 'practice', 'mindset'],
+                        required: true 
+                    },
+                    task: { type: String, required: true },
+                    completed: { type: Boolean, default: false },
+                    completedAt: { type: Date },
+                    order: { type: Number, required: true } 
+                }],
+                generatedAt: { type: Date },
+                lastUpdatedAt: { type: Date }
+            },
+            followUps: [{
+                _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+                type: {
+                    type: String,
+                    enum: ['thank_you', 'status_inquiry', 'feedback_request', 'networking'],
+                    required: true
+                },
+                subject: { type: String, default: "" },
+                body: { type: String, required: true },
+                generatedAt: { type: Date, default: Date.now },
+                customized: { type: Boolean, default: false }, // Did user edit it?
+                sent: { type: Boolean, default: false },
+                sentAt: { type: Date },
+                sentVia: { 
+                    type: String, 
+                    enum: ['email', 'copied'], // 'email' = sent via nodemailer, 'copied' = user copied it
+                    default: 'copied'
+                },
+                responseReceived: { type: Boolean, default: false },
+                responseDate: { type: Date }
+            }]
         },
     ],
     source: {
@@ -265,6 +302,80 @@ const JobSchema = new Schema({
             }
         },
         default: {}
+    },
+
+    // UC-083: Salary Negotiation Preparation
+    negotiationPrep: {
+    type: {
+        generatedAt: { type: Date },
+        lastUpdatedAt: { type: Date },
+        
+        // Market comparison (snapshot for this negotiation)
+        marketData: {
+        yourOffer: { type: Number },
+        marketMin: { type: Number },
+        marketMedian: { type: Number },
+        marketMax: { type: Number },
+        percentile: { type: Number }, // Where your offer ranks (0-100)
+        dataSource: { type: String, default: 'Adzuna' },
+        fetchedAt: { type: Date }
+        },
+        
+        // AI-generated talking points
+        talkingPoints: [{
+        category: { 
+            type: String, 
+            enum: ['experience', 'skills', 'market_value', 'total_comp', 'unique_value', 'other'] 
+        },
+        point: { type: String },
+        order: { type: Number }
+        }],
+        
+        // Negotiation scripts for different scenarios
+        scripts: [{
+        scenario: { 
+            type: String, 
+            enum: ['initial_response', 'counter_offer', 'benefits_discussion', 'timeline_discussion', 'final_decision'] 
+        },
+        script: { type: String },
+        tips: [String]
+        }],
+        
+        // Counter-offer calculation
+        counterOffer: {
+        targetSalary: { type: Number },
+        minimumAcceptable: { type: Number },
+        justification: { type: String },
+        confidenceLevel: { 
+            type: String, 
+            enum: ['low', 'medium', 'high'],
+            default: 'medium'
+        }
+        },
+        
+        // Negotiation strategy
+        strategy: {
+        timing: { type: String },
+        leverage: [String],
+        risks: [String],
+        alternatives: [String],
+        notes: { type: String }
+        },
+        
+        // Track the outcome
+        outcome: {
+        attempted: { type: Boolean, default: false },
+        result: {
+            type: String,
+            enum: ['accepted_as_is', 'negotiated_higher', 'negotiated_benefits', 'declined_offer', 'pending'],
+            default: 'pending'
+        },
+        finalSalary: { type: Number },
+        improvementAmount: { type: Number },
+        notes: { type: String }
+        }
+    },
+    default: null
     },
 
     salaryBonus: { type: Number, default: null },

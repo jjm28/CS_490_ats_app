@@ -91,6 +91,16 @@ function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
   const showNavbar = !hideNavbarRoutes.includes(location.pathname);
+  const getAuthUserId = () => {
+    try {
+      const authUser = localStorage.getItem("authUser");
+      return authUser ? JSON.parse(authUser).user?._id : null;
+    } catch (error) {
+      console.error("Error parsing authUser:", error);
+      return null;
+    }
+  };
+  const userId = getAuthUserId();
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
