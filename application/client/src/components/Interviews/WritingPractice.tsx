@@ -410,7 +410,7 @@ export default function WritingPractice({ onBack }: WritingPracticeProps) {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         <button
-          onClick={onBack || (() => navigate('/Interviews'))}
+          onClick={onBack || (() => navigate('/Interview-Prep'))}
           className="mb-4 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
         >
           ← Back to Interview Suite

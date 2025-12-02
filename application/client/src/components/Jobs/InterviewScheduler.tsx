@@ -452,6 +452,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                       jobId={jobId}
                       interviewId={i._id!}
                       interviewerEmail={i.contactInfo}
+                      interviewDate={i.date}
                       existingFollowUps={i.followUps || []}
                       onFollowUpUpdate={fetchInterviews}
                       compact={false}

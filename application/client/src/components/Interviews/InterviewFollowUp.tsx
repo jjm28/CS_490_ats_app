@@ -20,6 +20,7 @@ interface InterviewFollowUpProps {
   jobId: string;
   interviewId: string;
   interviewerEmail?: string;
+  interviewDate?: Date | string; // ✅ ADD THIS
   existingFollowUps?: FollowUp[];
   onFollowUpUpdate?: () => void;
   compact?: boolean;
@@ -32,10 +33,223 @@ const followUpTypeInfo: Record<string, { name: string; icon: string; color: stri
   networking: { name: "Networking", icon: "🤝", color: "bg-green-50 border-green-200" },
 };
 
+/**
+ * Calculate smart timing recommendation based on interview date
+ */
+function getTimingRecommendation(
+  interviewDate: Date | string | undefined,
+  followUpType: 'thank_you' | 'status_inquiry' | 'feedback_request' | 'networking'
+): {
+  daysSince: number | null;
+  urgency: 'urgent' | 'ready' | 'soon' | 'wait' | 'no-interview';
+  badge: string;
+  badgeColor: string;
+  message: string;
+} {
+  if (!interviewDate) {
+    return {
+      daysSince: null,
+      urgency: 'no-interview',
+      badge: '',
+      badgeColor: '',
+      message: ''
+    };
+  }
+
+  const now = new Date();
+  const interviewDateObj = new Date(interviewDate);
+  const daysSince = Math.floor((now.getTime() - interviewDateObj.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Define optimal timing windows for each type
+  const timingRules = {
+    thank_you: {
+      optimal: [0, 1], // 0-1 days (within 24 hours)
+      good: [2, 2], // Still okay on day 2
+      late: [3, 7], // Getting late
+      tooLate: 8 // After this, probably too late
+    },
+    status_inquiry: {
+      tooEarly: 4, // Don't send before this
+      optimal: [5, 10], // 5-10 days is perfect
+      good: [11, 14], // Still reasonable
+      urgent: 15 // After 15 days, definitely send
+    },
+    feedback_request: {
+      tooEarly: 1, // Give them at least a day
+      optimal: [2, 5], // 2-5 days after rejection
+      good: [6, 10],
+      late: 11
+    },
+    networking: {
+      tooEarly: 7, // Wait at least a week
+      optimal: [7, 21], // 1-3 weeks is good
+      good: [22, 30],
+      late: 31
+    }
+  };
+
+  // Calculate recommendation based on type
+  switch (followUpType) {
+    case 'thank_you':
+      if (daysSince <= timingRules.thank_you.optimal[1]) {
+        return {
+          daysSince,
+          urgency: 'urgent',
+          badge: '🔥 SEND NOW',
+          badgeColor: 'bg-red-100 text-red-700 border-red-300 animate-pulse',
+          message: daysSince === 0 
+            ? 'Perfect timing - send today!' 
+            : daysSince === 1 
+            ? 'Still within 24-hour window - send ASAP!' 
+            : 'Last chance for 24-hour window!'
+        };
+      } else if (daysSince <= timingRules.thank_you.good[1]) {
+        return {
+          daysSince,
+          urgency: 'ready',
+          badge: '✅ Send Soon',
+          badgeColor: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+          message: 'A bit late but still okay to send'
+        };
+      } else if (daysSince <= timingRules.thank_you.late[1]) {
+        return {
+          daysSince,
+          urgency: 'wait',
+          badge: '⏱️ Too Late',
+          badgeColor: 'bg-gray-100 text-gray-600 border-gray-300',
+          message: 'Consider a different follow-up type instead'
+        };
+      } else {
+        return {
+          daysSince,
+          urgency: 'wait',
+          badge: '❌ Missed Window',
+          badgeColor: 'bg-gray-100 text-gray-500 border-gray-300',
+          message: 'Thank you window has passed'
+        };
+      }
+
+    case 'status_inquiry':
+      if (daysSince < timingRules.status_inquiry.tooEarly) {
+        return {
+          daysSince,
+          urgency: 'wait',
+          badge: '⏳ Wait',
+          badgeColor: 'bg-blue-100 text-blue-600 border-blue-300',
+          message: `Wait ${timingRules.status_inquiry.tooEarly - daysSince} more day(s) before following up`
+        };
+      } else if (daysSince >= timingRules.status_inquiry.optimal[0] && daysSince <= timingRules.status_inquiry.optimal[1]) {
+        return {
+          daysSince,
+          urgency: 'ready',
+          badge: '✅ SEND NOW',
+          badgeColor: 'bg-green-100 text-green-700 border-green-300 font-semibold',
+          message: 'Perfect timing window for status inquiry'
+        };
+      } else if (daysSince <= timingRules.status_inquiry.good[1]) {
+        return {
+          daysSince,
+          urgency: 'ready',
+          badge: '👍 Good Time',
+          badgeColor: 'bg-green-50 text-green-600 border-green-200',
+          message: 'Still a reasonable time to follow up'
+        };
+      } else {
+        return {
+          daysSince,
+          urgency: 'urgent',
+          badge: '🔥 OVERDUE',
+          badgeColor: 'bg-red-100 text-red-700 border-red-300 animate-pulse',
+          message: 'It\'s been a while - definitely time to follow up!'
+        };
+      }
+
+    case 'feedback_request':
+      if (daysSince < timingRules.feedback_request.tooEarly) {
+        return {
+          daysSince,
+          urgency: 'wait',
+          badge: '⏳ Wait',
+          badgeColor: 'bg-blue-100 text-blue-600 border-blue-300',
+          message: 'Give them a day to process before requesting feedback'
+        };
+      } else if (daysSince >= timingRules.feedback_request.optimal[0] && daysSince <= timingRules.feedback_request.optimal[1]) {
+        return {
+          daysSince,
+          urgency: 'ready',
+          badge: '✅ SEND NOW',
+          badgeColor: 'bg-purple-100 text-purple-700 border-purple-300 font-semibold',
+          message: 'Good timing to request feedback'
+        };
+      } else if (daysSince <= timingRules.feedback_request.good[1]) {
+        return {
+          daysSince,
+          urgency: 'ready',
+          badge: '👍 Good Time',
+          badgeColor: 'bg-purple-50 text-purple-600 border-purple-200',
+          message: 'Still appropriate to request feedback'
+        };
+      } else {
+        return {
+          daysSince,
+          urgency: 'soon',
+          badge: '⏰ Send Soon',
+          badgeColor: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+          message: 'Getting late but still worth asking'
+        };
+      }
+
+    case 'networking':
+      if (daysSince < timingRules.networking.tooEarly) {
+        return {
+          daysSince,
+          urgency: 'wait',
+          badge: '⏳ Wait',
+          badgeColor: 'bg-blue-100 text-blue-600 border-blue-300',
+          message: `Wait ${timingRules.networking.tooEarly - daysSince} more day(s) - give them space first`
+        };
+      } else if (daysSince >= timingRules.networking.optimal[0] && daysSince <= timingRules.networking.optimal[1]) {
+        return {
+          daysSince,
+          urgency: 'ready',
+          badge: '✅ SEND NOW',
+          badgeColor: 'bg-green-100 text-green-700 border-green-300 font-semibold',
+          message: 'Perfect timing for networking follow-up'
+        };
+      } else if (daysSince <= timingRules.networking.good[1]) {
+        return {
+          daysSince,
+          urgency: 'ready',
+          badge: '👍 Good Time',
+          badgeColor: 'bg-green-50 text-green-600 border-green-200',
+          message: 'Still a good time to connect'
+        };
+      } else {
+        return {
+          daysSince,
+          urgency: 'soon',
+          badge: '⏰ Send Soon',
+          badgeColor: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+          message: 'Been a while - consider reaching out'
+        };
+      }
+
+    default:
+      return {
+        daysSince,
+        urgency: 'wait',
+        badge: '',
+        badgeColor: '',
+        message: ''
+      };
+  }
+}
+
 export default function InterviewFollowUp({
   jobId,
   interviewId,
   interviewerEmail,
+  interviewDate, // ✅ ADD THIS
   existingFollowUps = [],
   onFollowUpUpdate,
   compact = false
@@ -51,10 +265,34 @@ export default function InterviewFollowUp({
   const token = localStorage.getItem("authToken") || localStorage.getItem("token") || "";
 
   const followUpTypes = [
-    { value: "thank_you" as const, label: "Thank You Email", desc: "Send after the interview" },
-    { value: "status_inquiry" as const, label: "Status Inquiry", desc: "Follow up on hiring timeline" },
-    { value: "feedback_request" as const, label: "Feedback Request", desc: "Ask for constructive feedback" },
-    { value: "networking" as const, label: "Networking", desc: "Stay connected for future opportunities" },
+    { 
+      value: "thank_you" as const, 
+      label: "Thank You Email", 
+      desc: "Express gratitude and reiterate interest",
+      timing: "⏰ Best sent within 24 hours of interview",
+      timingColor: "text-green-700"
+    },
+    { 
+      value: "status_inquiry" as const, 
+      label: "Status Inquiry", 
+      desc: "Politely ask for hiring timeline update",
+      timing: "⏰ Wait 5-7 business days after interview",
+      timingColor: "text-yellow-700"
+    },
+    { 
+      value: "feedback_request" as const, 
+      label: "Feedback Request", 
+      desc: "Request constructive feedback after rejection",
+      timing: "⏰ Send 2-3 days after receiving rejection",
+      timingColor: "text-purple-700"
+    },
+    { 
+      value: "networking" as const, 
+      label: "Networking", 
+      desc: "Maintain relationship for future opportunities",
+      timing: "⏰ Wait 1-2 weeks after rejection, then connect on LinkedIn",
+      timingColor: "text-blue-700"
+    },
   ];
 
   // Generate AI template
@@ -195,17 +433,49 @@ export default function InterviewFollowUp({
             <div className="border rounded-lg p-4 bg-gray-50">
               <p className="text-sm font-medium mb-3">Create a new follow-up:</p>
               <div className="grid grid-cols-2 gap-2">
-                {followUpTypes.map((type) => (
-                  <button
-                    key={type.value}
-                    onClick={() => handleGenerateTemplate(type.value)}
-                    disabled={generating}
-                    className="border rounded-lg p-3 text-left hover:border-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50"
-                  >
-                    <span className="text-sm font-medium">{type.label}</span>
-                    <p className="text-xs text-gray-500 mt-1">{type.desc}</p>
-                  </button>
-                ))}
+                {followUpTypes.map((type) => {
+                  const timing = getTimingRecommendation(interviewDate, type.value);
+                  
+                  return (
+                    <button
+                      key={type.value}
+                      onClick={() => handleGenerateTemplate(type.value)}
+                      disabled={generating}
+                      className={`border rounded-lg p-3 text-left hover:border-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50 relative ${
+                        timing.urgency === 'urgent' || timing.urgency === 'ready' 
+                          ? 'ring-2 ring-offset-1 ring-green-400' 
+                          : ''
+                      }`}
+                    >
+                      {/* Timing badge */}
+                      {timing.badge && (
+                        <div className={`absolute -top-2 -right-2 px-2 py-1 rounded-full text-xs border ${timing.badgeColor}`}>
+                          {timing.badge}
+                        </div>
+                      )}
+                      
+                      <span className="text-sm font-medium">{type.label}</span>
+                      <p className="text-xs text-gray-500 mt-1">{type.desc}</p>
+                      
+                      {/* Static timing guidance */}
+                      <p className={`text-xs mt-2 font-medium ${type.timingColor}`}>
+                        {type.timing}
+                      </p>
+                      
+                      {/* Dynamic timing message */}
+                      {timing.message && (
+                        <div className="mt-2 pt-2 border-t border-gray-200">
+                          <p className="text-xs text-gray-700">
+                            {timing.daysSince !== null && (
+                              <span className="font-semibold">{timing.daysSince} day{timing.daysSince !== 1 ? 's' : ''} since interview · </span>
+                            )}
+                            {timing.message}
+                          </p>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
               {generating && (
                 <div className="text-sm text-gray-600 mt-3 text-center">
@@ -217,9 +487,37 @@ export default function InterviewFollowUp({
             /* Edit template */
             <div className="border rounded-lg p-4 bg-white space-y-3">
               <div className="flex items-center justify-between">
-                <h6 className="font-semibold text-sm">
-                  {followUpTypeInfo[selectedType].icon} {followUpTypeInfo[selectedType].name}
-                </h6>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h6 className="font-semibold text-sm">
+                      {followUpTypeInfo[selectedType].icon} {followUpTypeInfo[selectedType].name}
+                    </h6>
+                    {(() => {
+                      const timing = getTimingRecommendation(interviewDate, selectedType);
+                      return timing.badge ? (
+                        <span className={`px-2 py-1 rounded-full text-xs border ${timing.badgeColor}`}>
+                          {timing.badge}
+                        </span>
+                      ) : null;
+                    })()}
+                  </div>
+                  
+                  <p className={`text-xs mt-1 font-medium ${followUpTypes.find(t => t.value === selectedType)?.timingColor}`}>
+                    {followUpTypes.find(t => t.value === selectedType)?.timing}
+                  </p>
+                  
+                  {(() => {
+                    const timing = getTimingRecommendation(interviewDate, selectedType);
+                    return timing.message ? (
+                      <p className="text-xs mt-1 text-gray-600">
+                        {timing.daysSince !== null && (
+                          <span className="font-semibold">{timing.daysSince} day{timing.daysSince !== 1 ? 's' : ''} ago · </span>
+                        )}
+                        {timing.message}
+                      </p>
+                    ) : null;
+                  })()}
+                </div>
                 <button
                   onClick={() => {
                     setSelectedType(null);

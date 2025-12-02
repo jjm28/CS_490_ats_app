@@ -859,7 +859,7 @@ export default function JobDetails({
                   <button
                     onClick={() => {
                       // Open in Interview Suite
-                      window.location.href = '/Interviews#negotiation';
+                      window.location.href = '/Interview-Prep';
                     }}
                     className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg hover:shadow-md transition-all"
                   >

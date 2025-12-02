@@ -10,6 +10,7 @@ import {
   generateCounterOffer,
   generateNegotiationStrategy
 } from './negotiation_ai.service.js';
+import { generateChecklistWithAI } from './checklist_ai.service.js';
 import { getSalaryResearch } from './salary.service.js';
 import axios from 'axios';
 
@@ -460,8 +461,25 @@ export async function getUpcomingInterviews({ userId }) {
 
 /**
  * Generate checklist items for an interview
+ * Now AI-powered with hardcoded fallback
  */
 export async function generateChecklistItems(job, interview) {
+  // ✅ TRY AI GENERATION FIRST
+  try {
+    console.log(`🤖 Attempting AI checklist generation for ${job.company} - ${job.jobTitle}`);
+    const aiItems = await generateChecklistWithAI(job, interview);
+    
+    if (aiItems && aiItems.length > 0) {
+      console.log(`✅ AI generated ${aiItems.length} items successfully`);
+      return aiItems;
+    }
+  } catch (aiError) {
+    console.warn("⚠️ AI generation failed, falling back to hardcoded checklist:", aiError.message);
+  }
+
+  // ✅ FALLBACK: HARDCODED CHECKLIST (your existing code)
+  console.log("📋 Using fallback hardcoded checklist");
+  
   const items = [];
   let order = 1;
   const jobTitleLower = job.jobTitle?.toLowerCase() || '';
@@ -529,32 +547,21 @@ export async function generateChecklistItems(job, interview) {
       order: order++
     });
     
-    items.push({
-      id: 'logistics-attire',
-      category: 'logistics',
-      task: 'Choose and prepare professional attire appropriate for company culture',
-      completed: false,
-      order: order++
-    });
-
     // Enhanced attire suggestion
     const companyName = job.company?.toLowerCase() || '';
     let attireGuidance = 'Choose and prepare professional attire';
     
-    // Check for startup indicators
     if (companyName.includes('startup') || 
         job.companySize === 'Small' || 
         jobTitleLower.includes('founder')) {
       attireGuidance += ' (business casual likely appropriate for startup culture)';
     } 
-    // Check for corporate indicators
     else if (companyName.includes('bank') || 
             companyName.includes('consulting') || 
             companyName.includes('finance') ||
             companyName.includes('law')) {
       attireGuidance += ' (business formal recommended for corporate environment)';
     }
-    // Tech companies
     else if (jobTitleLower.includes('engineer') || jobTitleLower.includes('developer')) {
       attireGuidance += ' (smart casual is often appropriate for tech roles)';
     }
@@ -601,6 +608,17 @@ export async function generateChecklistItems(job, interview) {
     order: order++
   });
   
+  // Design roles
+  if (jobTitleLower.includes('designer') || jobTitleLower.includes('ux') || jobTitleLower.includes('ui')) {
+    items.push({
+      id: 'materials-portfolio-design',
+      category: 'materials',
+      task: 'Prepare design portfolio with 3-5 best projects and be ready to discuss design decisions',
+      completed: false,
+      order: order++
+    });
+  }
+  
   // PRACTICE CATEGORY
   items.push({
     id: 'practice-common-questions',
@@ -630,18 +648,6 @@ export async function generateChecklistItems(job, interview) {
     });
   }
 
-  // Design roles
-  if (jobTitleLower.includes('designer') || jobTitleLower.includes('ux') || jobTitleLower.includes('ui')) {
-    items.push({
-      id: 'materials-portfolio-design',
-      category: 'materials',
-      task: 'Prepare design portfolio with 3-5 best projects and be ready to discuss design decisions',
-      completed: false,
-      order: order++
-    });
-  }
-
-  // Sales/Business roles
   if (jobTitleLower.includes('sales') || jobTitleLower.includes('business development') || jobTitleLower.includes('account')) {
     items.push({
       id: 'practice-sales-pitch',
@@ -652,7 +658,6 @@ export async function generateChecklistItems(job, interview) {
     });
   }
 
-  // Product Manager roles
   if (jobTitleLower.includes('product manager') || jobTitleLower.includes('product owner')) {
     items.push({
       id: 'practice-product-case',
@@ -663,7 +668,6 @@ export async function generateChecklistItems(job, interview) {
     });
   }
 
-  // Data/Analytics roles
   if (jobTitleLower.includes('data') || jobTitleLower.includes('analyst') || jobTitleLower.includes('analytics')) {
     items.push({
       id: 'practice-data-case',
@@ -674,7 +678,7 @@ export async function generateChecklistItems(job, interview) {
     });
   }
   
-  // MINDSET CATEGORY (enhanced)
+  // MINDSET CATEGORY
   items.push({
     id: 'mindset-achievements',
     category: 'mindset',
@@ -683,7 +687,6 @@ export async function generateChecklistItems(job, interview) {
     order: order++
   });
 
-  // 🆕 Specific exercises
   items.push({
     id: 'mindset-breathing-exercise',
     category: 'mindset',
@@ -726,12 +729,13 @@ export async function generateChecklistItems(job, interview) {
 
   items.push({
     id: 'follow-up-thank-you',
-    category: 'mindset', // Keep in mindset for now
+    category: 'mindset',
     task: 'Send thank-you email within 24 hours of interview',
     completed: false,
     order: order++
   });
   
+  console.log(`✅ Fallback generated ${items.length} items`);
   return items;
 }
 

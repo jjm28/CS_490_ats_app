@@ -9,6 +9,7 @@ import SalaryNegotiationPage from './SalaryNegotiationPage';
 import Questions from './Questions';
 import '../../styles/InterviewPrepUI.css';
 import WritingPractice from '../../components/Interviews/WritingPractice';
+import InterviewFollowUpPage from './InterviewFollowUpPage';
 
 type CardData = {
   label: string;
@@ -16,7 +17,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | null; // Add component type
+  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 'followup' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -174,6 +175,10 @@ const DetailView = ({
 
   if (card.component === 'negotiation') {
     return <SalaryNegotiationPage onBack={onBack} />;
+  }
+
+  if (card.component === 'followup') { // ✅ ADD THIS
+    return <InterviewFollowUpPage onBack={onBack} />;
   }
 
   // Otherwise, show the default detail view

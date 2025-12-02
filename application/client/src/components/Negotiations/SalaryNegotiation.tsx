@@ -25,7 +25,7 @@ const SalaryNegotiation: React.FC<SalaryNegotiationProps> = ({
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'talking-points' | 'scripts' | 'strategy'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'talking-points' | 'scripts' | 'strategy' | 'exercises'>('overview');
   const [customNotes, setCustomNotes] = useState('');
 
   const token = localStorage.getItem('authToken') || localStorage.getItem('token') || '';
@@ -241,7 +241,8 @@ const SalaryNegotiation: React.FC<SalaryNegotiationProps> = ({
             { id: 'overview', label: 'Overview', emoji: '📊' },
             { id: 'talking-points', label: 'Talking Points', emoji: '💬' },
             { id: 'scripts', label: 'Scripts', emoji: '📝' },
-            { id: 'strategy', label: 'Strategy', emoji: '💡' }
+            { id: 'strategy', label: 'Strategy', emoji: '💡' },
+            { id: 'exercises', label: 'Confidence Building', emoji: '💪' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -525,6 +526,39 @@ const SalaryNegotiation: React.FC<SalaryNegotiationProps> = ({
                 Save Notes
               </Button>
             </div>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'exercises' && (
+        <div className="space-y-4">
+          <Card>
+            <h3 className="text-lg font-semibold mb-3">🧘 Mindset Preparation</h3>
+            <ul className="space-y-2 text-gray-700">
+              <li>• Remind yourself: Negotiation is expected and professional</li>
+              <li>• You're not being greedy - you're advocating for fair compensation</li>
+              <li>• The worst they can say is "no" - you won't lose the offer</li>
+              <li>• Practice your opening line 5 times out loud</li>
+            </ul>
+          </Card>
+          
+          <Card>
+            <h3 className="text-lg font-semibold mb-3">🎭 Role-Play Exercise</h3>
+            <p className="text-gray-700 mb-3">Practice with a friend or record yourself:</p>
+            <div className="bg-gray-50 p-4 rounded">
+              <p className="font-medium mb-2">Scenario: Hiring manager asks "What are your salary expectations?"</p>
+              <p className="text-sm text-gray-600">Practice your response using your talking points above. Aim for 2-3 minutes.</p>
+            </div>
+          </Card>
+          
+          <Card>
+            <h3 className="text-lg font-semibold mb-3">❌ Common Mistakes to Avoid</h3>
+            <ul className="space-y-2 text-red-700">
+              <li>• Don't apologize for negotiating</li>
+              <li>• Don't give a specific number first - ask what they're offering</li>
+              <li>• Don't accept immediately - always ask for 24-48 hours to consider</li>
+              <li>• Don't negotiate via text/email if possible - call or Zoom is better</li>
+            </ul>
           </Card>
         </div>
       )}
