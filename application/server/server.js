@@ -1,85 +1,105 @@
-import 'dotenv/config'; // Loads env variables
-import express from 'express';
-import cors from 'cors';
-import { connectDB } from './db/connection.js';
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 
-import records from './routes/record.js';
-import skills from './routes/skills.js';
-import auth from './routes/auth.js';
-import profileRouter from './routes/profile.js';
-import education from './routes/education.js';
-import { attachDevUser } from './middleware/devUser.js';
+// 🧠 DB / Core Services
+import { connectDB } from "./db/connection.js";
+import { ensureSystemTemplates } from "./services/templates.service.js";
+import { startAutomationRunner } from "./utils/automationRunner.js";
+import { setupNotificationCron } from "./jobs/notificationcron.js";
 
-import cookieParser from 'cookie-parser';
-import path from 'path';
-import { fileURLToPath } from 'url';
+// 🧩 Middleware
+import { attachDevUser } from "./middleware/devUser.js";
 
-import profilePhoto from './routes/profile-photo.js';
-import employmentRouter from './routes/employment.js';
+//
+// ===============================
+// 📁 FEATURE IMPORTS (Grouped)
+// ===============================
+//
 
+// 🔐 AUTH / USER
+import auth from "./routes/auth.js";
+import profileRouter from "./routes/profile.js";
+import profilePhoto from "./routes/profile-photo.js";
+import education from "./routes/education.js";
+import employmentRouter from "./routes/employment.js";
+
+// 📌 CORE USER RECORDS + SKILLS
+import records from "./routes/record.js";
+import skills from "./routes/skills.js";
+
+// 📂 PROJECTS & CERTIFICATIONS
+import projectsRoutes from "./routes/projects.js";
 import projectMediaRoutes from "./routes/project-media.js";
 import certificationRoutes from "./routes/certifications.js";
-import projectsRoutes from "./routes/projects.js";
 
-import companyResearch from './routes/company-research.js';
-import coverletter from './routes/coverletter.js';
-
-import jobRoutes from './routes/jobs.js';
+// 💼 JOBS & SALARY
+import jobRoutes from "./routes/jobs.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
-
 import salaryRoutes from "./routes/salary.js";
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 
+// 📊 INTERVIEW & COMPANY RESEARCH
+import interviewRoutes from "./routes/interview-insights.js";
+import interviewAnalyticsRoutes from "./routes/interviews.js";
+import interviewQuestionsRoute from "./routes/interview-questions.js";
+import companyResearch from "./routes/company-research.js";
+
+// 📄 RESUME + COVER LETTERS
+import coverletter from "./routes/coverletter.js";
 import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";
 import resumeVersionsRouter from "./routes/resume-versions.js";
 
-import interviewRoutes from "./routes/interview-insights.js";
-import interviewAnalyticsRoutes from "./routes/interviews.js";
-
-import { ensureSystemTemplates } from './services/templates.service.js';
-
+// ⚙️ AUTOMATION
 import automationRoutes from "./routes/automation.js";
-import { startAutomationRunner } from "./utils/automationRunner.js";
 
-import { setupNotificationCron } from './jobs/notificationcron.js';
-import notificationRoutes from './routes/notifications.js';
+// 🔔 NOTIFICATIONS
+import notificationRoutes from "./routes/notifications.js";
 
-import reference from './routes/reference.js';
-import peergroups from './routes/peerGroups.js';
+// 👥 NETWORKING
+import reference from "./routes/reference.js";
+import peergroups from "./routes/peerGroups.js";
+import supportersRoutes from "./routes/supporters.js";
 
+// 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";
+import smartGoalsRoutes from "./routes/smartGoals.js";
+import productivityRoutes from "./routes/productivity.js";
+
+// 📈 ANALYTICS / SUCCESS METRICS
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
-import interviewAnalyticsRoutes from "./routes/interviews.js";
-import supportersRoutes from "./routes/supporters.js";
-import productivityRoutes from "./routes/productivity.js"; 
-import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
-import jobSalaryRoutes from "./routes/jobs-salary.js";
-import smartGoalsRoutes from "./routes/smartGoals.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
-import salaryRoutes from  "./routes/salary.js"
+import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
+
+//
+// ===============================
+// 🔧 SERVER CONFIG
+// ===============================
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
-const DB = process.env.DB_NAME || 'appdb';
+const DB = process.env.DB_NAME || "appdb";
 
 const app = express();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.set('baseUrl', BASE);
+app.set("baseUrl", BASE);
 
 app.use(
   cors({
     origin: CORS_ORIGIN,
     credentials: true,
     allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'x-user-id',
-      'x-dev-user-id',
+      "Content-Type",
+      "Authorization",
+      "x-user-id",
+      "x-dev-user-id",
     ],
   })
 );
@@ -87,52 +107,50 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// ===============================
+// 📸 STATIC UPLOADS
+// ===============================
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
+  etag: false,
+  lastModified: false,
+  cacheControl: false,
+  setHeaders: (res) => res.set("Cache-Control", "no-store"),
+}));
 
-/* ----------------------------------- */
-/* START SERVER AFTER DB CONNECTS */
-/* ----------------------------------- */
-
+//
+// ===============================
+// 🚀 START AFTER DB CONNECTS
+// ===============================
 try {
   await connectDB();
   await ensureSystemTemplates();
 
+  //
+  // ===============================
+  // 📌 ROUTES (Grouped by Feature)
+  // ===============================
+  //
 
-  /* ----------------------------------- */
-  /* STATIC UPLOADS */
-  /* ----------------------------------- */
+  // 🔐 AUTH & USER PROFILE
+  app.use("/api/auth", auth);
+  app.use("/api/profile", attachDevUser, profileRouter);
+  app.use("/api/profile", attachDevUser, profilePhoto);
+  app.use("/api/employment", attachDevUser, employmentRouter);
 
-  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+  // 📌 RECORDS / SKILLS
+  app.use("/record", records);
+  app.use("/api/skills", skills);
+  app.use("/api/education", education);
 
-
-  /* ----------------------------------- */
-  /* CORE ROUTES */
-  /* ----------------------------------- */
-
-  app.use('/record', records);
-  app.use('/api/skills', skills);
-  app.use('/api/auth', auth);
-  app.use('/api/education', education);
-
-  app.use("/api/certifications", certificationRoutes);
+  // 📂 PROJECTS & CERTIFICATIONS
   app.use("/api/projects", projectsRoutes);
   app.use("/api/projects", projectMediaRoutes);
+  app.use("/api/certifications", certificationRoutes);
 
-
-  /* ----------------------------------- */
-  /* PROFILE + EMPLOYMENT (NEEDS DEV USER) */
-  /* ----------------------------------- */
-
-  app.use('/api/profile', attachDevUser, profileRouter);
-  app.use('/api/profile', attachDevUser, profilePhoto);
-  app.use('/api/employment', attachDevUser, employmentRouter);
-
-
-  /* ----------------------------------- */
-  /* JOBS & SALARIES */
-  /* ----------------------------------- */
-
-  app.use('/api/jobs', jobRoutes);
-  app.use('/api/jobs', jobSalaryRoutes);
+  // 💼 JOBS & SALARY
+  app.use("/api/jobs", jobRoutes);
+  app.use("/api/jobs", jobSalaryRoutes);
 
   // Salary Analytics (UC-100) — MUST COME FIRST
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
@@ -140,88 +158,54 @@ try {
   // Salary CRUD — MUST COME AFTER
   app.use("/api/salary", salaryRoutes);
 
-
-  /* ----------------------------------- */
-  /* INTERVIEW ROUTES */
-  /* ----------------------------------- */
-
+  // 📊 INTERVIEW & COMPANY RESEARCH
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use("/api/interviews", interviewAnalyticsRoutes);
-
-
-  /* ----------------------------------- */
-  /* COMPANY RESEARCH */
-  /* ----------------------------------- */
-
+  app.use("/api/interview-questions", interviewQuestionsRoute);
+  app.use("/api/company/research", attachDevUser, companyResearch);
   app.use(companyResearch);
 
-
-  /* ----------------------------------- */
-  /* RESUMES + TEMPLATES */
-  /* ----------------------------------- */
-
-  app.use('/api/coverletter', coverletter);
+  // 📄 RESUMES + TEMPLATES
+  app.use("/api/coverletter", coverletter);
   app.use("/api/resumes", attachDevUser, resumesRoute);
-  app.use('/api/resume-templates', attachDevUser, templatesRoute);
+  app.use("/api/resume-templates", attachDevUser, templatesRoute);
   app.use("/api/resume-versions", resumeVersionsRouter);
 
+  // ⚙️ AUTOMATION
+  app.use("/api/automation", automationRoutes);
 
-  /* ----------------------------------- */
-  /* NOTIFICATIONS */
-  /* ----------------------------------- */
-
+  // 🔔 NOTIFICATIONS
   setupNotificationCron();
-  app.use('/api/notifications', notificationRoutes);
+  app.use("/api/notifications", notificationRoutes);
 
-
-  /* ----------------------------------- */
-  /* REFERENCES + PEER GROUPS */
-  /* ----------------------------------- */
-
-  app.use('/api/reference', reference);
-  app.use('/api/peer-groups', peergroups);
-
-
-  /* ----------------------------------- */
-  /* GOALS */
-  /* ----------------------------------- */
-
-  app.use("/api/goals", attachDevUser, goalsRoutes);
-  app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
-
-
-  /* ----------------------------------- */
-  /* SUCCESS ANALYTICS */
-  /* ----------------------------------- */
-
-  app.use("/api/success-analysis", successAnalysisRouter);
-  app.use("/api/success-patterns", successPatternsRouter);
-
-  app.use("/api/interviews", interviewAnalyticsRoutes);
+  // 👥 NETWORKING
+  app.use("/api/reference", reference);
+  app.use("/api/peer-groups", peergroups);
   app.use("/api/supporters", supportersRoutes);
 
-  //productivity 
-  app.use("/api/productivity", productivityRoutes);
+  // 🎯 GOALS & PRODUCTIVITY
+  app.use("/api/goals", attachDevUser, goalsRoutes);
   app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
-  app.use("/api/productivity", attachDevUser,productivityRoutes);
+  app.use("/api/productivity", attachDevUser, productivityRoutes);
 
-  //competitive applicant analysis
-  app.use("/api/competitive-analysis", attachDevUser,competitiveAnalysisRouter);
+  // 📈 ANALYTICS
+  app.use("/api/success-analysis", successAnalysisRouter);
+  app.use("/api/success-patterns", successPatternsRouter);
+  app.use("/api/competitive-analysis", attachDevUser, competitiveAnalysisRouter);
 
-  app.get('/healthz', (_req, res) => res.sendStatus(204));
+  // 🤝 JOB SEARCH SHARING
+  app.use("/api", jobSearchSharingRoutes);
 
+  // ❤️ Health Check
+  app.get("/healthz", (_req, res) => res.sendStatus(204));
 
-  /* ----------------------------------- */
-  /* START SERVER */
-  /* ----------------------------------- */
-
+  // 🚀 START SERVER
   app.listen(PORT, () => {
     console.log(`Server running on ${BASE}`);
     console.log(`Server connected to ${DB}`);
   });
 
-
 } catch (err) {
-  console.error('Failed to start server:', err);
+  console.error("Failed to start server:", err);
   process.exit(1);
 }

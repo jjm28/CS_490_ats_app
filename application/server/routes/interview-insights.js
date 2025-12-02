@@ -3,7 +3,8 @@ const router = express.Router();
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyJWT } from "../middleware/auth.js"; 
 import Job from "../models/jobs.js";
-import InterviewInsights from "../models/interviewInsights.js"; // ✅ New model
+import InterviewInsights from "../models/interviewInsights.js"; 
+//import InterviewPrep from "../models/interviewPrep.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -11,6 +12,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 class RequestQueue {
   constructor(delayMs = 2000) {
     this.queue = [];
+
+    
     this.processing = false;
     this.delayMs = delayMs;
   }
@@ -217,4 +220,124 @@ router.get("/queue/status", (req, res) => {
   });
 });
 
+router.post("/evaluate-session", async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const { jobId, responses } = req.body;
+
+    if (!userId || !jobId || !Array.isArray(responses)) {
+      return res.status(400).json({ error: "Invalid input" });
+    }
+
+    // Get job title for context
+    const job = await Job.findOne({ _id: jobId, userId });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    // Use your existing queue
+    const result = await geminiQueue.add(async () => {
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: { temperature: 0.6, maxOutputTokens: 1500 }
+      });
+
+      const qaText = responses.map((r, i) => 
+        `Q${i + 1}: ${r.question}\nA${i + 1}: ${r.response}`
+      ).join("\n\n");
+
+      const prompt = `
+        Role: Expert interview coach
+        Job: ${job.jobTitle} at ${job.company || "a top company"}
+        Evaluate this mock interview session:
+
+        ${qaText}
+
+        Respond in JSON only:
+        {
+          "overallScore": 85,
+          "summary": "Brief overall comment",
+          "questionFeedback": [
+            { "question": "...", "score": 90, "feedback": "..." }
+          ]
+        }
+      `;
+
+      const response = await model.generateContent(prompt);
+      let raw = response.response.text().replace(/```json|```/g, "").trim();
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      return JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+    });
+
+    // Save to DB
+    await Promise.all(
+      result.questionFeedback.map((fb, idx) =>
+        InterviewPrep.create({
+          userId,
+          jobId,
+          question: responses[idx].question,
+          response: responses[idx].response,
+          aiFeedback: fb.feedback,
+          score: fb.score
+        })
+      )
+    );
+
+    res.json(result);
+  } catch (err) {
+    console.error("Evaluation error:", err);
+    res.status(500).json({ error: "Failed to evaluate session" });
+  }
+});
+
+router.post("/generate-questions", async (req, res) => {
+  try {
+    const { jobTitle, company } = req.body;
+    
+    if (!jobTitle) {
+      return res.status(400).json({ error: "Job title required" });
+    }
+
+    const result = await geminiQueue.add(async () => {
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: { temperature: 0.6, maxOutputTokens: 1500 }
+      });
+
+      const prompt = `Generate exactly 10 behavioral interview questions for a ${jobTitle} position at ${company || "a company"}.
+
+Requirements:
+- Each question must be behavioral (asking about past experiences, situations, or approach)
+- Questions should be relevant to the ${jobTitle} role
+- Vary the question types (teamwork, leadership, conflict, problem-solving, adaptability, etc.)
+- Keep questions clear and concise
+- Return ONLY a JSON array, no other text
+- Format: ["Question 1", "Question 2", "Question 3"]`;
+
+      const response = await model.generateContent(prompt);
+      let raw = response.response.text();
+      
+      // Remove markdown code blocks
+      raw = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Try to extract JSON array
+      const arrayMatch = raw.match(/\[([\s\S]*)\]/);
+      if (!arrayMatch) {
+        throw new Error('No JSON array found in response');
+      }
+      
+      const questions = JSON.parse(arrayMatch[0]);
+      
+      // Ensure we have exactly 10 questions
+      if (!Array.isArray(questions) || questions.length < 10) {
+        throw new Error('Insufficient questions generated');
+      }
+      
+      return questions.slice(0, 10);
+    });
+
+    res.json({ questions: result });
+  } catch (err) {
+    console.error("Question generation error:", err);
+    res.status(500).json({ error: "Failed to generate questions" });
+  }
+});
 export default router;

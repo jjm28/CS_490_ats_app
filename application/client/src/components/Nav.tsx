@@ -167,7 +167,7 @@ function Navbar() {
                   References
                 </NavLink>
                 <NavLink
-                  to="/interviews"
+                  to="/Interview-Prep"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >
                   Interview Prep
@@ -181,6 +181,18 @@ function Navbar() {
                 to="/support" 
                 className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                   Family Support
+                  </NavLink>
+                    <NavLink
+                  to="/job-search/sharing"
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
+                Sharing & Accountability
+              </NavLink>
+
+                  <NavLink
+                    to="/networking"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Networking Hub
                   </NavLink>
                 {/* DIVIDER */}
                 <div className="border-t border-gray-200 my-2"></div>

@@ -38,7 +38,7 @@ import { validateJobImport } from '../validators/jobimport.js';
 import { scrapeJobFromUrl } from '../services/jobscraper.service.js';
 import { calculateJobMatch } from "../__tests__/services/matchAnalysis.service.js";
 import { getSkillsByUser } from "./skills.js";
-
+import { incrementApplicationGoalsForUser } from "../services/jobSearchSharing.service.js";
 const router = Router();
 
 const VALID_STATUSES = ["interested", "applied", "phone_screen", "interview", "offer", "rejected"];
@@ -182,6 +182,13 @@ router.post("/", async (req, res) => {
     const r = await validateJobCreate(req.body);
     if (!r.ok) return res.status(r.status).json(r.error);
     const created = await createJob({ userId, payload: r.value });
+    // increment goals that are are application unit (intuitive logic)
+    try {
+    await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
+    } catch (err) {
+    console.error("Error auto-incrementing application goals:", err);
+    // don't throw: job creation should still succeed even if this fails
+      }
     res.status(201).json(created);
   } catch (err) {
     res.status(400).json({ error: err?.message || "Create failed" });
