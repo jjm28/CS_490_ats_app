@@ -166,6 +166,12 @@ function Navbar() {
                 >
                   References
                 </NavLink>
+                <NavLink
+                  to="/Interview-Prep"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Interview Prep
+                </NavLink>
                 <NavLink 
                 to="/peer-groups" 
                 className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
@@ -181,6 +187,13 @@ function Navbar() {
                 className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
                 Sharing & Accountability
               </NavLink>
+
+                  <NavLink
+                    to="/networking"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Networking Hub
+                  </NavLink>
                 {/* DIVIDER */}
                 <div className="border-t border-gray-200 my-2"></div>
 
@@ -247,6 +260,7 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
+            
           </div>
 
           <div className="flex items-center space-x-4">

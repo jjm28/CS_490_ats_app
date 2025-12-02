@@ -1,7 +1,10 @@
 // src/pages/Interview.tsx
 import { useState } from 'react';
+import MockPractice from './MockPractice';
+import '../../styles/InterviewStyles/Interview.css';
 import InterviewPrepResearch from './CompanyResearch';
-import '../../styles/Interview.css';
+import Questions from './Questions';
+import '../../styles/InterviewPrepUI.css';
 
 type CardData = {
   label: string;
@@ -9,7 +12,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | null; // Add component type
+  component?: 'research' | 'questions' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -27,7 +30,7 @@ const cardData: CardData[] = [
     description: 'Tailored questions for your position',
     color: '#0E3B43',
     details: 'Get a database of real interview questions asked for this exact role at this company. Filter by round (phone screen, onsite), experience level, and question type (coding, behavioral, system design).',
-    component: null
+    component: 'questions' // Link to questions component
   },
   {
     label: 'AI Coaching',
@@ -101,6 +104,9 @@ const DetailView = ({
   if (card.component === 'research') {
     return <InterviewPrepResearch onBack={onBack} />;
   }
+  if (card.component === 'questions') {
+    return <Questions onBack={onBack} />;
+  }
 
   // Otherwise, show the default detail view
   return (
@@ -169,21 +175,37 @@ const DetailView = ({
 
 const Interview = () => {
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
+  const [activeFeature, setActiveFeature] = useState<string | null>(null); // ✅ Add this
 
   const handleCardClick = (index: number) => {
+    const card = cardData[index];
+    
+    // ✅ Check if it's Mock Interview card
+    if (card.label === 'Mock Interviews/Tech Prep') {
+      setActiveFeature('mock-interview');
+      return; // Don't set selectedCardIndex
+    }
+    
+    // For other cards, show the detail view
     setSelectedCardIndex(index);
   };
 
   const handleBack = () => {
     setSelectedCardIndex(null);
+    setActiveFeature(null); // ✅ Reset both
   };
 
-  // 🔍 Detail Mode
+  // ✅ Show Mock Interview feature
+  if (activeFeature === 'mock-interview') {
+    return <MockPractice onBack={handleBack} />;
+  }
+
+  // 🔍 Detail Mode (existing)
   if (selectedCardIndex !== null) {
     return <DetailView card={cardData[selectedCardIndex]} onBack={handleBack} />;
   }
 
-  // 📊 Grid Mode
+  // 📊 Grid Mode (existing)
   return (
     <div className="magic-bento-container">
       <div className="card-grid">
