@@ -87,7 +87,6 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
-
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Experience
@@ -134,6 +133,20 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
+
+            <NavLink
+              to="/networking"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${
+                  isActive
+                    ? "bg-(--brand-sage) text-(--brand-navy)"
+                    : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Networking
+            </NavLink>
+
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Job Search
@@ -183,12 +196,12 @@ function Navbar() {
                   Family Support
                   </NavLink>
 
-                  <NavLink
+                  {/* <NavLink
                     to="/networking"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                   >
                     Networking Hub
-                  </NavLink>
+                  </NavLink> */}
                 {/* DIVIDER */}
                 <div className="border-t border-gray-200 my-2"></div>
 
@@ -298,6 +311,7 @@ function Navbar() {
                 </PopoverPanel>
               </Popover>
             )}
+            
 
             <Disclosure as="div" className="md:hidden">
               {({ open }) => (

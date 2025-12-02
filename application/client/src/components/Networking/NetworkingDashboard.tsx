@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getContacts } from "../../api/contact";
 import type { Contact } from "../../api/contact";
+
+console.log("NETWORKING DASHBOARD LOADED NEW VERSION");
+console.log("💥 NetworkingDashboard RENDERED");
+
 
 import {
   UserPlus,
@@ -15,6 +19,7 @@ import {
 export default function NetworkingDashboard() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
@@ -48,7 +53,9 @@ export default function NetworkingDashboard() {
       {/* PAGE TITLE */}
       <h1 className="text-center text-4xl font-extrabold text-gray-900 mb-12">
         Professional Network Dashboard
+        
       </h1>
+      
 
       {/* PREMIUM QUICK ACTION CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
@@ -74,8 +81,45 @@ export default function NetworkingDashboard() {
         />
       </div>
 
+      {/* -------------------------------------------
+           ⭐ REFERRAL TOOLS SECTION
+         -------------------------------------------- */}
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
+        Referral Tools
+      </h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+
+        {/* Request a Referral */}
+        <PremiumCard
+          title="Request a Referral"
+          description="Generate personalized referral requests."
+          icon={<UserPlus className="w-8 h-8 text-green-600" />}
+          link="/referrals/request"
+        />
+
+        {/* Track Referral Requests */}
+        <PremiumCard
+          title="Referral Dashboard"
+          description="Track status, outcomes, and follow-up timing."
+          icon={<Star className="w-8 h-8 text-yellow-500" />}
+          link="/referrals"
+        />
+
+        {/* Referral Insights */}
+        <PremiumCard
+          title="Referral Insights"
+          description="Analyze referral success and best connections."
+          icon={<Bell className="w-8 h-8 text-orange-500" />}
+          link="/referrals/insights"
+        />
+      </div>
+
       {/* STRONGEST RELATIONSHIPS */}
-      <SectionHeader title="Strongest Relationships" icon={<Star className="w-6 h-6 text-amber-500" />} />
+      <SectionHeader
+        title="Strongest Relationships"
+        icon={<Star className="w-6 h-6 text-amber-500" />}
+      />
 
       <div className="space-y-4 max-w-4xl mx-auto mb-16">
         {strongestContacts.map((c) => (

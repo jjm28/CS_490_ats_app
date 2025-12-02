@@ -162,8 +162,8 @@ export default function AiOutreachGenerator() {
         >
           <option value="">Select Job</option>
           {jobs.map((j: any) => (
-            <option key={j.id} value={j.id}>
-              {j.job_title} — {j.company_name}
+            <option key={j._id} value={j._id}>
+              {j.jobTitle} — {j.company}
             </option>
           ))}
         </select>

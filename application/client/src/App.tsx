@@ -85,6 +85,11 @@ import AiOutreachGenerator from './components/Networking/AiOutreachGenerator';
 import InteractionHistory from './components/Networking/InteractionHistory';
 import AllInteractionsPage from './components/Networking/AllInteractionsPage';
 import ImportGoogle from "./components/Networking/ImportGoogle";
+import { Toaster } from "react-hot-toast";
+import ReferralDashboard from './components/Referral/ReferralDashboard';
+import ReferralTimeline from './components/Referral/ReferralTimeline';
+import ReferralRequestPage from "./components/Referral/ReferralRequestPage";
+import ReferralInsights from './components/Referral/ReferralInsights';
 
 function App() {
   const location = useLocation();
@@ -105,6 +110,9 @@ function App() {
   return (
     <>
       {showNavbar && <Nav />}
+
+      <Toaster position="top-center" />
+
       <div className="main-content">
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -208,10 +216,6 @@ function App() {
             element={<AllInteractionsPage />}
           />
 
-
-
-        
-
           <Route
             path="/networking/outreach"
             element={
@@ -220,6 +224,28 @@ function App() {
               </PrivateRoute>
             }
           />
+
+<Route
+  path="/referrals/request"
+  element={
+    <PrivateRoute>
+      <ReferralRequestPage />
+    </PrivateRoute>
+  }
+/>
+
+
+<Route
+  path="/referrals/insights"
+  element={
+    <PrivateRoute>
+      <ReferralInsights jobTitle={''} relationship={''} />
+    </PrivateRoute>
+  }
+/>
+
+          <Route path="/referrals" element={<ReferralDashboard />} />
+          <Route path="/referrals/timeline/:id" element={<ReferralTimeline />} />
 
           <Route
             path="/Applications"
