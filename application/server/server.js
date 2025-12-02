@@ -49,6 +49,7 @@ import interviewAnalyticsRoutes from "./routes/interviews.js";
 import companyResearch from './routes/company-research.js';
 import interviewQuestionsRoute from "./routes/interview-questions.js";
 import writingPracticeRoutes from './routes/writingPractice.js';
+import interviewPredictionRoutes from "./routes/interview-success-prediction.js";
 
 // 📄 RESUME + COVER LETTERS
 import coverletter from './routes/coverletter.js';
@@ -157,6 +158,7 @@ try {
   app.use(companyResearch); // stand alone research for ANY company
   app.use("/api/interview-questions", interviewQuestionsRoute);
   app.use('/api/writing-practice', writingPracticeRoutes);
+  app.use("/api/interview-predictions", interviewPredictionRoutes);
 
   // 📄 RESUMES + COVER LETTERS
   app.use('/api/coverletter', coverletter);
