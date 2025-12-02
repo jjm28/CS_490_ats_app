@@ -67,6 +67,8 @@ import notificationRoutes from './routes/notifications.js';
 import reference from './routes/reference.js';
 import peergroups from './routes/peerGroups.js';
 import supportersRoutes from "./routes/supporters.js";
+import networkingRoutes from "./routes/networking.js";
+import outreachRoutes from "./routes/outreach.js";
 
 // 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";
@@ -78,9 +80,6 @@ import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
-//import networkingRoutes from "./routes/networking.js";
-//import outreachRoutes from "./routes/outreach.js";
-import advisorRoutes from "./routes/advisor.routes.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -168,8 +167,8 @@ try {
   app.use("/api/resume-versions", resumeVersionsRouter);
 
   //networking 
-  //app.use("/api/networking", networkingRoutes);
-  //app.use("/api/networking/outreach", outreachRoutes);
+  app.use("/api/networking", networkingRoutes);
+  app.use("/api/networking/outreach", outreachRoutes);
 
   // 🔔 NOTIFICATIONS (Must be after DB)
   setupNotificationCron();
