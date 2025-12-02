@@ -80,6 +80,7 @@ import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
 import advisorRoutes from "./routes/advisor.routes.js";
+import cohortRoutes from "./routes/cohort.routes.js";
 
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
@@ -202,6 +203,7 @@ try {
 
   app.use("/api", jobSearchSharingRoutes);
   app.use("/api", advisorRoutes);
+  app.use("/api", cohortRoutes);
 
   // Health check
   // ❤️ Health Check

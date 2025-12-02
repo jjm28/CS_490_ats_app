@@ -26,7 +26,7 @@ export default function Logout({
     // Nudge other tabs/components listening to "storage" to refresh auth state.
     localStorage.setItem("auth:changed", String(Date.now()));
     localStorage.removeItem("auth:changed");
-
+    localStorage.removeItem("userRole");
     // Decide where to go next
     const to = redirectTo || params.get("to") || "/Login";
     //wait 3 seconds

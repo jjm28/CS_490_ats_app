@@ -416,7 +416,7 @@ function App() {
   path="/advisors/:relationshipId/recommendations"
   element={<AdvisorRecommendationsPage />}
 />
-<Route path="/advisor/availability" element={<AdvisorAvailabilityPage />} />
+<Route path="/advisor/availability" element={<PrivateRoute><AdvisorAvailabilityPage /></PrivateRoute>} />
 
         </Routes>
 
