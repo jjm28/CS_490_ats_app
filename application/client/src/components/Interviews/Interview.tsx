@@ -1,7 +1,15 @@
 // src/pages/Interview.tsx
 import { useState } from 'react';
+import MockPractice from './MockPractice';
+import '../../styles/InterviewStyles/Interview.css';
 import InterviewPrepResearch from './CompanyResearch';
-import '../../styles/Interview.css';
+// import '../../styles/Interview.css';
+import InterviewPrepChecklist from './InterviewPrepChecklist';
+import SalaryNegotiationPage from './SalaryNegotiationPage';
+import Questions from './Questions';
+import '../../styles/InterviewPrepUI.css';
+import WritingPractice from '../../components/Interviews/WritingPractice';
+import InterviewFollowUpPage from './InterviewFollowUpPage';
 
 type CardData = {
   label: string;
@@ -9,7 +17,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | null; // Add component type
+  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 'followup' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -27,7 +35,7 @@ const cardData: CardData[] = [
     description: 'Tailored questions for your position',
     color: '#0E3B43',
     details: 'Get a database of real interview questions asked for this exact role at this company. Filter by round (phone screen, onsite), experience level, and question type (coding, behavioral, system design).',
-    component: null
+    component: 'questions' // Link to questions component
   },
   {
     label: 'AI Coaching',
@@ -60,7 +68,63 @@ const cardData: CardData[] = [
     color: '#0E3B43',
     details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
     component: null
-  }
+  },
+  {
+    label: 'Preparation',
+    title: 'Preparation Checklist',
+    description: 'Customized prep tasks for each interview',
+    color: '#0E3B43',
+    details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
+    component: 'checklist' // 🆕 Add this
+  },
+   {
+    label: 'Writing Practice',
+    title: 'Response Writing Practice',
+    description: 'Improve clarity, structure, and storytelling',
+    color: '#0E3B43',
+    details: 'Practice writing interview responses with timed exercises, get AI feedback on clarity and structure, track improvement over time, and build confidence for virtual interviews.',
+    component: 'writing-practice'
+  },
+  {
+    label: 'Calendar',
+    title: 'Calendar Integration',
+    description: 'Schedule and track your interviews',
+    color: '#0E3B43',
+    details: 'Sync with Google Calendar to auto-schedule prep time, track upcoming interviews, set reminders, and log feedback after each round.',
+    component: null
+  },
+  {
+    label: 'Analytics',
+    title: 'Performance Analytics',
+    description: 'Track your progress and improvements',
+    color: '#0E3B43',
+    details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
+    component: null
+  },
+  {
+    label: 'Preparation',
+    title: 'Preparation Checklist',
+    description: 'Customized prep tasks for each interview',
+    color: '#0E3B43',
+    details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
+    component: 'checklist'
+  },
+  {
+    label: 'Follow-Up',
+    title: 'Interview Follow-Up',
+    description: 'Send professional follow-up emails',
+    color: '#0E3B43',
+    details: 'Generate and send thank you emails, status inquiries, feedback requests, and networking follow-ups after your interviews.',
+    component: 'followup' // 🆕 Add this
+  },
+  {
+    label: 'Salary Negotiation',
+    title: 'Salary Negotiation',
+    description: 'AI-powered negotiation preparation and strategy',
+    color: '#0E3B43',
+    details: 'Get personalized negotiation talking points, scripts for different scenarios, market salary analysis, and counter-offer recommendations based on real market data.',
+    component: 'negotiation' // 🆕 Add this
+  },
 ];
 
 type InterviewCardProps = {
@@ -100,6 +164,21 @@ const DetailView = ({
   // If the card has a component, render it
   if (card.component === 'research') {
     return <InterviewPrepResearch onBack={onBack} />;
+  }
+  if (card.component === 'questions') {
+    return <Questions onBack={onBack} />;
+  }
+
+  if (card.component === 'checklist') {
+    return <InterviewPrepChecklist onBack={onBack} />;
+  }
+
+  if (card.component === 'negotiation') {
+    return <SalaryNegotiationPage onBack={onBack} />;
+  }
+
+  if (card.component === 'followup') { // ✅ ADD THIS
+    return <InterviewFollowUpPage onBack={onBack} />;
   }
 
   // Otherwise, show the default detail view
@@ -169,21 +248,46 @@ const DetailView = ({
 
 const Interview = () => {
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
+  const [activeFeature, setActiveFeature] = useState<string | null>(null); // ✅ Add this
 
   const handleCardClick = (index: number) => {
+    const card = cardData[index];
+    
+    // ✅ Check if it's Mock Interview card
+    if (card.label === 'Mock Interviews/Tech Prep') {
+      setActiveFeature('mock-interview');
+      return; // Don't set selectedCardIndex
+    }
+
+    if (card.component === 'writing-practice') {
+      setActiveFeature('writing-practice');
+      return;
+    }
+    
+    // For other cards, show the detail view
     setSelectedCardIndex(index);
   };
 
   const handleBack = () => {
     setSelectedCardIndex(null);
+    setActiveFeature(null); // ✅ Reset both
   };
 
-  // 🔍 Detail Mode
+  // ✅ Show Mock Interview feature
+  if (activeFeature === 'mock-interview') {
+    return <MockPractice onBack={handleBack} />;
+  }
+
+  if (activeFeature === 'writing-practice') {
+    return <WritingPractice onBack={handleBack} />;
+  }
+
+  // 🔍 Detail Mode (existing)
   if (selectedCardIndex !== null) {
     return <DetailView card={cardData[selectedCardIndex]} onBack={handleBack} />;
   }
 
-  // 📊 Grid Mode
+  // 📊 Grid Mode (existing)
   return (
     <div className="magic-bento-container">
       <div className="card-grid">
