@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { getGoals, updateGoals } from "../../../api/goals";
 
 export default function GoalsEditor({ onUpdate }: { onUpdate: () => void }) {
-  const [weeklyApplicationsGoal, setWeeklyApplicationsGoal] = useState(10);
-  const [weeklyInterviewsGoal, setWeeklyInterviewsGoal] = useState(2);
+  const [weeklyApplicationsGoal, setWeeklyApplicationsGoal] = useState<string>("");
+  const [weeklyInterviewsGoal, setWeeklyInterviewsGoal] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   // Load existing goals on mount
@@ -11,8 +11,13 @@ export default function GoalsEditor({ onUpdate }: { onUpdate: () => void }) {
     async function load() {
       try {
         const data = await getGoals();
-        setWeeklyApplicationsGoal(data.weeklyApplicationsGoal ?? 10);
-        setWeeklyInterviewsGoal(data.weeklyInterviewsGoal ?? 2);
+
+        setWeeklyApplicationsGoal(
+          data.weeklyApplicationsGoal?.toString() ?? ""
+        );
+        setWeeklyInterviewsGoal(
+          data.weeklyInterviewsGoal?.toString() ?? ""
+        );
       } catch (err) {
         console.error("Failed to load goals", err);
       }
@@ -20,12 +25,17 @@ export default function GoalsEditor({ onUpdate }: { onUpdate: () => void }) {
     load();
   }, []);
 
+  // Clean leading zeros
+  function removeLeadingZeros(value: string) {
+    return value.replace(/^0+(?=\d)/, ""); // removes only *leading* zeros
+  }
+
   async function save() {
     setSaving(true);
     try {
       await updateGoals({
-        weeklyApplicationsGoal,
-        weeklyInterviewsGoal,
+        weeklyApplicationsGoal: Number(weeklyApplicationsGoal || 0),
+        weeklyInterviewsGoal: Number(weeklyInterviewsGoal || 0),
       });
 
       onUpdate(); // Refresh the dashboard
@@ -36,16 +46,27 @@ export default function GoalsEditor({ onUpdate }: { onUpdate: () => void }) {
   }
 
   return (
-    <div style={{ padding: "20px", border: "1px solid #ccc", borderRadius: "10px", background: "white" }}>
+    <div
+      style={{
+        padding: "20px",
+        border: "1px solid #ccc",
+        borderRadius: "10px",
+        background: "white",
+      }}
+    >
       <h3 style={{ marginBottom: "15px" }}>🎯 Set Your Weekly Goals</h3>
 
+      {/* Weekly Applications */}
       <div style={{ marginBottom: "15px" }}>
         <label style={{ fontWeight: "bold" }}>Weekly Applications Goal</label>
         <input
           type="number"
           min="1"
+          inputMode="numeric"
           value={weeklyApplicationsGoal}
-          onChange={(e) => setWeeklyApplicationsGoal(Number(e.target.value))}
+          onChange={(e) =>
+            setWeeklyApplicationsGoal(removeLeadingZeros(e.target.value))
+          }
           style={{
             width: "100%",
             padding: "8px",
@@ -56,13 +77,17 @@ export default function GoalsEditor({ onUpdate }: { onUpdate: () => void }) {
         />
       </div>
 
+      {/* Weekly Interviews */}
       <div style={{ marginBottom: "15px" }}>
         <label style={{ fontWeight: "bold" }}>Weekly Interviews Goal</label>
         <input
           type="number"
           min="1"
+          inputMode="numeric"
           value={weeklyInterviewsGoal}
-          onChange={(e) => setWeeklyInterviewsGoal(Number(e.target.value))}
+          onChange={(e) =>
+            setWeeklyInterviewsGoal(removeLeadingZeros(e.target.value))
+          }
           style={{
             width: "100%",
             padding: "8px",

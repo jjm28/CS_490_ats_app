@@ -189,11 +189,11 @@ router.post("/", async (req, res) => {
     const created = await createJob({ userId, payload: r.value });
     // increment goals that are are application unit (intuitive logic)
     try {
-    await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
+      await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
     } catch (err) {
-    console.error("Error auto-incrementing application goals:", err);
-    // don't throw: job creation should still succeed even if this fails
-      }
+      console.error("Error auto-incrementing application goals:", err);
+      // don't throw: job creation should still succeed even if this fails
+    }
     res.status(201).json(created);
   } catch (err) {
     res.status(400).json({ error: err?.message || "Create failed" });
@@ -349,7 +349,7 @@ router.post("/:id/interview", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const { type, date, locationOrLink, notes, interviewer, contactInfo } = req.body;
+    const { type, date, locationOrLink, notes, interviewer, contactInfo, confidenceLevel, anxietyLevel } = req.body;
     if (!type || !date) return res.status(400).json({ error: "Type and date are required" });
     const job = await Jobs.findOne({ _id: req.params.id, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
@@ -361,6 +361,8 @@ router.post("/:id/interview", async (req, res) => {
       notes,
       interviewer,
       contactInfo,
+      confidenceLevel,
+      anxietyLevel,
       outcome: "pending",
       reminderSent: false
     };
@@ -391,7 +393,7 @@ router.put("/:id/interview/:interviewId", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const { id, interviewId } = req.params;
-    const { type, date, locationOrLink, notes, interviewer, contactInfo, outcome } = req.body;
+    const { type, date, locationOrLink, notes, interviewer, contactInfo, confidenceLevel, anxietyLevel, outcome } = req.body;
     const job = await Jobs.findOne({ _id: id, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
     const interview = job.interviews.find(i => i._id.toString() === interviewId);
@@ -402,6 +404,8 @@ router.put("/:id/interview/:interviewId", async (req, res) => {
     if (notes !== undefined) interview.notes = notes;
     if (interviewer !== undefined) interview.interviewer = interviewer;
     if (contactInfo !== undefined) interview.contactInfo = contactInfo;
+    if (confidenceLevel !== undefined) interview.confidenceLevel = confidenceLevel;
+    if (anxietyLevel !== undefined) interview.anxietyLevel = anxietyLevel;
     if (outcome !== undefined) interview.outcome = outcome;
     await job.save();
     res.json(interview);
@@ -739,6 +743,27 @@ router.patch("/:id/status", async (req, res) => {
           });
           await jobDoc.save();
         }
+      }
+    }
+
+    // ⭐ AUTO-SYNC INTERVIEW OUTCOME BASED ON JOB STATUS ⭐
+    if (updated) {
+      const jobDoc = await Jobs.findById(req.params.id);
+
+      if (jobDoc && jobDoc.interviews && jobDoc.interviews.length > 0) {
+        const lastInterview = jobDoc.interviews[jobDoc.interviews.length - 1];
+
+        // If user moves job → OFFER, mark last interview as "offer" (if still pending)
+        if (r.value.status === "offer" && lastInterview.outcome === "pending") {
+          lastInterview.outcome = "offer";
+        }
+
+        // If user moves job → REJECTED, mark last interview as "rejected" (if pending)
+        if (r.value.status === "rejected" && lastInterview.outcome === "pending") {
+          lastInterview.outcome = "rejected";
+        }
+
+        await jobDoc.save();
       }
     }
 

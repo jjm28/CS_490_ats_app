@@ -40,6 +40,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
     notes: "",
     interviewer: "",
     contactInfo: "",
+    confidenceLevel: 3,
+    anxietyLevel: 3
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [gcalReady, setGcalReady] = useState(false);
@@ -191,6 +193,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         notes: "",
         interviewer: "",
         contactInfo: "",
+        confidenceLevel: 3,
+        anxietyLevel: 3
       });
       setEditingId(null);
     } catch (err) {
@@ -267,6 +271,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       notes: interview.notes || "",
       interviewer: interview.interviewer || "",
       contactInfo: interview.contactInfo || "",
+      confidenceLevel: interview.confidenceLevel ?? 3,
+      anxietyLevel: interview.anxietyLevel ?? 3
     });
   };
 
@@ -354,6 +360,34 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             onChange={(e) => setForm({ ...form, contactInfo: e.target.value })}
             className="w-full border rounded p-2"
             placeholder="e.g. john@company.com or phone"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">Confidence Level (1–5):</label>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={form.confidenceLevel}
+            onChange={(e) =>
+              setForm({ ...form, confidenceLevel: Number(e.target.value) })
+            }
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">Anxiety Level (1–5):</label>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={form.anxietyLevel}
+            onChange={(e) =>
+              setForm({ ...form, anxietyLevel: Number(e.target.value) })
+            }
+            className="w-full border rounded p-2"
           />
         </div>
 
