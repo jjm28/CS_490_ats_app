@@ -11,6 +11,18 @@ import { Menu, X, User, ChevronDown } from "lucide-react";
 import "../styles/Navbar.css";
 import Button from "./StyledComponents/Button";
 
+function getCurrentUserRole(): string | null {
+  try {
+    const raw = localStorage.getItem("authUser");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.user?.role || null;
+  } catch {
+    return null;
+  }
+}
+
+const role = getCurrentUserRole()
 function Navbar() {
   const [loggedIn, setLoggedIn] = useState<boolean>(
     () => !!localStorage.getItem("authToken")
@@ -60,7 +72,17 @@ function Navbar() {
             >
               Dashboard
             </NavLink>
-
+ {(role === "org_admin" || role === "super_admin") && (<NavLink
+              to="/enterprise/cohorts"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              Cohorts
+            </NavLink>)}
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Qualifications

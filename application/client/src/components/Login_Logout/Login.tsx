@@ -11,10 +11,9 @@ import "../../styles/StyledComponents/FormInput.css";
 type RoleOptionKey =
   | "job_seeker"
   | "org_member"
-  | "org_rep"
+  | "org_admin"
   | "advisor"
-  | "admin";
-
+  | "super_admin";
 interface StoredAuthUser {
   token?: string;
   userId?: string;
@@ -121,7 +120,7 @@ export default function Login() {
           "Join an existing organization workspace and collaborate with your team.",
       },
       {
-        key: "org_rep",
+        key: "org_admin",
         title: "I represent my organization",
         description:
           "Set up and manage your organization’s presence, roles, and members.",
@@ -405,7 +404,7 @@ const handleRoleSelect = async (role: RoleOptionKey) => {
               <div className="pt-4 border-t border-gray-200 mt-4">
                 <button
                   type="button"
-                  onClick={() => handleRoleSelect("admin")}
+                  onClick={() => handleRoleSelect("super_admin")}
                   disabled={savingRole}
                   className="text-xs text-gray-400 hover:text-gray-700 underline"
                 >

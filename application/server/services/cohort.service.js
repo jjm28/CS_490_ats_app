@@ -3,6 +3,68 @@ import Cohort from "../models/Cohort/Cohort.js";
 import CohortMember from "../models/Cohort/CohortMember.js";
 import User from "../models/user.js"; // adjust path as needed
 import Profile from "../models/profile.js"; // to display names/emails
+import { ObjectId, ReturnDocument, Timestamp } from "mongodb";
+
+export async function searchOrgJobSeekers({
+  organizationId,
+  query,
+  limit = 10,
+}) {
+  if (!organizationId) throw new Error("organizationId is required");
+
+  const q = (query || "").trim().toLowerCase();
+
+  // Find all job seekers for this org
+  const users = await User.find({
+    organizationId,
+    role: "job_seeker",
+  })
+    .select("_id email firstName lastName")
+    .lean();
+
+  const userIds = users.map((u) => u._id.toString());
+
+  const profiles = await Profile.find({ userId: { $in: userIds } }).lean();
+
+  const profilesByUserId = profiles.reduce((acc, p) => {
+    acc[p.userId] = p;
+    return acc;
+  }, {});
+
+  const results = users
+    .map((u) => {
+      const profile = profilesByUserId[u._id.toString()];
+      const fullName =
+        profile?.fullName ||
+        `${u.firstName || ""} ${u.lastName || ""}`.trim();
+
+      const headline = profile?.headline || "";
+
+      // If no query, we just return everyone (limited later)
+      if (q) {
+        const email = (u.email || "").toLowerCase();
+        const nameLower = (fullName || "").toLowerCase();
+
+        const hit =
+          email.includes(q) ||
+          nameLower.includes(q) ||
+          headline.toLowerCase().includes(q);
+
+        if (!hit) return null;
+      }
+
+      return {
+        userId: u._id.toString(),
+        email: u.email,
+        fullName: fullName || "",
+        headline,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, limit);
+
+  return { items: results };
+}
 
 export async function createCohort({
   organizationId,
@@ -142,8 +204,8 @@ export async function listCohortMembers({
     CohortMember.countDocuments(memberQuery),
   ]);
 
-  const userIds = members.map((m) => m.jobSeekerUserId);
-
+  const userIds = members.map((m) =>  m.jobSeekerUserId);
+console.log("Here",userIds)
   let usersById = {};
   let profilesByUserId = {};
 

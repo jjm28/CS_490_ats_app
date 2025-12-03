@@ -6,6 +6,10 @@ const { Schema } = mongoose;
 
 const UserSchema = new Schema(
   {
+    _id: {
+      type: String,
+      default: () => crypto.randomUUID(),
+    },
     email: { type: String, required: true, unique: true, index: true },
     passwordHash: { type: String, required: true, unique: true, index: true },
     firstName: String,

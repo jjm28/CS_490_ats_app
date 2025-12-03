@@ -95,6 +95,8 @@ import AdvisorClientMessagesPage from './components/Advisors/AdvisorMessaging/Ad
 import AdvisorRecommendationsPage from './components/Advisors/AdvisorRecommendationsPage';
 import AdvisorSessionsPage from './components/Advisors/AdvisorSessionsPage';
 import AdvisorAvailabilityPage from './components/Advisors/AdvisorAvailabilityPage';
+import Cohorts from './components/cohorts/Cohorts';
+import CohortDetail from './components/cohorts/CohortDetail';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -417,7 +419,9 @@ function App() {
   element={<AdvisorRecommendationsPage />}
 />
 <Route path="/advisor/availability" element={<PrivateRoute><AdvisorAvailabilityPage /></PrivateRoute>} />
-
+<Route path="/enterprise/cohorts" element={<Cohorts />} />
+<Route path="/enterprise/cohorts/:cohortId" element={<CohortDetail />} />
+<Route path="/not-authorized" element={<div>Not authorized</div>} />
         </Routes>
 
       </div>

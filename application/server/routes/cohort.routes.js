@@ -11,12 +11,11 @@ import {
   removeMembersFromCohort,
 } from "../services/cohort.service.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
-
+import { searchJobSeekers } from "../services/enterprise.service.js"
 const router = express.Router();
 
 // All cohort routes require auth + org_admin or super_admin
-router.use(requireAuth, requireRole(["org_admin", "super_admin"]));
-
+router.use(requireRole(["org_admin", "super_admin"]));
 /**
  * GET /api/enterprise/cohorts
  * Query: status, search, page, pageSize
@@ -24,7 +23,7 @@ router.use(requireAuth, requireRole(["org_admin", "super_admin"]));
 router.get("/enterprise/cohorts", async (req, res) => {
   try {
     const { status, search, page, pageSize } = req.query;
-
+    console.log(req.user)
     const result = await listCohorts({
       organizationId: req.user.organizationId,
       status,
@@ -205,4 +204,23 @@ router.delete("/enterprise/cohorts/:cohortId/members", async (req, res) => {
   }
 });
 
+router.get("/enterprise/jobseekers", async (req, res) => {
+  try {
+    const { search, page, pageSize } = req.query;
+
+    const result = await searchJobSeekers({
+      organizationId: req.user.organizationId,
+      search,
+      page: page ? Number(page) : 1,
+      pageSize: pageSize ? Number(pageSize) : 10,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error searching job seekers:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error searching job seekers" });
+  }
+});
 export default router;

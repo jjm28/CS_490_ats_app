@@ -42,3 +42,27 @@ export interface PaginatedResult<T> {
   pageSize: number;
   totalPages: number;
 }
+
+export interface JobSeekerSearchResult {
+  userId: string;
+  email: string;
+  fullName: string;
+  headline: string;
+}
+
+
+export function getAuthMeta() {
+  const raw = localStorage.getItem("authUser");
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    const user = parsed.user || {};
+    return {
+      userId: user._id,
+      role: user.role,
+      organizationId: user.organizationId,
+    };
+  } catch {
+    return {};
+  }
+}

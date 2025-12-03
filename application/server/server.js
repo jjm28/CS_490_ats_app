@@ -13,7 +13,7 @@ import { setupNotificationCron } from './jobs/notificationcron.js';
 
 // 🧩 Middleware
 import { attachDevUser } from './middleware/devUser.js';
-
+import { attachUserFromHeaders } from "./middleware/auth.js";
 //
 // ===============================
 // 📁 FEATURE IMPORTS (Grouped)
@@ -96,8 +96,14 @@ app.set('baseUrl', BASE);
 app.use(cors({
   origin: CORS_ORIGIN,
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id', 'x-dev-user-id'],
-}));
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-user-id",
+      "x-dev-user-id",
+      "x-user-role",
+      "x-org-id",
+    ],}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -203,8 +209,7 @@ try {
 
   app.use("/api", jobSearchSharingRoutes);
   app.use("/api", advisorRoutes);
-  app.use("/api", cohortRoutes);
-
+  app.use("/api", attachUserFromHeaders, cohortRoutes);
   // Health check
   // ❤️ Health Check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

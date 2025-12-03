@@ -42,3 +42,18 @@ export function requireRole(allowedRoles = []) {
     next();
   };
 }
+export function attachUserFromHeaders(req, res, next) {
+  const id = req.header("x-user-id");
+  const role = req.header("x-user-role");
+  const organizationId = req.header("x-org-id");
+
+  if (id) {
+    req.user = {
+      id,
+      role: role || "job_seeker", // default
+      organizationId: organizationId || null,
+    };
+  }
+
+  next();
+}
