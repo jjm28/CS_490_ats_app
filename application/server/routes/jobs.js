@@ -184,11 +184,11 @@ router.post("/", async (req, res) => {
     const created = await createJob({ userId, payload: r.value });
     // increment goals that are are application unit (intuitive logic)
     try {
-    await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
+      await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
     } catch (err) {
-    console.error("Error auto-incrementing application goals:", err);
-    // don't throw: job creation should still succeed even if this fails
-      }
+      console.error("Error auto-incrementing application goals:", err);
+      // don't throw: job creation should still succeed even if this fails
+    }
     res.status(201).json(created);
   } catch (err) {
     res.status(400).json({ error: err?.message || "Create failed" });
@@ -597,6 +597,27 @@ router.patch("/:id/status", async (req, res) => {
           });
           await jobDoc.save();
         }
+      }
+    }
+
+    // ⭐ AUTO-SYNC INTERVIEW OUTCOME BASED ON JOB STATUS ⭐
+    if (updated) {
+      const jobDoc = await Jobs.findById(req.params.id);
+
+      if (jobDoc && jobDoc.interviews && jobDoc.interviews.length > 0) {
+        const lastInterview = jobDoc.interviews[jobDoc.interviews.length - 1];
+
+        // If user moves job → OFFER, mark last interview as "offer" (if still pending)
+        if (r.value.status === "offer" && lastInterview.outcome === "pending") {
+          lastInterview.outcome = "offer";
+        }
+
+        // If user moves job → REJECTED, mark last interview as "rejected" (if pending)
+        if (r.value.status === "rejected" && lastInterview.outcome === "pending") {
+          lastInterview.outcome = "rejected";
+        }
+
+        await jobDoc.save();
       }
     }
 

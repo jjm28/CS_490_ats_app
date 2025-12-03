@@ -58,7 +58,7 @@ import PeerGroupsPage from './components/Community/PeerGroup/PeerGroupsPage';
 import PeerGroupDiscussionPage from './components/Community/PeerGroup/PeerGroupDiscussionPage';
 import ApplicationSuccess from './components/Analytics/ApplicationSuccess';
 import GoalTracking from './components/Analytics/GoalTracking';
-import InterviewInsights from './components/Analytics/Interview/InterviewInsights';
+import InterviewAnalyticsInsights from './components/Analytics/Interview/InterviewInsights';
 import MarketTrends from './components/Analytics/MarketTrends';
 import NetworkingROI from './components/Analytics/NetworkingROI';
 import Overview from './components/Analytics/Overview';
@@ -209,7 +209,7 @@ function App() {
 
 
 
-        
+
 
           <Route
             path="/networking/outreach"
@@ -248,11 +248,11 @@ function App() {
           <Route path="/Notifications" element={<PrivateRoute><NotificationSettings /></PrivateRoute>} />
           <Route
             path="/interview-insights"
-            element={<InterviewInsightsPage/>}
+            element={<InterviewInsightsPage />}
           />
           <Route
             path="/Interview-Prep"
-            element={<InterviewHome/>}
+            element={<InterviewHome />}
           />
           <Route path="/manage-references" element={<PrivateRoute><ManageReferences /></PrivateRoute>} />
           <Route path="/references/portfolio" element={<PrivateRoute><ReferencePortfolio /></PrivateRoute>} />
@@ -269,8 +269,9 @@ function App() {
           />
           <Route
             path="/analytics/interview-insights"
-            element={<PrivateRoute><InterviewInsights /></PrivateRoute>}
+            element={<PrivateRoute><InterviewAnalyticsInsights /></PrivateRoute>}
           />
+
           <Route
             path="/analytics/networking-roi"
             element={<PrivateRoute><NetworkingROI /></PrivateRoute>}
@@ -288,38 +289,38 @@ function App() {
             path="/analytics/market-trends"
             element={<PrivateRoute><MarketTrends /></PrivateRoute>}
           />
-          
-<Route
-  path="/support"
-  element={
-    <PrivateRoute>
-      <SupportPage/>
-    </PrivateRoute>
-  }
-/>
 
-      {/* Job seeker preview */}
-      <Route
-        path="/supporters/preview/:supporterId"
-        element={<PrivateRoute><SupporterDashboard /></PrivateRoute>}
-      />
-
-      {/* Supporter side (magic link) */}
-      <Route
-        path="/supporter/accept"
-        element={<PrivateRoute><AcceptInvitePage /></PrivateRoute>}
-      />
-      <Route
-        path="/supporter/dashboard/:supporterId"
-        element={<PrivateRoute><SupporterDashboard /></PrivateRoute>}
-      />
-
-          <Route 
-          path="/Jobs/Productivity" 
-          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>}
+          <Route
+            path="/support"
+            element={
+              <PrivateRoute>
+                <SupportPage />
+              </PrivateRoute>
+            }
           />
-          <Route path="/analytics/productivity" 
-          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>} />
+
+          {/* Job seeker preview */}
+          <Route
+            path="/supporters/preview/:supporterId"
+            element={<PrivateRoute><SupporterDashboard /></PrivateRoute>}
+          />
+
+          {/* Supporter side (magic link) */}
+          <Route
+            path="/supporter/accept"
+            element={<PrivateRoute><AcceptInvitePage /></PrivateRoute>}
+          />
+          <Route
+            path="/supporter/dashboard/:supporterId"
+            element={<PrivateRoute><SupporterDashboard /></PrivateRoute>}
+          />
+
+          <Route
+            path="/Jobs/Productivity"
+            element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>}
+          />
+          <Route path="/analytics/productivity"
+            element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>} />
           <Route path="/jobs/:jobId/salary" element={<JobSalaryDetails />} />
           <Route path="/analytics/salary-progress/:jobId" element={<SalaryProgressDetail />} />
           <Route
@@ -330,37 +331,37 @@ function App() {
               </PrivateRoute>
             }
           />
-          <Route 
-          path="/analytics/productivity" 
-          element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>} 
+          <Route
+            path="/analytics/productivity"
+            element={<PrivateRoute><JobProductivityDashboard /></PrivateRoute>}
           />
           <Route
             path="/Jobs/CompetitiveAnalysis"
             element={<PrivateRoute><JobCompetitiveAnalysisDashboard /></PrivateRoute>}
           />
-        <Route
-          path="/job-search/sharing"
-          element={
-            <PrivateRoute>
-              <JobSearchSharingPage />
-            </PrivateRoute>
-          }/>
           <Route
-  path="/job-sharing/:ownerId"
-  element={
-    <PrivateRoute>
-      <JobSearchSharingPartnerPage />
-    </PrivateRoute>
-  }
-  />
-  <Route
-  path="/job-sharing/accept"
-  element={
-    <PrivateRoute>
-      <JobSearchPartnerInviteAcceptPage />
-    </PrivateRoute>
-  }
-/>
+            path="/job-search/sharing"
+            element={
+              <PrivateRoute>
+                <JobSearchSharingPage />
+              </PrivateRoute>
+            } />
+          <Route
+            path="/job-sharing/:ownerId"
+            element={
+              <PrivateRoute>
+                <JobSearchSharingPartnerPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/job-sharing/accept"
+            element={
+              <PrivateRoute>
+                <JobSearchPartnerInviteAcceptPage />
+              </PrivateRoute>
+            }
+          />
         </Routes>
 
       </div>

@@ -76,6 +76,8 @@ import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 
+import marketRoutes from "./routes/market.js";
+
 //
 // ===============================
 // 🔧 SERVER CONFIG
@@ -195,6 +197,9 @@ try {
 
   // 🤝 JOB SEARCH SHARING
   app.use("/api", jobSearchSharingRoutes);
+
+  // 📈 MARKET INTELLIGENCE (UC-102)
+  app.use("/api/market", attachDevUser, marketRoutes);
 
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));

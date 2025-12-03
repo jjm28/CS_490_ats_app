@@ -22,6 +22,12 @@ router.get("/analytics", async (req, res) => {
 
     const interviews = [];
 
+    console.log("🔥 All jobs:", jobs.map(j => ({
+      id: j._id.toString(),
+      status: j.status,
+      interviews: j.interviews
+    })));
+
     for (const job of jobs) {
       const base = {
         jobId: job._id.toString(),
@@ -41,6 +47,7 @@ router.get("/analytics", async (req, res) => {
             confidenceLevel: iv.confidenceLevel ?? null,
             anxietyLevel: iv.anxietyLevel ?? null,
           });
+          console.log("🔥 Flattened interviews:", interviews);
         }
       }
 
@@ -54,6 +61,7 @@ router.get("/analytics", async (req, res) => {
           type: "Implicit",
           outcome: job.status === "offer" ? "offer" : "pending",
         });
+        console.log("🔥 Flattened interviews:", interviews);
       }
     }
 
@@ -102,9 +110,16 @@ router.get("/analytics", async (req, res) => {
     // -------------------------
     // 1) Conversion rates
     // -------------------------
-    const completed = interviews.filter((i) =>
-      ["offer", "rejected", "passed"].includes(i.outcome)
-    );
+    // EXPLICIT interviews (phone/video/in-person) should ALWAYS count
+    // IMPLICIT interviews only count if they are completed (offer/rejected/passed)
+    // EXPLICIT interviews (phone/video/in-person) should only count if completed
+    // IMPLICIT interviews count if completed
+    const completed = interviews.filter(i => {
+      if (i.type !== "Implicit") {
+        return ["offer", "rejected", "passed"].includes(i.outcome);
+      }
+      return ["offer", "rejected", "passed"].includes(i.outcome);
+    });
     const offers = completed.filter((i) => i.outcome === "offer");
 
     const overallRate =

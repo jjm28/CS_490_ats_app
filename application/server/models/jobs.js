@@ -73,6 +73,8 @@ const JobSchema = new Schema({
     jobPostingUrl: { type: String, default: '' },
     applicationDeadline: { type: Date },
     description: { type: String, default: '', maxlength: 2000 },
+    skillsExtracted: { type: [String], default: [] },
+    skillsParsed: { type: Boolean, default: false },
     industry: { type: String, index: true },
     companySize: { type: String, default: "Unknown", index: true },
     type: { type: String, index: true },

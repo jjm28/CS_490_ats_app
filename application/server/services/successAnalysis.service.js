@@ -1,5 +1,5 @@
 import Jobs from "../models/jobs.js";
-import { normalizeCompanySize } from "./companyResearch.service.js";
+import { buildTimingInsights } from "../utils/timingInsights.js";
 
 function calculateRates(applied, interviews, offers) {
   return {
@@ -14,97 +14,125 @@ function calculateRates(applied, interviews, offers) {
 export async function computeSuccessAnalysis(userId) {
   const jobs = await Jobs.find({ userId });
 
+  // ---- GROUPING BUCKETS ----
   const byIndustry = {};
-  const byCompanySize = {};
   const byRoleType = {};
+  const byMethod = {};
+  const bySource = {};
 
-  for (const job of jobs) {
-    const industry = job.industry || "Unknown";
-    const roleType = job.type || "Unknown";
-
-    // normalize size from stored value
-    const companySize = normalizeCompanySize(job.companySize) || "Unknown";
-
-    function addToGroup(group, key) {
-      if (!group[key]) {
-        group[key] = { applied: 0, interviews: 0, offers: 0 };
-      }
-      if (job.status !== "interested") group[key].applied++;
-      if (job.status === "phone_screen" || job.status === "interview")
-        group[key].interviews++;
-      if (job.status === "offer") group[key].offers++;
+  function addToGroup(group, key, job) {
+    if (!group[key]) {
+      group[key] = { applied: 0, interviews: 0, offers: 0 };
     }
-
-    addToGroup(byIndustry, industry);
-    addToGroup(byCompanySize, companySize);
-    addToGroup(byRoleType, roleType);
+    if (job.status !== "interested") group[key].applied++;
+    if (job.status === "phone_screen" || job.status === "interview")
+      group[key].interviews++;
+    if (job.status === "offer") group[key].offers++;
   }
 
+  // ---- MAIN LOOP (ONE LOOP ONLY!) ----
+  for (const job of jobs) {
+    const industry = job.industry?.trim();
+    const roleType = job.type?.trim();
+    const method = job.applicationMethod?.trim();
+    const source = job.applicationSource?.trim();
+
+    // INDUSTRY
+    if (industry && industry !== "Other") {
+      addToGroup(byIndustry, industry, job);
+    }
+
+    // ROLE TYPE (keep even if other fields are "Other")
+    if (roleType && roleType !== "Other") {
+      addToGroup(byRoleType, roleType, job);
+    }
+
+    // APPLICATION METHOD
+    if (method && method !== "Other") {
+      addToGroup(byMethod, method, job);
+    }
+
+    // APPLICATION SOURCE
+    if (source && source !== "Other") {
+      addToGroup(bySource, source, job);
+    }
+  }
+
+  // ---- FORMAT FUNCTION ----
   const format = (obj) =>
     Object.entries(obj).map(([segment, stats]) => ({
       segment,
       ...calculateRates(stats.applied, stats.interviews, stats.offers),
     }));
 
-  // ---- GROUP BY APPLICATION METHOD ----
-  const byMethod = {};
-  for (const job of jobs) {
-    const method = job.applicationMethod || "Other";
+  // ---- TIMING INSIGHTS ----
+  const dayMap = {
+    Sun: { day: "Sun", applied: 0, interviews: 0, offers: 0 },
+    Mon: { day: "Mon", applied: 0, interviews: 0, offers: 0 },
+    Tue: { day: "Tue", applied: 0, interviews: 0, offers: 0 },
+    Wed: { day: "Wed", applied: 0, interviews: 0, offers: 0 },
+    Thu: { day: "Thu", applied: 0, interviews: 0, offers: 0 },
+    Fri: { day: "Fri", applied: 0, interviews: 0, offers: 0 },
+    Sat: { day: "Sat", applied: 0, interviews: 0, offers: 0 },
+  };
 
-    if (!byMethod[method]) {
-      byMethod[method] = { applied: 0, interviews: 0, offers: 0 };
+  const longToShort = {
+    Sunday: "Sun",
+    Monday: "Mon",
+    Tuesday: "Tue",
+    Wednesday: "Wed",
+    Thursday: "Thu",
+    Friday: "Fri",
+    Saturday: "Sat",
+  };
+
+  for (const job of jobs) {
+    const hist = job.statusHistory || [];
+
+    const appliedEntry = hist.find((h) => h.status === "applied");
+    if (!appliedEntry) continue;
+
+    const dayLong = new Date(appliedEntry.timestamp).toLocaleDateString(
+      "en-US",
+      { weekday: "long" }
+    );
+
+    const key = longToShort[dayLong];
+    if (!key || !dayMap[key]) continue;
+
+    dayMap[key].applied++;
+
+    if (hist.some((h) => h.status === "interview")) {
+      dayMap[key].interviews++;
     }
 
-    if (job.status !== "interested") byMethod[method].applied++;
-    if (job.status === "phone_screen" || job.status === "interview")
-      byMethod[method].interviews++;
-    if (job.status === "offer") byMethod[method].offers++;
-  }
-
-  // ---- GROUP BY APPLICATION SOURCE ----
-  const bySource = {};
-  for (const job of jobs) {
-    const source = job.applicationSource || "Other";
-
-    if (!bySource[source]) {
-      bySource[source] = { applied: 0, interviews: 0, offers: 0 };
+    if (hist.some((h) => h.status === "offer")) {
+      dayMap[key].offers++;
     }
-
-    if (job.status !== "interested") bySource[source].applied++;
-    if (job.status === "phone_screen" || job.status === "interview")
-      bySource[source].interviews++;
-    if (job.status === "offer") bySource[source].offers++;
   }
+
+  const timingPatterns = buildTimingInsights(Object.values(dayMap));
 
   return {
     byIndustry: format(byIndustry),
-    byCompanySize: format(byCompanySize),
     byRoleType: format(byRoleType),
-
     byMethod: format(byMethod),
     bySource: format(bySource),
 
-    // ----------------------------------
-    // NEW FIELDS FOR YOUR FRONTEND
-    // ----------------------------------
-
     successVsRejected: {
       industries: format(byIndustry),
-      companies: format(byCompanySize),
       applicationMethods: format(byMethod),
-      applicationSources: format(bySource)
+      applicationSources: format(bySource),
+      roleTypes: format(byRoleType),
     },
 
     resumeImpact: {
       customizedResumeRate: 0,
       genericResumeRate: 0,
       customizedCoverRate: 0,
-      genericCoverRate: 0
+      genericCoverRate: 0,
     },
 
-    timingPatterns: {
-      bestDays: ["No data"],
-      worstDays: ["No data"]
-    }
+    timingPatterns,
   };
 }
