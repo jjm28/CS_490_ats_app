@@ -285,6 +285,51 @@ router.get("/", async (req, res) => {
         };
 
         // --------------------------------------------------------
+        // 7) Career Progression Impact (Salary Growth Between Jobs)
+        // --------------------------------------------------------
+        let careerProgression = {
+            avgChangePercent: 0,
+            biggestJump: null,
+        };
+
+        if (progression.length >= 2) {
+            // Sort by time
+            const ordered = [...progression].sort(
+                (a, b) => new Date(a.date) - new Date(b.date)
+            );
+
+            let changes = [];
+
+            for (let i = 1; i < ordered.length; i++) {
+                const prev = ordered[i - 1].salary;
+                const curr = ordered[i].salary;
+
+                if (prev > 0) {
+                    const pct = ((curr - prev) / prev) * 100;
+                    changes.push({
+                        percent: Math.round(pct),
+                        from: ordered[i - 1],
+                        to: ordered[i],
+                    });
+                }
+            }
+
+            if (changes.length > 0) {
+                const avg =
+                    changes.reduce((a, b) => a + b.percent, 0) / changes.length;
+
+                const biggest = changes.reduce((a, b) =>
+                    Math.abs(a.percent) > Math.abs(b.percent) ? a : b
+                );
+
+                careerProgression = {
+                    avgChangePercent: Math.round(avg),
+                    biggestJump: biggest,
+                };
+            }
+        }
+
+        // --------------------------------------------------------
         // Final Response
         // --------------------------------------------------------
         return res.json({
@@ -295,6 +340,8 @@ router.get("/", async (req, res) => {
             recommendations,
             compSummary,
             compProgression,
+            careerProgression,
+            careerMoveTiming,
         });
     } catch (err) {
         console.error("❌ Salary analytics error:", err);

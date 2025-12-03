@@ -54,9 +54,7 @@ export default function SalaryMarket() {
         Salary & Market Analytics
       </h1>
 
-      {/* ===================================================== */}
-      {/* SUMMARY */}
-      {/* ===================================================== */}
+      {/* 1. COMPENSATION SUMMARY */}
       <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3">
         <h2 className="text-2xl font-semibold text-(--brand-navy)">Compensation Summary</h2>
         <p>Average Salary: <strong>${summary.avgSalary}</strong></p>
@@ -64,9 +62,7 @@ export default function SalaryMarket() {
         <p>Salary Range: <strong>${summary.minSalary}</strong> → <strong>${summary.maxSalary}</strong></p>
       </section>
 
-      {/* ===================================================== */}
-      {/* SALARY PROGRESSION */}
-      {/* ===================================================== */}
+      {/* 2. SALARY PROGRESSION */}
       <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3">
         <h2 className="text-2xl font-semibold text-(--brand-navy)">Salary Progression Over Time</h2>
 
@@ -75,105 +71,108 @@ export default function SalaryMarket() {
         ) : (
           Object.values(
             progression.reduce((acc: any, entry: any) => {
-              // Group by jobId and keep only the *latest* entry
-              if (
-                !acc[entry.jobId] ||
-                new Date(entry.date) > new Date(acc[entry.jobId].date)
-              ) {
+              if (!acc[entry.jobId] || new Date(entry.date) > new Date(acc[entry.jobId].date)) {
                 acc[entry.jobId] = entry;
               }
               return acc;
             }, {})
           )
-            .sort((a: any, b: any) => {
-              return new Date(b.date).getTime() - new Date(a.date).getTime();
-            })
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .map((p: any, i: number) => (
-              <p
-                key={i}
-                onClick={() => navigate(`/analytics/salary-progress/${p.jobId}`)}
-                className="text-blue-600 underline cursor-pointer hover:text-blue-800"
-              >
-                {new Date(p.date).toLocaleDateString()} —
-                <strong>${p.salary}</strong> at {p.company} ({p.title})
-                {p.negotiationOutcome && ` — Negotiation: ${p.negotiationOutcome}`}
-              </p>
+              <div key={i} className="flex justify-center items-center gap-4 py-1">
+                <p
+                  onClick={() => navigate(`/analytics/salary-progress/${p.jobId}`)}
+                  className="text-blue-600 underline cursor-pointer hover:text-blue-800 text-center"
+                >
+                  {new Date(p.date).toLocaleDateString()} —
+                  <strong>${p.salary}</strong> at {p.company} ({p.title})
+                  {p.negotiationOutcome && ` — Negotiation: ${p.negotiationOutcome}`}
+                </p>
+
+                <button
+                  onClick={() =>
+                    navigate(`/jobs/${p.jobId}/salary`, {
+                      state: { from: "/analytics/salary-market" },
+                    })
+                  }
+                  className="text-blue-600 hover:underline text-sm whitespace-nowrap"
+                >
+                  Salary details →
+                </button>
+              </div>
             ))
         )}
       </section>
 
-      {/* ===================================================== */}
-      {/* NEGOTIATION STATS */}
-      {/* ===================================================== */}
+      {/* 3. TOTAL COMPENSATION */}
       <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3">
-        <h2 className="text-2xl font-semibold text-(--brand-navy)">Negotiation Performance</h2>
-
-        <p>Success Rate: <strong>{negotiationStats.successRate}%</strong></p>
-        <p>
-          Negotiation Strength:{" "}
-          <strong>{negotiationStats.negotiationStrength}%</strong>
-        </p>
-      </section>
-
-      {/* ===================================================== */}
-      {/* TOTAL COMPENSATION */}
-      {/* ===================================================== */}
-      <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3">
-        <h2 className="text-2xl font-semibold text-(--brand-navy)">
-          Total Compensation Trends
-        </h2>
+        <h2 className="text-2xl font-semibold text-(--brand-navy)">Total Compensation Trends</h2>
 
         {compProgression.length === 0 ? (
           <p className="text-gray-600">No compensation data yet.</p>
         ) : (
           Object.values(
             compProgression.reduce((acc: any, entry: any) => {
-              if (
-                !acc[entry.jobId] ||
-                new Date(entry.date) > new Date(acc[entry.jobId].date)
-              ) {
+              if (!acc[entry.jobId] || new Date(entry.date) > new Date(acc[entry.jobId].date)) {
                 acc[entry.jobId] = entry;
               }
               return acc;
             }, {})
           )
-            .sort((a: any, b: any) => {
-              return new Date(b.date).getTime() - new Date(a.date).getTime();
-            })
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .map((p: any, i: number) => (
-              <p
-                key={i}
-                onClick={() => navigate(`/analytics/comp-progress/${p.jobId}`)}
-                className="text-blue-600 underline cursor-pointer hover:text-blue-800"
-              >
-                {new Date(p.date).toLocaleDateString()} —{" "}
-                <strong>${p.totalComp}</strong> total comp at {p.company} ({p.title})
-              </p>
+              <div key={i} className="flex justify-center items-center gap-4 py-1">
+                <p
+                  onClick={() => navigate(`/analytics/comp-progress/${p.jobId}`)}
+                  className="text-blue-600 underline cursor-pointer hover:text-blue-800 text-center"
+                >
+                  {new Date(p.date).toLocaleDateString()} —
+                  <strong>${p.totalComp}</strong> total comp at {p.company} ({p.title})
+                </p>
+
+                <button
+                  onClick={() =>
+                    navigate(`/jobs/${p.jobId}/salary`, {
+                      state: { from: "/analytics/salary-market" },
+                    })
+                  }
+                  className="text-blue-600 hover:underline text-sm whitespace-nowrap"
+                >
+                  Salary details →
+                </button>
+              </div>
             ))
         )}
       </section>
 
-      {/* ===================================================== */}
-      {/* MARKET POSITIONING */}
-      {/* ===================================================== */}
+      {/* 4. CAREER PROGRESSION IMPACT */}
       <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3">
-        <h2 className="text-2xl font-semibold text-(--brand-navy)">Industry & Location Market Positioning</h2>
+        <h2 className="text-2xl font-semibold text-(--brand-navy)">Career Progression Impact</h2>
 
-        {marketPositioning.length === 0 ? (
-          <p className="text-gray-600">No salary data found.</p>
-        ) : (
-          marketPositioning.map((m: any) => (
-            <p key={m.jobId}>
-              <strong>{m.title}</strong> at {m.company}: You ${m.estimatedSalary} —
-              Median ${m.benchmarkMedian}, Top ${m.benchmarkTop}
-            </p>
-          ))
+        <p>
+          Average Salary Change Per Offer:{" "}
+          <strong>{analytics.careerProgression?.avgChangePercent ?? 0}%</strong>
+        </p>
+
+        {analytics.careerProgression?.biggestJump && (
+          <p>
+            Biggest Jump:{" "}
+            <strong>{analytics.careerProgression.biggestJump.percent}%</strong>
+            ({analytics.careerProgression.biggestJump.from.company} →
+            {analytics.careerProgression.biggestJump.to.company})
+          </p>
         )}
       </section>
 
-      {/* ===================================================== */}
-      {/* RECOMMENDATIONS */}
-      {/* ===================================================== */}
+      {/* 5. NEGOTIATION PERFORMANCE */}
+      <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3">
+        <h2 className="text-2xl font-semibold text-(--brand-navy)">Negotiation Performance</h2>
+
+        <p>Success Rate: <strong>{negotiationStats.successRate}%</strong></p>
+        <p>Negotiation Strength: <strong>{negotiationStats.negotiationStrength}%</strong></p>
+      </section>
+
+      {/* 6. RECOMMENDATIONS */}
       <section className="bg-white border rounded-xl shadow-sm p-6 space-y-3 mb-10">
         <h2 className="text-2xl font-semibold text-(--brand-navy)">Recommendations</h2>
         <ul className="list-disc pl-6 space-y-2 text-gray-700">

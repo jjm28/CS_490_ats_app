@@ -11,7 +11,7 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from "../../utils/gcalService";
-import type{ Interview, FollowUp } from "../../types/jobs.types";
+import type { Interview, FollowUp } from "../../types/jobs.types";
 import FollowUpModal from "../Interviews/FollowUpModal";
 import InterviewFollowUp from "../Interviews/InterviewFollowUp";
 import { useInterviewPredictionSync } from "../../hooks/useInterviewPredictionSync";
@@ -264,7 +264,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       );
       if (res.ok) {
         await fetchInterviews();
-        
+
         // 🆕 ADD THIS - Trigger recalculation when outcome changes
         triggerRecalculation(jobId, interviewId);
       } else {
@@ -385,10 +385,22 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             type="number"
             min={1}
             max={5}
-            value={form.confidenceLevel}
-            onChange={(e) =>
-              setForm({ ...form, confidenceLevel: Number(e.target.value) })
-            }
+            value={form.confidenceLevel === null ? "" : form.confidenceLevel}
+            onChange={(e) => {
+              const val = e.target.value;
+
+              // Allow clearing the field
+              if (val === "") {
+                setForm({ ...form, confidenceLevel: null });
+                return;
+              }
+
+              // Allow only 1–5
+              const num = Number(val);
+              if (num >= 1 && num <= 5) {
+                setForm({ ...form, confidenceLevel: num });
+              }
+            }}
             className="w-full border rounded p-2"
           />
         </div>
@@ -399,10 +411,20 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             type="number"
             min={1}
             max={5}
-            value={form.anxietyLevel}
-            onChange={(e) =>
-              setForm({ ...form, anxietyLevel: Number(e.target.value) })
-            }
+            value={form.anxietyLevel === null ? "" : form.anxietyLevel}
+            onChange={(e) => {
+              const val = e.target.value;
+
+              if (val === "") {
+                setForm({ ...form, anxietyLevel: null });
+                return;
+              }
+
+              const num = Number(val);
+              if (num >= 1 && num <= 5) {
+                setForm({ ...form, anxietyLevel: num });
+              }
+            }}
             className="w-full border rounded p-2"
           />
         </div>
@@ -496,7 +518,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                       </select>
                     </div>
                   )}
-                  
+
                   {isPast && i.outcome && (
                     <InterviewFollowUp
                       jobId={jobId}
