@@ -83,6 +83,8 @@ import advisorRoutes from "./routes/advisor.routes.js";
 import cohortRoutes from "./routes/cohort.routes.js";
 import enterpriseRoutes from "./routes/enterprise.routes.js";
 import jobseekersRoutes from "./routes/jobseekers.route.js"
+import organizationRoutes from "./routes/organization.routes.js";
+
 const PORT = process.env.PORT || 5050;
 const BASE = process.env.BASE || `http://localhost:${PORT}`;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || true;
@@ -214,6 +216,7 @@ try {
     app.use("/api",attachUserFromHeaders, jobseekersRoutes);
   app.use("/api", attachUserFromHeaders, cohortRoutes);
   app.use("/api",attachUserFromHeaders, enterpriseRoutes);
+app.use("/api",attachUserFromHeaders, organizationRoutes);
 
   // Health check
   // ❤️ Health Check
