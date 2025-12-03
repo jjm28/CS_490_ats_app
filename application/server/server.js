@@ -69,6 +69,7 @@ import peergroups from './routes/peerGroups.js';
 import supportersRoutes from "./routes/supporters.js";
 import networkingRoutes from "./routes/networking.js";
 import outreachRoutes from "./routes/outreach.js";
+import advisorRoutes from "./routes/advisor.routes.js";
 
 // 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";

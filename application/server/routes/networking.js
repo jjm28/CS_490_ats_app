@@ -16,6 +16,14 @@ import {
   deleteOutreach,
   getCampaignAnalytics
 } from "../services/campaign.service.js";
+import {
+  updateContactRelationshipHealth,
+  updateAllContactsHealth,
+  getContactsNeedingAttention,
+  getUpcomingReminders,
+  generateOutreachTemplates,
+  getRelationshipAnalytics,
+} from "../services/relationship_maintenance.service.js";
 
 const router = express.Router();
 
@@ -542,6 +550,186 @@ router.get("/campaigns-analytics", verifyJWT, async (req, res) => {
   } catch (err) {
     console.error("GET ANALYTICS ERROR:", err);
     res.status(500).json({ error: "Failed to load analytics" });
+  }
+});
+
+/* ===========================================================
+   RELATIONSHIP MAINTENANCE - UC-093
+=========================================================== */
+
+// GET contacts needing attention
+router.get("/contacts/needing-attention", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const contacts = await getContactsNeedingAttention(userId);
+    res.json(contacts);
+  } catch (err) {
+    console.error("GET CONTACTS NEEDING ATTENTION ERROR:", err);
+    res.status(500).json({ error: "Failed to load contacts needing attention" });
+  }
+});
+
+// GET upcoming reminders
+router.get("/reminders/upcoming", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const contacts = await getUpcomingReminders(userId);
+    res.json(contacts);
+  } catch (err) {
+    console.error("GET UPCOMING REMINDERS ERROR:", err);
+    res.status(500).json({ error: "Failed to load upcoming reminders" });
+  }
+});
+
+// POST update relationship health for single contact
+router.post("/contacts/:id/update-health", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const contact = await updateContactRelationshipHealth(req.params.id, userId);
+    res.json(contact);
+  } catch (err) {
+    console.error("UPDATE CONTACT HEALTH ERROR:", err);
+    res.status(500).json({ error: "Failed to update contact health" });
+  }
+});
+
+// POST update relationship health for all contacts
+router.post("/contacts/update-all-health", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const result = await updateAllContactsHealth(userId);
+    res.json(result);
+  } catch (err) {
+    console.error("UPDATE ALL CONTACTS HEALTH ERROR:", err);
+    res.status(500).json({ error: "Failed to update all contacts health" });
+  }
+});
+
+// POST update contact engagement frequency
+router.post("/contacts/:id/engagement-frequency", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { frequency } = req.body;
+
+    if (!['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'].includes(frequency)) {
+      return res.status(400).json({ error: "Invalid frequency" });
+    }
+
+    const contact = await Contact.findOne({
+      _id: req.params.id,
+      userid: userId,
+    });
+
+    if (!contact) return res.status(404).json({ error: "Contact not found" });
+
+    contact.engagementFrequency = frequency;
+    await contact.save();
+
+    // Recalculate health with new frequency
+    await updateContactRelationshipHealth(req.params.id, userId);
+
+    const updated = await Contact.findById(req.params.id);
+    res.json(updated);
+  } catch (err) {
+    console.error("UPDATE ENGAGEMENT FREQUENCY ERROR:", err);
+    res.status(500).json({ error: "Failed to update engagement frequency" });
+  }
+});
+
+// GET outreach templates for a contact
+router.get("/contacts/:id/templates", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { context } = req.query; // general, birthday, congratulations, job_opportunity, value_add
+
+    const contact = await Contact.findOne({
+      _id: req.params.id,
+      userid: userId,
+    });
+
+    if (!contact) return res.status(404).json({ error: "Contact not found" });
+
+    const template = generateOutreachTemplates(contact, context || 'general');
+    res.json(template);
+  } catch (err) {
+    console.error("GET TEMPLATES ERROR:", err);
+    res.status(500).json({ error: "Failed to generate templates" });
+  }
+});
+
+// GET all outreach template types
+router.get("/contacts/:id/templates/all", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const contact = await Contact.findOne({
+      _id: req.params.id,
+      userid: userId,
+    });
+
+    if (!contact) return res.status(404).json({ error: "Contact not found" });
+
+    const templates = {
+      general: generateOutreachTemplates(contact, 'general'),
+      birthday: generateOutreachTemplates(contact, 'birthday'),
+      congratulations: generateOutreachTemplates(contact, 'congratulations'),
+      job_opportunity: generateOutreachTemplates(contact, 'job_opportunity'),
+      value_add: generateOutreachTemplates(contact, 'value_add'),
+    };
+
+    res.json(templates);
+  } catch (err) {
+    console.error("GET ALL TEMPLATES ERROR:", err);
+    res.status(500).json({ error: "Failed to generate templates" });
+  }
+});
+
+// GET relationship analytics
+router.get("/analytics/relationships", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const analytics = await getRelationshipAnalytics(userId);
+    res.json(analytics);
+  } catch (err) {
+    console.error("GET RELATIONSHIP ANALYTICS ERROR:", err);
+    res.status(500).json({ error: "Failed to load relationship analytics" });
+  }
+});
+
+// POST mark opportunity generated from contact
+router.post("/contacts/:id/opportunity", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { description } = req.body;
+
+    const contact = await Contact.findOne({
+      _id: req.params.id,
+      userid: userId,
+    });
+
+    if (!contact) return res.status(404).json({ error: "Contact not found" });
+
+    contact.opportunitiesGenerated = (contact.opportunitiesGenerated || 0) + 1;
+
+    // Add as an interaction
+    contact.interactions.push({
+      interactionId: uuidv4(),
+      type: "Opportunity Generated",
+      note: description || "Generated an opportunity from this contact",
+      date: new Date().toISOString(),
+    });
+
+    contact.lastInteraction = new Date();
+    await contact.save();
+
+    // Update health
+    await updateContactRelationshipHealth(req.params.id, userId);
+
+    const updated = await Contact.findById(req.params.id);
+    res.json(updated);
+  } catch (err) {
+    console.error("MARK OPPORTUNITY ERROR:", err);
+    res.status(500).json({ error: "Failed to mark opportunity" });
   }
 });
 

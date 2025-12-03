@@ -35,6 +35,23 @@ const ContactSchema = new mongoose.Schema(
     aiSummary: { type: String },
     aiNextSteps: { type: String },
     aiInterests: { type: String },
+
+    relationshipHealth: {
+      type: String,
+      enum: ['excellent', 'good', 'needs_attention', 'at_risk'],
+      default: 'good'
+    },
+    engagementFrequency: { 
+      type: String,
+      enum: ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'],
+      default: 'monthly'
+    },
+    daysSinceLastContact: { type: Number, default: 0 },
+    totalOutreachCount: { type: Number, default: 0 },
+    reciprocityScore: { type: Number, default: 50 }, // 0-100, tracks mutual engagement
+    opportunitiesGenerated: { type: Number, default: 0 }, // Track referrals, job leads, etc.
+    nextSuggestedContact: { type: Date }, // Auto-calculated based on engagement frequency
+    lastReminderSent: { type: Date },
   },
   { timestamps: true }
 );

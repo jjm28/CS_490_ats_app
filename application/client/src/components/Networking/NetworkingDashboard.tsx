@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getContacts } from "../../api/contact";
 import type { Contact } from "../../api/contact";
+import { Target } from "lucide-react";
 
 console.log("NETWORKING DASHBOARD LOADED NEW VERSION");
 console.log("💥 NetworkingDashboard RENDERED");
@@ -78,6 +79,13 @@ export default function NetworkingDashboard() {
           description="Track calls, meetings, referrals & more."
           icon={<PhoneCall className="w-8 h-8 text-emerald-600" />}
           link="/networking/interactions"
+        />
+
+        <PremiumCard
+          title="Networking Campaigns"
+          description="Create and track targeted networking campaigns."
+          icon={<Target className="w-8 h-8 text-indigo-600" />}
+          link="/networking/campaigns"
         />
       </div>
 
