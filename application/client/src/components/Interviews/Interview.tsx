@@ -17,7 +17,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'questions' | null; // Add component type
+ component?: 'research' | 'questions' |'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 'followup' | null;
 };
 
 const cardData: CardData[] = [

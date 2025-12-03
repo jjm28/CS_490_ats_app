@@ -50,6 +50,7 @@ import companyResearch from './routes/company-research.js';
 import interviewQuestions from "./routes/interview-questions.js";
 import coachingInsights from "./routes/coachinginsights.js";
 import practiceSessions from "./routes/practicesession.js";
+import writingPracticeRoutes from "./routes/writing-practice.js";
 
 // 📄 RESUME + COVER LETTERS
 import coverletter from './routes/coverletter.js';
@@ -78,8 +79,8 @@ import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
-//import networkingRoutes from "./routes/networking.js";
-//import outreachRoutes from "./routes/outreach.js";
+import networkingRoutes from "./routes/networking.js";
+import outreachRoutes from "./routes/outreach.js";
 import advisorRoutes from "./routes/advisor.routes.js";
 
 const PORT = process.env.PORT || 5050;
@@ -160,7 +161,7 @@ try {
   app.use("/api/interview-questions", interviewQuestions);
   app.use("/api/coaching-insights", coachingInsights);
   app.use("/api/practice-sessions", practiceSessions);
-  //app.use('/api/writing-practice', writingPracticeRoutes);
+  app.use('/api/writing-practice', writingPracticeRoutes);
 
   // 📄 RESUMES + COVER LETTERS
   app.use('/api/coverletter', coverletter);
@@ -169,8 +170,8 @@ try {
   app.use("/api/resume-versions", resumeVersionsRouter);
 
   //networking 
-  //app.use("/api/networking", networkingRoutes);
-  //app.use("/api/networking/outreach", outreachRoutes);
+  app.use("/api/networking", networkingRoutes);
+  app.use("/api/networking/outreach", outreachRoutes);
 
   // 🔔 NOTIFICATIONS (Must be after DB)
   setupNotificationCron();
