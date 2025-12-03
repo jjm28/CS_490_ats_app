@@ -11,25 +11,9 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from "../../utils/gcalService";
-<<<<<<< HEAD
-interface Interview {
-  _id?: string;
-  type: string;
-  date: string;
-  locationOrLink?: string;
-  notes?: string;
-  outcome?: string;
-  interviewer?: string;
-  contactInfo?: string;
-  eventId?: string;
-  confidenceLevel?: number;
-  anxietyLevel?: number;
-}
-=======
 import type{ Interview, FollowUp } from "../../types/jobs.types";
 import FollowUpModal from "../Interviews/FollowUpModal";
 import InterviewFollowUp from "../Interviews/InterviewFollowUp";
->>>>>>> feb1cfd748e758a81e16b19852807bb453461d66
 
 async function moveJobToInterviewStage(jobId: string, token: string) {
   try {
@@ -52,7 +36,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
   const [form, setForm] = useState<Interview>({
     type: "phone",
     date: "",
-    locationOrLink: "",
+    location: "",
     notes: "",
     interviewer: "",
     contactInfo: "",
@@ -201,14 +185,11 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         }
       }
 
-<<<<<<< HEAD
-=======
       // ✅ Reset form
->>>>>>> feb1cfd748e758a81e16b19852807bb453461d66
       setForm({
         type: "phone",
         date: "",
-        locationOrLink: "",
+        location: "",
         notes: "",
         interviewer: "",
         contactInfo: "",
@@ -286,7 +267,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       date: interview.date
         ? new Date(interview.date).toISOString().slice(0, 16)
         : "",
-      locationOrLink: interview.locationOrLink || "",
+      location: interview.location || "",
       notes: interview.notes || "",
       interviewer: interview.interviewer || "",
       contactInfo: interview.contactInfo || "",
@@ -343,8 +324,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
           <label className="block text-sm font-medium">Location / Link:</label>
           <input
             type="text"
-            value={form.locationOrLink}
-            onChange={(e) => setForm({ ...form, locationOrLink: e.target.value })}
+            value={form.location}
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
             className="w-full border rounded p-2"
             placeholder="e.g. Zoom link or office address"
           />
@@ -447,8 +428,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                       <p className="text-sm text-gray-600">
                         {new Date(i.date).toLocaleString()}
                       </p>
-                      {i.locationOrLink && (
-                        <p className="text-sm text-gray-600">{i.locationOrLink}</p>
+                      {i.location && (
+                        <p className="text-sm text-gray-600">{i.location}</p>
                       )}
                       {i.interviewer && (
                         <p className="text-sm text-gray-600">
