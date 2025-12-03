@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Send, TrendingUp, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
+import { ArrowLeft, Send, TrendingUp, RefreshCw, Briefcase } from 'lucide-react';
+import '../../styles/InterviewStyles/ResponseCoach.css';
 
 interface Job {
   _id: string;
@@ -54,7 +55,11 @@ interface Session {
   attemptNumber: number;
 }
 
-export default function InterviewCoach() {
+interface ResponseCoachProps {
+  onBack: () => void;
+}
+
+export default function InterviewCoach({ onBack }: ResponseCoachProps) {
   const [view, setView] = useState<'browse' | 'practice' | 'feedback'>('browse');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<string>('');
@@ -69,14 +74,6 @@ export default function InterviewCoach() {
   const [error, setError] = useState<string>('');
   const [loadingJobs, setLoadingJobs] = useState<boolean>(true);
   const [loadingQuestions, setLoadingQuestions] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'detailed'>('overview');
-  const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
-    star: false,
-    strengths: false,
-    weaknesses: false,
-    suggestions: false,
-    alternative: false
-  });
 
   useEffect(() => {
     fetchJobs();
@@ -135,7 +132,6 @@ export default function InterviewCoach() {
       
       const data = await res.json();
       
-      // Transform the questions from the API response
       const allQuestions: Question[] = [];
       
       if (data.questions && Array.isArray(data.questions)) {
@@ -238,14 +234,6 @@ export default function InterviewCoach() {
     setResponse('');
     setFeedback(null);
     setView('practice');
-    setActiveTab('overview');
-    setExpandedSections({
-      star: false,
-      strengths: false,
-      weaknesses: false,
-      suggestions: false,
-      alternative: false
-    });
   };
 
   const backToBrowse = () => {
@@ -253,70 +241,24 @@ export default function InterviewCoach() {
     setResponse('');
     setFeedback(null);
     setView('browse');
-    setActiveTab('overview');
-    setExpandedSections({
-      star: false,
-      strengths: false,
-      weaknesses: false,
-      suggestions: false,
-      alternative: false
-    });
-  };
-
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
   };
 
   const ScoreCircle: React.FC<{ score: number; label: string }> = ({ score, label }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-      <div style={{
-        width: '80px',
-        height: '80px',
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '24px',
-        fontWeight: 'bold',
-        background: score >= 7 ? '#10b981' : score >= 4 ? '#f59e0b' : '#ef4444',
-        color: 'white'
-      }}>
+    <div className="score-circle-wrapper">
+      <div className={`score-circle score-${Math.floor(score / 3)}`}>
         {score}
       </div>
-      <p style={{ fontSize: '14px', color: '#666' }}>{label}</p>
+      <p className="score-label">{label}</p>
     </div>
   );
 
   const getCategoryClass = (category: string) => {
-    const colors = {
-      technical: '#3b82f6',
-      behavioral: '#8b5cf6',
-      general: '#06b6d4'
-    };
-    return colors[category as keyof typeof colors] || '#6b7280';
-  };
-
-  const getImprovementData = () => {
-    const questionSessions = sessions
-      .filter(s => s.question === currentQuestion)
-      .sort((a, b) => a.attemptNumber - b.attemptNumber);
-    
-    if (questionSessions.length < 2) return null;
-
-    const firstScore = questionSessions[0].feedback.overallScore;
-    const latestScore = questionSessions[questionSessions.length - 1].feedback.overallScore;
-    const improvement = latestScore - firstScore;
-
-    return {
-      attempts: questionSessions.length,
-      improvement,
-      firstScore,
-      latestScore,
-      scores: questionSessions.map(s => s.feedback.overallScore)
-    };
+    switch (category) {
+      case 'technical': return 'technical';
+      case 'behavioral': return 'behavioral';
+      case 'general': return 'general';
+      default: return '';
+    }
   };
 
   const avgScore: string = sessions.length > 0 
@@ -326,224 +268,131 @@ export default function InterviewCoach() {
   // Browse View
   if (view === 'browse') {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px' }}>
-        <header style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '8px' }}>AI Interview Coach</h1>
-          <p style={{ color: '#666' }}>Select a job and practice interview questions with instant AI feedback</p>
-        </header>
+      <div className="coach-container">
+        <div className="coach-content">
+          <button onClick={onBack} className="back-button">
+            <ArrowLeft size={20} />
+            Back to Dashboard
+          </button>
 
-        {sessions.length > 0 && (
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            marginBottom: '24px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            display: 'flex',
-            gap: '32px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <TrendingUp size={28} color="#10b981" />
-              <div>
-                <p style={{ color: '#666', fontSize: '14px' }}>Total Sessions</p>
-                <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{sessions.length}</p>
+          <header className="coach-header">
+            <h1 className="coach-title">AI Interview Coach</h1>
+            <p className="coach-subtitle">Select a job and practice interview questions with instant AI feedback</p>
+          </header>
+
+          {sessions.length > 0 && (
+            <div className="stats-card">
+              <div className="stat-item">
+                <TrendingUp className="stat-icon" size={28} />
+                <div className="stat-content">
+                  <p className="stat-label">Total Sessions</p>
+                  <p className="stat-value">{sessions.length}</p>
+                </div>
+              </div>
+              <div className="stat-divider" />
+              <div className="stat-item">
+                <div className="stat-content">
+                  <p className="stat-label">Average Score</p>
+                  <p className="stat-value">{avgScore}<span className="stat-unit">/10</span></p>
+                </div>
               </div>
             </div>
-            <div style={{ borderLeft: '1px solid #e5e7eb', paddingLeft: '32px' }}>
-              <p style={{ color: '#666', fontSize: '14px' }}>Average Score</p>
-              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
-                {avgScore}<span style={{ fontSize: '16px', color: '#666' }}>/10</span>
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Job Selection */}
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          marginBottom: '24px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <Briefcase size={24} color="#3b82f6" />
-            <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Select a Job</h2>
-          </div>
-          
-          {loadingJobs ? (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                border: '4px solid #e5e7eb',
-                borderTopColor: '#3b82f6',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-                margin: '0 auto'
-              }} />
-              <p style={{ marginTop: '12px', color: '#666' }}>Loading jobs...</p>
-            </div>
-          ) : jobs.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: '40px',
-              color: '#666',
-              background: '#f9fafb',
-              borderRadius: '8px'
-            }}>
-              <p>No jobs found. Add a job first to generate interview questions.</p>
-            </div>
-          ) : (
-            <select
-              value={selectedJob}
-              onChange={(e) => setSelectedJob(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="">-- Choose a job to practice --</option>
-              {jobs.map((job) => (
-                <option key={job._id} value={job._id}>
-                  {job.jobTitle} at {job.company}
-                </option>
-              ))}
-            </select>
           )}
-        </div>
 
-        {selectedJob && (
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '20px'
-            }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>Interview Questions</h2>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="all">All Categories</option>
-                <option value="technical">Technical</option>
-                <option value="behavioral">Behavioral</option>
-                <option value="general">General</option>
-              </select>
+          <div className="job-selection-card">
+            <div className="job-selection-header">
+              <Briefcase size={24} color="#3b82f6" />
+              <h2 className="job-selection-title">Select a Job</h2>
             </div>
-
-            {loadingQuestions ? (
-              <div style={{ textAlign: 'center', padding: '40px' }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  border: '4px solid #e5e7eb',
-                  borderTopColor: '#3b82f6',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                  margin: '0 auto'
-                }} />
-                <p style={{ marginTop: '12px', color: '#666' }}>Generating questions...</p>
+            
+            {loadingJobs ? (
+              <div className="loading-state">
+                <div className="spinner" />
+                <p>Loading jobs...</p>
               </div>
-            ) : filteredQuestions.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '40px',
-                color: '#666',
-                background: '#f9fafb',
-                borderRadius: '8px'
-              }}>
-                <p>No questions found for this category</p>
+            ) : jobs.length === 0 ? (
+              <div className="empty-state">
+                <p>No jobs found. Add a job first to generate interview questions.</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-                {filteredQuestions.map((q, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => selectQuestion(q.question)}
-                    style={{
-                      padding: '20px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      ':hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <span style={{
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        background: getCategoryClass(q.category) + '20',
-                        color: getCategoryClass(q.category)
-                      }}>
-                        {q.category.charAt(0).toUpperCase() + q.category.slice(1)}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '15px', lineHeight: '1.5', color: '#333' }}>{q.question}</p>
-                  </div>
+              <select
+                value={selectedJob}
+                onChange={(e) => setSelectedJob(e.target.value)}
+                className="job-select"
+              >
+                <option value="">-- Choose a job to practice --</option>
+                {jobs.map((job) => (
+                  <option key={job._id} value={job._id}>
+                    {job.jobTitle} at {job.company}
+                  </option>
                 ))}
-              </div>
+              </select>
             )}
           </div>
-        )}
 
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          marginTop: '24px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Or Enter Your Own Question</h3>
-          <textarea
-            placeholder="Type any interview question you want to practice..."
-            rows={3}
-            value={currentQuestion}
-            onChange={(e) => setCurrentQuestion(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              fontSize: '15px',
-              resize: 'vertical',
-              marginBottom: '12px'
-            }}
-          />
-          <button
-            onClick={() => currentQuestion.trim() && selectQuestion(currentQuestion)}
-            disabled={!currentQuestion.trim()}
-            style={{
-              padding: '12px 24px',
-              background: currentQuestion.trim() ? '#3b82f6' : '#e5e7eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: '500',
-              cursor: currentQuestion.trim() ? 'pointer' : 'not-allowed'
-            }}
-          >
-            Practice This Question
-          </button>
+          {selectedJob && (
+            <div className="questions-section">
+              <div className="section-header">
+                <h2 className="section-title">Interview Questions</h2>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="category-select"
+                >
+                  <option value="all">All Categories</option>
+                  <option value="technical">Technical</option>
+                  <option value="behavioral">Behavioral</option>
+                  <option value="general">General</option>
+                </select>
+              </div>
+
+              {loadingQuestions ? (
+                <div className="loading-state">
+                  <div className="spinner" />
+                  <p>Generating questions...</p>
+                </div>
+              ) : filteredQuestions.length === 0 ? (
+                <div className="empty-state">
+                  <p>No questions found for this category</p>
+                </div>
+              ) : (
+                <div className="questions-grid">
+                  {filteredQuestions.map((q, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => selectQuestion(q.question)}
+                      className="question-card"
+                    >
+                      <div className="question-card-header">
+                        <span className={`category-badge ${getCategoryClass(q.category)}`}>
+                          {q.category.charAt(0).toUpperCase() + q.category.slice(1)}
+                        </span>
+                      </div>
+                      <p className="question-text">{q.question}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="custom-question-section">
+            <h3 className="section-title">Or Enter Your Own Question</h3>
+            <textarea
+              placeholder="Type any interview question you want to practice..."
+              rows={3}
+              className="custom-question-input"
+              onChange={(e) => setCurrentQuestion(e.target.value)}
+              value={currentQuestion}
+            />
+            <button
+              onClick={() => currentQuestion.trim() && selectQuestion(currentQuestion)}
+              disabled={!currentQuestion.trim()}
+              className="primary-button"
+            >
+              Practice This Question
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -552,197 +401,110 @@ export default function InterviewCoach() {
   // Practice View
   if (view === 'practice') {
     return (
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px' }}>
-        <button onClick={backToBrowse} style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 16px',
-          background: 'none',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          marginBottom: '24px'
-        }}>
-          <ArrowLeft size={20} />
-          Back to Questions
-        </button>
-
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          marginBottom: '24px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Interview Question</h2>
-          <p style={{ fontSize: '17px', lineHeight: '1.6', color: '#333' }}>{currentQuestion}</p>
-        </div>
-
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '16px' }}>Your Response</h2>
-          <textarea
-            value={response}
-            onChange={(e) => setResponse(e.target.value)}
-            placeholder="Type your response here. Try to use the STAR method: Situation, Task, Action, Result..."
-            rows={14}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              fontSize: '15px',
-              lineHeight: '1.6',
-              resize: 'vertical',
-              marginBottom: '16px'
-            }}
-          />
-
-          {error && (
-            <div style={{
-              padding: '12px',
-              background: '#fee2e2',
-              border: '1px solid #fecaca',
-              borderRadius: '8px',
-              color: '#dc2626',
-              marginBottom: '16px'
-            }}>
-              <p>{error}</p>
-            </div>
-          )}
-
-          <button
-            onClick={analyzeResponse}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '14px',
-              background: loading ? '#9ca3af' : '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '500',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-          >
-            {loading ? (
-              <>
-                <div style={{
-                  width: '20px',
-                  height: '20px',
-                  border: '3px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }} />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <Send size={20} />
-                Get AI Feedback
-              </>
-            )}
+      <div className="coach-container">
+        <div className="coach-content narrow">
+          <button onClick={backToBrowse} className="back-button">
+            <ArrowLeft size={20} />
+            Back to Questions
           </button>
-        </div>
 
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+          <div className="question-display-card">
+            <h2 className="card-title">Interview Question</h2>
+            <p className="question-display-text">{currentQuestion}</p>
+          </div>
+
+          <div className="response-card">
+            <h2 className="card-title">Your Response</h2>
+            <textarea
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
+              placeholder="Type your response here. Try to use the STAR method: Situation, Task, Action, Result..."
+              rows={14}
+              className="response-textarea"
+            />
+
+            {error && (
+              <div className="error-message">
+                <p>{error}</p>
+              </div>
+            )}
+
+            <button
+              onClick={analyzeResponse}
+              disabled={loading}
+              className="primary-button"
+            >
+              {loading ? (
+                <>
+                  <div className="spinner" style={{ width: '20px', height: '20px' }} />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Send size={20} />
+                  Get AI Feedback
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Feedback View - simplified for artifact
+  // Feedback View
   if (view === 'feedback' && feedback) {
     return (
-      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-          <button onClick={backToBrowse} style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            background: 'none',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            cursor: 'pointer'
-          }}>
-            <ArrowLeft size={20} />
-            Back to Questions
-          </button>
-          <button onClick={tryAgain} style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            background: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer'
-          }}>
-            <RefreshCw size={20} />
-            Try Again
-          </button>
-        </div>
-
-        <div style={{
-          background: 'white',
-          borderRadius: '12px',
-          padding: '32px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '24px'
-        }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px' }}>Analysis Results</h2>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '32px' }}>
-            <ScoreCircle score={feedback.overallScore} label="Overall" />
-            <ScoreCircle score={feedback.relevanceScore} label="Relevance" />
-            <ScoreCircle score={feedback.specificityScore} label="Specificity" />
-            <ScoreCircle score={feedback.impactScore} label="Impact" />
+      <div className="coach-container">
+        <div className="coach-content">
+          <div className="feedback-header">
+            <button onClick={backToBrowse} className="back-button">
+              <ArrowLeft size={20} />
+              Back to Questions
+            </button>
+            <button onClick={tryAgain} className="secondary-button">
+              <RefreshCw size={20} />
+              Try Again
+            </button>
           </div>
 
-          <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '12px' }}>Summary</h3>
-            <p style={{ lineHeight: '1.6', color: '#333' }}>{feedback.overallFeedback}</p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
-            <div>
-              <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px', color: '#10b981' }}>✓ Strengths</h4>
-              <ul style={{ listStyle: 'none', padding: 0, lineHeight: '1.8' }}>
-                {feedback.strengths.map((strength, idx) => (
-                  <li key={idx} style={{ color: '#333' }}>• {strength}</li>
-                ))}
-              </ul>
+          <div className="feedback-card">
+            <h2 className="card-title">Analysis Results</h2>
+            
+            <div className="scores-grid">
+              <ScoreCircle score={feedback.overallScore} label="Overall" />
+              <ScoreCircle score={feedback.relevanceScore} label="Relevance" />
+              <ScoreCircle score={feedback.specificityScore} label="Specificity" />
+              <ScoreCircle score={feedback.impactScore} label="Impact" />
             </div>
-            <div>
-              <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px', color: '#ef4444' }}>! Areas to Improve</h4>
-              <ul style={{ listStyle: 'none', padding: 0, lineHeight: '1.8' }}>
-                {feedback.weaknesses.map((weakness, idx) => (
-                  <li key={idx} style={{ color: '#333' }}>• {weakness}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
 
-          <div style={{ marginTop: '24px', padding: '16px', background: '#f9fafb', borderRadius: '8px' }}>
-            <p style={{ fontSize: '14px', color: '#666' }}>
+            <div className="feedback-summary">
+              <h3 className="summary-title">Summary</h3>
+              <p>{feedback.overallFeedback}</p>
+            </div>
+
+            <div className="feedback-grid">
+              <div className="feedback-column strengths">
+                <h4>✓ Strengths</h4>
+                <ul className="feedback-list">
+                  {feedback.strengths.map((strength, idx) => (
+                    <li key={idx}>{strength}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="feedback-column weaknesses">
+                <h4>! Areas to Improve</h4>
+                <ul className="feedback-list">
+                  {feedback.weaknesses.map((weakness, idx) => (
+                    <li key={idx}>{weakness}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="feedback-timing">
               <strong>{feedback.wordCount}</strong> words · <strong>{feedback.estimatedTime}</strong> speaking time
-            </p>
+            </div>
           </div>
         </div>
       </div>
