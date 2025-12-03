@@ -73,6 +73,8 @@ const JobSchema = new Schema({
     jobPostingUrl: { type: String, default: '' },
     applicationDeadline: { type: Date },
     description: { type: String, default: '', maxlength: 2000 },
+    skillsExtracted: { type: [String], default: [] },
+    skillsParsed: { type: Boolean, default: false },
     industry: { type: String, index: true },
     companySize: { type: String, default: "Unknown", index: true },
     type: { type: String, index: true },
@@ -203,6 +205,9 @@ const JobSchema = new Schema({
             notes: { type: String, default: "" },
             interviewer: { type: String, default: "" },
             contactInfo: { type: String, default: "" },
+            confidenceLevel: { type: Number, default: null },
+            anxietyLevel: { type: Number, default: null },
+
             outcome: {
                 type: String,
                 enum: ["pending", "passed", "rejected", "offer"],
@@ -249,20 +254,21 @@ const JobSchema = new Schema({
             }]
         },
     ],
+
     source: {
-      type: String,
-      default: "manual", // e.g. "manual", "peer_group", "imported"
+        type: String,
+        default: "manual", // e.g. "manual", "peer_group", "imported"
     },
 
     // if this job was created from a peer group opportunity
     sourcePeerGroupId: {
-      type: String,
-      index: true, // group._id as string
+        type: String,
+        index: true, // group._id as string
     },
 
     sourceOpportunityId: {
-      type: String,
-      index: true, // PeerOpportunity._id as string
+        type: String,
+        index: true, // PeerOpportunity._id as string
     },
 
     // analytics helpers

@@ -36,7 +36,14 @@ interface SuccessResponse {
   timingPatterns: {
     bestDays: string[];
     worstDays: string[];
+    recommendations: string[];
   };
+}
+
+function getBarColor(value: number) {
+  if (value >= 50) return "bg-green-500";
+  if (value >= 20) return "bg-gray-500";
+  return "bg-red-500";
 }
 
 // -----------------------------
@@ -44,9 +51,9 @@ interface SuccessResponse {
 // -----------------------------
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="w-full h-2 rounded-full bg-(--brand-light)">
+    <div className="w-full h-2 rounded-full bg-gray-200">
       <div
-        className="h-full rounded-full bg-(--brand-navy) transition-all"
+        className={`h-full rounded-full transition-all ${getBarColor(value)}`}
         style={{ width: `${value}%` }}
       ></div>
     </div>
@@ -163,6 +170,7 @@ export default function ApplicationSuccess() {
   const timingPatterns = data.timingPatterns ?? {
     bestDays: ["No data"],
     worstDays: ["No data"],
+    recommendations: []
   };
 
   // Generate text-based insights
@@ -215,79 +223,101 @@ export default function ApplicationSuccess() {
         </div>
       </section>
 
-      {/* ========================================= */}
-      {/* SECTION 3: SUCCESS VS REJECTIONS (TEXT INSIGHTS) */}
-      {/* ========================================= */}
-      <section className="space-y-6">
-        <h2 className="text-2xl font-bold text-(--brand-navy)">
-          What Separates Offers From Rejections
-        </h2>
+      {/* SECTION 3 + TIMING SIDE BY SIDE */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-6 space-y-4">
-          <h3 className="font-semibold text-(--brand-navy)">Key Patterns</h3>
-          <p className="text-gray-700 whitespace-pre-line">
-            {insights.patternSummary}
-          </p>
+        {/* LEFT SIDE — SUCCESS VS REJECTIONS */}
+        <div className="space-y-6 bg-white shadow-sm rounded-xl border border-gray-200 p-6">
+          <h2 className="text-2xl font-bold text-(--brand-navy)">
+            What Separates Offers From Rejections
+          </h2>
 
-          <h3 className="font-semibold text-(--brand-navy) mt-4">
-            Recommendations
-          </h3>
-          <ul className="list-disc pl-5 text-gray-700 space-y-2">
-            {insights.recommendations.map((rec, i) => (
-              <p key={i}>{rec}</p>
-            ))}
-          </ul>
+          <div>
+            <h3 className="font-semibold text-(--brand-navy)">Key Patterns</h3>
+            {insights.patternSummary.trim() ? (
+              <div className="space-y-2 text-gray-700">
+                {insights.patternSummary.split("\n").map((line, i) => (
+                  <p
+                    key={i}
+                    className="leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: line }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No available pattern data.</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-(--brand-navy)">Recommendations</h3>
+            {insights.recommendations.length > 0 ? (
+              <div className="space-y-2 text-gray-700">
+                {insights.recommendations.map((rec, i) => (
+                  <p
+                    key={i}
+                    className="leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: rec }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No recommendations available.</p>
+            )}
+          </div>
         </div>
-      </section>
 
-      {/* ========================================= */}
-      {/* SECTION 4: RESUME / COVER LETTER IMPACT */}
-      {/* ========================================= */}
-      <section className="space-y-6">
-        <h2 className="text-2xl font-bold text-(--brand-navy)">
-          Resume & Cover Letter Impact
-        </h2>
+        {/* RIGHT SIDE — TIMING INSIGHTS */}
+        <div className="space-y-6 bg-white shadow-sm rounded-xl border border-gray-200 p-6">
+          <h2 className="text-2xl font-bold text-(--brand-navy)">
+            Timing Insights
+          </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ComparisonCard
-            title="Customized vs Generic Resumes"
-            data={[
-              { segment: "Customized Resume", offerRate: resumeImpact.customizedResumeRate },
-              { segment: "Generic Resume", offerRate: resumeImpact.genericResumeRate },
-            ]}
-          />
-
-          <ComparisonCard
-            title="Customized vs Generic Cover Letters"
-            data={[
-              { segment: "Customized Cover Letter", offerRate: resumeImpact.customizedCoverRate },
-              { segment: "Generic Cover Letter", offerRate: resumeImpact.genericCoverRate },
-            ]}
-          />
-        </div>
-      </section>
-
-      {/* ========================================= */}
-      {/* SECTION 5: TIMING PATTERNS */}
-      {/* ========================================= */}
-      <section className="space-y-6">
-        <h2 className="text-2xl font-bold text-(--brand-navy)">
-          Timing Insights
-        </h2>
-
-        <div className="bg-white border shadow-sm rounded-xl p-6 space-y-4">
           <div>
             <h3 className="font-semibold text-(--brand-navy)">Best Days to Apply</h3>
-            <p className="text-gray-700">{timingPatterns.bestDays.join(", ")}</p>
+            {timingPatterns.bestDays.length > 0 ? (
+              <div className="space-y-1 text-gray-700">
+                {timingPatterns.bestDays.map((d, i) => (
+                  <p key={i} dangerouslySetInnerHTML={{ __html: d }} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No timing data available.</p>
+            )}
           </div>
 
           <div>
-            <h3 className="font-semibold text-(--brand-navy)">Worst Days to Apply</h3>
-            <p className="text-gray-700">{timingPatterns.worstDays.join(", ")}</p>
+            <h3 className="font-semibold text-(--brand-navy)">Days With Lowest Conversion</h3>
+            {timingPatterns.worstDays.length > 0 ? (
+              <div className="space-y-1 text-gray-700">
+                {timingPatterns.worstDays.map((d, i) => (
+                  <p key={i} dangerouslySetInnerHTML={{ __html: d }} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No timing data available.</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-(--brand-navy)">Recommendations</h3>
+            {timingPatterns.recommendations.length > 0 ? (
+              <div className="space-y-2 text-gray-700">
+                {timingPatterns.recommendations.map((rec, i) => (
+                  <p
+                    key={i}
+                    className="leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: rec }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No insights available yet.</p>
+            )}
           </div>
         </div>
-      </section>
 
+      </section>
     </div>
   );
 }
