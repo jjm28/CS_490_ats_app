@@ -26,11 +26,18 @@ interface ChallengeResult {
   feedback?: string;
 }
 
-export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: { 
+export default function TechnicalPrep({ 
+  onBack, 
+  jobTitle, 
+  company, 
+  jobId,
+  jobDescription  // ✅ ADD THIS
+}: { 
   onBack: () => void; 
   jobTitle: string; 
   company: string;
-  jobId: string;   // 👈 ADD THIS
+  jobId: string;
+  jobDescription: string;  // ✅ ADD THIS
 }) {
   const [step, setStep] = useState<'type-select' | 'select-coding' | 'coding' | 'situational' | 'summary'>('type-select');
   const [techType, setTechType] = useState<'situational' | 'coding'>('situational');
@@ -41,37 +48,11 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
   const [loading, setLoading] = useState(false);
   const [averageScore, setAverageScore] = useState(0);
   const [situationalQuestions, setSituationalQuestions] = useState<Question[]>([]);
+  const [codingChallenges, setCodingChallenges] = useState<Challenge[]>([]);  // ✅ NOW STATE
+  const [loadingChallenges, setLoadingChallenges] = useState(false);  // ✅ ADD THIS
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const codingChallenges: Challenge[] = [
-    {
-      id: 1,
-      title: "Two Sum",
-      type: "Array",
-      difficulty: "Easy",
-      prompt: "Given an array of integers nums and an integer target, return indices of the two numbers that add up to target. You may assume that each input has exactly one solution.",
-      targetLines: 10,
-      guidance: "Consider using a hash map for O(n) time complexity"
-    },
-    {
-      id: 2,
-      title: "Valid Parentheses",
-      type: "Stack",
-      difficulty: "Easy",
-      prompt: "Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. Opening brackets must be closed by the same type of brackets.",
-      targetLines: 12,
-      guidance: "Use a stack to track opening brackets"
-    },
-    {
-      id: 3,
-      title: "Reverse Linked List",
-      type: "Linked List",
-      difficulty: "Easy",
-      prompt: "Given the head of a singly linked list, reverse the list and return the reversed list.",
-      targetLines: 10,
-      guidance: "Track previous, current, and next pointers"
-    }
-  ];
+  // ✅ REMOVE THE HARDCODED codingChallenges ARRAY - it's now state
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -84,7 +65,7 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
     const token = localStorage.getItem('token');
     
     try {
-      const response = await fetch('/api/interview-insights/generate-questions', {
+      const response = await fetch('http://localhost:5050/api/interview-insights/generate-questions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -107,7 +88,7 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
       console.log('Generated questions:', data);
       const generatedQuestions = data.questions.slice(0, 5);
       
-      const newQuestions: Question[] = generatedQuestions.map((text, i) => ({
+      const newQuestions: Question[] = generatedQuestions.map((text: string, i: number) => ({
         id: i + 1,
         text,
         targetWords: 120,
@@ -160,6 +141,87 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
     }
   };
 
+  // ✅ ADD THIS NEW FUNCTION
+  const generateCodingChallenges = async () => {
+    const token = localStorage.getItem('token');
+    
+    try {
+      const response = await fetch('http://localhost:5050/api/practice-sessions/generate-coding-challenges', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          jobTitle, 
+          company,
+          jobDescription
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate coding challenges');
+      }
+
+      const data = await response.json();
+      console.log('Generated coding challenges:', data);
+      
+      const generatedChallenges: Challenge[] = data.challenges.map((c: any, i: number) => ({
+        id: i + 1,
+        title: c.title,
+        type: c.type,
+        difficulty: c.difficulty,
+        prompt: c.prompt,
+        targetLines: c.targetLines || 10,
+        guidance: c.guidance
+      }));
+
+      setCodingChallenges(generatedChallenges);
+      setResponses(new Array(generatedChallenges.length).fill(''));
+      setStep('select-coding');
+      
+    } catch (err) {
+      console.error('Failed to generate coding challenges:', err);
+      alert('Could not generate custom coding challenges. Using default challenges.');
+      
+      // Fall back to default challenges
+      const defaultChallenges: Challenge[] = [
+        {
+          id: 1,
+          title: "Two Sum",
+          type: "Array",
+          difficulty: "Easy",
+          prompt: "Given an array of integers nums and an integer target, return indices of the two numbers that add up to target.",
+          targetLines: 10,
+          guidance: "Consider using a hash map for O(n) time complexity"
+        },
+        {
+          id: 2,
+          title: "Valid Parentheses",
+          type: "Stack",
+          difficulty: "Easy",
+          prompt: "Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid.",
+          targetLines: 12,
+          guidance: "Use a stack to track opening brackets"
+        },
+        {
+          id: 3,
+          title: "Reverse Linked List",
+          type: "Linked List",
+          difficulty: "Easy",
+          prompt: "Given the head of a singly linked list, reverse the list and return the reversed list.",
+          targetLines: 10,
+          guidance: "Track previous, current, and next pointers"
+        }
+      ];
+      
+      setCodingChallenges(defaultChallenges);
+      setResponses(new Array(defaultChallenges.length).fill(''));
+      setStep('select-coding');
+    }
+  };
+
+  // ✅ UPDATE THIS FUNCTION
   const handleTypeSelect = async (type: 'situational' | 'coding') => {
     setTechType(type);
     
@@ -168,7 +230,9 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
       await generateSituationalQuestions();
       setLoading(false);
     } else {
-      setStep('select-coding');
+      setLoadingChallenges(true);
+      await generateCodingChallenges();
+      setLoadingChallenges(false);
     }
   };
 
@@ -191,75 +255,75 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
       setResponse(newResponses[currentIndex + 1] || '');
       setCurrentIndex(prev => prev + 1);
     } else {
-      // Last question - score everything at the end
       scoreAllResponses(newResponses);
     }
   };
 
   const scoreAllResponses = async (allResponses: string[]) => {
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const token = localStorage.getItem('token');
-    
-    // ✅ Use the SAME endpoint as MockPractice
-    const endpoint = '/api/practice-sessions/save';
+    try {
+      const token = localStorage.getItem('token');
+      const endpoint = 'http://localhost:5050/api/practice-sessions/save';
 
-    const questions = techType === 'situational' ? situationalQuestions : codingChallenges;
-    const validResponses = allResponses.filter(r => r.trim());
-    const validQuestions = questions.filter((_, idx) => allResponses[idx]?.trim());
+      const questions = techType === 'situational' ? situationalQuestions : codingChallenges;
+      const validResponses = allResponses.filter(r => r.trim());
+      const validQuestions = questions.filter((_, idx) => allResponses[idx]?.trim());
 
-    if (validQuestions.length === 0) {
-      alert('No responses to score.');
+      if (validQuestions.length === 0) {
+        alert('No responses to score.');
+        setLoading(false);
+        return;
+      }
+
+      const formattedQuestions = validQuestions.map((q) => ({
+        text: techType === 'situational' ? q.text : q.title,
+        type: techType === 'situational' ? 'technical' : 'coding',
+        targetWords: techType === 'situational' ? (q.targetWords || 100) : 100
+      }));
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          jobId: jobId,
+          jobTitle,
+          company,
+          interviewType: techType === 'situational' ? 'technical' : 'coding',
+          questions: formattedQuestions,
+          responses: validResponses,
+          duration: 120,
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to score responses');
+      }
+
+      const data = await res.json();
+
+      const scoredResults: ChallengeResult[] = data.questions.map((q: any, idx: number) => ({
+        question: q.question || formattedQuestions[idx].text,
+        solution: validResponses[idx],
+        score: q.score || 0,
+        feedback: q.aiFeedback || "No feedback"
+      }));
+
+      setResults(scoredResults);
+      setAverageScore(data.averageScore || 0);
+      setStep('summary');
+
+    } catch (err) {
+      console.error("Scoring error:", err);
+      alert(`Failed to score responses: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Format questions like MockPractice expects
-    const formattedQuestions = validQuestions.map(q => ({
-      text: techType === 'situational' ? questions.text : questions.title,
-      type: techType === 'situational' ? 'technical' : 'coding',
-      targetWords: techType === 'situational' ? q.targetWords : 100
-    }));
-
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content': 'application/json'
-      },
-      body: JSON.stringify({
-        jobTitle,
-        company,
-        interviewType: techType === 'situational' ? 'technical' : 'coding',
-        questions: formattedQuestions,
-        responses: validResponses,
-        duration: 120, // optional, estimate
-      })
-    });
-
-    if (!res.ok) throw new Error('Failed to score responses');
-
-    const data = await res.json();
-
-    // Map to ChallengeResult format
-    const scoredResults = data.questions.map((q, idx) => ({
-      question: q.question || formattedQuestions[idx].text,
-      solution: validResponses[idx],
-      score: q.score || 0,
-      feedback: q.aiFeedback || "No feedback"
-    }));
-
-    setResults(scoredResults);
-    setAverageScore(data.averageScore || 0);
-    setStep('summary');
-
-  } catch (err) {
-    console.error("Scoring error:", err);
-    alert("Failed to score responses. Please try again.");
-  }
-  setLoading(false);
-};
+  };
 
   const getResponseMetrics = () => {
     const words = response.trim().split(/\s+/).filter(w => w.length > 0).length;
@@ -309,6 +373,7 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
           <button
             className="type-option"
             onClick={() => handleTypeSelect('coding')}
+            disabled={loadingChallenges}
           >
             <div className="type-icon">💻</div>
             <div className="type-label">Coding Challenges</div>
@@ -316,11 +381,12 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
           </button>
         </div>
         {loading && <p className="loading-text">Generating questions...</p>}
+        {loadingChallenges && <p className="loading-text">Generating coding challenges...</p>}
       </div>
     );
   }
 
-  // CODING CHALLENGES SELECT VIEW
+  // ✅ UPDATE CODING CHALLENGES SELECT VIEW
   if (step === 'select-coding') {
     return (
       <div className="tech-prep-container">
@@ -332,24 +398,37 @@ export default function TechnicalPrep({ onBack, jobTitle, company, jobId }: {
           {jobTitle} @ {company}
         </p>
         <h2>Practice Problems</h2>
-        <div className="challenge-list">
-          {codingChallenges.map(c => (
-            <div key={c.id} className="challenge-card-preview">
-              <div className="challenge-header">
-                <span>{c.title}</span>
-                <span className="diff">{c.difficulty}</span>
-              </div>
-              <div className="challenge-type">{c.type}</div>
-              <p className="challenge-preview">{c.prompt.substring(0, 80)}...</p>
+        
+        {loadingChallenges ? (
+          <div className="loading-state">
+            <div className="spinner" />
+            <p>Generating custom coding challenges...</p>
+          </div>
+        ) : (
+          <>
+            <div className="challenge-list">
+              {codingChallenges.map(c => (
+                <div key={c.id} className="challenge-card-preview">
+                  <div className="challenge-header">
+                    <span>{c.title}</span>
+                    <span className="diff">{c.difficulty}</span>
+                  </div>
+                  <div className="challenge-type">{c.type}</div>
+                  <p className="challenge-preview">{c.prompt.substring(0, 80)}...</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <button className="start-button" onClick={handleStartCoding}>
-          Start Coding Challenges →
-        </button>
+            <button className="start-button" onClick={handleStartCoding}>
+              Start Coding Challenges →
+            </button>
+          </>
+        )}
       </div>
     );
   }
+
+  // REST OF THE VIEWS REMAIN THE SAME...
+  // (situational, coding, summary views stay exactly as they were)
 
   // SITUATIONAL QUESTIONS VIEW
   if (step === 'situational') {
@@ -563,8 +642,8 @@ function twoSum(nums, target) {
                     {idx + 1}. {result.question}
                   </span>
                   <span className={`result-score ${
-                    result.score >= 70 ? 'good' : 
-                    result.score >= 50 ? 'okay' : 'poor'
+                    result.score && result.score >= 70 ? 'good' : 
+                    result.score && result.score >= 50 ? 'okay' : 'poor'
                   }`}>
                     {result.score}/100
                   </span>

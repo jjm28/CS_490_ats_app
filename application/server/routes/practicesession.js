@@ -415,7 +415,48 @@ router.post('/generate-coding-challenge', verifyJWT, async (req, res) => {
     count: questions.length
   });
 });
+router.post('/generate-coding-challenges', verifyJWT, async (req, res) => {
+    try {
+      const { jobTitle, company, jobDescription } = req.body;
 
+      const prompt = `You are an expert technical interviewer. Generate 3 coding challenges for this position:
+
+  Job Title: ${jobTitle}
+  Company: ${company}
+  Job Description: ${jobDescription}
+
+  Based on the job requirements and skills mentioned, create relevant coding challenges.
+
+  Return ONLY valid JSON (no markdown, no backticks) in this exact format:
+  [
+    {
+      "title": "Challenge Title",
+      "type": "Array/String/Tree/etc",
+      "difficulty": "Easy/Medium/Hard",
+      "prompt": "Full problem description here",
+      "targetLines": 10,
+      "guidance": "Helpful hint for solving"
+    }
+  ]
+
+  Make challenges relevant to the skills and requirements in the job description.`;
+
+      const result = await gemini.generateContent(prompt);
+      let rawText = result.response.text();
+      let cleaned = rawText.replace(/```json|```/g, "").trim();
+      
+      const challenges = JSON.parse(cleaned);
+      
+      res.json({ challenges });
+
+    } catch (err) {
+      console.error("CODING CHALLENGE GENERATION ERROR:", err);
+      res.status(500).json({ 
+        error: "Failed to generate coding challenges",
+        details: err.message 
+      });
+    }
+});
 
 router.post('/submit-coding', verifyJWT, async (req, res) => {
   const { question, solution } = req.body;
