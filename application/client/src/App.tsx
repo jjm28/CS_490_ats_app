@@ -100,6 +100,7 @@ import CohortDetail from './components/cohorts/CohortDetail';
 import UserManagement from './components/enterprise/UserManagement';
 import BulkOnboardingPage from './components/enterprise/BulkOnboardingPage';
 import JobSeekerAcceptInvitePage from './components/enterprise/JobSeekerAcceptInvitePage';
+import OrgAnalyticsPage from './components/enterprise/OrgAnalyticsPage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -430,6 +431,9 @@ function App() {
 <Route
   path="/jobseeker/accept-invite"
   element={<PrivateRoute><JobSeekerAcceptInvitePage /></PrivateRoute>}
+/><Route
+  path="/enterprise/analytics"
+  element={<OrgAnalyticsPage />}
 />
         </Routes>
 

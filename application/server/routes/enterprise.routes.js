@@ -19,12 +19,39 @@ import {
   getJobSeekerInviteByToken,
   
 } from "../services/jobSeekerInvite.service.js";
-
+import { getOrgAnalyticsOverview } from "../services/analytics.service.js";
 const router = express.Router();
 const upload = multer();
 
 // ALL enterprise routes require org_admin / super_admin
 router.use(requireRole(["org_admin", "super_admin"]));
+
+
+/**
+ * GET /api/enterprise/analytics/overview
+ * Query: from, to, cohortId
+ */
+router.get("/enterprise/analytics/overview", async (req, res) => {
+  try {
+    const { from, to, cohortId } = req.query;
+
+    const organizationId = req.user.organizationId;
+    const result = await getOrgAnalyticsOverview({
+      organizationId,
+      cohortId: cohortId || null,
+      from,
+      to,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error fetching analytics overview:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error fetching analytics" });
+  }
+});
+
 
 router.get("/enterprise/jobseekers", async (req, res) => {
   try {

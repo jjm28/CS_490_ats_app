@@ -11,6 +11,15 @@ const OrganizationSchema = new Schema(
     primaryColor: { type: String, default: "#000000" },
     secondaryColor: { type: String, default: "#ffffff" },
     // later: custom domain, email settings, etc.
+        fixedProgramCost: {
+      type: Number,
+      default: 0, // base cost per org for the time period
+    },
+    programCostPerJobSeeker: {
+      type: Number,
+      default: 0, // average cost per active job seeker
+    },
+
   },
   { timestamps: true }
 );
