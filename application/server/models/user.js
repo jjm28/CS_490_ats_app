@@ -11,7 +11,7 @@ const UserSchema = new Schema(
       default: () => crypto.randomUUID(),
     },
     email: { type: String, required: true, unique: true, index: true },
-    passwordHash: { type: String, required: true, unique: true, index: true },
+    passwordHash: { type: String, default: null, unique: true, index: true },
     firstName: String,
 
     lastName: String,
@@ -36,8 +36,8 @@ const UserSchema = new Schema(
 );
 
 const User =
-  mongoose.models.User ||
-  mongoose.model('User', UserSchema, 'users');
+   mongoose.model('User', UserSchema, 'users') || mongoose.models.User ;
+ 
 
 export default User;
 

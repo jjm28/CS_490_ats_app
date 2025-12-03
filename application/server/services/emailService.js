@@ -230,3 +230,74 @@ If you weren’t expecting this email, you can ignore it.
     html: htmlBody,
   });
 }
+
+
+
+
+
+export async function sendJobSeekerInviteEmail({
+  toEmail,
+  orgName,
+  inviteLink,
+}) {
+  if (!inviteLink) {
+    console.warn(
+      "sendJobSeekerInviteEmail called without inviteLink – email not sent"
+    );
+    return;
+  }
+
+  const safeOrgName = orgName || "a career program";
+  const subject = `You’ve been invited to join ${safeOrgName}`;
+  const greetingName = toEmail || "there"; // we don’t know their name yet
+
+  const textBody = `
+Hi ${greetingName},
+
+You’ve been invited to join ${safeOrgName} on the ATS for Candidates platform.
+
+By accepting this invite, you’ll be onboarded into the organization and can:
+- Track your job search in one place
+- Share progress with your career services team
+- Access tools for resumes, applications, and more
+
+To accept the invite and create your account, click this link:
+${inviteLink}
+
+If you weren’t expecting this email, you can ignore it.
+`;
+
+  const htmlBody = `
+  <p>Hi ${greetingName},</p>
+  <p>
+    You’ve been invited to join <strong>${safeOrgName}</strong> on the ATS for Candidates platform.
+  </p>
+  <p>
+    By accepting this invite, you’ll be onboarded into the organization and can:
+  </p>
+  <ul>
+    <li>Track your job search in one place</li>
+    <li>Share progress with your career services team</li>
+    <li>Access tools for resumes, applications, and more</li>
+  </ul>
+  <p style="margin: 16px 0;">
+    <a href="${inviteLink}"
+       style="background-color:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;">
+      Accept invite &amp; create your account
+    </a>
+  </p>
+  <p>If the button doesn’t work, copy and paste this link into your browser:</p>
+  <p><code style="font-size:12px;">${inviteLink}</code></p>
+  <p style="font-size:12px;color:#888;">
+    If you weren’t expecting this email, you can ignore it.
+  </p>
+  `;
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text: textBody,
+    html: htmlBody,
+  });
+}

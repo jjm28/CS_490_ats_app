@@ -72,7 +72,7 @@ function Navbar() {
             >
               Dashboard
             </NavLink>
- {(role === "org_admin" || role === "super_admin") && (<NavLink
+ {(role === "org_admin" || role === "super_admin") && (  <NavLink
               to="/enterprise/cohorts"
               className={({ isActive }) =>
                 `rounded-md px-3 py-2 text-lg font-medium ${isActive
@@ -82,7 +82,36 @@ function Navbar() {
               }
             >
               Cohorts
-            </NavLink>)}
+            </NavLink>
+
+          )}
+           {(role === "org_admin" || role === "super_admin") && (              <NavLink
+              to="/enterprise/users"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+              User Management
+            </NavLink>
+
+
+          )}
+                     {(role === "org_admin" || role === "super_admin") && (                                 <NavLink
+              to="/enterprise/onboarding"
+              className={({ isActive }) =>
+                `rounded-md px-3 py-2 text-lg font-medium ${isActive
+                  ? "bg-(--brand-sage) text-(--brand-navy)"
+                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                }`
+              }
+            >
+Bulk Onboarding
+            </NavLink>
+
+          )}
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Qualifications

@@ -97,6 +97,9 @@ import AdvisorSessionsPage from './components/Advisors/AdvisorSessionsPage';
 import AdvisorAvailabilityPage from './components/Advisors/AdvisorAvailabilityPage';
 import Cohorts from './components/cohorts/Cohorts';
 import CohortDetail from './components/cohorts/CohortDetail';
+import UserManagement from './components/enterprise/UserManagement';
+import BulkOnboardingPage from './components/enterprise/BulkOnboardingPage';
+import JobSeekerAcceptInvitePage from './components/enterprise/JobSeekerAcceptInvitePage';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -422,6 +425,12 @@ function App() {
 <Route path="/enterprise/cohorts" element={<Cohorts />} />
 <Route path="/enterprise/cohorts/:cohortId" element={<CohortDetail />} />
 <Route path="/not-authorized" element={<div>Not authorized</div>} />
+<Route path="/enterprise/users" element={<UserManagement />} />
+<Route path="/enterprise/onboarding" element={<BulkOnboardingPage />} />
+<Route
+  path="/jobseeker/accept-invite"
+  element={<PrivateRoute><JobSeekerAcceptInvitePage /></PrivateRoute>}
+/>
         </Routes>
 
       </div>

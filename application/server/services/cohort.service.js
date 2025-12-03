@@ -205,7 +205,6 @@ export async function listCohortMembers({
   ]);
 
   const userIds = members.map((m) =>  m.jobSeekerUserId);
-console.log("Here",userIds)
   let usersById = {};
   let profilesByUserId = {};
 
