@@ -14,7 +14,7 @@ import Button from "../StyledComponents/Button";
 import { resumePreviewRegistry, resumePdfRegistry } from "./index";
 
 import type { ResumeData, TemplateKey, ContactInfo } from "../../api/resumes";
-import { saveResume, updateResume, GetAiResumeContent } from "../../api/resumes";
+import { saveResume, updateResume, GetAiResumeContent, createSharedResume } from "../../api/resumes";
 
 import JobPickerSheet from "./JobPickerSheet";
 import MiniJobForm, { type JobDraft } from "./MiniJobForm";
@@ -176,8 +176,41 @@ const ResumeEditor: React.FC = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+    const [showShareSettings, setShowShareSettings] = useState(false);
+    const [shareVisibility, setShareVisibility] = useState<
+      "public" | "unlisted" | "restricted"
+    >("unlisted");
+    const [shareAllowComments, setShareAllowComments] = useState(true);
+    const [shareLoading, setShareLoading] = useState(false);
+    const [shareUrl, setShareUrl] = useState<string | null>(null);
   /* Derived */
+const handleShareConfirm = async () => {
+  try {
+    setShareLoading(true);
 
+    const raw = localStorage.getItem("authUser");
+    const u = raw ? JSON.parse(raw) : null;
+    const uid = u?.user?._id ?? u?._id ?? null;
+    if (!uid || !resumeId) throw new Error("Missing session or resume id");
+
+    const out = await createSharedResume({
+      userid: uid,
+      resumeid: resumeId,
+      resumedata: data,
+      visibility: shareVisibility,
+      allowComments: shareAllowComments,
+    });
+
+    setShareUrl(out.url || null);
+    await navigator.clipboard.writeText(out.url);
+    alert("Share link copied to clipboard!");
+
+    setShowShareSettings(false);
+  } catch (e: any) {
+  } finally {
+    setShareLoading(false);
+  }
+};
   const visibleSectionIds = useMemo(
     () => sections.filter((s) => s.enabled).map((s) => s.id),
     [sections]
@@ -667,6 +700,12 @@ const ResumeEditor: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
       {/* Top bar */}
+                  <Button
+                onClick={() => setShowShareSettings(true)}
+                disabled={!resumeId}
+              >
+                Share
+              </Button>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">
@@ -729,6 +768,122 @@ const ResumeEditor: React.FC = () => {
           Last saved: {new Date(lastSaved).toLocaleString()}
         </div>
       )}
+      {showShareSettings && (
+  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
+    <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border p-6">
+      <div className="flex items-start justify-between mb-4">
+        <h3 className="text-lg font-semibold">Share resume</h3>
+        <button
+          className="text-gray-500 hover:text-gray-700"
+          onClick={() => setShowShareSettings(false)}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      <p className="text-sm text-gray-600 mb-4">
+        Choose who can access this shared link and whether they can leave comments.
+      </p>
+
+      {/* Visibility */}
+      <div className="mb-4">
+        <div className="text-sm font-medium mb-1">Visibility</div>
+        <div className="space-y-2 text-sm">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="public"
+              checked={shareVisibility === "public"}
+              onChange={() => setShareVisibility("public")}
+            />
+            <div>
+              <div className="font-medium">Public</div>
+              <div className="text-xs text-gray-500">
+                Anyone with the link can view.
+              </div>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="unlisted"
+              checked={shareVisibility === "unlisted"}
+              onChange={() => setShareVisibility("unlisted")}
+            />
+            <div>
+              <div className="font-medium">Unlisted</div>
+              <div className="text-xs text-gray-500">
+                Only people you send the link to can view.
+              </div>
+            </div>
+          </label>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="shareVisibility"
+              value="restricted"
+              checked={shareVisibility === "restricted"}
+              onChange={() => setShareVisibility("restricted")}
+            />
+            <div>
+              <div className="font-medium">Restricted</div>
+              <div className="text-xs text-gray-500">
+                Only approved reviewers (e.g., your account or whitelisted users) can view.
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      {/* Allow comments */}
+      <div className="mb-4">
+        <label className="flex items-start gap-2 cursor-pointer text-sm">
+          <input
+            type="checkbox"
+            checked={shareAllowComments}
+            onChange={(e) => setShareAllowComments(e.target.checked)}
+          />
+          <div>
+            <div className="font-medium">Allow comments</div>
+            <div className="text-xs text-gray-500">
+              Reviewers can leave feedback on this resume.
+            </div>
+          </div>
+        </label>
+      </div>
+
+      {/* Last shared URL (optional) */}
+      {shareUrl && (
+        <div className="mb-4 text-xs text-gray-600 break-all bg-gray-50 border rounded px-3 py-2">
+          Last share link: <span className="font-mono">{shareUrl}</span>
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          className="px-4 py-2 rounded bg-gray-100 text-sm"
+          onClick={() => setShowShareSettings(false)}
+          disabled={shareLoading}
+        >
+          Cancel
+        </button>
+        <button
+          className="px-4 py-2 rounded bg-emerald-600 text-white text-sm disabled:opacity-60"
+          onClick={handleShareConfirm}
+          disabled={shareLoading}
+        >
+          {shareLoading ? "Sharing…" : "Copy share link"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* Main layout: left editors, right theme + preview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">

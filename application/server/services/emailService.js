@@ -230,3 +230,59 @@ If you weren’t expecting this email, you can ignore it.
     html: htmlBody,
   });
 }
+
+
+export async function sendDocumentAccessEmail({
+  toEmail,
+  sharedurl,
+  grantedBy=null, // optional – name of the person who granted access
+}) {
+  if (!FRONTEND_ORIGIN) {
+    console.warn(
+      "FRONTEND_ORIGIN is not set, cannot build access link"
+    );
+    return;
+  }
+
+  // TODO: change this path to whatever your share route is
+  const accessUrl = sharedurl;
+
+  const subject = "You’ve been granted access";
+
+  const textBody = `
+Hi,
+
+You have been granted access${grantedBy ? ` by ${grantedBy}` : ""} to view a private document.
+
+Open it here:
+${accessUrl}
+
+If you weren’t expecting this email, you can ignore it.
+`;
+
+  const htmlBody = `
+  <p>Hi,</p>
+  <p>
+    You have been granted access${grantedBy ? ` by <strong>${grantedBy}</strong>` : ""} to view a private document.
+  </p>
+  <p style="margin: 16px 0;">
+    <a href="${accessUrl}"
+       style="background-color:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;">
+      Open link
+    </a>
+  </p>
+  <p>If the button doesn’t work, copy and paste this link into your browser:</p>
+  <p><code style="font-size:12px;">${accessUrl}</code></p>
+  <p style="font-size:12px;color:#888;">
+    If you weren’t expecting this email, you can ignore it.
+  </p>
+  `;
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text: textBody,
+    html: htmlBody,
+  });
+}

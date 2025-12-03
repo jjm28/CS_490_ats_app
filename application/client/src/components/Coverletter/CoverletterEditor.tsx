@@ -14,15 +14,18 @@ import {
   updateCoverletter,
   createdsharedcoverletter,
   Getfullcoverletter,
+  authHeaders,
 } from "../../api/coverletter";
 import type { GetCoverletterResponse } from "../../api/coverletter";
 import type { Job } from "./hooks/useJobs";
 import type { AIcoverletterPromptResponse } from "../../api/coverletter";
+const API_URL = "http://localhost:5050/api/coverletter";
 
 import {
   startProductivitySession,
   endProductivitySession,
 } from "../../api/productivity";
+import { set } from "date-fns";
 
 type LocationState = {
   template: Template;
@@ -130,12 +133,46 @@ export default function CoverletterEditor() {
   const [CoverletterID, setCoverletterID] = useState<string | null>(() =>
     sessionStorage.getItem("CoverletterID")
   );
+    const currentUserid =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id || "dfs";
 
   const [filename, setFilename] = useState<string>(() => {
   return generateSmartFilename(state?.UsersJobData);
   });
 
   const [error, setErr] = useState<string | null>(null);
+    const [showShareSettings, setShowShareSettings] = useState(false);
+    const [shareVisibility, setShareVisibility] = useState<
+      "public" | "unlisted" | "restricted"
+    >("unlisted");
+    const [shareAllowComments, setShareAllowComments] = useState(true);
+    const [shareLoading, setShareLoading] = useState(false);
+    const [shareUrl, setShareUrl] = useState<string | null>(null);
+
+const [shareTab, setShareTab] = useState<"settings" | "people">("settings");
+const [inviteEmail, setInviteEmail] = useState("");
+const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
+const [inviteError, setInviteError] = useState<string | null>(null);
+
+
+
+
+const handleRemoveInvite = async (emailToRemove: string) => {
+  setInvitedEmails((prev) => prev.filter((e) => e !== emailToRemove));
+          let inviteremoveData = {
+        coverletterid: CoverletterID, email :emailToRemove
+        }
+        const res = await fetch(
+        `${API_URL}/removeinvite?userId=${currentUserid}`,
+        {
+          method: "DELETE",
+             headers: authHeaders(),
+          credentials: "include",
+          body: JSON.stringify(inviteremoveData),
+        }
+      );
+    if(res) alert("Removed Acces")
+};
+
 
   // load from explicit cover letter id/data
   useEffect(() => {
@@ -190,6 +227,9 @@ export default function CoverletterEditor() {
           setFilename(resp.filename);
           setData(resp.coverletterdata);
           sessionStorage.setItem("CoverletterID", CoverletterID);
+          setShareAllowComments(resp.allowComments ?? true)
+          setShareVisibility(resp.visibility ?? 'restricted')
+          setInvitedEmails(resp.restricteduserid ?? [])
           setVariations(null);
           setChoiceLocked(true);
         })
@@ -600,8 +640,9 @@ export default function CoverletterEditor() {
     }
   };
 
-  const handleShare = async () => {
+  const handleShareConfirm = async () => {
     try {
+            setShareLoading(true);
       const raw = localStorage.getItem("authUser");
       if (!raw) throw new Error("Not signed in (authUser missing).");
       const user = JSON.parse(raw).user;
@@ -610,7 +651,10 @@ export default function CoverletterEditor() {
         userid: user._id,
         coverletterid: CoverletterID ?? "",
         coverletterdata: data,
+        visibility: shareVisibility,
+          allowComments: shareAllowComments,
       });
+        setShareUrl(Sharedcoverletter.url || null);
 
       navigator.clipboard
         .writeText(Sharedcoverletter.url)
@@ -620,6 +664,9 @@ export default function CoverletterEditor() {
         .catch((err) => {
           console.error("Failed to copy: ", err);
         });
+        setShowShareSettings(false);
+
+        
     } catch (err: any) {
       setErr(
         err instanceof Error
@@ -629,6 +676,63 @@ export default function CoverletterEditor() {
     }
   };
 
+  const handleAddInvite = async () => {
+  const email = inviteEmail.trim();
+  if (!email) return;
+
+  // basic email validation
+  const isValid = /\S+@\S+\.\S+/.test(email);
+  if (!isValid) {
+    setInviteError("Please enter a valid email address.");
+    return;
+  }
+
+  if (!invitedEmails.includes(email)) {
+    setInvitedEmails((prev) => [...prev, email]);
+  }
+
+  setInviteEmail("");
+  setInviteError(null);
+    try {
+
+      const Sharedcoverletter = await createdsharedcoverletter({
+        userid: currentUserid,
+        coverletterid: CoverletterID ?? "",
+        coverletterdata: data,
+        visibility: shareVisibility,
+          allowComments: shareAllowComments,
+      });
+        setShareUrl(Sharedcoverletter.url || null);
+
+        let inviteData = {
+        toemail :inviteEmail, sharedurl: Sharedcoverletter.url, coverletterid: CoverletterID
+        }
+
+      const res = await fetch(
+        `${API_URL}/invite?userId=${currentUserid}`,
+        {
+          method: "POST",
+             headers: authHeaders(),
+          credentials: "include",
+          body: JSON.stringify(inviteData),
+        }
+      );
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to invite supporter");
+      }
+
+
+    } catch (err: any) {
+      console.error(err);
+      setErr(err.message || "Error inviting supporter");
+    }
+
+
+};
+
+ 
 function generatePdfFilename(filename: string) {
   return filename.endsWith(".pdf") ? filename : filename + ".pdf";
 }
@@ -687,7 +791,231 @@ function generatePdfFilename(filename: string) {
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">
           {/* Left: Share */}
-          <Button onClick={handleShare}>Share</Button>
+                  <Button
+                onClick={() => setShowShareSettings(true)}
+                disabled={!CoverletterID}
+              >
+                Share
+              </Button>
+{showShareSettings && (
+  <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
+    <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border p-6">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold">Share cover letter</h3>
+          <p className="text-xs text-gray-500">
+            Control who can see this and invite people directly.
+          </p>
+        </div>
+        <button
+          className="text-gray-400 hover:text-gray-700 transition"
+          onClick={() => setShowShareSettings(false)}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Slider / Tabs */}
+      <div className="mb-4">
+        <div className="inline-flex items-center rounded-full bg-gray-100 p-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setShareTab("settings")}
+            className={`px-3 py-1 rounded-full transition ${
+              shareTab === "settings"
+                ? "bg-white shadow-sm text-gray-900"
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            Share settings
+          </button>
+          <button
+            type="button"
+            onClick={() => setShareTab("people")}
+            className={`px-3 py-1 rounded-full transition ${
+              shareTab === "people"
+                ? "bg-white shadow-sm text-gray-900"
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            Who I’m sharing with
+          </button>
+        </div>
+      </div>
+
+      {/* TAB: Share settings */}
+      {shareTab === "settings" && (
+        <>
+          <p className="text-sm text-gray-600 mb-4">
+            Choose who can access this shared link and whether they can leave comments.
+          </p>
+
+          {/* Visibility */}
+          <div className="mb-4">
+            <div className="text-sm font-medium mb-1">Visibility</div>
+            <div className="space-y-2 text-sm">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="shareVisibility"
+                  value="public"
+                  checked={shareVisibility === "public"}
+                  onChange={() => setShareVisibility("public")}
+                  className="mt-[3px]"
+                />
+                <div>
+                  <div className="font-medium">Public</div>
+                  <div className="text-xs text-gray-500">
+                    Anyone with the link can view.
+                  </div>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="shareVisibility"
+                  value="unlisted"
+                  checked={shareVisibility === "unlisted"}
+                  onChange={() => setShareVisibility("unlisted")}
+                  className="mt-[3px]"
+                />
+                <div>
+                  <div className="font-medium">Unlisted</div>
+                  <div className="text-xs text-gray-500">
+                    Only people you send the link to can view.
+                  </div>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="shareVisibility"
+                  value="restricted"
+                  checked={shareVisibility === "restricted"}
+                  onChange={() => setShareVisibility("restricted")}
+                  className="mt-[3px]"
+                />
+                <div>
+                  <div className="font-medium">Restricted</div>
+                  <div className="text-xs text-gray-500">
+                    Only approved reviewers can view.
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Allow comments */}
+          <div className="mb-4">
+            <label className="flex items-start gap-2 cursor-pointer text-sm">
+              <input
+                type="checkbox"
+                checked={shareAllowComments}
+                onChange={(e) => setShareAllowComments(e.target.checked)}
+                className="mt-[3px]"
+              />
+              <div>
+                <div className="font-medium">Allow comments</div>
+                <div className="text-xs text-gray-500">
+                  Reviewers can leave feedback on this cover letter.
+                </div>
+              </div>
+            </label>
+          </div>
+
+          {/* Last shared URL (optional) */}
+          {shareUrl && (
+            <div className="mb-4 text-xs text-gray-600 break-all bg-gray-50 border rounded px-3 py-2">
+              Last share link: <span className="font-mono">{shareUrl}</span>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* TAB: People / Invites */}
+      {shareTab === "people" && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Invite by email
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="name@company.com"
+                className="flex-1 rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddInvite}
+                disabled={!inviteEmail.trim() || shareLoading}
+                className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm disabled:opacity-60"
+              >
+                Add
+              </button>
+            </div>
+            {inviteError && (
+              <p className="mt-1 text-xs text-red-500">{inviteError}</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              We’ll email them a link to view this cover letter.
+            </p>
+          </div>
+
+          {invitedEmails.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-700 mb-1">
+                People with access
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {invitedEmails.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveInvite(email)}
+                      className="text-gray-400 hover:text-gray-700"
+                      aria-label={`Remove ${email}`}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="mt-6 flex justify-end gap-2">
+        <button
+          className="px-4 py-2 rounded-md bg-gray-100 text-sm hover:bg-gray-200"
+          onClick={() => setShowShareSettings(false)}
+          disabled={shareLoading}
+        >
+          Cancel
+        </button>
+        <button
+          className="px-4 py-2 rounded-md bg-emerald-600 text-white text-sm disabled:opacity-60 hover:bg-emerald-700"
+          onClick={handleShareConfirm}
+          disabled={shareLoading}
+        >
+          {shareLoading ? "Sharing…" : "Copy link & send invites"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
           {/* Middle: filename */}
           <label

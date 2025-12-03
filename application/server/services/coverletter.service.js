@@ -3,7 +3,9 @@ import { ObjectId } from "mongodb";
 import axios from 'axios';
 import { listEmployment } from "../services/employment.service.js";
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import Coverletter from '../models/coverletters.js';
 import profile from '../models/profile.js';
+import { sendDocumentAccessEmail, sendSupporterInviteEmail } from './emailService.js';
 const cache = new Map();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
 
@@ -45,6 +47,78 @@ export async function updateCoverletter({ coverletterid,userid, filename, lastSa
   return { _id: coverletterid};
 }
 
+export async function updateCoverletterSharedsettings({ coverletterid,userid,visibility,allowComments}) {
+ 
+    const update = {};
+    if (visibility) update.visibility = visibility;
+    if (typeof allowComments === "boolean") update.allowComments = allowComments;
+
+    const updated = await Coverletter.findOneAndUpdate(
+      { _id: new ObjectId(coverletterid), owner: userid },      // ensure user owns this cover letter
+      { $set: update },        // update ONLY the provided fields
+      { new: true }
+    );
+
+    if (!updated) {
+     console.log( "Cover letter not found" );
+    }
+
+
+}
+
+export async function addreviewerCoverletterSharedsettings({ coverletterid,userId,toemail}) {
+ 
+
+
+    const updated = await Coverletter.findOneAndUpdate(
+      { _id: new ObjectId(coverletterid), owner: userId },      // ensure user owns this cover letter
+      { $push: {restricteduserid: toemail}},        // update ONLY the provided fields
+      { new: true }
+    );
+
+    if (!updated) {
+     console.log( "Cover letter not found" );
+    }
+
+
+}
+export async function removereviewerCoverletterSharedsettings({ coverletterid,userId,email}) {
+ 
+
+
+    const updated = await Coverletter.updateMany(
+      { _id: new ObjectId(coverletterid), owner: userId },      // ensure user owns this cover letter
+      { $pull: {restricteduserid: email}},        // update ONLY the provided fields
+      { new: true }
+    );
+
+    if (!updated) {
+     console.log( "Cover letter not found" );
+    }
+
+
+}
+/**
+ * Invite a supporter for this user.
+ */
+export async function inviteReviewer({ownerUserId,
+  email,
+  url
+}) {
+  const db = getDb()
+    const users = await db.collection("profiles").findOne({ userId:ownerUserId  },    { projection: {fullName:1} })
+
+console.log(users.fullName)
+  // Fire-and-forget email sending (don't block the main response on failure)
+  try {
+    await sendDocumentAccessEmail({toEmail: email,sharedurl: url,grantedBy: "John Doe"})
+  } catch (e) {
+    console.error("Error sending supporter invite email:", e);
+    // You might want to log this to monitoring, but we still return supporter
+  }
+
+  return true;
+}
 export async function getCoverletter({ userid,coverletterid}) {
   const db = getDb();
   let result;
@@ -95,10 +169,110 @@ export async function fetchSharedCoverletter({ sharedid}) {
     const sharedcoverletter = await db
     .collection("sharedcoverletters")
     .findOne(  { _id: new ObjectId(sharedid) } )
-    return sharedcoverletter
+
+    const accesscontrollsettings = await Coverletter.findOne(
+      { _id: new ObjectId(sharedcoverletter.coverletterid), owner: sharedcoverletter.owner }, 
+    ).select("allowComments visibility restricteduserid");
+    const users = await db.collection("profiles").findOne({ userId: sharedcoverletter.owner  },    { projection: {fullName:1, email:1} })
+
+    if (!accesscontrollsettings) {
+     console.log( "Cover letter not found" );
+    }
+
+  const sharing= {
+      ownerName: users.fullName || null,   // optional, you can populate later
+      ownerEmail: users.ownerEmail || null, // optional
+      visibility: accesscontrollsettings._doc.visibility || "unlisted",
+      allowComments:accesscontrollsettings._doc.allowComments,
+      canComment: null,
+      
+    }
+
+    const comments =  sharedcoverletter.comments || []
+    return { ...sharedcoverletter, ...accesscontrollsettings._doc , sharing, comments} 
 
 }
+export async function addSharedCoverletterComment({
+  sharedid,
+  viewerid,
+  message,
+}) {
+  const db = getDb();
+  const coll = db.collection("sharedcoverletters");
 
+  const doc = await coll.findOne({ _id: new ObjectId(sharedid) });
+  if (!doc) return null;
+
+  const isOwner = String(doc.owner) === String(viewerid);
+
+    const users = await db.collection("profiles").findOne({ userId: viewerid  },    { projection: {fullName:1, email:1} })
+
+  const nowIso = new Date().toISOString();
+
+  const comment = {
+    _id: new ObjectId(),        // comment id
+    authorId: viewerid,
+    authorName: users.fullName,           // you can fill from users collection if you want
+    authorEmail: users.email,
+    message,
+    createdAt: nowIso,
+    resolved: false,
+    resolvedAt: null,
+    resolvedBy: null,
+    resolvedByName: null,
+  };
+
+  await coll.updateOne(
+    { _id: doc._id },
+    { $push: { comments: comment } }
+  );
+
+  const updated = await coll.findOne(
+    { _id: doc._id },
+    { projection: { comments: 1 } }
+  );
+
+  return { comments: updated?.comments || [] };
+}
+
+export async function updateSharedCoverletterComment({
+  sharedid,
+  commentId,
+  viewerid,
+  resolved,
+}) {
+  const db = getDb();
+  const coll = db.collection("sharedcoverletters");
+
+  const doc = await coll.findOne({ _id: new ObjectId(sharedid) });
+  if (!doc) return null;
+
+  const isOwner = String(doc.owner) === String(viewerid);
+  if (!isOwner) {
+    return { error: "forbidden" };
+  }
+
+  const nowIso = new Date().toISOString();
+  const commentObjectId = new ObjectId(commentId);
+
+  await coll.updateOne(
+    { _id: doc._id, "comments._id": commentObjectId },
+    {
+      $set: {
+        "comments.$.resolved": resolved,
+        "comments.$.resolvedAt": resolved ? nowIso : null,
+        "comments.$.resolvedBy": viewerid,
+      },
+    }
+  );
+
+  const updated = await coll.findOne(
+    { _id: doc._id },
+    { projection: { comments: 1 } }
+  );
+
+  return { comments: updated?.comments || [] };
+}
 export async function findmostpopular() {
     const db = getDb();
 

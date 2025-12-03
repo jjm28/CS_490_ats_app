@@ -5,7 +5,7 @@ import type { Job } from "../components/Coverletter/hooks/useJobs";
 const API_URL = "http://localhost:5050/api/coverletter/";
 
 
-const authHeaders = (): HeadersInit => {
+export const authHeaders = (): HeadersInit => {
   const token = localStorage.getItem("token");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -20,6 +20,26 @@ export interface Coverletter {
   coverletterdata: CoverLetterData;
   lastSaved: string;
 }
+
+export type CoverletterFeedbackComment = {
+  _id: string;
+  authorName: string;
+  authorRole?: string;
+  message: string;
+  createdAt: string;
+  resolved?: boolean;
+  resolvedAt?: string;
+  resolvedByName?: string;
+};
+
+export type SharingMeta = {
+  ownerName?: string;
+  ownerEmail?: string;
+  visibility?: "public" | "unlisted" | "restricted";
+  allowComments?: boolean;
+  canComment?: boolean; // this specific viewer can comment or not
+  isOwner?: boolean; // is the current viewer the owner
+};
 export interface ListCoverletter {
   userid: string;
 
@@ -35,6 +55,10 @@ export interface GetCoverletterResponse {
   templateKey: string;
   coverletterdata: CoverLetterData;
   lastSaved: string;
+  allowComments?: boolean
+  
+visibility? : "public" | "unlisted" | "restricted"
+restricteduserid? : [string]
 }
 
 export interface UpdateCoverletter {
@@ -167,6 +191,8 @@ export interface CreateSharedCoverletter {
   userid: string;
   coverletterid: string;
   coverletterdata: CoverLetterData;
+    visibility?: string,
+  allowComments?: boolean,
 }
 export interface PostSharedCoverletterResponse {
   sharedid: string;
@@ -198,6 +224,9 @@ export interface GetSharedCoverletterResponse {
   templateKey: Template["key"];
   coverletterdata: CoverLetterData;
   lastSaved: string;
+  visibility? : "public" | "unlisted" | "restricted"
+restricteduserid? : [string]
+sharing: SharingMeta
 }
 export  const fetchSharedCoverletter = async (  coverletterinfo: fetchSharedCoverletter ): Promise<GetSharedCoverletterResponse> => {
   const res = await fetch(API_URL+ `share?sharedid=${coverletterinfo.sharedid}` , {

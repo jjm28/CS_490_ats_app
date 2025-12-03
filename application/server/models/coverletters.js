@@ -21,6 +21,14 @@ const CoverletterSchema = new Schema(
     // Optional metadata
     tags: { type: [String], default: [] },
     archived: { type: Boolean, default: false },
+    visibility: {
+      type: String,
+      enum: ["public" , "unlisted" , "restricted"],
+      default: "restricted",
+      index: true,
+    },
+    restricteduserid:  { type: [String], default: [] },
+    allowComments: { type: Boolean, default: true }
   },
   { timestamps: true }
 );
