@@ -255,9 +255,59 @@ const JobSchema = new Schema({
         },
     ],
 
+    // Network source tracking for UC-099
     source: {
         type: String,
-        default: "manual", // e.g. "manual", "peer_group", "imported"
+        default: "manual", // e.g. "manual", "peer_group", "imported", "network_contact", "network_event", "referral"
+    },
+
+    // Enhanced network tracking
+    networkSource: {
+        type: {
+            sourceType: {
+                type: String,
+                enum: ['direct_application', 'network_contact', 'network_event', 'referral', 'recruiter', 'peer_group', 'other'],
+                default: 'direct_application'
+            },
+            // If sourced through a contact
+            contactId: {
+                type: String, // Contact._id from networking system
+                default: null
+            },
+            contactName: {
+                type: String,
+                default: null
+            },
+            // If sourced through an event
+            eventId: {
+                type: String, // NetworkingEvent._id
+                default: null
+            },
+            eventName: {
+                type: String,
+                default: null
+            },
+            // If through a referral
+            referralId: {
+                type: String, // Reference._id
+                default: null
+            },
+            referralName: {
+                type: String,
+                default: null
+            },
+            // Additional context
+            sourceNotes: {
+                type: String,
+                default: null,
+                maxlength: 500
+            },
+            sourcedAt: {
+                type: Date,
+                default: Date.now
+            }
+        },
+        default: null
     },
 
     // if this job was created from a peer group opportunity

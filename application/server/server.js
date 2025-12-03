@@ -48,6 +48,7 @@ import interviewAnalyticsRoutes from "./routes/interviews.js";
 import interviewQuestionsRoute from "./routes/interview-questions.js";
 import companyResearch from "./routes/company-research.js";
 import writingPracticeRoutes from './routes/writingPractice.js';
+import interviewPredictionRoutes from "./routes/interview-success-prediction.js";
 
 // 📄 RESUME + COVER LETTERS
 import coverletter from "./routes/coverletter.js";
@@ -65,6 +66,9 @@ import notificationRoutes from "./routes/notifications.js";
 import reference from "./routes/reference.js";
 import peergroups from "./routes/peerGroups.js";
 import supportersRoutes from "./routes/supporters.js";
+import networkingRoutes from "./routes/networking.js";
+import outreachRoutes from "./routes/outreach.js";
+import advisorRoutes from "./routes/advisor.routes.js";
 
 // 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";
@@ -76,9 +80,6 @@ import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
-//import networkingRoutes from "./routes/networking.js";
-//import outreachRoutes from "./routes/outreach.js";
-import advisorRoutes from "./routes/advisor.routes.js";
 
 import marketRoutes from "./routes/market.js";
 
@@ -171,6 +172,7 @@ try {
   app.use("/api/company/research", attachDevUser, companyResearch);
   app.use(companyResearch);
   app.use('/api/writing-practice', writingPracticeRoutes);
+  app.use("/api/interview-predictions", interviewPredictionRoutes);
 
   // 📄 RESUMES + TEMPLATES
   app.use("/api/coverletter", coverletter);
@@ -178,6 +180,9 @@ try {
   app.use("/api/resume-templates", attachDevUser, templatesRoute);
   app.use("/api/resume-versions", resumeVersionsRouter);
 
+  //networking 
+  app.use("/api/networking", networkingRoutes);
+  app.use("/api/networking/outreach", outreachRoutes);
   // ⚙️ AUTOMATION
   app.use("/api/automation", automationRoutes);
 

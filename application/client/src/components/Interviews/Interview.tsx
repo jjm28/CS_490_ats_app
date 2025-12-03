@@ -10,6 +10,7 @@ import Questions from './Questions';
 import '../../styles/InterviewPrepUI.css';
 import WritingPractice from '../../components/Interviews/WritingPractice';
 import InterviewFollowUpPage from './InterviewFollowUpPage';
+import InterviewSuccessProbability from './InterviewSuccessProbability';
 
 type CardData = {
   label: string;
@@ -17,7 +18,7 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 'followup' | null; // Add component type
+  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 'followup' | 'success-probability' | null; // Add component type
 };
 
 const cardData: CardData[] = [
@@ -86,30 +87,6 @@ const cardData: CardData[] = [
     component: 'writing-practice'
   },
   {
-    label: 'Calendar',
-    title: 'Calendar Integration',
-    description: 'Schedule and track your interviews',
-    color: '#0E3B43',
-    details: 'Sync with Google Calendar to auto-schedule prep time, track upcoming interviews, set reminders, and log feedback after each round.',
-    component: null
-  },
-  {
-    label: 'Analytics',
-    title: 'Performance Analytics',
-    description: 'Track your progress and improvements',
-    color: '#0E3B43',
-    details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
-    component: null
-  },
-  {
-    label: 'Preparation',
-    title: 'Preparation Checklist',
-    description: 'Customized prep tasks for each interview',
-    color: '#0E3B43',
-    details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
-    component: 'checklist'
-  },
-  {
     label: 'Follow-Up',
     title: 'Interview Follow-Up',
     description: 'Send professional follow-up emails',
@@ -124,6 +101,14 @@ const cardData: CardData[] = [
     color: '#0E3B43',
     details: 'Get personalized negotiation talking points, scripts for different scenarios, market salary analysis, and counter-offer recommendations based on real market data.',
     component: 'negotiation' // 🆕 Add this
+  },
+  {
+    label: 'Success Probability',
+    title: 'Interview Success Predictor',
+    description: 'AI-powered success probability scoring',
+    color: '#0E3B43',
+    details: 'Get data-driven predictions for your interview success based on preparation level, company research, practice sessions, and historical performance. Receive actionable recommendations to improve your chances.',
+    component: 'success-probability' // ADD THIS
   },
 ];
 
@@ -263,6 +248,11 @@ const Interview = () => {
       setActiveFeature('writing-practice');
       return;
     }
+
+    if (card.component === 'success-probability') {
+      setActiveFeature('success-probability');
+      return;
+    }
     
     // For other cards, show the detail view
     setSelectedCardIndex(index);
@@ -272,6 +262,11 @@ const Interview = () => {
     setSelectedCardIndex(null);
     setActiveFeature(null); // ✅ Reset both
   };
+
+  // Show Success Probability feature
+  if (activeFeature === 'success-probability') {
+    return <InterviewSuccessProbability onBack={handleBack} />;
+  }
 
   // ✅ Show Mock Interview feature
   if (activeFeature === 'mock-interview') {

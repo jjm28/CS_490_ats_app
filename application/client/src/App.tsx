@@ -84,6 +84,7 @@ import ContactEditor from './components/Networking/ContactEditor';
 import AddInteraction from './components/Networking/AddInteraction';
 import AiOutreachGenerator from './components/Networking/AiOutreachGenerator';
 import InteractionHistory from './components/Networking/InteractionHistory';
+import CampaignList from './components/Networking/CampaignList';
 import AllInteractionsPage from './components/Networking/AllInteractionsPage';
 import ImportGoogle from "./components/Networking/ImportGoogle";
 import AdvisorsPage from './components/Advisors/AdvisorsPage';
@@ -95,6 +96,11 @@ import AdvisorClientMessagesPage from './components/Advisors/AdvisorMessaging/Ad
 import AdvisorRecommendationsPage from './components/Advisors/AdvisorRecommendationsPage';
 import AdvisorSessionsPage from './components/Advisors/AdvisorSessionsPage';
 import AdvisorAvailabilityPage from './components/Advisors/AdvisorAvailabilityPage';
+import CreateCampaign from './components/Networking/CreateCampaign';
+import CampaignDetail from './components/Networking/CampaignDetail';
+import CampaignAnalytics from './components/Networking/CampaignAnalytics';
+import QuickOutreach from './components/Networking/QuickOutreach';
+import IndustryNews from './components/Networking/IndustryNews';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -225,9 +231,12 @@ function App() {
             element={<AllInteractionsPage />}
           />
 
-
-
-
+          <Route path="/networking/campaigns" element={<PrivateRoute><CampaignList /></PrivateRoute>} />
+          <Route path="/networking/campaigns/create" element={<PrivateRoute><CreateCampaign /></PrivateRoute>} />
+          <Route path="/networking/campaigns/:id" element={<PrivateRoute><CampaignDetail /></PrivateRoute>} />
+          <Route path="/networking/campaigns/analytics" element={<PrivateRoute><CampaignAnalytics /></PrivateRoute>} />
+          <Route path="/networking/contacts/:id/outreach" element={<PrivateRoute><QuickOutreach /></PrivateRoute>} />
+          <Route path="/networking/industry-news" element={<PrivateRoute><IndustryNews /></PrivateRoute>} />
 
           <Route
             path="/networking/outreach"

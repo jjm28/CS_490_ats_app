@@ -78,7 +78,7 @@ export interface Job {
 
   // Archive
   archived?: boolean;
-  archiveReason?: string | null;
+  archiveReason?: string | undefined;
   archivedAt?: string | null;
 
   // Application package
