@@ -7,6 +7,7 @@ import type {
 } from "../../types/cohort";
 import AddMembersModal from "./AddMembersModal";
 import { getAuthMeta } from "../../types/cohort";
+import { Button } from "@headlessui/react";
 interface MembersResponse extends PaginatedResult<CohortMember> {}
 
 const CohortDetail: React.FC = () => {
@@ -27,7 +28,46 @@ const CohortDetail: React.FC = () => {
   const [isRemoving, setIsRemoving] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+// inside CohortDetail.tsx, in members header
+const [importFile, setImportFile] = useState<File | null>(null);
+const [importing, setImporting] = useState(false);
 
+async function handleImportToCohort(e: React.FormEvent) {
+  e.preventDefault();
+  if (!importFile || !cohortId) return;
+
+  try {
+    setImporting(true);
+    const formData = new FormData();
+    formData.append("file", importFile);
+
+    const res = await fetch(
+      `/api/integrations/handshake/import-students?cohortId=${cohortId}`,
+      {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      }
+    );
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || "Failed to import to cohort");
+    }
+
+    const json = await res.json();
+    // refresh members + cohort summary
+    await Promise.all([fetchMembers(), fetchCohort()]);
+    alert(
+      `Imported to cohort: ${json.createdCount} created, ${json.updatedCount} updated, ${json.skippedCount} skipped.`
+    );
+  } catch (err: any) {
+    console.error(err);
+    alert(err.message || "Error importing to cohort");
+  } finally {
+    setImporting(false);
+  }
+}
   // role guard
   useEffect(() => {
     if (role !== "org_admin" && role !== "super_admin") {
@@ -210,7 +250,30 @@ const CohortDetail: React.FC = () => {
           </button>
         </div>
       </div>
-
+<Button
+  type="button"
+  onClick={() => {
+    const input = document.getElementById("handshake-cohort-file") as HTMLInputElement | null;
+    input?.click();
+  }}
+>
+  Import from Handshake
+</Button>
+<input
+  id="handshake-cohort-file"
+  type="file"
+  accept=".csv"
+  className="hidden"
+  onChange={(e) => {
+    const file = e.target.files?.[0] || null;
+    setImportFile(file);
+    if (file) {
+      // auto-trigger import or show a small modal; here we just auto-run:
+      const fakeEvent = { preventDefault() {} } as React.FormEvent;
+      void handleImportToCohort(fakeEvent);
+    }
+  }}
+/>
       <div className="members-section">
         <div className="members-header-row">
           <h2>Members</h2>

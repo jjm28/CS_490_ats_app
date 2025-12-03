@@ -20,6 +20,7 @@ import {
   
 } from "../services/jobSeekerInvite.service.js";
 import { getOrgAnalyticsOverview } from "../services/analytics.service.js";
+import { importJobsFromHandshakeCsv,importStudentsFromHandshakeCsv } from "../services/handshake.service.js";
 const router = express.Router();
 const upload = multer();
 
@@ -172,6 +173,76 @@ router.post("/enterprise/onboarding/invite", async (req, res) => {
 });
 
 
+/**
+ * POST /api/integrations/handshake/import-students
+ * Form-data: file (CSV)
+ * Optional: ?cohortId=...
+ */
+router.post(
+  "/integrations/handshake/import-students",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "CSV file is required" });
+      }
+
+      const organizationId = req.user.organizationId;
+      const cohortId = req.query.cohortId || null;
+
+      const result = await importStudentsFromHandshakeCsv({
+        organizationId,
+        cohortId,
+        csvBuffer: req.file.buffer,
+      });
+
+      res.json({
+        message: "Handshake students import completed",
+        ...result,
+      });
+    } catch (err) {
+      console.error("Error importing Handshake students:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({ error: err.message || "Server error importing students" });
+    }
+  }
+);
+
+/**
+ * POST /api/integrations/handshake/import-jobs
+ * Form-data: file (CSV)
+ */
+router.post(
+  "/integrations/handshake/import-jobs",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file || !req.file.buffer) {
+        return res.status(400).json({ error: "CSV file is required" });
+      }
+
+      const organizationId = req.user.organizationId;
+      const ownerUserId = req.user.id;
+
+      const result = await importJobsFromHandshakeCsv({
+        organizationId,
+        ownerUserId,
+        csvBuffer: req.file.buffer,
+      });
+
+      res.json({
+        message: "Handshake jobs import completed",
+        ...result,
+      });
+    } catch (err) {
+      console.error("Error importing Handshake jobs:", err);
+      res
+        .status(err.statusCode || 500)
+        .json({ error: err.message || "Server error importing jobs" });
+    }
+  }
+);
 
 
 
