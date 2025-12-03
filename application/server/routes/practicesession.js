@@ -2,9 +2,11 @@
 import express from 'express';
 import PracticeSession from '../models/practicesession.js';
 import { verifyJWT } from '../middleware/auth.js';
-
+import { GoogleGenerativeAI } from "@google/generative-ai";
 const router = express.Router();
 
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const gemini = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 // Save a completed practice session with rule-based scoring
 router.post('/save', verifyJWT, async (req, res) => {
   try {
@@ -33,12 +35,20 @@ router.post('/save', verifyJWT, async (req, res) => {
         return null;
       }
       
-      const { score, feedback } = fallbackScoring(response, interviewType);
+      let scoring;
+      if (interviewType === "technical") {
+        scoring = technicalScoring(response);
+      } else {
+        scoring = fallbackScoring(response, interviewType);
+      }
+
+      const { score, feedback } = scoring;
+
 
       console.log(`Scored Q${index + 1}: ${score}/100`);
 
       return {
-        question: question.text,
+        question: question.text || question.question || question.prompt || question,
         response: response,
         aiFeedback: feedback,
         score: score,
@@ -216,6 +226,81 @@ function fallbackScoring(response, interviewType = 'behavioral') {
   };
 }
 
+// === TECHNICAL SCORING (for coding + algorithm questions) ===
+function technicalScoring(response) {
+  const trimmed = response.trim();
+  const wordCount = trimmed.split(/\s+/).length;
+
+  let score = 50; // base default
+  const feedback = [];
+
+  // --- Detect Pseudocode or Code Blocks ---
+  const hasCode = /[{()}]|function|def |class |return|=>|\bfor\b|\bwhile\b/.test(trimmed);
+  const hasPseudo = /\b(if|else|loop|until|repeat|step|compute|initialize)\b/i.test(trimmed);
+
+  if (hasCode) {
+    score += 20;
+    feedback.push("Good use of code-like structure.");
+  } else if (hasPseudo) {
+    score += 15;
+    feedback.push("Good pseudocode representation.");
+  } else {
+    feedback.push("Try including pseudocode or a step-by-step algorithm.");
+  }
+
+  // --- Algorithm Terminology ---
+  const hasAlgoTerms = /\b(O\(|complexity|binary search|hash|stack|queue|tree|graph|DP|dynamic programming)\b/i.test(trimmed);
+
+  if (hasAlgoTerms) {
+    score += 15;
+    feedback.push("Strong algorithmic terminology.");
+  } else {
+    feedback.push("Include algorithmic terms or complexity analysis.");
+  }
+
+  // --- Problem-Solving Structure ---
+  const hasSteps = /\b(step 1|first|second|finally|then|next)\b/i.test(trimmed);
+  if (hasSteps) {
+    score += 10;
+    feedback.push("Clear step-by-step explanation.");
+  }
+
+  // --- Edge Cases Mention ---
+  const mentionsEdgeCases = /\bedge case|null|empty|invalid|overflow|boundary/i.test(trimmed);
+  if (mentionsEdgeCases) {
+    score += 10;
+    feedback.push("Good mention of edge cases.");
+  } else {
+    feedback.push("Try mentioning edge cases.");
+  }
+
+  // --- Time/Space Complexity ---
+  if (/O\(.+\)/.test(trimmed)) {
+    score += 10;
+    feedback.push("Complexity analysis included.");
+  } else {
+    feedback.push("Add time/space complexity if relevant.");
+  }
+
+  // --- Length Check ---
+  if (wordCount < 30) {
+    score -= 10;
+    feedback.push("Too short—expand explanation.");
+  }
+
+  score = Math.min(100, Math.max(0, score));
+
+  const finalFeedback =
+    score >= 85
+      ? "Excellent technical explanation. " + feedback.join(" ")
+      : score >= 70
+      ? "Good answer. " + feedback.join(" ")
+      : "Needs stronger technical depth. " + feedback.join(" ");
+
+  return { score, feedback: finalFeedback };
+}
+
+
 // Get user's practice sessions
 router.get('/sessions', verifyJWT, async (req, res) => {
   try {
@@ -247,6 +332,106 @@ router.get('/sessions/:id', verifyJWT, async (req, res) => {
     console.error('Error fetching session:', error);
     res.status(500).json({ error: 'Failed to fetch session' });
   }
+});
+
+router.post("/generate-technical", async (req, res) => {
+  try {
+    const { jobTitle, skills, seniority } = req.body;
+
+    const prompt = `
+Generate 3–5 technical interview questions based on:
+
+Job Title: ${jobTitle}
+Skills: ${skills.join(", ")}
+Seniority: ${seniority}
+
+Return JSON with:
+[
+  {
+    "type": "coding" | "system-design" | "case-study",
+    "difficulty": "easy|medium|hard",
+    "question": "text here"
+  }
+]
+If seniority includes "senior", include at least one system design question.
+If skills include business/analysis/consulting, include a case study.
+    `;
+
+    const aiResponse = await gemini.generate(prompt);
+    const questions = JSON.parse(aiResponse);
+
+    res.json({ questions });
+
+  } catch (err) {
+    console.error("TECHNICAL GENERATE ERROR:", err);
+    res.status(500).json({ error: "Failed to generate questions" });
+  }
+});
+
+// Generate coding challenge based on job skills
+router.post('/generate-coding-challenge', verifyJWT, async (req, res) => {
+  const { skills = [] } = req.body;
+
+  // Basic mapping (expand anytime)
+  const skillMap = {
+    javascript: [
+      "Implement a function to debounce another function.",
+      "Create a deep clone function for nested objects.",
+      "Implement a custom Promise.all."
+    ],
+    python: [
+      "Implement an LRU Cache.",
+      "Detect cycles in a linked list.",
+      "Build a simple rate limiter."
+    ],
+    java: [
+      "Implement a thread-safe Singleton.",
+      "Design a min-stack with O(1) operations."
+    ],
+    sql: [
+      "Write a query to find customers who made purchases every month this year.",
+      "Get the top 3 most purchased products by total revenue."
+    ]
+  };
+
+  let questions = [];
+
+  skills.forEach(skill => {
+    const list = skillMap[skill.toLowerCase()];
+    if (list) {
+      questions.push(...list);
+    }
+  });
+
+  if (questions.length === 0) {
+    questions = [
+      "Implement a function to reverse a linked list.",
+      "Determine if a string is a valid palindrome ignoring non-alphanumeric characters."
+    ];
+  }
+
+  res.json({
+    questions,
+    count: questions.length
+  });
+});
+
+
+router.post('/submit-coding', verifyJWT, async (req, res) => {
+  const { question, solution } = req.body;
+
+  if (!question || !solution) {
+    return res.status(400).json({ error: "Missing data" });
+  }
+
+  const scoring = technicalScoring(solution);
+
+  res.json({
+    question,
+    solution,
+    score: scoring.score,
+    feedback: scoring.feedback
+  });
 });
 
 export default router;

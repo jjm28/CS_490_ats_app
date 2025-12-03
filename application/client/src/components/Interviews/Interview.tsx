@@ -169,6 +169,21 @@ const DetailView = ({
     return <Questions onBack={onBack} />;
   }
 
+  if (card.component === 'checklist') {
+    return <InterviewPrepChecklist onBack={onBack} />;
+  }
+
+  if (card.component === 'negotiation') {
+    return <SalaryNegotiationPage onBack={onBack} />;
+  }
+
+  if (card.component === 'followup') { // ✅ ADD THIS
+    return <InterviewFollowUpPage onBack={onBack} />;
+  }
+  if (card.component === 'aicoaching') {
+    return <ResponseCoaching onBack={onBack} />;
+  }
+
   // Otherwise, show the default detail view
   return (
     <div 

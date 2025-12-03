@@ -2,9 +2,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 import { useNavigate } from "react-router-dom";
+import TechnicalPrep from "./TechnicalPrep";
+
 import '../../styles/InterviewStyles/MockPractice.css';
 
-type InterviewStep = 'type-select' | 'job-select' | 'interview' | 'summary';
+type InterviewStep =
+  | 'type-select'
+  | 'job-select'
+  | 'interview'
+  | 'technical-prep'
+  | 'summary';
 
 interface Question {
   id: number;
@@ -103,7 +110,11 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
 
     setRole(job.jobTitle);
     setCompany(job.company);
-
+    // ⭐ ADD THIS ⭐
+    if (interviewType === 'technical') {
+      setStep('technical-prep');
+      return;
+    }
     try {
       const generatedQuestions = await generateQuestionsWithGemini(job.jobTitle, job.company, interviewType);
       
@@ -486,7 +497,7 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
       </div>
     );
   }
-
+  if (step === 'technical-prep') { return ( <TechnicalPrep onBack={() => setStep('job-select')} jobTitle={role} company={company} jobId={selectedJobId} /> ); }
   if (step === 'summary') {
     return (
       <div className="mock-interview-container">

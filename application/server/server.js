@@ -49,6 +49,7 @@ import interviewAnalyticsRoutes from "./routes/interviews.js";
 import companyResearch from './routes/company-research.js';
 import interviewQuestions from "./routes/interview-questions.js";
 import coachingInsights from "./routes/coachinginsights.js";
+import practiceSessions from "./routes/practicesession.js";
 
 // 📄 RESUME + COVER LETTERS
 import coverletter from './routes/coverletter.js';
@@ -158,7 +159,8 @@ try {
   app.use(companyResearch); // stand alone research for ANY company
   app.use("/api/interview-questions", interviewQuestions);
   app.use("/api/coaching-insights", coachingInsights);
-  app.use('/api/writing-practice', writingPracticeRoutes);
+  app.use("/api/practice-sessions", practiceSessions);
+  //app.use('/api/writing-practice', writingPracticeRoutes);
 
   // 📄 RESUMES + COVER LETTERS
   app.use('/api/coverletter', coverletter);
