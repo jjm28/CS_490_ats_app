@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import API_BASE from "../../utils/apiBase";
 import Button from "../StyledComponents/Button";
+import InterviewChecklist from "../Interviews/InterviewChecklist";
 import {
   initGapi,
   signIn,
@@ -10,6 +11,7 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from "../../utils/gcalService";
+<<<<<<< HEAD
 interface Interview {
   _id?: string;
   type: string;
@@ -23,6 +25,11 @@ interface Interview {
   confidenceLevel?: number;
   anxietyLevel?: number;
 }
+=======
+import type{ Interview, FollowUp } from "../../types/jobs.types";
+import FollowUpModal from "../Interviews/FollowUpModal";
+import InterviewFollowUp from "../Interviews/InterviewFollowUp";
+>>>>>>> feb1cfd748e758a81e16b19852807bb453461d66
 
 async function moveJobToInterviewStage(jobId: string, token: string) {
   try {
@@ -56,6 +63,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
   const [gcalReady, setGcalReady] = useState(false);
   const [gcalSignedIn, setGcalSignedIn] = useState(false);
   const [prepTasks, setPrepTasks] = useState<string[]>([]);
+  const [followUpModal, setFollowUpModal] = useState<{ jobId: string; interviewId: string; email?: string } | null>(null);
 
   const token = useMemo(
     () =>
@@ -125,7 +133,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       ).toISOString();
 
       const hasConflict = await checkCalendarConflicts(startISO, endISO);
-      if (hasConflict && !confirm("⚠️ Conflict detected. Continue anyway?")) return;
+      if (hasConflict && !confirm("⚠️ Conflict detected. Continue anyway?"))
+        return;
     }
 
     try {
@@ -164,7 +173,9 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             await updateCalendarEvent((currentInterview as any).eventId, form);
             alert("Interview and calendar event updated ✅");
           } else {
-            console.warn("⚠️ No eventId found for this interview, cannot update calendar");
+            console.warn(
+              "⚠️ No eventId found for this interview, cannot update calendar"
+            );
           }
         } else {
           // ✅ Create new calendar event and save its ID
@@ -190,6 +201,10 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         }
       }
 
+<<<<<<< HEAD
+=======
+      // ✅ Reset form
+>>>>>>> feb1cfd748e758a81e16b19852807bb453461d66
       setForm({
         type: "phone",
         date: "",
@@ -201,12 +216,10 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         anxietyLevel: 3
       });
       setEditingId(null);
-
     } catch (err) {
       console.error("Error saving interview:", err);
     }
   };
-
 
   /** ✅ Delete Interview **/
   const handleDelete = async (interviewId: string) => {
@@ -229,7 +242,9 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             await deleteCalendarEvent(interview.eventId);
             console.log("✅ Deleted Google event:", interview.eventId);
           } else {
-            console.warn("⚠️ No eventId for this interview — skipping Google Calendar delete");
+            console.warn(
+              "⚠️ No eventId for this interview — skipping Google Calendar delete"
+            );
           }
         }
         await fetchInterviews();
@@ -400,7 +415,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         </Button>
       </div>
 
-      {/* ✅ Preparation Checklist */}
+      {/* ✅ Preparation Checklist
       {prepTasks.length > 0 && (
         <div className="mt-6 bg-blue-50 border border-blue-200 p-4 rounded">
           <h5 className="font-semibold mb-2">Preparation Checklist</h5>
@@ -410,7 +425,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             ))}
           </ul>
         </div>
-      )}
+      )} */}
 
       {/* ✅ Scheduled Interviews List */}
       {interviews.length > 0 && (
@@ -483,6 +498,39 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                         <option value="pending">Awaiting feedback</option>
                       </select>
                     </div>
+                  )}
+                  
+                  {isPast && i.outcome && (
+                    <InterviewFollowUp
+                      jobId={jobId}
+                      interviewId={i._id!}
+                      interviewerEmail={i.contactInfo}
+                      interviewDate={i.date}
+                      existingFollowUps={i.followUps || []}
+                      onFollowUpUpdate={fetchInterviews}
+                      compact={false}
+                    />
+                  )}
+
+                  {/* Modal */}
+                  {followUpModal && (
+                    <FollowUpModal
+                      jobId={followUpModal.jobId}
+                      interviewId={followUpModal.interviewId}
+                      interviewerEmail={followUpModal.email}
+                      onClose={() => setFollowUpModal(null)}
+                      onSuccess={fetchInterviews}
+                    />
+                  )}
+
+                  {!isPast && (
+                    <InterviewChecklist
+                      jobId={jobId}
+                      interviewId={i._id!}
+                      checklist={i.preparationChecklist}
+                      onChecklistUpdate={fetchInterviews}
+                      compact={false}
+                    />
                   )}
                 </li>
               );

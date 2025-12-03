@@ -23,7 +23,12 @@ import {
   addApplicationHistory,
   updateApplicationHistory,
   deleteApplicationHistory,
-  getJobStats
+  getJobStats,
+  generateChecklistItems,
+  createFollowUpTemplate,
+  saveFollowUp,
+  updateFollowUpStatus,
+  generateNegotiationPrep
 } from "../services/jobs.service.js";
 import {
   getUserPreferences,
@@ -441,6 +446,147 @@ router.patch("/:id/interview/eventId", async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to save eventId:", err);
     res.status(500).json({ error: "Failed to save eventId" });
+  }
+});
+
+// ============================================
+// UC-081: PRE-INTERVIEW PREPARATION CHECKLIST
+// ============================================
+
+/**
+ * POST /api/jobs/:id/interview/:interviewId/generate-checklist
+ * Generate a personalized preparation checklist for an interview
+ */
+router.post("/:id/interview/:interviewId/generate-checklist", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { id: jobId, interviewId } = req.params;
+    
+    // Fetch the job to get context
+    const job = await Jobs.findOne({ _id: jobId, userId });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    // Find the specific interview
+    const interview = job.interviews.find(i => i._id.toString() === interviewId);
+    if (!interview) return res.status(404).json({ error: "Interview not found" });
+    
+    // Check if checklist already exists
+    if (interview.preparationChecklist?.items?.length > 0) {
+      return res.status(200).json({ 
+        message: "Checklist already exists",
+        checklist: interview.preparationChecklist 
+      });
+    }
+    
+    // Generate checklist items based on job and interview context
+    const checklistItems = await generateChecklistItems(job, interview);
+
+    console.log("Generated checklist items:", checklistItems);
+    
+    // Initialize the checklist
+    interview.preparationChecklist = {
+      items: checklistItems,
+      generatedAt: new Date(),
+      lastUpdatedAt: new Date()
+    };
+
+    console.log("Assigned checklist to interview:", interview.preparationChecklist);
+    console.log("Saved items to checklist:", interview.preparationChecklist.items);
+    
+    await job.save();
+    
+    res.status(201).json({
+      message: "Checklist generated successfully",
+      checklist: interview.preparationChecklist
+    });
+    
+  } catch (err) {
+    console.error("Error generating checklist:", err);
+    res.status(500).json({ error: err.message || "Failed to generate checklist" });
+  }
+});
+
+/**
+ * PATCH /api/jobs/:id/interview/:interviewId/checklist/:itemId
+ * Toggle completion status of a checklist item
+ */
+router.patch("/:id/interview/:interviewId/checklist/:itemId", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { id: jobId, interviewId, itemId } = req.params;
+    const { completed } = req.body;
+    
+    const job = await Jobs.findOne({ _id: jobId, userId });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    const interview = job.interviews.find(i => i._id.toString() === interviewId);
+    if (!interview) return res.status(404).json({ error: "Interview not found" });
+    
+    if (!interview.preparationChecklist?.items) {
+      return res.status(404).json({ error: "Checklist not found. Generate it first." });
+    }
+    
+    // Find and update the specific item
+    const item = interview.preparationChecklist.items.find(i => i.id === itemId);
+    if (!item) return res.status(404).json({ error: "Checklist item not found" });
+    
+    item.completed = completed;
+    item.completedAt = completed ? new Date() : null;
+    interview.preparationChecklist.lastUpdatedAt = new Date();
+    
+    await job.save();
+    
+    res.json({
+      message: "Checklist item updated",
+      item: item,
+      checklist: interview.preparationChecklist
+    });
+    
+  } catch (err) {
+    console.error("Error updating checklist item:", err);
+    res.status(500).json({ error: err.message || "Failed to update checklist item" });
+  }
+});
+
+/**
+ * GET /api/jobs/:id/interview/:interviewId/checklist
+ * Get the preparation checklist for an interview
+ */
+router.get("/:id/interview/:interviewId/checklist", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { id: jobId, interviewId } = req.params;
+    
+    const job = await Jobs.findOne({ _id: jobId, userId }).lean();
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    const interview = job.interviews.find(i => i._id.toString() === interviewId);
+    if (!interview) return res.status(404).json({ error: "Interview not found" });
+    
+    if (!interview.preparationChecklist) {
+      return res.status(404).json({ 
+        error: "Checklist not generated yet",
+        checklistExists: false 
+      });
+    }
+    
+    res.json({
+      checklist: interview.preparationChecklist,
+      interviewDate: interview.date,
+      interviewType: interview.type,
+      company: job.company,
+      jobTitle: job.jobTitle
+    });
+    
+  } catch (err) {
+    console.error("Error fetching checklist:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch checklist" });
   }
 });
 
@@ -882,6 +1028,279 @@ router.patch("/:id/archive", async (req, res) => {
   } catch (err) {
     console.error("Archive update failed:", err);
     res.status(500).json({ error: err.message || "Server error" });
+  }
+});
+
+// ============================================
+// FOLLOW-UP EMAIL ROUTES (UC-082)
+// ============================================
+
+// POST: Generate AI Template
+router.post("/:id/interview/:interviewId/follow-up/generate", async (req, res) => {
+  try {
+    console.log('🌐 ===== ROUTE: Generate Follow-Up =====');
+    console.log('📥 Route params:', req.params);
+    console.log('📥 Route body:', req.body);
+    console.log('👤 req.user:', req.user);
+    
+    const userId = getUserId(req); // ← Make sure this function exists
+    console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
+    
+    if (!userId) {
+      console.log('❌ No userId - returning 401');
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log('📞 Calling createFollowUpTemplate with:', {
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      type: req.body.type
+    });
+
+    const result = await createFollowUpTemplate({
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      type: req.body.type
+    });
+    
+    console.log('✅ Success - returning result');
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Route error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST: Save a new Follow-Up
+router.post("/:id/interview/:interviewId/follow-up", async (req, res) => {
+  try {
+    console.log('🌐 ===== ROUTE: Save Follow-Up =====');
+    console.log('📥 Route params:', req.params);
+    console.log('📥 Route body:', req.body);
+    console.log('👤 req.user:', req.user);
+    
+    const userId = getUserId(req);
+    console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
+    
+    if (!userId) {
+      console.log('❌ No userId - returning 401');
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log('📞 Calling saveFollowUp with:', {
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      payload: req.body
+    });
+
+    const result = await saveFollowUp({
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      payload: req.body
+    });
+    
+    console.log('✅ Success - returning result');
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Route error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH: Update Follow-Up (e.g. mark as sent or response received)
+router.patch("/:id/interview/:interviewId/follow-up/:followUpId", async (req, res) => {
+  try {
+    console.log('🌐 ===== ROUTE: Update Follow-Up Status =====');
+    console.log('📥 Route params:', req.params);
+    console.log('📥 Route body:', req.body);
+    console.log('👤 req.user:', req.user);
+    
+    const userId = getUserId(req);
+    console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
+    
+    if (!userId) {
+      console.log('❌ No userId - returning 401');
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log('📞 Calling updateFollowUpStatus with:', {
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      followUpId: req.params.followUpId,
+      updates: req.body
+    });
+
+    const result = await updateFollowUpStatus({
+      userId,
+      jobId: req.params.id,
+      interviewId: req.params.interviewId,
+      followUpId: req.params.followUpId,
+      updates: req.body
+    });
+    
+    console.log('✅ Success - returning result');
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Route error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================
+// UC-083: SALARY NEGOTIATION PREPARATION
+// ============================================
+
+/**
+ * POST /api/jobs/:id/negotiation/generate
+ * Generate AI-powered negotiation preparation
+ */
+router.post("/:id/negotiation/generate", async (req, res) => {
+  try {
+    console.log('🎯 ===== ROUTE: Generate Negotiation Prep =====');
+    console.log('📥 Route params:', req.params);
+    console.log('👤 req.user:', req.user);
+    
+    const userId = getUserId(req);
+    console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
+    
+    if (!userId) {
+      console.log('❌ No userId - returning 401');
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    console.log('📞 Calling generateNegotiationPrep with:', {
+      userId,
+      jobId: req.params.id
+    });
+
+    const result = await generateNegotiationPrep({
+      userId,
+      jobId: req.params.id
+    });
+    
+    console.log('✅ Success - returning result');
+    res.json(result);
+    
+  } catch (err) {
+    console.error("❌ Route error:", err.message);
+    res.status(500).json({ error: err.message || "Failed to generate negotiation prep" });
+  }
+});
+
+/**
+ * GET /api/jobs/:id/negotiation
+ * Get existing negotiation prep for a job
+ */
+router.get("/:id/negotiation", async (req, res) => {
+  try {
+    console.log('🎯 ===== ROUTE: Get Negotiation Prep =====');
+    
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const job = await Jobs.findOne({ _id: req.params.id, userId }).lean();
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    if (!job.negotiationPrep) {
+      return res.status(404).json({ 
+        error: "Negotiation prep not generated yet",
+        exists: false 
+      });
+    }
+    
+    res.json({
+      negotiationPrep: job.negotiationPrep,
+      jobTitle: job.jobTitle,
+      company: job.company,
+      currentOffer: job.finalSalary
+    });
+    
+  } catch (err) {
+    console.error("❌ Error fetching negotiation prep:", err);
+    res.status(500).json({ error: err.message || "Failed to fetch negotiation prep" });
+  }
+});
+
+/**
+ * PATCH /api/jobs/:id/negotiation
+ * Update/customize negotiation prep
+ */
+router.patch("/:id/negotiation", async (req, res) => {
+  try {
+    console.log('🎯 ===== ROUTE: Update Negotiation Prep =====');
+    console.log('📥 Route body:', req.body);
+    
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { counterOffer, strategy, outcome } = req.body;
+    
+    const job = await Jobs.findOne({ _id: req.params.id, userId });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+    
+    if (!job.negotiationPrep) {
+      return res.status(404).json({ error: "Generate negotiation prep first" });
+    }
+    
+    // Update fields
+    if (counterOffer) {
+      job.negotiationPrep.counterOffer = {
+        ...job.negotiationPrep.counterOffer,
+        ...counterOffer
+      };
+    }
+    
+    if (strategy) {
+      job.negotiationPrep.strategy = {
+        ...job.negotiationPrep.strategy,
+        ...strategy
+      };
+    }
+    
+    if (outcome) {
+      job.negotiationPrep.outcome = {
+        ...job.negotiationPrep.outcome,
+        ...outcome
+      };
+      
+      // 🔗 Sync to salaryAnalysis for future UC-100 analytics
+      if (outcome.attempted) {
+        job.salaryAnalysis = job.salaryAnalysis || {};
+        job.salaryAnalysis.negotiation = job.salaryAnalysis.negotiation || {};
+        job.salaryAnalysis.negotiation.attempted = true;
+        
+        if (outcome.result) {
+          job.salaryAnalysis.negotiation.outcome = outcome.result;
+        }
+        if (outcome.finalSalary) {
+          job.salaryAnalysis.negotiation.finalOffer = outcome.finalSalary;
+          job.salaryAnalysis.negotiation.initialOffer = job.negotiationPrep.marketData.yourOffer;
+          job.salaryAnalysis.negotiation.improvedAmount = 
+            outcome.finalSalary - job.negotiationPrep.marketData.yourOffer;
+        }
+      }
+    }
+    
+    job.negotiationPrep.lastUpdatedAt = new Date();
+    job.markModified('negotiationPrep');
+    job.markModified('salaryAnalysis');
+    
+    await job.save();
+    
+    console.log('✅ Negotiation prep updated successfully');
+    res.json({
+      message: "Negotiation prep updated",
+      negotiationPrep: job.negotiationPrep
+    });
+    
+  } catch (err) {
+    console.error("❌ Error updating negotiation prep:", err);
+    res.status(500).json({ error: err.message || "Failed to update negotiation prep" });
   }
 });
 

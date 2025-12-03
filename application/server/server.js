@@ -46,7 +46,11 @@ import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 import interviewRoutes from "./routes/interview-insights.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
 import interviewQuestionsRoute from "./routes/interview-questions.js";
+<<<<<<< HEAD
 import companyResearch from "./routes/company-research.js";
+=======
+import writingPracticeRoutes from './routes/writingPractice.js';
+>>>>>>> feb1cfd748e758a81e16b19852807bb453461d66
 
 // 📄 RESUME + COVER LETTERS
 import coverletter from "./routes/coverletter.js";
@@ -75,6 +79,12 @@ import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
+<<<<<<< HEAD
+=======
+//import networkingRoutes from "./routes/networking.js";
+//import outreachRoutes from "./routes/outreach.js";
+import advisorRoutes from "./routes/advisor.routes.js";
+>>>>>>> feb1cfd748e758a81e16b19852807bb453461d66
 
 import marketRoutes from "./routes/market.js";
 
@@ -164,8 +174,12 @@ try {
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use("/api/interviews", interviewAnalyticsRoutes);
   app.use("/api/interview-questions", interviewQuestionsRoute);
+<<<<<<< HEAD
   app.use("/api/company/research", attachDevUser, companyResearch);
   app.use(companyResearch);
+=======
+  app.use('/api/writing-practice', writingPracticeRoutes);
+>>>>>>> feb1cfd748e758a81e16b19852807bb453461d66
 
   // 📄 RESUMES + TEMPLATES
   app.use("/api/coverletter", coverletter);
@@ -197,6 +211,7 @@ try {
 
   // 🤝 JOB SEARCH SHARING
   app.use("/api", jobSearchSharingRoutes);
+  app.use("/api", advisorRoutes);
 
   // 📈 MARKET INTELLIGENCE (UC-102)
   app.use("/api/market", attachDevUser, marketRoutes);
