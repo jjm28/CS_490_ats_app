@@ -6,7 +6,6 @@ import {
   markRecommendationComplete,
   type SuccessPrediction,
 } from "../../api/interviewPredictions";
-import { useInterviewPredictionSync } from '../../hooks/useInterviewPredictionSync';
 
 interface InterviewSuccessProbabilityProps {
   onBack: () => void;
@@ -17,7 +16,6 @@ export default function InterviewSuccessProbability({ onBack }: InterviewSuccess
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recalculating, setRecalculating] = useState<string | null>(null);
-  const { triggerRecalculation } = useInterviewPredictionSync();
 
   useEffect(() => {
     fetchPredictions();
@@ -57,13 +55,52 @@ export default function InterviewSuccessProbability({ onBack }: InterviewSuccess
     jobId: string
   ) => {
     try {
-      await markRecommendationComplete(predictionId, recommendationIndex);
-      // Auto-recalculate to reflect any changes in underlying data
-      await recalculatePrediction(interviewId, jobId);
-      await fetchPredictions(); // Refresh data
+      // Immediately update local state for instant feedback
+      setPredictions(prevPredictions => 
+        prevPredictions.map(pred => {
+          if (pred._id === predictionId) {
+            const updatedRecs = [...pred.recommendations];
+            if (updatedRecs[recommendationIndex]) {
+              updatedRecs[recommendationIndex] = {
+                ...updatedRecs[recommendationIndex],
+                completed: true
+              };
+            }
+            return { ...pred, recommendations: updatedRecs };
+          }
+          return pred;
+        })
+      );
+      
+      // Save to backend (but don't wait for it or refresh)
+      markRecommendationComplete(predictionId, recommendationIndex).catch(err => {
+        console.error('Failed to save completion:', err);
+        // Revert the UI change if save failed
+        setPredictions(prevPredictions => 
+          prevPredictions.map(pred => {
+            if (pred._id === predictionId) {
+              const updatedRecs = [...pred.recommendations];
+              if (updatedRecs[recommendationIndex]) {
+                updatedRecs[recommendationIndex] = {
+                  ...updatedRecs[recommendationIndex],
+                  completed: false
+                };
+              }
+              return { ...pred, recommendations: updatedRecs };
+            }
+            return pred;
+          })
+        );
+        alert("Failed to save. Changes reverted.");
+      });
+      
+      // Trigger recalculation in background (don't wait, don't refresh)
+      recalculatePrediction(interviewId, jobId).catch(err => {
+        console.error('Recalculation failed:', err);
+      });
+      
     } catch (err: any) {
-      console.error("Error completing recommendation:", err);
-      alert("Failed to mark recommendation as complete");
+      console.error('Error:', err);
     }
   };
 
@@ -374,6 +411,11 @@ function RecommendationItem({ recommendation, onComplete, jobId, interviewId }: 
 
   const actionLink = getActionLink();
 
+  const handleDoneClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onComplete();
+  };
+
   return (
     <div
       className={`border rounded-lg p-3 ${priorityColors[recommendation.priority]} ${
@@ -407,11 +449,9 @@ function RecommendationItem({ recommendation, onComplete, jobId, interviewId }: 
           )}
           {!recommendation.completed && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onComplete();
-              }}
+              onClick={handleDoneClick}
               className="text-xs px-3 py-1 bg-white/10 hover:bg-white/20 rounded transition-colors whitespace-nowrap"
+              type="button"
             >
               ✓ Done
             </button>

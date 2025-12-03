@@ -99,6 +99,8 @@ import AdvisorAvailabilityPage from './components/Advisors/AdvisorAvailabilityPa
 import CreateCampaign from './components/Networking/CreateCampaign';
 import CampaignDetail from './components/Networking/CampaignDetail';
 import CampaignAnalytics from './components/Networking/CampaignAnalytics';
+import QuickOutreach from './components/Networking/QuickOutreach';
+import IndustryNews from './components/Networking/IndustryNews';
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -233,6 +235,8 @@ function App() {
           <Route path="/networking/campaigns/create" element={<PrivateRoute><CreateCampaign /></PrivateRoute>} />
           <Route path="/networking/campaigns/:id" element={<PrivateRoute><CampaignDetail /></PrivateRoute>} />
           <Route path="/networking/campaigns/analytics" element={<PrivateRoute><CampaignAnalytics /></PrivateRoute>} />
+          <Route path="/networking/contacts/:id/outreach" element={<PrivateRoute><QuickOutreach /></PrivateRoute>} />
+          <Route path="/networking/industry-news" element={<PrivateRoute><IndustryNews /></PrivateRoute>} />
 
           <Route
             path="/networking/outreach"

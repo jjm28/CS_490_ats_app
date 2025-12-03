@@ -24,6 +24,7 @@ import {
   generateOutreachTemplates,
   getRelationshipAnalytics,
 } from "../services/relationship_maintenance.service.js";
+import { getDb } from "../db/connection.js";
 
 const router = express.Router();
 
@@ -49,6 +50,34 @@ router.get("/contacts", verifyJWT, async (req, res) => {
   } catch (err) {
     console.error("GET CONTACTS ERROR:", err);
     res.status(500).json({ error: "Failed to load contacts" });
+  }
+});
+
+/* ===========================================================
+   RELATIONSHIP MAINTENANCE - UC-093
+=========================================================== */
+
+// GET contacts needing attention
+router.get("/contacts/needing-attention", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const contacts = await getContactsNeedingAttention(userId);
+    res.json(contacts);
+  } catch (err) {
+    console.error("GET CONTACTS NEEDING ATTENTION ERROR:", err);
+    res.status(500).json({ error: "Failed to load contacts needing attention" });
+  }
+});
+
+// GET upcoming reminders
+router.get("/reminders/upcoming", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const contacts = await getUpcomingReminders(userId);
+    res.json(contacts);
+  } catch (err) {
+    console.error("GET UPCOMING REMINDERS ERROR:", err);
+    res.status(500).json({ error: "Failed to load upcoming reminders" });
   }
 });
 
@@ -553,34 +582,6 @@ router.get("/campaigns-analytics", verifyJWT, async (req, res) => {
   }
 });
 
-/* ===========================================================
-   RELATIONSHIP MAINTENANCE - UC-093
-=========================================================== */
-
-// GET contacts needing attention
-router.get("/contacts/needing-attention", verifyJWT, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const contacts = await getContactsNeedingAttention(userId);
-    res.json(contacts);
-  } catch (err) {
-    console.error("GET CONTACTS NEEDING ATTENTION ERROR:", err);
-    res.status(500).json({ error: "Failed to load contacts needing attention" });
-  }
-});
-
-// GET upcoming reminders
-router.get("/reminders/upcoming", verifyJWT, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const contacts = await getUpcomingReminders(userId);
-    res.json(contacts);
-  } catch (err) {
-    console.error("GET UPCOMING REMINDERS ERROR:", err);
-    res.status(500).json({ error: "Failed to load upcoming reminders" });
-  }
-});
-
 // POST update relationship health for single contact
 router.post("/contacts/:id/update-health", verifyJWT, async (req, res) => {
   try {
@@ -730,6 +731,167 @@ router.post("/contacts/:id/opportunity", verifyJWT, async (req, res) => {
   } catch (err) {
     console.error("MARK OPPORTUNITY ERROR:", err);
     res.status(500).json({ error: "Failed to mark opportunity" });
+  }
+});
+
+/* ===========================================================
+   SEND EMAIL TO CONTACT - UC-093
+=========================================================== */
+router.post("/send-email", verifyJWT, async (req, res) => {
+  try {
+    const { recipientEmail, subject, body } = req.body;
+
+    if (!recipientEmail || !subject || !body) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const db = getDb();
+    const user = await db.collection("users").findOne({ _id: req.user._id });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const senderName = user.firstName 
+      ? `${user.firstName} ${user.lastName || ""}`.trim()
+      : user.email;
+
+    // Use the existing notification service to send email
+    const notificationService = (await import("../services/notifications.service.js")).default;
+    
+    await notificationService.sendFollowUpEmail(
+      recipientEmail,
+      subject,
+      body,
+      senderName
+    );
+
+    res.json({ success: true, message: "Email sent successfully" });
+  } catch (err) {
+    console.error("SEND EMAIL ERROR:", err);
+    res.status(500).json({ error: "Failed to send email" });
+  }
+});
+
+/* ===========================================================
+   FETCH INDUSTRY NEWS - UC-093 (IMPROVED WITH RELEVANCE SCORING)
+=========================================================== */
+
+// Helper function to score article relevance
+function scoreRelevance(article, industry) {
+  let score = 0;
+  const industryLower = industry.toLowerCase();
+  const title = (article.title || '').toLowerCase();
+  const description = (article.description || '').toLowerCase();
+  const content = (article.content || '').toLowerCase();
+
+  // Title mentions (highest weight)
+  if (title.includes(industryLower)) score += 5;
+  
+  // Description mentions (medium weight)
+  if (description.includes(industryLower)) score += 3;
+  
+  // Content mentions (lower weight)
+  if (content.includes(industryLower)) score += 1;
+
+  // Industry-specific keywords
+  const industryKeywords = {
+    'technology': ['tech', 'software', 'ai', 'startup', 'cloud', 'digital'],
+    'finance': ['bank', 'investment', 'trading', 'stock', 'financial'],
+    'healthcare': ['medical', 'hospital', 'health', 'patient', 'clinic'],
+    'education': ['school', 'university', 'student', 'learning', 'academic'],
+    'retail': ['store', 'shopping', 'consumer', 'sale', 'ecommerce'],
+    'manufacturing': ['factory', 'production', 'industrial', 'supply'],
+    'consulting': ['advisory', 'strategy', 'management', 'business'],
+    'marketing': ['advertising', 'brand', 'campaign', 'digital'],
+    'engineering': ['construction', 'infrastructure', 'project'],
+    'design': ['creative', 'ux', 'ui', 'visual', 'graphic'],
+  };
+
+  const keywords = industryKeywords[industryLower] || [];
+  keywords.forEach(keyword => {
+    if (title.includes(keyword)) score += 2;
+    if (description.includes(keyword)) score += 1;
+  });
+
+  return score;
+}
+
+router.get("/industry-news", verifyJWT, async (req, res) => {
+  try {
+    const { industry } = req.query;
+
+    if (!industry) {
+      return res.status(400).json({ error: "Industry parameter required" });
+    }
+
+    const apiKey = process.env.NEWS_API_KEY;
+    
+    if (!apiKey) {
+      return res.status(500).json({ error: "News API key not configured" });
+    }
+
+    // Fetch more articles to have a better pool
+    const newsResponse = await fetch(
+      `https://newsapi.org/v2/everything?` +
+      `q=${encodeURIComponent(industry)}` + // Simple query without quotes
+      `&sortBy=publishedAt` +
+      `&pageSize=50` + // Get 50 articles to filter from
+      `&language=en` +
+      `&apiKey=${apiKey}`
+    );
+
+    if (!newsResponse.ok) {
+      const errorData = await newsResponse.json();
+      throw new Error(errorData.message || "Failed to fetch news");
+    }
+
+    const newsData = await newsResponse.json();
+
+    console.log(`News API returned ${newsData.articles?.length || 0} articles for ${industry}`);
+
+    if (!newsData.articles || newsData.articles.length === 0) {
+      return res.json({ articles: [], total: 0 });
+    }
+
+    // Score and filter articles
+    const enrichedArticles = newsData.articles
+      .filter((article) => {
+        // Filter out removed articles
+        return article.title && 
+               article.description && 
+               article.title !== "[Removed]" &&
+               article.description !== "[Removed]";
+      })
+      .map((article) => {
+        const relevanceScore = scoreRelevance(article, industry);
+        
+        return {
+          title: article.title,
+          description: article.description,
+          url: article.url,
+          source: article.source.name,
+          publishedAt: article.publishedAt,
+          urlToImage: article.urlToImage,
+          relevanceScore,
+        };
+      })
+      .filter(article => article.relevanceScore >= 3) // Only keep relevant articles
+      .sort((a, b) => b.relevanceScore - a.relevanceScore) // Sort by relevance
+      .slice(0, 15); // Return top 15
+
+    console.log(`Filtered to ${enrichedArticles.length} relevant articles (score >= 3)`);
+
+    res.json({ 
+      articles: enrichedArticles,
+      total: enrichedArticles.length 
+    });
+  } catch (err) {
+    console.error("FETCH NEWS ERROR:", err);
+    res.status(500).json({ 
+      error: "Failed to fetch industry news",
+      details: err.message 
+    });
   }
 });
 

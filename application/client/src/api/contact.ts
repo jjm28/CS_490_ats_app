@@ -42,6 +42,16 @@ export interface Contact {
   aiNextSteps?: string;
   aiInterests?: string;
 
+  // ✨ NEW FIELDS FOR UC-093
+  relationshipHealth?: 'excellent' | 'good' | 'needs_attention' | 'at_risk';
+  engagementFrequency?: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+  daysSinceLastContact?: number;
+  totalOutreachCount?: number;
+  reciprocityScore?: number;
+  opportunitiesGenerated?: number;
+  nextSuggestedContact?: string;
+  lastReminderSent?: string;
+
   createdAt: string;
   updatedAt: string;
 }
