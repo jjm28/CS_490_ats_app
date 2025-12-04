@@ -25,6 +25,8 @@ const ActivitySessionSchema = new Schema(
         "job_research",
         "resume_edit",
         "coverletter_edit",
+        "job_focus",
+        "company_research"
       ],
     },
     // Extra context like "JobsEntry", "CompanyResearchInline", "ResumeEditor"
