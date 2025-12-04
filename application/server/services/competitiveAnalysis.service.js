@@ -416,3 +416,5 @@ export async function computeCompetitiveAnalysis(options) {
     recommendations,
   };
 }
+
+export { computeCompetitiveAnalysis as getCompetitiveAnalysis };

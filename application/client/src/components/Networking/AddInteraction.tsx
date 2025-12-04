@@ -10,7 +10,7 @@ export default function AddInteraction() {
   const navigate = useNavigate();
 
   const [contact, setContact] = useState<Contact | null>(null);
-  const [type, setType] = useState("Call");
+  const [type, setType] = useState("Email/Message");
   const [note, setNote] = useState("");
 
   function authHeaders() {
@@ -37,6 +37,11 @@ export default function AddInteraction() {
   }, [id]);
 
   async function save() {
+    if (!note.trim()) {
+      alert("Please add a note about this interaction.");
+      return;
+    }
+
     const res = await fetch(
       `${API_BASE}/api/networking/interactions/${id}`,
       {
@@ -47,7 +52,7 @@ export default function AddInteraction() {
     );
 
     if (res.ok) {
-      navigate(`/networking/interactions/${id}`);
+      navigate(`/networking/contacts/${id}`);
     } else {
       alert("Failed to save interaction.");
     }
@@ -85,13 +90,55 @@ export default function AddInteraction() {
               value={type}
               onChange={(e) => setType(e.target.value)}
             >
-              <option>Call</option>
-              <option>Email</option>
-              <option>Meeting</option>
-              <option>Referral</option>
-              <option>Follow-up</option>
+              {/* OUTBOUND - You initiated */}
+              <optgroup label="📤 Outbound (You Initiated)">
+                <option value="Email/Message">Email/Message</option>
+                <option value="Outbound Call">Outbound Call</option>
+                <option value="Follow-up">Follow-up</option>
+                <option value="I Reached Out">I Reached Out</option>
+                <option value="Request Sent">Request Sent</option>
+                <option value="Coffee/Lunch">Coffee/Lunch (You Invited)</option>
+              </optgroup>
+
+              {/* INBOUND - They initiated */}
+              <optgroup label="📥 Inbound (They Initiated)">
+                <option value="Inbound Call">Inbound Call</option>
+                <option value="They Reached Out">They Reached Out</option>
+                <option value="Job Referral Received">Job Referral Received</option>
+                <option value="Introduction Received">Introduction Received</option>
+                <option value="Advice Received">Advice Received</option>
+                <option value="Opportunity Shared by Them">Opportunity Shared by Them</option>
+              </optgroup>
+
+              {/* MUTUAL - Both engaged */}
+              <optgroup label="🤝 Mutual (Both Engaged)">
+                <option value="Meeting">Meeting</option>
+                <option value="Video Call">Video Call</option>
+                <option value="Coffee">Coffee</option>
+                <option value="Lunch">Lunch</option>
+                <option value="Networking Event">Networking Event</option>
+                <option value="Event">Event/Conference</option>
+              </optgroup>
+
+              {/* OTHER */}
+              <optgroup label="📝 Other">
+                <option value="Opportunity Generated">Opportunity Generated</option>
+                <option value="Note">General Note</option>
+              </optgroup>
             </select>
           </label>
+
+          {/* Helper Text */}
+          <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>💡 Tip:</strong> Choose the correct category to track reciprocity accurately:
+            </p>
+            <ul className="text-sm text-blue-700 mt-2 space-y-1 ml-4">
+              <li>• <strong>Outbound</strong> = You initiated the contact</li>
+              <li>• <strong>Inbound</strong> = They reached out to you</li>
+              <li>• <strong>Mutual</strong> = Both participated equally</li>
+            </ul>
+          </div>
 
           {/* NOTES */}
           <label className="block mb-6">
@@ -99,7 +146,7 @@ export default function AddInteraction() {
             <textarea
               className="w-full border mt-2 p-3 rounded-lg focus:ring-2 focus:ring-blue-400 resize-none"
               rows={7}
-              placeholder="What happened during this interaction?"
+              placeholder="What happened during this interaction? Be specific to help track reciprocity..."
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
@@ -118,7 +165,7 @@ export default function AddInteraction() {
               onClick={() => setNote("")}
               className="px-6 py-3 bg-gray-200 text-gray-800 font-medium rounded-lg shadow hover:bg-gray-300 transition"
             >
-              Clear
+              Clear Notes
             </button>
           </div>
         </div>

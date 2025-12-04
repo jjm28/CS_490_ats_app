@@ -4,6 +4,7 @@ import { verifyJWT } from "../middleware/auth.js";
 import Job from "../models/jobs.js";
 import InterviewQuestions from "../models/interviewQuestions.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import coachinginsights from "../models/coachinginsights.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -39,6 +40,33 @@ function prompt(job) {
     - Do NOT wrap JSON in markdown or backticks
     `;
 }
+router.get("/", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    console.log(`[Interview Questions] Fetching all questions for userId: ${userId}`);
+    
+    // Fetch all interview questions for this user
+    const allQuestions = await InterviewQuestions.find({ userId });
+    
+    if (!allQuestions || allQuestions.length === 0) {
+      console.log(`[Interview Questions] No questions found for user`);
+      return res.json([]);
+    }
+    
+    console.log(`[Interview Questions] Found ${allQuestions.length} question sets`);
+    
+    // Return the raw data - frontend will handle formatting
+    res.json(allQuestions);
+    
+  } catch (err) {
+    console.error(`[Interview Questions] Error:`, err);
+    res.status(500).json({ 
+      error: "Failed to fetch questions",
+      details: err.message 
+    });
+  }
+});
 router.get("/:jobId", verifyJWT, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -183,4 +211,7 @@ function transformToFrontendFormat(data) {
   console.log(`[Transform] Final output:`, questions.length, 'questions');
   return questions;
 }
+
+
+
 export default router;
