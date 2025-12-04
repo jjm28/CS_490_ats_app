@@ -251,6 +251,25 @@ function Navbar() {
                 >
                   Market Trends
                 </NavLink>
+                <NavLink
+                  to="/analytics/success-overview"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Success Overview
+                </NavLink>
+                <NavLink
+                  to="/analytics/success-patterns"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Success Patterns
+                </NavLink>
+
+                <NavLink
+                  to="/analytics/custom-report"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Custom Reports
+                </NavLink>
               </PopoverPanel>
             </Popover>
             {/* Teams / Coaching */}

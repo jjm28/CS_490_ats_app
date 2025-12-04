@@ -115,7 +115,9 @@ import TeamReviewPage from "./components/Teams/TeamReviewPage";
 import CandidateSharingPage from "./components/Teams/CandidateSharingPage";
 import TeamFeedbackPage from "./components/Teams/TeamFeedbackPage";
 import TeamCommentsPage from "./components/Teams/TeamCommentsPage";
-
+import SuccessOverviewDashboard from './components/Analytics/SuccessOverviewDashboard';
+import SuccessPatternsDashboard from './components/Analytics/SuccessPatternsDashboard';
+import CustomReportPage from "./components/Analytics/CustomReportPage";
 
 function App() {
   const location = useLocation();
@@ -477,6 +479,21 @@ function App() {
           <Route 
           path="/teams/:teamId/comments" 
           element={<PrivateRoute><TeamCommentsPage /></PrivateRoute>} />
+
+          <Route
+            path="/analytics/success-overview"
+            element={<PrivateRoute><SuccessOverviewDashboard /></PrivateRoute>}
+          />
+
+          <Route
+            path="/analytics/success-patterns"
+            element={<PrivateRoute><SuccessPatternsDashboard /></PrivateRoute>}
+          />
+
+          <Route
+            path="/analytics/custom-report"
+            element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
+          />
         </Routes>
       </div>
     </>
