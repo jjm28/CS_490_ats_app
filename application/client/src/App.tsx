@@ -108,6 +108,14 @@ import ConnectionTemplates from "./components/Networking/LinkedIn/ConnectionTemp
 import ProfileOptimization from "./components/Networking/LinkedIn/ProfileOptimization";
 import ContentStrategyPage from "./components/Networking/LinkedIn/ContentStrategy";
 import CampaignTemplates from "./components/Networking/LinkedIn/CampaignTemplates";
+import TeamsPage from "./components/Teams/TeamsPage";
+import TeamDetailPage from "./components/Teams/TeamDetailPage";
+import CreateTeamPage from "./components/Teams/CreateTeamPage";
+import TeamReviewPage from "./components/Teams/TeamReviewPage";
+import CandidateSharingPage from "./components/Teams/CandidateSharingPage";
+import TeamFeedbackPage from "./components/Teams/TeamFeedbackPage";
+import TeamCommentsPage from "./components/Teams/TeamCommentsPage";
+
 
 function App() {
   const location = useLocation();
@@ -440,6 +448,35 @@ function App() {
             element={<AdvisorRecommendationsPage />}
           />
           <Route path="/advisor/availability" element={<AdvisorAvailabilityPage />} />
+          <Route 
+            path="/teams" 
+            element={<PrivateRoute><TeamsPage /></PrivateRoute>} 
+          />
+          <Route 
+            path="/teams/:teamId" 
+            element={<PrivateRoute><TeamDetailPage /></PrivateRoute>} 
+          />
+          <Route
+           path="/teams/new" 
+           element={<PrivateRoute><CreateTeamPage /></PrivateRoute>} 
+           />
+           <Route 
+           path="/teams/:teamId/review" 
+           element={<PrivateRoute><TeamReviewPage /></PrivateRoute>} 
+           />
+
+           <Route 
+           path="/teams/sharing" 
+           element={<PrivateRoute><CandidateSharingPage /></PrivateRoute>} 
+           />
+           <Route 
+           path="/teams/:teamId/feedback" 
+           element={<PrivateRoute><TeamFeedbackPage /></PrivateRoute>} 
+           />
+
+          <Route 
+          path="/teams/:teamId/comments" 
+          element={<PrivateRoute><TeamCommentsPage /></PrivateRoute>} />
         </Routes>
       </div>
     </>

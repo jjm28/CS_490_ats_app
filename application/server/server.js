@@ -81,6 +81,9 @@ import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
+import teamProgressRouter from "./routes/teamProgress.js";
+
+import teamRoutes from "./routes/teams.js";
 
 import marketRoutes from "./routes/market.js";
 
@@ -161,6 +164,8 @@ try {
   app.use("/api/jobs", jobSalaryRoutes);
 
   // Salary Analytics (UC-100) — MUST COME FIRST
+  app.use("/api/salary", salaryRouter);
+  app.use('/api/salary', salaryRouter);
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
 
   // Salary CRUD — MUST COME AFTER
@@ -219,6 +224,12 @@ try {
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 
   // 🚀 START SERVER
+  //team page routing
+  app.use("/api/teams",teamRoutes);
+  app.use("/api/teams",  teamProgressRouter);
+
+  // Health check
+  app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
     console.log(`Server running on ${BASE}`);
     console.log(`Server connected to ${DB}`);
