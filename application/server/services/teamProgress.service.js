@@ -133,11 +133,12 @@ export async function getTeamGoals({ teamId, requesterId }) {
 export async function getTeamInsights({ teamId, requesterId }) {
   const db = getDb();
 
-  const team = await db.collection("teams").findOne({
-    _id: teamId,
-    "members.userId": requesterId,
-  });
-  if (!team) throw new Error("Team not found or access denied.");
+  // ✅ Use the same membership check pattern as other functions
+  const isMember = await isTeamMember(db, teamId, requesterId);
+  if (!isMember) {
+    console.warn(`[getTeamInsights] Unauthorized: user=${requesterId} not in team=${teamId}`);
+    throw new Error("Team not found or access denied.");
+  }
 
   return db
     .collection("teamInsights")

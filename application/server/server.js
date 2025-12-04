@@ -164,8 +164,7 @@ try {
   app.use("/api/jobs", jobSalaryRoutes);
 
   // Salary Analytics (UC-100) — MUST COME FIRST
-  app.use("/api/salary", salaryRouter);
-  app.use('/api/salary', salaryRouter);
+  // app.use("/api/salary", salaryRoutes);
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
 
   // Salary CRUD — MUST COME AFTER
