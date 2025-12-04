@@ -11,9 +11,10 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from "../../utils/gcalService";
-import type{ Interview, FollowUp } from "../../types/jobs.types";
+import type { Interview, FollowUp } from "../../types/jobs.types";
 import FollowUpModal from "../Interviews/FollowUpModal";
 import InterviewFollowUp from "../Interviews/InterviewFollowUp";
+import { useInterviewPredictionSync } from "../../hooks/useInterviewPredictionSync";
 
 async function moveJobToInterviewStage(jobId: string, token: string) {
   try {
@@ -40,6 +41,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
     notes: "",
     interviewer: "",
     contactInfo: "",
+    confidenceLevel: 3,
+    anxietyLevel: 3
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [gcalReady, setGcalReady] = useState(false);
@@ -52,6 +55,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       localStorage.getItem("authToken") || localStorage.getItem("token") || "",
     []
   );
+
+  const { triggerRecalculation } = useInterviewPredictionSync();
 
   /** ✅ Initialize Google API Client safely **/
   useEffect(() => {
@@ -135,6 +140,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         return;
       }
 
+      const saved = await res.json(); // 🆕 CAPTURE THE RESPONSE
+
       await fetchInterviews();
 
       await moveJobToInterviewStage(jobId, token);
@@ -183,6 +190,11 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         }
       }
 
+      const interviewId = editingId || saved._id;
+      if (interviewId) {
+        triggerRecalculation(jobId, interviewId);
+      }
+
       // ✅ Reset form
       setForm({
         type: "phone",
@@ -191,6 +203,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
         notes: "",
         interviewer: "",
         contactInfo: "",
+        confidenceLevel: 3,
+        anxietyLevel: 3
       });
       setEditingId(null);
     } catch (err) {
@@ -248,8 +262,14 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
           body: JSON.stringify({ outcome }),
         }
       );
-      if (res.ok) fetchInterviews();
-      else console.error("Failed to update outcome:", res.status);
+      if (res.ok) {
+        await fetchInterviews();
+
+        // 🆕 ADD THIS - Trigger recalculation when outcome changes
+        triggerRecalculation(jobId, interviewId);
+      } else {
+        console.error("Failed to update outcome:", res.status);
+      }
     } catch (err) {
       console.error("Error updating outcome:", err);
     }
@@ -267,6 +287,8 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
       notes: interview.notes || "",
       interviewer: interview.interviewer || "",
       contactInfo: interview.contactInfo || "",
+      confidenceLevel: interview.confidenceLevel ?? 3,
+      anxietyLevel: interview.anxietyLevel ?? 3
     });
   };
 
@@ -354,6 +376,56 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
             onChange={(e) => setForm({ ...form, contactInfo: e.target.value })}
             className="w-full border rounded p-2"
             placeholder="e.g. john@company.com or phone"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">Confidence Level (1–5):</label>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={form.confidenceLevel === null ? "" : form.confidenceLevel}
+            onChange={(e) => {
+              const val = e.target.value;
+
+              // Allow clearing the field
+              if (val === "") {
+                setForm({ ...form, confidenceLevel: null });
+                return;
+              }
+
+              // Allow only 1–5
+              const num = Number(val);
+              if (num >= 1 && num <= 5) {
+                setForm({ ...form, confidenceLevel: num });
+              }
+            }}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium">Anxiety Level (1–5):</label>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={form.anxietyLevel === null ? "" : form.anxietyLevel}
+            onChange={(e) => {
+              const val = e.target.value;
+
+              if (val === "") {
+                setForm({ ...form, anxietyLevel: null });
+                return;
+              }
+
+              const num = Number(val);
+              if (num >= 1 && num <= 5) {
+                setForm({ ...form, anxietyLevel: num });
+              }
+            }}
+            className="w-full border rounded p-2"
           />
         </div>
 
@@ -446,7 +518,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                       </select>
                     </div>
                   )}
-                  
+
                   {isPast && i.outcome && (
                     <InterviewFollowUp
                       jobId={jobId}
@@ -475,7 +547,7 @@ export default function InterviewScheduler({ jobId }: { jobId: string }) {
                       jobId={jobId}
                       interviewId={i._id!}
                       checklist={i.preparationChecklist}
-                      onChecklistUpdate={fetchInterviews}
+                      // onChecklistUpdate={fetchInterviews}
                       compact={false}
                     />
                   )}

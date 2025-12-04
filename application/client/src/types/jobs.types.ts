@@ -78,7 +78,7 @@ export interface Job {
 
   // Archive
   archived?: boolean;
-  archiveReason?: string | null;
+  archiveReason?: string | undefined;
   archivedAt?: string | null;
 
   // Application package
@@ -388,6 +388,8 @@ export interface Interview {
   interviewer?: string;
   contactInfo?: string;
   eventId?: string;
+  confidenceLevel?: number | null;
+  anxietyLevel?: number | null;
   preparationChecklist?: {
     items: Array<{
       id: string;

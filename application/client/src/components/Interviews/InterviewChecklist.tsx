@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import API_BASE from "../../utils/apiBase";
 import Button from "../StyledComponents/Button";
+import { useInterviewPredictionSync } from "../../hooks/useInterviewPredictionSync";
 
 interface ChecklistItem {
   id: string;
@@ -45,6 +46,7 @@ export default function InterviewChecklist({
   const [expanded, setExpanded] = useState(!compact);
 
   const token = localStorage.getItem("authToken") || localStorage.getItem("token") || "";
+  const { triggerRecalculation } = useInterviewPredictionSync();
 
   // Sync with prop changes
   useEffect(() => {
@@ -99,7 +101,8 @@ export default function InterviewChecklist({
       if (res.ok) {
         const data = await res.json();
         setChecklist(data.checklist);
-        onChecklistUpdate?.();
+        // onChecklistUpdate?.();
+        triggerRecalculation(jobId, interviewId);
       } else {
         console.error("Failed to update checklist item");
       }

@@ -21,8 +21,6 @@ export async function createJob({ userId, payload }) {
   return Jobs.create({ ...payload, userId });
 }
 
-
-
 export async function getAllJobs({ userId }) {
   return Jobs.find({ userId }).sort({ createdAt: -1 }).lean();
 }
@@ -159,33 +157,60 @@ export async function getJobStats(userId) {
     }
 
     // =======================================
-    // CONVERSION FUNNEL (ENTRY-BASED)
+    // CONVERSION FUNNEL (APPLIED COHORT)
     // =======================================
-    let appliedCount = 0;
-    let phoneCount = 0;
-    let interviewCount = 0;
-    let offerCount = 0;
 
-    for (const job of all) {
-      const hist = job.statusHistory || [];
-      if (hist.some(h => h.status === "applied")) appliedCount++;
-      if (hist.some(h => h.status === "phone_screen")) phoneCount++;
-      if (hist.some(h => h.status === "interview")) interviewCount++;
-      if (hist.some(h => h.status === "offer")) offerCount++;
-    }
+    // All jobs that ever reached "applied"
+    const appliedJobs = all.filter(job =>
+      (job.statusHistory || []).some(h => h.status === "applied")
+    );
+    const appliedCount = appliedJobs.length;
 
+    // Among applied jobs, who ever reached each stage
+    const phoneJobs = appliedJobs.filter(job =>
+      job.statusHistory.some(h => h.status === "phone_screen")
+    );
+
+    const interviewJobs = appliedJobs.filter(job =>
+      job.statusHistory.some(h => h.status === "interview")
+    );
+
+    const offerJobs = appliedJobs.filter(job =>
+      job.statusHistory.some(h => h.status === "offer")
+    );
+
+    const offersCount = offerJobs.length;
+
+    // 🔢 Applied-based conversions
     const conversion = {
-      applyToPhone: appliedCount ? Math.round((phoneCount / appliedCount) * 100) : 0,
-      applyToInterview: appliedCount ? Math.round((interviewCount / appliedCount) * 100) : 0,
-      applyToOffer: appliedCount ? Math.round((offerCount / appliedCount) * 100) : 0,
-      phoneToInterview: phoneCount ? Math.round((interviewCount / phoneCount) * 100) : 0,
-      interviewToOffer: interviewCount ? Math.round((offerCount / interviewCount) * 100) : 0,
+      // % of applied jobs that reached a phone screen at some point
+      applyToPhone: appliedCount
+        ? Math.round((phoneJobs.length / appliedCount) * 100)
+        : 0,
+
+      // % of applied jobs that reached an interview at some point
+      applyToInterview: appliedCount
+        ? Math.round((interviewJobs.length / appliedCount) * 100)
+        : 0,
+
+      // % of applied jobs that ended in an offer
+      applyToOffer: appliedCount
+        ? Math.round((offersCount / appliedCount) * 100)
+        : 0,
+
+      // Stage-to-stage conversions (still available if you want them later)
+      phoneToInterview: phoneJobs.length
+        ? Math.round((interviewJobs.length / phoneJobs.length) * 100)
+        : 0,
+
+      interviewToOffer: interviewJobs.length
+        ? Math.round((offersCount / interviewJobs.length) * 100)
+        : 0,
     };
 
+    // Overall conversion = Applied → Offer
     const overallConversion =
-      applicationsSent > 0
-        ? Math.round((offersReceived / applicationsSent) * 100)
-        : 0;
+      appliedCount ? Math.round((offersCount / appliedCount) * 100) : 0;
 
     // =======================================
     // 7-DAY TREND (SAFE VERSION)
@@ -193,17 +218,18 @@ export async function getJobStats(userId) {
     const last7Days = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
 
     for (const job of all) {
-      if (!job.createdAt) continue;
-      const created = new Date(job.createdAt);
+      const hist = job.statusHistory || [];
+      const applied = hist.find(h => h.status === "applied");
+      if (!applied) continue;
+
+      const created = new Date(applied.timestamp);
       if (isNaN(created)) continue;
 
       const diff = (Date.now() - created.getTime()) / 86400000;
       if (diff < 0 || diff > 6) continue;
 
       const day = created.toLocaleDateString("en-US", { weekday: "short" });
-      if (last7Days[day] !== undefined) {
-        last7Days[day]++;
-      }
+      if (last7Days[day] !== undefined) last7Days[day]++;
     }
 
     // =======================================
@@ -263,11 +289,9 @@ export async function getJobStats(userId) {
  * @returns {Promise<Object|null>} Updated job or null if not found
  */
 export async function updateJobStatus({ userId, id, status, note }) {
-  // Validate ObjectId format
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return null;
-  }
+  if (!mongoose.Types.ObjectId.isValid(id)) return null;
 
+  // Update job with new status + history entry
   const updateData = {
     status,
     $push: {
@@ -279,12 +303,60 @@ export async function updateJobStatus({ userId, id, status, note }) {
     },
   };
 
-  const job = await Jobs.findOneAndUpdate({ _id: id, userId }, updateData, {
-    new: true,
-    runValidators: true,
-  }).lean();
+  let job = await Jobs.findOneAndUpdate(
+    { _id: id, userId },
+    updateData,
+    { new: true, runValidators: true }
+  );
 
-  return job;
+  if (!job) return null;
+
+  // -------------------------------------------------------
+  // ⭐ NEW LOGIC: Handle "rejected" status properly
+  // -------------------------------------------------------
+  if (status === "rejected") {
+    if (job.interviews && job.interviews.length > 0) {
+      job.interviews.forEach(iv => {
+        if (iv.outcome === "pending") iv.outcome = "rejected";
+      });
+      job.markModified("interviews");   // <-- ADD THIS
+    }
+    await job.save();
+  }
+
+  console.log("🔥 updateJobStatus: marking interview rejected for job", id, job.interviews);
+
+  if (status === "interview") {
+    if (!job.interviews || job.interviews.length === 0) {
+      job.interviews = [{
+        type: "Implicit",
+        date: new Date(),
+        outcome: "pending",
+        confidenceLevel: null,
+        anxietyLevel: null
+      }];
+      job.markModified("interviews");   // <-- ADD THIS
+    }
+    await job.save();
+  }
+
+  console.log("🔥 updateJobStatus: creating implicit interview for job", id);
+
+  if (status === "offer") {
+    const interviews = job.interviews || [];
+    const last = interviews[interviews.length - 1];
+
+    if (last && last.outcome === "pending") {
+      last.outcome = "offer";
+      job.markModified("interviews");   // <-- ADD THIS
+    }
+
+    job.offerDate = new Date();
+    await job.save();
+  }
+
+  // Return lean object for consistency
+  return job.toObject();
 }
 
 /**

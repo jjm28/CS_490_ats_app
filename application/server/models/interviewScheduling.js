@@ -18,6 +18,9 @@ const InterviewSchedulingSchema = new Schema({
 
   notes: { type: String, default: "" },
 
+  confidenceLevel: { type: Number, default: null },
+  anxietyLevel: { type: Number, default: null },
+
   outcome: {
     type: String,
     enum: ["pending", "passed", "rejected", "offer"],
