@@ -8,15 +8,48 @@ const client = new OpenAI({
 });
 
 /* ======================================================
-   SAFE PARSER — prevents crashes when JSON fails
+   SAFER JSON PARSER
 ====================================================== */
 function safeJsonParse(str, fallback = []) {
+  if (!str) return fallback;
+
+  // Try direct parsing
   try {
     return JSON.parse(str);
-  } catch {
-    console.warn("AI returned invalid JSON — using fallback.");
-    return fallback;
+  } catch {}
+
+  // Try extracting JSON inside ```json blocks
+  const match = str.match(/```json([\s\S]*?)```/i);
+  if (match) {
+    try {
+      return JSON.parse(match[1].trim());
+    } catch {}
   }
+
+  // Try extracting inside brackets
+  const bracketMatch = str.match(/\[([\s\S]*?)\]/);
+  if (bracketMatch) {
+    try {
+      return JSON.parse(bracketMatch[0]);
+    } catch {}
+  }
+
+  console.warn("❗ AI returned invalid JSON. Using fallback.");
+  return fallback;
+}
+
+/* ======================================================
+   INTERNAL HELPER — Faster, consistent OpenAI call
+====================================================== */
+async function ask(prompt) {
+  const res = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.3,
+    max_tokens: 300,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  return res.choices?.[0]?.message?.content?.trim() || "";
 }
 
 /* ======================================================
@@ -24,28 +57,39 @@ function safeJsonParse(str, fallback = []) {
 ====================================================== */
 export async function generateReferralTemplateAI({
   userName,
+  referrerName,
   jobTitle,
   relationship,
+  tone = "professional",
 }) {
   try {
     const prompt = `
-Write a professional referral request message.
+Write a ${tone} referral request email.
 
-User requesting referral: ${userName}
-Job applied for: ${jobTitle}
-Relationship with referrer: ${relationship}
+Required format:
+---
+Dear ${referrerName},
 
-Return ONLY the message text. No quotes, no labels.
-`;
+[Short message body]
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
+Best regards,
+${userName}
+---
 
-    return completion.choices?.[0]?.message?.content || "";
+Context:
+- Job: ${jobTitle}
+- Relationship: ${relationship}
+
+Rules:
+- No placeholders.
+- No brackets.
+- No extra commentary.
+- Only return the message.
+    `.trim();
+
+    return await ask(prompt);
   } catch (err) {
-    console.error("AI Template Error:", err);
+    console.error("Template Error:", err);
     return "";
   }
 }
@@ -56,23 +100,18 @@ Return ONLY the message text. No quotes, no labels.
 export async function identifyReferralSourcesAI({ jobTitle }) {
   try {
     const prompt = `
-Suggest 5 ideal referral sources for the job title: "${jobTitle}".
+Suggest 5 ideal referral sources for the job "${jobTitle}".
 
-Return a STRICT JSON array:
+Return STRICT JSON ONLY:
 [
-  { "name": "John Doe", "role": "Engineer", "why_good_fit": "..." },
-  ...
+  { "name": "John Doe", "role": "Engineer", "why": "..." }
 ]
-`;
+    `.trim();
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    return safeJsonParse(completion.choices?.[0]?.message?.content, []);
+    const raw = await ask(prompt);
+    return safeJsonParse(raw, []);
   } catch (err) {
-    console.error("AI Source Suggestion Error:", err);
+    console.error("Source Suggestion Error:", err);
     return [];
   }
 }
@@ -83,19 +122,17 @@ Return a STRICT JSON array:
 export async function etiquetteGuidanceAI() {
   try {
     const prompt = `
-Provide 4–6 bullet points on referral request etiquette.
-Keep each bullet short. No paragraphs.
-`;
+Give 5 referral etiquette tips.
+Format:
+- Tip 1
+- Tip 2
+(no paragraphs)
+    `.trim();
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    return completion.choices?.[0]?.message?.content || "";
+    return await ask(prompt);
   } catch (err) {
-    console.error("Etiquette AI Error:", err);
-    return "";
+    console.error("Etiquette Error:", err);
+    return "- Be respectful.\n- Keep it concise.\n- Provide context.\n- Allow decline.\n- Express gratitude.";
   }
 }
 
@@ -105,51 +142,34 @@ Keep each bullet short. No paragraphs.
 export async function timingSuggestionsAI({ jobTitle }) {
   try {
     const prompt = `
-Give 3–4 recommendations for the best timing to request a referral
-for the job title: "${jobTitle}".
+Give 4 timing suggestions for requesting a referral for: ${jobTitle}
+Format: bullet points only.
+    `.trim();
 
-Return bullet points only.
-`;
-
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    return completion.choices?.[0]?.message?.content || "";
+    return await ask(prompt);
   } catch (err) {
-    console.error("Timing AI Error:", err);
-    return "";
+    console.error("Timing Error:", err);
+    return "- After applying\n- After networking\n- Early in hiring cycle\n- When job is newly posted";
   }
 }
 
 /* ======================================================
-   AI: Relationship Strength Scoring (1–100)
+   AI: Relationship Strength (1–100)
 ====================================================== */
 export async function scoreRelationshipAI({ relationship }) {
   try {
     const prompt = `
-Rate the professional relationship strength (1–100).
+Rate relationship strength 1–100.
 
-Relationship description:
-"${relationship}"
+Relationship: "${relationship}"
 
-Return ONLY a number. No words.
-`;
+Return ONLY a number.
+    `.trim();
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const number = parseInt(
-      completion.choices?.[0]?.message?.content.trim() || "",
-      10
-    );
-
-    return isNaN(number) ? 50 : number;
-  } catch (err) {
-    console.error("Relationship Score Error:", err);
+    const raw = await ask(prompt);
+    const num = parseInt(raw, 10);
+    return isNaN(num) ? 50 : num;
+  } catch {
     return 50;
   }
 }
@@ -160,130 +180,81 @@ Return ONLY a number. No words.
 export async function scoreSuccessRateAI({ jobTitle, relationship }) {
   try {
     const prompt = `
-Estimate referral success probability (1–100%).
+Estimate referral success probability (1–100).
 
-Job Title: ${jobTitle}
+Job: ${jobTitle}
 Relationship: ${relationship}
 
 Return ONLY a number.
-`;
+    `.trim();
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const number = parseInt(
-      completion.choices?.[0]?.message?.content.trim() || "",
-      10
-    );
-
-    return isNaN(number) ? 50 : number;
-  } catch (err) {
-    console.error("Success Rate Error:", err);
+    const raw = await ask(prompt);
+    const num = parseInt(raw, 10);
+    return isNaN(num) ? 50 : num;
+  } catch {
     return 50;
   }
 }
 
 /* ======================================================
-   AI: Personalization Insights
+   AI: Personalization Tips
 ====================================================== */
 export async function scorePersonalizationAI({ jobTitle, relationship }) {
   try {
     const prompt = `
-Generate 5 short, helpful personalization tips for writing a referral request.
+Give 5 personalization tips for a referral request.
 
-• Job Title: ${jobTitle}
-• Relationship: ${relationship}
+Context:
+- Job: ${jobTitle}
+- Relationship: ${relationship}
 
-Return ONLY bullet points separated by newline.
-Example format:
+Format:
 - Tip 1
 - Tip 2
-- Tip 3
-    `;
+- ...
+    `.trim();
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 250,
-    });
-
-    let text = completion.choices[0].message.content || "";
-
-    // ✔ Safety: if output is empty, give fallback tips
-    if (!text.trim()) {
-      text = `
-- Highlight your shared background or connection.
-- Mention how your relationship supports your qualifications.
-- Refer to a specific interaction that demonstrates your strengths.
-- Show relevance between their experience and your goal.
-- Express appreciation tailored to your relationship.
-      `;
-    }
-
-    return text;
-
-  } catch (err) {
-    console.error("AI Personalization Error:", err);
-
-    // ✔ fallback if AI fails
-    return `
-- Reference your past interactions with the referrer.
-- Personalize your request based on your relationship history.
-- Mention a shared project or achievement.
-- Show gratitude tailored to how well you know each other.
-- Keep your tone aligned with the closeness of the relationship.
-    `;
+    const text = await ask(prompt);
+    return text || "- Mention shared context\n- Reference past work\n- Personalize intro\n- Keep it warm\n- Thank them sincerely";
+  } catch {
+    return "- Mention shared context\n- Reference past work\n- Personalize intro\n- Keep it warm\n- Thank them sincerely";
   }
 }
 
 /* ======================================================
-   AI: Company-Based Referral Source Finder
+   AI: Referral Sources for Company + Job
 ====================================================== */
 export async function scoreReferralSourcesAI({ jobTitle, targetCompany }) {
   try {
     const prompt = `
-Recommend referral sources for:
+Suggest referral sources for company "${targetCompany}" for the role "${jobTitle}".
 
-Company: ${targetCompany}
-Role: ${jobTitle}
-
-Return STRICT JSON:
+Return JSON ONLY:
 [
   { "name": "...", "role": "...", "reason": "..." }
 ]
-`;
+    `.trim();
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const raw = completion.choices[0].message.content || "";
+    const raw = await ask(prompt);
     return safeJsonParse(raw, []);
-
   } catch (err) {
     console.error("Referral Source AI Error:", err);
-
-    // ----------- FALLBACK (IMPORTANT!) ------------
     return [
       {
-        name: "Senior Developer at " + targetCompany,
+        name: `Senior Engineer at ${targetCompany}`,
         role: "Engineer",
-        reason: "Likely knowledgeable about the hiring team.",
+        reason: "Likely knows the team.",
       },
       {
-        name: "Recruiter at " + targetCompany,
+        name: `Recruiter at ${targetCompany}`,
         role: "Recruiter",
-        reason: "Directly involved in candidate sourcing.",
+        reason: "Direct hiring involvement.",
       },
       {
-        name: "Team Lead - " + jobTitle,
+        name: `Team Lead (${jobTitle})`,
         role: "Team Lead",
-        reason: "Works on similar projects and can vouch for skills.",
+        reason: "Directly relevant.",
       },
     ];
   }
 }
-

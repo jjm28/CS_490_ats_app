@@ -185,7 +185,23 @@ function Navbar() {
                 >
                   Family Support
                 </NavLink>
-                </PopoverPanel>
+                <NavLink
+                  to="/job-search/sharing"
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
+                Sharing & Accountability
+              </NavLink>
+              <NavLink
+                  to="/advisors"
+                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
+                Advisors & Coaches
+              </NavLink>
+                  <NavLink
+                    to="/networking"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Networking Hub
+                  </NavLink>
+              </PopoverPanel>
             </Popover>
 
             {/* Analytics Dropdown */}
@@ -195,7 +211,6 @@ function Navbar() {
                 <ChevronDown size={16} />
               </PopoverButton>
               <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
-                
                 <NavLink
                   to="/analytics/overview"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"

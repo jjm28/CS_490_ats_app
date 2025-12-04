@@ -5,6 +5,21 @@ import Contact from "../models/contacts.js";
 import axios from "axios";
 import querystring from "querystring";
 import { v4 as uuidv4 } from "uuid";
+import NetworkingConnection from "../models/Networking/NetworkingConnection.js";
+import { calculateROIScore } from "../utils/networkingROI.js";
+import NetworkingMetrics from "../models/Networking/NetworkingMetrics.js";
+import NetworkingEvent from "../models/Networking/NetworkingEvent.js";
+import OpenAI from "openai";
+
+import Jobs from "../models/jobs.js";
+
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+
+
 import {
   getCampaigns,
   getCampaignById,
@@ -55,6 +70,11 @@ router.get("/contacts", verifyJWT, async (req, res) => {
 });
 
 /* ===========================================================
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> d77e21fb296fdf151a7ca65e7d5b731c7c1160fe
    RELATIONSHIP MAINTENANCE - UC-093
 =========================================================== */
 
@@ -83,6 +103,10 @@ router.get("/reminders/upcoming", verifyJWT, async (req, res) => {
 });
 
 /* ===========================================================
+<<<<<<< HEAD
+=======
+>>>>>>> develop
+>>>>>>> d77e21fb296fdf151a7ca65e7d5b731c7c1160fe
    GET ONE CONTACT  ->  GET /api/networking/contacts/:id
 =========================================================== */
 router.get("/contacts/:id", verifyJWT, async (req, res) => {
@@ -446,6 +470,599 @@ router.post("/google/import", async (req, res) => {
   } catch (err) {
     console.error("IMPORT ERROR:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to import Google contacts" });
+  }
+});
+
+/* ===========================================================
+   CREATE EVENT  -> POST /api/networking/events
+=========================================================== */
+router.post("/events", verifyJWT, async (req, res) => {
+  try {
+    const event = await NetworkingEvent.create({
+      userId: req.user._id,
+      ...req.body,
+    });
+
+    res.json(event);
+  } catch (err) {
+    console.error("CREATE EVENT ERROR:", err);
+    res.status(500).json({ error: "Failed to create event" });
+  }
+});
+
+/* ===========================================================
+   GET USER EVENTS  -> GET /api/networking/events
+=========================================================== */
+router.get("/events", verifyJWT, async (req, res) => {
+  try {
+    const events = await NetworkingEvent.find({ userId: req.user._id }).sort({ date: 1 });
+    res.json(Array.isArray(events) ? events : []);
+  } catch (err) {
+    console.error("GET EVENTS ERROR:", err);
+    res.json([]);
+  }
+});
+
+/* ===========================================================
+   GET SINGLE EVENT  -> GET /api/networking/events/:id
+=========================================================== */
+router.get("/events/:id", verifyJWT, async (req, res) => {
+  try {
+    const event = await NetworkingEvent.findOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    })
+    .populate("connections")
+    .lean();
+    
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+        if (event.linkedJobIds && event.linkedJobIds.length > 0) {
+      const jobs = await Jobs.find({
+        _id: { $in: event.linkedJobIds },
+      }).lean();
+
+      event.linkedJobs = jobs; // <-- this is what your frontend uses
+    } else {
+      event.linkedJobs = [];
+    }
+
+    res.json(event);
+  } catch (err) {
+    console.error("GET SINGLE EVENT ERROR:", err);
+    res.status(500).json({ error: "Failed to load event" });
+  }
+});
+
+
+/* ===========================================================
+   UPDATE EVENT  -> PUT /api/networking/events/:id
+=========================================================== */
+router.put("/events/:id", verifyJWT, async (req, res) => {
+  try {
+    const updated = await NetworkingEvent.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      req.body,
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ error: "Event not found" });
+    res.json(updated);
+  } catch (err) {
+    console.error("UPDATE EVENT ERROR:", err);
+    res.status(500).json({ error: "Failed to update event" });
+  }
+});
+
+/* ===========================================================
+   DELETE EVENT -> DELETE /api/networking/events/:id
+=========================================================== */
+router.delete("/events/:id", verifyJWT, async (req, res) => {
+  try {
+    await NetworkingEvent.deleteOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DELETE EVENT ERROR:", err);
+    res.status(500).json({ error: "Failed to delete event" });
+  }
+});
+
+/* ===========================================================
+   CREATE CONNECTION + ATTACH TO EVENT
+   POST /api/networking/events/:eventId/connections
+=========================================================== */
+router.post("/events/:eventId/connections", verifyJWT, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { name, company, role, email, notes } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: "Name is required" });
+    }
+
+    // Validate event
+    const event = await NetworkingEvent.findOne({
+      _id: eventId,
+      userId: req.user._id,
+    });
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    // Create connection doc
+    const connection = await NetworkingConnection.create({
+      userId: req.user._id,
+      eventId,
+      name,
+      company,
+      role,
+      email,
+      notes,
+      createdAt: new Date(),
+    });
+
+    // Attach connection ID to event
+    event.connections.push(connection._id);
+    await event.save();
+
+    res.json(connection);
+  } catch (err) {
+    console.error("🔥 CREATE CONNECTION ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* ===========================================================
+   UPDATE CONNECTION
+   PUT /api/networking/events/:eventId/connections/:connectionId
+=========================================================== */
+router.put("/events/:eventId/connections/:connectionId", verifyJWT, async (req, res) => {
+  try {
+    const { eventId, connectionId } = req.params;
+
+    // Make sure event exists
+    const event = await NetworkingEvent.findOne({
+      _id: eventId,
+      userId: req.user._id,
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    // Update connection document
+    const updatedConnection = await NetworkingConnection.findOneAndUpdate(
+      { _id: connectionId, userId: req.user._id },
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedConnection) {
+      return res.status(404).json({ error: "Connection not found" });
+    }
+
+    res.json(updatedConnection);
+  } catch (err) {
+    console.error("UPDATE CONNECTION ERROR:", err);
+    res.status(500).json({ error: "Failed to update connection" });
+  }
+});
+
+/* ===========================================================
+   DELETE CONNECTION
+   DELETE /api/networking/events/:eventId/connections/:connectionId
+=========================================================== */
+router.delete("/events/:eventId/connections/:connectionId", verifyJWT, async (req, res) => {
+  try {
+    const { eventId, connectionId } = req.params;
+
+    // Verify event belongs to user
+    const event = await NetworkingEvent.findOne({
+      _id: eventId,
+      userId: req.user._id,
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    // Remove from connections collection
+    await NetworkingConnection.deleteOne({
+      _id: connectionId,
+      userId: req.user._id,
+    });
+
+    // Remove connectionId from event.connections array
+    event.connections = event.connections.filter(
+      (id) => id.toString() !== connectionId
+    );
+
+    await event.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DELETE CONNECTION ERROR:", err);
+    res.status(500).json({ error: "Failed to delete connection" });
+  }
+});
+
+
+/* ADD FOLLOW-UP IN EVENT  
+   POST /api/networking/events/:eventId/followups/:index
+*/
+router.post("/events/:eventId/followups", verifyJWT, async (req, res) => {
+  try {
+    console.log("📥 FOLLOW-UP BODY RECEIVED:", req.body);
+
+    const { note, date } = req.body;
+
+    if (!note || !date) {
+      console.log("❌ Missing:", {
+        noteReceived: note,
+        dateReceived: date,
+      });
+
+      return res.status(400).json({
+        message: "note and date are required",
+        received: req.body,
+      });
+    }
+
+    const event = await NetworkingEvent.findOne({
+      _id: req.params.eventId,
+      userId: req.user._id,
+    });
+
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    event.followUps.push({
+      note,
+      date,
+      completed: false,
+    });
+
+    await event.save();
+    res.json(event);
+  } catch (err) {
+    console.error("🔥 CREATE FOLLOW-UP ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+/* UPDATE FOLLOW-UP IN EVENT  
+   PUT /api/networking/events/:eventId/followups/:index
+*/
+router.put("/events/:eventId/followups/:index", verifyJWT, async (req, res) => {
+  try {
+    const { eventId, index } = req.params;
+    const { date, note, completed } = req.body;
+
+    const event = await NetworkingEvent.findOne({
+      _id: eventId,
+      userId: req.user._id,
+    });
+
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    if (!event.followUps[index])
+      return res.status(404).json({ message: "Follow-up not found" });
+
+    event.followUps[index] = { date, note, completed };
+    await event.save();
+
+    res.json(event);
+  } catch (err) {
+    console.error("Update follow-up error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/* DELETE FOLLOW-UP FROM EVENT  
+   DELETE /api/networking/events/:eventId/followups/:index
+*/
+router.delete("/events/:eventId/followups/:index", verifyJWT, async (req, res) => {
+  try {
+    const { eventId, index } = req.params;
+
+    const event = await NetworkingEvent.findOne({
+      _id: eventId,
+      userId: req.user._id,
+    });
+
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    if (!event.followUps[index])
+      return res.status(404).json({ message: "Follow-up not found" });
+
+    event.followUps.splice(index, 1);
+    await event.save();
+
+    res.json(event);
+  } catch (err) {
+    console.error("Delete follow-up error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+/* ===========================================================
+   ADD FOLLOW-UP 
+   -> POST /api/networking/followups
+=========================================================== */
+router.post("/followups", verifyJWT, async (req, res) => {
+  try {
+    const followup = await NetworkingFollowUp.create({
+      userId: req.user._id,
+      ...req.body,
+    });
+
+    res.json(followup);
+  } catch (err) {
+    console.error("CREATE FOLLOW-UP ERROR:", err);
+    res.status(500).json({ error: "Failed to create follow-up" });
+  }
+});
+
+/* ===========================================================
+   GET ALL FOLLOW-UPS
+   -> GET /api/networking/followups
+=========================================================== */
+router.get("/followups", verifyJWT, async (req, res) => {
+  try {
+    const followups = await NetworkingFollowUp.find({
+      userId: req.user._id,
+    }).sort({ dueDate: 1 });
+
+    res.json(followups);
+  } catch (err) {
+    console.error("GET FOLLOWUPS ERROR:", err);
+    res.status(500).json({ error: "Failed to load follow-ups" });
+  }
+});
+
+/* ===========================================================
+   MARK FOLLOW-UP COMPLETE
+   -> PUT /api/networking/followups/:id
+=========================================================== */
+router.put("/followups/:id", verifyJWT, async (req, res) => {
+  try {
+    const updated = await NetworkingFollowUp.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      { completed: req.body.completed },
+      { new: true }
+    );
+
+    if (!updated)
+      return res.status(404).json({ error: "Follow-up not found" });
+
+    res.json(updated);
+  } catch (err) {
+    console.error("UPDATE FOLLOWUP ERROR:", err);
+    res.status(500).json({ error: "Failed to update follow-up" });
+  }
+});
+
+/* ===========================================================
+   NETWORKING METRICS (ROI)
+   -> GET /api/networking/metrics
+=========================================================== */
+router.get("/metrics", verifyJWT, async (req, res) => {
+  try {
+    // Get all events owned by this user
+    const userEvents = await NetworkingEvent.find({ userId: req.user._id })
+      .populate("connections"); // so we can count connections properly
+
+    // -----------------------
+    // Count Events
+    // -----------------------
+    const events = userEvents.length;
+
+    // -----------------------
+    // Count Connections
+    // -----------------------
+    let connections = 0;
+    userEvents.forEach(event => {
+      if (event.connections) {
+        connections += event.connections.length;
+      }
+    });
+
+    // -----------------------
+    // Count Completed Follow-Ups (embedded inside events)
+    // -----------------------
+    let followups = 0;
+    userEvents.forEach(event => {
+      if (event.followUps && event.followUps.length > 0) {
+        followups += event.followUps.filter(fu => fu.completed === true).length;
+      }
+    });
+
+    res.json({
+      events,
+      connections,
+      followups,
+    });
+  } catch (err) {
+    console.error("METRICS ERROR:", err);
+    res.status(500).json({ error: "Failed to load metrics" });
+  }
+});
+
+/* ===========================================================
+   ROI SCORE FOR AN EVENT
+   GET /api/networking/events/:eventId/roi
+=========================================================== */
+router.get("/events/:eventId/roi", verifyJWT, async (req, res) => {
+  try {
+    const event = await NetworkingEvent.findOne({
+      _id: req.params.eventId,
+      userId: req.user._id,
+    }).populate("connections");
+
+    if (!event) return res.status(404).json({ error: "Event not found" });
+
+    const roi = calculateROIScore(event);
+
+    // optional: save score to DB
+    event.roiScore = roi;
+    await event.save();
+
+    res.json({ roi });
+  } catch (err) {
+    console.error("ROI ERROR:", err);
+    res.status(500).json({ error: "Failed to compute ROI" });
+  }
+});
+
+router.get("/metrics/roi", verifyJWT, async (req, res) => {
+  try {
+    const events = await NetworkingEvent.find({ userId: req.user._id }).populate("connections");
+
+    const results = events.map((event) => ({
+      eventId: event._id,
+      title: event.title,
+      roi: calculateROIScore(event),
+    }));
+
+    res.json(results);
+  } catch (err) {
+    console.error("ROI METRICS ERROR:", err);
+    res.status(500).json({ error: "Failed to compute ROI list" });
+  }
+});
+
+
+
+//prep
+router.post("/events/:eventId/prep", verifyJWT, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const event = await NetworkingEvent.findOne({
+      _id: eventId,
+      userId: req.user._id
+    });
+
+    if (!event) return res.status(404).json({ error: "Event not found" });
+
+    const prompt = `
+You are helping a user prepare for a networking event.
+
+Event:
+Title: ${event.title}
+Industry: ${event.industry}
+Location: ${event.location}
+Type: ${event.type}
+Goals: ${event.goals?.join(", ")}
+
+Generate STRICT JSON with:
+{
+  "summary": "",
+  "keyPeople": [],
+  "suggestedQuestions": [],
+  "prepTasks": []
+}
+`;
+
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: prompt,
+    });
+
+    let raw = response.output_text;
+    let parsed;
+
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      console.error("AI PARSE ERROR:", raw);
+      return res.json({ error: "Invalid AI response" });
+    }
+
+    event.prep = {
+      ...parsed,
+      lastGenerated: new Date(),
+      notes: event.prep?.notes || ""
+    };
+
+    await event.save();
+
+    res.json(event.prep);
+
+  } catch (err) {
+    console.error("PREP GENERATION ERROR:", err);
+    res.status(500).json({ error: "Failed to generate preparation" });
+  }
+});
+
+
+// LINK NETWORKING EVENT TO JOB
+router.post("/events/:eventId/link-job", verifyJWT, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { jobId } = req.body;
+
+    if (!jobId) {
+      return res.status(400).json({ message: "jobId is required" });
+    }
+
+    // Validate event exists
+    const event = await NetworkingEvent.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Networking event not found" });
+    }
+
+    // Validate job exists
+    const job = await Jobs.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    // Prevent duplicates
+    if (event.linkedJobIds.includes(jobId)) {
+      return res.status(200).json({
+        message: "Job already linked to event",
+        event
+      });
+    }
+
+    // Add job reference
+    event.linkedJobIds.push(jobId);
+    await event.save();
+
+    res.status(200).json({
+      message: "Job linked to networking event successfully",
+      event
+    });
+
+  } catch (err) {
+    console.error("Error linking job to event:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/events/by-job/:jobId", verifyJWT, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const events = await NetworkingEvent.find({
+      linkedJobIds: jobId,
+    });
+
+    res.status(200).json(events);
+  } catch (err) {
+    console.error("Error fetching reverse job links:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

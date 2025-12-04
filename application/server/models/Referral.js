@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const ReferralSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    userId: { type: String, required: true },
     jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job", required: true },
 
     referrerName: String,

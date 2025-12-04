@@ -3,8 +3,6 @@ import ReferralLog from "../models/ReferralLog.js";
 import ReferralTemplate from "../models/ReferralTemplate.js";
 import Job from "../models/jobs.js";
 
-
-// AI services (corrected names)
 import {
   identifyReferralSourcesAI,
   generateReferralTemplateAI,
@@ -16,7 +14,7 @@ import {
 } from "../services/referralAIService.js";
 
 /* ============================================================
-   CREATE REFERRAL REQUEST
+   CREATE REFERRAL REQUEST  —  OPTIMIZED (INSTANT)
 ============================================================ */
 export const createReferralRequest = async (req, res) => {
   try {
@@ -29,18 +27,13 @@ export const createReferralRequest = async (req, res) => {
       requestMessage,
     } = req.body;
 
-    // Get job info
+    // Fetch job title
     const job = await Job.findById(jobId);
     const jobTitle = job?.jobTitle || "Unknown Role";
 
-    // AI SCORING
-    const relationshipStrength = await scoreRelationshipAI({ relationship });
-    const successRate = await scoreSuccessRateAI({
-      jobTitle,
-      relationship,
-    });
-
-    // Create referral
+    /* ------------------------------------------------------------
+       1. Create referral IMMEDIATELY (fast!)
+    ------------------------------------------------------------ */
     const referral = await Referral.create({
       userId,
       jobId,
@@ -51,20 +44,56 @@ export const createReferralRequest = async (req, res) => {
       status: "pending",
       dateRequested: new Date(),
 
-      // NEW FIELDS
-      relationshipStrength,
-      successRate,
+      // temporary placeholders – AI fills them later
+      relationshipStrength: null,
+      successRate: null,
     });
 
-    // Log event
+    // Log the creation
     await ReferralLog.create({
       referralId: referral._id,
       eventType: "requested",
-      eventDetails: `Referral request sent for ${jobTitle}`,
-      meta: { relationshipStrength, successRate },
+      eventDetails: `Referral request created for ${jobTitle}`,
+      meta: {},
     });
 
-    return res.json({ success: true, referral });
+    /* ------------------------------------------------------------
+       2. Trigger AI scoring IN THE BACKGROUND
+       (this will NOT slow down the request)
+    ------------------------------------------------------------ */
+    setTimeout(async () => {
+      try {
+        const [relationshipStrength, successRate] = await Promise.all([
+          scoreRelationshipAI({ relationship }),
+          scoreSuccessRateAI({ jobTitle, relationship }),
+        ]);
+
+        await Referral.findByIdAndUpdate(referral._id, {
+          relationshipStrength,
+          successRate,
+        });
+
+        await ReferralLog.create({
+          referralId: referral._id,
+          eventType: "scoring_complete",
+          eventDetails: "AI scoring completed",
+          meta: { relationshipStrength, successRate },
+        });
+
+      } catch (bgErr) {
+        console.error("Background AI scoring failed:", bgErr);
+      }
+    }, 50); // small delay to avoid blocking the response
+
+    /* ------------------------------------------------------------
+       3. Return response IMMEDIATELY
+    ------------------------------------------------------------ */
+    return res.json({
+      success: true,
+      referral,
+      message: "Referral created — AI scoring running in background.",
+    });
+
   } catch (error) {
     console.error("Referral Request Error:", error);
     return res.status(500).json({ error: "Failed to create referral request" });
@@ -203,6 +232,7 @@ export const generateReferralSources = async (req, res) => {
 export const generateReferralTemplate = async (req, res) => {
   try {
     const template = await generateReferralTemplateAI(req.body);
+    console.log("Incoming Referral AI Request:", req.body);
     return res.json({ success: true, template });
   } catch (error) {
     console.error("Template Error:", error);
@@ -263,10 +293,8 @@ export const recommendReferralSources = async (req, res) => {
       });
     }
 
-    // Call AI
     const aiOutput = await scoreReferralSourcesAI({ jobTitle, targetCompany });
 
-    // Normalize output so frontend always gets { name, reason }
     const normalized = aiOutput.map(item => ({
       name: item.name || "Unknown",
       reason:

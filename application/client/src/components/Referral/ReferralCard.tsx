@@ -1,6 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import ReferralStatusBadge from "./ReferralStatusBadge";
 import type { Referral } from "../../api/referrals";
+import axios from "axios";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
 
 export default function ReferralCard({
   referral,
@@ -10,6 +13,7 @@ export default function ReferralCard({
   reload: () => void;
 }) {
   const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
 
   // Safe fallbacks
   const strength: number = referral.relationshipStrength ?? 50;
@@ -22,12 +26,50 @@ export default function ReferralCard({
   const successColor =
     successRate > 70 ? "#16a34a" : successRate > 40 ? "#f59e0b" : "#ef4444";
 
+  const deleteReferral = async () => {
+    if (!window.confirm("Are you sure you want to delete this referral?")) return;
+
+    try {
+      setDeleting(true);
+      const raw = localStorage.getItem("authUser");
+      const token = raw ? JSON.parse(raw).token : null;
+
+      await axios.delete(`/api/referrals/${referral._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      reload();
+    } catch (error) {
+      console.error("❌ Delete failed:", error);
+      alert("Failed to delete referral");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-4 border hover:border-blue-400 transition">
-      {/* HEADER */}
+
+      {/* HEADER ROW */}
       <div className="flex justify-between items-center">
+
+        {/* LEFT: Referrer Name */}
         <h2 className="text-lg font-semibold">{referral.referrerName}</h2>
-        <ReferralStatusBadge status={referral.status} />
+
+        {/* RIGHT: Status + Delete */}
+        <div className="flex items-center gap-2">
+          <ReferralStatusBadge status={referral.status} />
+
+          {/* DELETE BUTTON */}
+          <button
+            onClick={deleteReferral}
+            disabled={deleting}
+            className="p-1 hover:bg-red-100 rounded-full transition"
+            title="Delete referral"
+          >
+            <Trash2 className="w-4 h-4 text-red-600" />
+          </button>
+        </div>
       </div>
 
       {/* JOB */}
@@ -43,14 +85,11 @@ export default function ReferralCard({
       {/* NEXT FOLLOW-UP */}
       {referral.nextFollowUp && (
         <p className="text-xs text-blue-600 mt-1">
-          Next follow-up:{" "}
-          {new Date(referral.nextFollowUp).toLocaleDateString()}
+          Next follow-up: {new Date(referral.nextFollowUp).toLocaleDateString()}
         </p>
       )}
 
-      {/* ----------------------------- */}
-      {/* RELATIONSHIP STRENGTH BAR     */}
-      {/* ----------------------------- */}
+      {/* RELATIONSHIP STRENGTH BAR */}
       <div className="mt-4">
         <div className="flex justify-between text-xs text-gray-600 mb-1">
           <span>Relationship Strength</span>
@@ -68,9 +107,7 @@ export default function ReferralCard({
         </div>
       </div>
 
-      {/* ----------------------------- */}
-      {/* SUCCESS PROBABILITY BAR       */}
-      {/* ----------------------------- */}
+      {/* SUCCESS PROBABILITY BAR */}
       <div className="mt-4">
         <div className="flex justify-between text-xs text-gray-600 mb-1">
           <span>Success Probability</span>

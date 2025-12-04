@@ -72,6 +72,7 @@ import networkingRoutes from "./routes/networking.js";
 import outreachRoutes from "./routes/outreach.js";
 import advisorRoutes from "./routes/advisor.routes.js";
 import linkedinRoutes from './routes/linkedin.js';
+ import informationalRoutes from "./routes/informational.js";
 
 // 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";
@@ -86,6 +87,8 @@ import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 import teamProgressRouter from "./routes/teamProgress.js";
 
+import networkingDiscovery from "./routes/networkingDiscovery.js";
+import mentorRoutes from "./routes/mentor.routes.js";
 import teamRoutes from "./routes/teams.js";
 import referralRoutes from "./routes/referrals.js";
 import marketRoutes from "./routes/market.js";
@@ -192,6 +195,7 @@ try {
 
   //networking 
   app.use("/api/networking", networkingRoutes);
+  app.use("/api/networking", networkingDiscovery);
   app.use("/api/networking/outreach", outreachRoutes);
 
   //referrals
@@ -212,6 +216,10 @@ try {
   app.use("/api/reference", reference);
   app.use("/api/peer-groups", peergroups);
   app.use("/api/supporters", supportersRoutes);
+  app.use("/api/informational", informationalRoutes);
+  app.use("/api/mentors", mentorRoutes);
+
+
 
   // 🎯 GOALS & PRODUCTIVITY
   app.use("/api/goals", attachDevUser, goalsRoutes);
@@ -230,6 +238,9 @@ try {
   // 📈 MARKET INTELLIGENCE (UC-102)
   app.use("/api/market", attachDevUser, marketRoutes);
 
+  app.use("/api/referrals", referralRoutes);
+
+  // Health check
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 

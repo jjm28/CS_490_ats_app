@@ -75,21 +75,34 @@ export default function ReferralRequestPage() {
   const selectedContactObj = contacts.find((c) => c._id === selectedContact);
   const selectedJobObj = jobs.find((j) => j._id === selectedJob);
 
-  return (
-    <div className="max-w-3xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
+return (
+  <div className="w-full min-h-screen bg-gray-50 py-12 px-4 flex flex-col items-center">
+    
+    {/* Back Button */}
+    <button
+      onClick={() => navigate("/networking")}
+      className="mb-6 text-sm px-4 py-2 rounded-md border border-gray-300 
+                 hover:bg-gray-100 transition"
+    >
+      ← Back to Network Dashboard
+    </button>
+
+    {/* Card Container */}
+    <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-xl">
+      <h1 className="text-3xl font-extrabold text-center text-gray-900 mb-8">
         Request a Referral
       </h1>
 
       {/* CONTACT SELECT */}
       <div className="mb-6">
-        <label className="block text-gray-700 mb-2 font-medium">
+        <label className="block text-gray-700 mb-2 font-semibold">
           Choose Contact
         </label>
         <select
           value={selectedContact}
           onChange={(e) => setSelectedContact(e.target.value)}
-          className="w-full border rounded-lg px-4 py-2"
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 
+                     bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Select a contact…</option>
           {contacts.map((c) => (
@@ -102,13 +115,14 @@ export default function ReferralRequestPage() {
 
       {/* JOB SELECT */}
       <div className="mb-6">
-        <label className="block text-gray-700 mb-2 font-medium">
+        <label className="block text-gray-700 mb-2 font-semibold">
           Choose Job
         </label>
         <select
           value={selectedJob}
           onChange={(e) => setSelectedJob(e.target.value)}
-          className="w-full border rounded-lg px-4 py-2"
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 
+                     bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Select a job…</option>
           {jobs.map((job) => (
@@ -120,14 +134,15 @@ export default function ReferralRequestPage() {
       </div>
 
       {/* TONE SELECT */}
-      <div className="mb-6">
-        <label className="block text-gray-700 mb-2 font-medium">
+      <div className="mb-8">
+        <label className="block text-gray-700 mb-2 font-semibold">
           Message Tone
         </label>
         <select
           value={tone}
           onChange={(e) => setTone(e.target.value)}
-          className="w-full border rounded-lg px-4 py-2"
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-800 
+                     bg-white shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="professional">Professional</option>
           <option value="friendly">Friendly</option>
@@ -136,30 +151,30 @@ export default function ReferralRequestPage() {
       </div>
 
       {/* BUTTON */}
-      <div className="text-center">
-        <button
-          disabled={!canGenerate}
-          onClick={() => setShowModal(true)}
-          className={`px-6 py-3 rounded-lg font-semibold ${
-            canGenerate
-              ? "bg-blue-600 text-white hover:bg-blue-700"
-              : "bg-gray-300 text-gray-600 cursor-not-allowed"
-          }`}
-        >
-          Generate Referral Request
-        </button>
-      </div>
-
-      {/* MODAL */}
-      {showModal && (
-        <ReferralRequestModal
-          contact={selectedContactObj}
-          job={selectedJobObj}
-          tone={tone}
-          onClose={() => setShowModal(false)}
-          reload={() => {}}
-        />
-      )}
+      <button
+        disabled={!canGenerate}
+        onClick={() => setShowModal(true)}
+        className={`w-full py-3 rounded-lg text-lg font-semibold transition ${
+          canGenerate
+            ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+            : "bg-gray-300 text-gray-600 cursor-not-allowed"
+        }`}
+      >
+        Generate Referral Request
+      </button>
     </div>
-  );
+
+    {/* MODAL */}
+    {showModal && (
+      <ReferralRequestModal
+        contact={selectedContactObj}
+        job={selectedJobObj}
+        tone={tone}
+        onClose={() => setShowModal(false)}
+        reload={() => {}}
+      />
+    )}
+  </div>
+);
+
 }

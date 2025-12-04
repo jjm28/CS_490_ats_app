@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   createReferralRequest,
   generateReferralTemplate,
@@ -14,6 +14,12 @@ interface ReferralRequestForm {
   relationship: string;
   requestMessage: string;
 }
+
+type ReferralSourceResult = {
+  name: string;
+  email?: string;
+  relationshipStrength?: string;
+};
 
 export default function ReferralRequestModal({
   contact,
@@ -41,7 +47,6 @@ export default function ReferralRequestModal({
 
   const [loading, setLoading] = useState(false);
 
-  /* Handle field updates */
   const updateField = (field: keyof ReferralRequestForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -53,8 +58,16 @@ export default function ReferralRequestModal({
     setLoading(true);
 
     try {
+      // The REAL auth object from your localStorage dump
+      const authUser = JSON.parse(localStorage.getItem("authUser") || "{}");
+      const userName =
+        authUser?.user?.firstName && authUser?.user?.lastName
+          ? `${authUser.user.firstName} ${authUser.user.lastName}`
+          : authUser?.user?.email || "User";
+
       const resp = await generateReferralTemplate({
-        userName: contact?.name,
+        userName,                 // requester
+        referrerName: contact?.name, // recipient
         jobTitle: job?.jobTitle,
         relationship: form.relationship,
         tone,
@@ -62,7 +75,7 @@ export default function ReferralRequestModal({
 
       updateField("requestMessage", resp?.data?.template || "");
     } catch (err) {
-      console.error(err);
+      console.error("Template Generation Error:", err);
     }
 
     setLoading(false);
@@ -75,11 +88,28 @@ export default function ReferralRequestModal({
     setLoading(true);
 
     try {
-      await createReferralRequest(form);
+      // Extract REAL userId
+      const authUser = JSON.parse(localStorage.getItem("authUser") || "{}");
+      const userId = authUser?.user?._id;
+
+      console.log("DEBUG USER AUTH:", authUser);
+
+      if (!userId) {
+        alert("User not logged in — cannot submit referral.");
+        setLoading(false);
+        return;
+      }
+
+      await createReferralRequest({
+        ...form,
+        userId,
+      });
+
       reload();
       onClose();
     } catch (err) {
-      console.error(err);
+      console.error("Referral Submit Error:", err);
+      alert("Failed to submit referral request.");
     }
 
     setLoading(false);
@@ -93,7 +123,7 @@ export default function ReferralRequestModal({
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-4">Request a Referral</h2>
 
-        {/* Job Title Display */}
+        {/* Job Title */}
         <label className="block text-sm font-medium">Job Title</label>
         <input
           className="w-full border rounded p-2 mb-3 bg-gray-100"
@@ -101,7 +131,7 @@ export default function ReferralRequestModal({
           disabled
         />
 
-        {/* Contact Name */}
+        {/* Referrer Name */}
         <label className="block text-sm font-medium">Referrer's Name</label>
         <input
           className="w-full border rounded p-2 mb-3"
@@ -109,7 +139,7 @@ export default function ReferralRequestModal({
           onChange={(e) => updateField("referrerName", e.target.value)}
         />
 
-        {/* Contact Email */}
+        {/* Referrer Email */}
         <label className="block text-sm font-medium">Referrer's Email</label>
         <input
           className="w-full border rounded p-2 mb-3"
@@ -134,10 +164,9 @@ export default function ReferralRequestModal({
           className="w-full border rounded p-2 h-28"
           value={form.requestMessage}
           onChange={(e) => updateField("requestMessage", e.target.value)}
-          placeholder="Write your referral request..."
         />
 
-        {/* AI Template Button */}
+        {/* Generate AI Message */}
         <button
           onClick={generateTemplate}
           disabled={loading}
@@ -154,7 +183,7 @@ export default function ReferralRequestModal({
 
         {/* AI Referral Source Generator */}
         <ReferralSourceGenerator
-          onSelect={(c) => {
+          onSelect={(c: ReferralSourceResult) => {
             updateField("referrerName", c.name);
             updateField("referrerEmail", c.email || "");
             updateField(
