@@ -83,9 +83,6 @@ import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
-import networkingRoutes from "./routes/networking.js";
-import outreachRoutes from "./routes/outreach.js";
-import advisorRoutes from "./routes/advisor.routes.js";
 import teamProgressRouter from "./routes/teamProgress.js";
 
 import teamRoutes from "./routes/teams.js";
