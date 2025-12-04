@@ -129,6 +129,9 @@ import TeamReviewPage from "./components/Teams/TeamReviewPage";
 import CandidateSharingPage from "./components/Teams/CandidateSharingPage";
 import TeamFeedbackPage from "./components/Teams/TeamFeedbackPage";
 import TeamCommentsPage from "./components/Teams/TeamCommentsPage";
+import SuccessOverviewDashboard from './components/Analytics/SuccessOverviewDashboard';
+import SuccessPatternsDashboard from './components/Analytics/SuccessPatternsDashboard';
+import CustomReportPage from "./components/Analytics/CustomReportPage";
 import NetworkingEventsPage from './components/Networking/NetworkingEventsPage';
 import DiscoverEvents from './components/Networking/DiscoverEvents';
 import EventDetailsPage from './components/Networking/EventDetails';
@@ -140,8 +143,6 @@ import MentorInvitePage from './components/Networking/MentorInvitePage';
 import MentorInvite from './components/Networking/MentorInvite';
 import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
-
-
 
 function App() {
   const location = useLocation();
@@ -625,6 +626,21 @@ function App() {
           <Route 
           path="/teams/:teamId/comments" 
           element={<PrivateRoute><TeamCommentsPage /></PrivateRoute>} />
+
+          <Route
+            path="/analytics/success-overview"
+            element={<PrivateRoute><SuccessOverviewDashboard /></PrivateRoute>}
+          />
+
+          <Route
+            path="/analytics/success-patterns"
+            element={<PrivateRoute><SuccessPatternsDashboard /></PrivateRoute>}
+          />
+
+          <Route
+            path="/analytics/custom-report"
+            element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
+          />
         </Routes>
       </div>
     </>

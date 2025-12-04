@@ -101,10 +101,10 @@ export default function Login() {
     return null;
   };
 
-  const go = () =>
-    (window.location.href = "http://localhost:5050/api/auth/google/login");
-  const mi = () =>
-    (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
+  // const go = () =>
+  //   (window.location.href = "http://localhost:5050/api/auth/google/login");
+  // const mi = () =>
+  //   (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
 
   const onBlurEmail = () => setErrEmail(validateEmail(email));
   const onBlurPassword = () => setErrPassword(validatePwdForLogin(password));

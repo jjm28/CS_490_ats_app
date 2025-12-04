@@ -101,6 +101,10 @@ import teamRoutes from "./routes/teams.js";
 import referralRoutes from "./routes/referrals.js";
 import marketRoutes from "./routes/market.js";
 
+import successOverview from "./routes/success-overview.js";
+import successSnapshots from "./routes/success-snapshots.js";
+import customReportsRouter from "./routes/customReports.js";
+
 //
 // ===============================
 // 🔧 SERVER CONFIG
@@ -113,6 +117,7 @@ const DB = process.env.DB_NAME || "appdb";
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+app.use("/exports", express.static(path.join(__dirname, "exports")));
 
 app.set("baseUrl", BASE);
 
@@ -176,7 +181,6 @@ try {
   app.use("/api/jobs", jobSalaryRoutes);
 
   // Salary Analytics (UC-100) — MUST COME FIRST
-  // app.use("/api/salary", salaryRoutes);
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
 
   // Salary CRUD — MUST COME AFTER
@@ -260,6 +264,10 @@ app.use("/api",attachUserFromHeaders, organizationRoutes);
   //team page routing
   app.use("/api/teams",teamRoutes);
   app.use("/api/teams",  teamProgressRouter);
+
+  app.use("/api/success", successOverview);
+  app.use("/api/success-snapshots", successSnapshots);
+  app.use("/api/custom-reports", customReportsRouter);
 
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));

@@ -356,19 +356,17 @@ function Navbar() {
                   >
                     Advisors & Coaches
                   </NavLink>
-                  <NavLink
-                    to="/networking"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                  >
-                    Networking Hub
-                  </NavLink>
+                </PopoverPanel>
+              </Popover>
+            )}
 
-                  <div className="border-t border-gray-200 my-2"></div>
-
-                  <div className="px-4 py-2 text-gray-500 text-sm font-semibold select-none">
-                    Analytics
-                  </div>
-
+            {(role === "job_seeker" || role === "super_admin") && (
+              <Popover className="relative">
+                <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
+                  Analytics
+                  <ChevronDown size={16} />
+                </PopoverButton>
+                <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
                   <NavLink
                     to="/analytics/overview"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
