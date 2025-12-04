@@ -96,6 +96,12 @@ import AdvisorClientMessagesPage from './components/Advisors/AdvisorMessaging/Ad
 import AdvisorRecommendationsPage from './components/Advisors/AdvisorRecommendationsPage';
 import AdvisorSessionsPage from './components/Advisors/AdvisorSessionsPage';
 import AdvisorAvailabilityPage from './components/Advisors/AdvisorAvailabilityPage';
+import Cohorts from './components/cohorts/Cohorts';
+import CohortDetail from './components/cohorts/CohortDetail';
+import UserManagement from './components/enterprise/UserManagement';
+import BulkOnboardingPage from './components/enterprise/BulkOnboardingPage';
+import JobSeekerAcceptInvitePage from './components/enterprise/JobSeekerAcceptInvitePage';
+import OrgAnalyticsPage from './components/enterprise/OrgAnalyticsPage';
 import CreateCampaign from './components/Networking/CreateCampaign';
 import CampaignDetail from './components/Networking/CampaignDetail';
 import CampaignAnalytics from './components/Networking/CampaignAnalytics';
@@ -121,6 +127,7 @@ function App() {
       // we are currently ON the editor page → don't clear yet
       return;
     }
+ 
     console.log("working")
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
@@ -365,6 +372,79 @@ function App() {
             path="/Jobs/CompetitiveAnalysis"
             element={<PrivateRoute><JobCompetitiveAnalysisDashboard /></PrivateRoute>}
           />
+        <Route
+          path="/job-search/sharing"
+          element={
+            <PrivateRoute>
+              <JobSearchSharingPage />
+            </PrivateRoute>
+          }/>
+          <Route
+  path="/job-sharing/:ownerId"
+  element={
+    <PrivateRoute>
+      <JobSearchSharingPartnerPage />
+    </PrivateRoute>
+  }
+  />
+  <Route
+  path="/job-sharing/accept"
+  element={
+    <PrivateRoute>
+      <JobSearchPartnerInviteAcceptPage />
+    </PrivateRoute>
+  }
+/>
+  <Route
+  path="/advisors"
+  element={
+    <PrivateRoute>
+      <AdvisorsPage />
+    </PrivateRoute>
+  }
+/>
+      <Route
+        path="/advisor/accept"
+        element={ <PrivateRoute><AdvisorAcceptInvitePage /></PrivateRoute>}
+      />
+      <Route
+        path="/advisor/clients"
+        element={ <PrivateRoute><AdvisorClientsPage /></PrivateRoute>}
+      />
+      <Route
+        path="/advisor/clients/:relationshipId"
+        element={ <PrivateRoute><AdvisorClientProfilePage /></PrivateRoute>}
+      />
+      <Route
+  path="/advisors/:relationshipId/messages"
+  element={<PrivateRoute><AdvisorMessagesPage /></PrivateRoute>}
+/>
+<Route
+  path="/advisors/:relationshipId/sessions"
+  element={<PrivateRoute><AdvisorSessionsPage /></PrivateRoute>}
+/>
+// advisor side
+<Route
+  path="/advisor/clients/:relationshipId/messages"
+  element={<PrivateRoute><AdvisorClientMessagesPage /></PrivateRoute>}
+/>
+<Route
+  path="/advisors/:relationshipId/recommendations"
+  element={<AdvisorRecommendationsPage />}
+/>
+<Route path="/advisor/availability" element={<PrivateRoute><AdvisorAvailabilityPage /></PrivateRoute>} />
+<Route path="/enterprise/cohorts" element={<Cohorts />} />
+<Route path="/enterprise/cohorts/:cohortId" element={<CohortDetail />} />
+<Route path="/not-authorized" element={<div>Not authorized</div>} />
+<Route path="/enterprise/users" element={<UserManagement />} />
+<Route path="/enterprise/onboarding" element={<BulkOnboardingPage />} />
+<Route
+  path="/jobseeker/accept-invite"
+  element={<PrivateRoute><JobSeekerAcceptInvitePage /></PrivateRoute>}
+/><Route
+  path="/enterprise/analytics"
+  element={<OrgAnalyticsPage />}
+/>
           <Route
             path="/job-search/sharing"
             element={
