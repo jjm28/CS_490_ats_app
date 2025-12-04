@@ -33,6 +33,7 @@ export interface Job {
   applicationSource?: string;
   autoArchiveDays?: number;  // Changed from string to number to match schema
   autoArchiveDate?: string | Date;
+  linkedInProfileUrl: string;
 
   // Status tracking
   status: JobStatus;
@@ -78,7 +79,7 @@ export interface Job {
 
   // Archive
   archived?: boolean;
-  archiveReason?: string | null;
+  archiveReason?: string | undefined;
   archivedAt?: string | null;
 
   // Application package
@@ -237,6 +238,7 @@ export interface JobFormData {
   applicationMethod: string;
   applicationSource: string;
   autoArchiveDays: string;
+  linkedInProfileUrl: string;
 }
 
 // ============================================
@@ -388,6 +390,8 @@ export interface Interview {
   interviewer?: string;
   contactInfo?: string;
   eventId?: string;
+  confidenceLevel?: number | null;
+  anxietyLevel?: number | null;
   preparationChecklist?: {
     items: Array<{
       id: string;

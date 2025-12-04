@@ -173,14 +173,6 @@ export default function GoalNew() {
 
     return (
         <div className="max-w-3xl mx-auto p-8 space-y-6">
-            <button
-                type="button"
-                onClick={() => navigate("/analytics/goals")}
-                className="text-sm text-blue-700 hover:underline"
-            >
-                ← Back to Goal Tracking
-            </button>
-
             <h1 className="text-3xl font-bold text-(--brand-navy) mb-2">
                 Create SMART Goal
             </h1>
@@ -268,30 +260,6 @@ export default function GoalNew() {
                         </p>
                     </div>
 
-                    {/* Job Linking */}
-                    <section className="bg-white border rounded-xl shadow-sm p-5 space-y-2">
-                        <h2 className="text-xl font-semibold text-(--brand-navy)">
-                            Link This Goal to a Job Application (Optional)
-                        </h2>
-
-                        <select
-                            value={linkedJobId}
-                            onChange={(e) => setLinkedJobId(e.target.value)}
-                            className="form-input"
-                        >
-                            <option value="">Not Linked</option>
-                            {jobs.map((job) => (
-                                <option key={job._id} value={job._id}>
-                                    {job.company} — {job.position}
-                                </option>
-                            ))}
-                        </select>
-
-                        <p className="text-xs text-gray-500">
-                            Linking this goal helps track how much your goals contribute to your job search.
-                        </p>
-                    </section>
-
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <h3 className="font-semibold text-(--brand-navy)">
@@ -359,7 +327,7 @@ export default function GoalNew() {
                 <div className="flex justify-end gap-3 pt-4">
                     <button
                         type="button"
-                        onClick={() => navigate("/analytics/goals")}
+                        onClick={() => navigate("/analytics/goal-tracking")}
                         className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50"
                     >
                         Cancel

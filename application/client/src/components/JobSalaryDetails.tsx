@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import API_BASE from "../utils/apiBase";
 import Card from "./StyledComponents/Card";
 import Button from "./StyledComponents/Button";
@@ -41,9 +41,8 @@ interface SalaryFormState {
 export default function JobSalaryDetails() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-
-  // ALWAYS go back to the main Jobs dashboard
-  const backTarget = "/Jobs";
+  const location = useLocation();
+  const backTarget = location.state?.from || "/Jobs";
 
   const [job, setJob] = useState<JobWithSalaryExtras | null>(null);
   const [form, setForm] = useState<SalaryFormState>({
@@ -86,9 +85,7 @@ export default function JobSalaryDetails() {
           },
         });
 
-        if (!res.ok) {
-          throw new Error("Failed to load job salary details");
-        }
+        if (!res.ok) throw new Error("Failed to load job salary details");
 
         const data: JobWithSalaryExtras = await res.json();
         setJob(data);
@@ -100,10 +97,13 @@ export default function JobSalaryDetails() {
           salaryEquity: data.salaryEquity != null ? String(data.salaryEquity) : "",
           benefitsValue: data.benefitsValue != null ? String(data.benefitsValue) : "",
           offerStage: data.offerStage || "Applied",
-          offerDate: data.offerDate ? new Date(data.offerDate).toISOString().slice(0, 10) : "",
+          offerDate: data.offerDate
+            ? new Date(data.offerDate).toISOString().slice(0, 10)
+            : "",
           negotiationOutcome: data.negotiationOutcome || "Not attempted",
           salaryNotes: data.salaryNotes || "",
-          finalSalary: data.finalSalary != null ? String(data.finalSalary) : "",   // ✅ NEW
+          finalSalary:
+            data.finalSalary != null ? String(data.finalSalary) : "",
         });
       } catch (err: any) {
         console.error(err);
@@ -116,40 +116,116 @@ export default function JobSalaryDetails() {
     void loadJob();
   }, [jobId, token]);
 
+  // 🚨 IS FIRST ENTRY?
+  const isFirstEntry =
+    !job || !job.salaryHistory || job.salaryHistory.length === 0;
+
+  // 🚨 LOST OFFER LOGIC
+  const isLostOffer = form.negotiationOutcome === "Lost offer";
+
+  // ===========================
+  // HANDLE CHANGE
+  // ===========================
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    // If Lost Offer selected → zero everything + disable
+    if (name === "negotiationOutcome" && value === "Lost offer") {
+      setForm(prev => ({
+        ...prev,
+        negotiationOutcome: value,
+        finalSalary: "0",
+        salaryBonus: "0",
+        salaryEquity: "0",
+        benefitsValue: "0",
+      }));
+      return;
+    }
+
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
+  // ===========================
+  // HANDLE SUBMIT
+  // ===========================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!jobId) return;
+    if (!job) return setError("Job data is missing.");
 
     try {
       setSaving(true);
       setError(null);
 
-      const payload: Record<string, any> = {};
+      const newSalary = Number(form.finalSalary);
+      const lastEntry =
+        job.salaryHistory?.[job.salaryHistory.length - 1] ?? null;
+      const lastSalary = lastEntry?.finalSalary ?? null;
+      const outcome = form.negotiationOutcome;
 
-      if (form.salaryMin) payload.salaryMin = Number(form.salaryMin);
-      if (form.salaryMax) payload.salaryMax = Number(form.salaryMax);
-      if (form.finalSalary) payload.finalSalary = Number(form.finalSalary);
-      if (form.salaryBonus) payload.salaryBonus = Number(form.salaryBonus);
-      if (form.salaryEquity) payload.salaryEquity = Number(form.salaryEquity);
-      if (form.benefitsValue)
-        payload.benefitsValue = Number(form.benefitsValue);
-      if (form.offerStage) payload.offerStage = form.offerStage;
-      if (form.offerDate) payload.offerDate = form.offerDate;
-      if (isFirstEntry) {
-        payload.negotiationOutcome = "Not attempted"; // enforce
-      } else if (form.negotiationOutcome) {
-        payload.negotiationOutcome = form.negotiationOutcome;
+      //
+      // 🟢 VALIDATION — SKIP ALL RULES IF LOST OFFER
+      //
+      if (!isLostOffer) {
+        if (!newSalary || Number.isNaN(newSalary)) {
+          setSaving(false);
+          setError("Please enter a valid salary amount.");
+          return;
+        }
+
+        if (!isFirstEntry && lastSalary != null) {
+          if (outcome === "Improved" && newSalary <= lastSalary) {
+            setSaving(false);
+            setError("Improved outcome requires a higher salary than before.");
+            return;
+          }
+          if (outcome === "Worse" && newSalary >= lastSalary) {
+            setSaving(false);
+            setError("Worse outcome requires a lower salary than before.");
+            return;
+          }
+        }
       }
-      payload.salaryNotes = form.salaryNotes;
+
+      // LOST OFFER salary must be exactly zero
+      if (outcome === "Lost offer" && newSalary !== 0) {
+        setSaving(false);
+        setError("Lost offer should always have salary = 0.");
+        return;
+      }
+
+      //
+      // BUILD PAYLOAD
+      //
+      const payload: Record<string, any> = {
+        salaryMin: Number(form.salaryMin),
+        salaryMax: Number(form.salaryMax),
+        offerStage: form.offerStage,
+        offerDate: form.offerDate,
+        salaryNotes: form.salaryNotes,
+        negotiationOutcome: outcome,
+      };
+
+      if (isLostOffer) {
+        payload.finalSalary = 0;
+        payload.salaryBonus = 0;
+        payload.salaryEquity = 0;
+        payload.benefitsValue = 0;
+      } else {
+        payload.finalSalary = Number(form.finalSalary);
+        payload.salaryBonus = Number(form.salaryBonus);
+        payload.salaryEquity = Number(form.salaryEquity);
+        payload.benefitsValue = Number(form.benefitsValue);
+      }
+
+      if (isFirstEntry && !payload.finalSalary && !isLostOffer) {
+        setSaving(false);
+        setError("Please enter your initial agreed salary.");
+        return;
+      }
 
       const res = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
         method: "PUT",
@@ -160,13 +236,8 @@ export default function JobSalaryDetails() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to save salary details");
-      }
+      if (!res.ok) throw new Error("Failed to save salary details");
 
-      const updated: JobWithSalaryExtras = await res.json();
-      setJob(updated);
       navigate(backTarget);
     } catch (err: any) {
       console.error(err);
@@ -176,24 +247,19 @@ export default function JobSalaryDetails() {
     }
   };
 
-  if (loading) {
-    return <p className="p-6">Loading salary details…</p>;
-  }
+  //
+  // UI BLOCKS
+  //
+  if (loading) return <p className="p-6">Loading salary details…</p>;
+  if (!job) return <p className="p-6 text-red-600">Job not found.</p>;
 
-  if (!job) {
-    return <p className="p-6 text-red-600">Job not found.</p>;
-  }
-
-  // 🚨 True if this is the first ever salary entry
-  const isFirstEntry =
-    !job.salaryHistory || job.salaryHistory.length === 0;
-
-  // 🚨 Prevent access unless job is in Offer stage
+  // Prevent access unless status = offer
   if (job.status !== "offer") {
     return (
       <div className="p-6 text-red-600">
-        Salary details can only be added for jobs in the <b>Offer</b> stage. <br />
-        Move this job to the Offer column in your Application Pipeline to continue.
+        Salary details can only be added for jobs in the <b>Offer</b> stage.
+        <br />
+        Move this job to the Offer column to continue.
       </div>
     );
   }
@@ -219,7 +285,7 @@ export default function JobSalaryDetails() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Base salary range */}
+          {/* Base salary */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="form-label">Base Salary Min</label>
@@ -229,9 +295,9 @@ export default function JobSalaryDetails() {
                 value={form.salaryMin}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="e.g. 110000"
               />
             </div>
+
             <div>
               <label className="form-label">Base Salary Max</label>
               <input
@@ -240,78 +306,73 @@ export default function JobSalaryDetails() {
                 value={form.salaryMax}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="e.g. 145000"
               />
             </div>
+
             <div>
-              <label className="form-label">Final Salary (Agreed Salary)</label>
+              <label className="form-label">Final Salary</label>
               <input
                 type="number"
                 name="finalSalary"
                 value={form.finalSalary}
                 onChange={handleChange}
-                className="form-input"
-                placeholder="Enter final negotiated salary"
-                min={form.salaryMin}
-                max={form.salaryMax}
+                disabled={isLostOffer}
+                className={`form-input ${
+                  isLostOffer ? "bg-gray-200 cursor-not-allowed" : ""
+                }`}
+                min={isLostOffer ? 0 : form.salaryMin}
+                max={isLostOffer ? undefined : form.salaryMax}
               />
             </div>
           </div>
 
-          {/* Extra compensation */}
+          {/* Extra comp */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="form-label">Annual Bonus (approx)</label>
+              <label className="form-label">Annual Bonus</label>
               <input
                 type="number"
                 name="salaryBonus"
                 value={form.salaryBonus}
                 onChange={handleChange}
-                className="form-input"
-                placeholder="e.g. 15000"
+                disabled={isLostOffer}
+                className={`form-input ${
+                  isLostOffer ? "bg-gray-200 cursor-not-allowed" : ""
+                }`}
               />
             </div>
+
             <div>
-              <label className="form-label">Equity Value / yr</label>
+              <label className="form-label">Equity / yr</label>
               <input
                 type="number"
                 name="salaryEquity"
                 value={form.salaryEquity}
                 onChange={handleChange}
-                className="form-input"
-                placeholder="e.g. 20000"
+                disabled={isLostOffer}
+                className={`form-input ${
+                  isLostOffer ? "bg-gray-200 cursor-not-allowed" : ""
+                }`}
               />
             </div>
+
             <div>
-              <label className="form-label">Benefits Value / yr</label>
+              <label className="form-label">Benefits / yr</label>
               <input
                 type="number"
                 name="benefitsValue"
                 value={form.benefitsValue}
                 onChange={handleChange}
-                className="form-input"
-                placeholder="e.g. 8000"
+                disabled={isLostOffer}
+                className={`form-input ${
+                  isLostOffer ? "bg-gray-200 cursor-not-allowed" : ""
+                }`}
               />
             </div>
           </div>
 
-          {/* Offer & negotiation metadata */}
+          {/* Offer metadata */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="form-label">Offer Stage</label>
-              <select
-                name="offerStage"
-                value={form.offerStage}
-                onChange={handleChange}
-                className="form-input"
-              >
-                <option value="Applied">Applied</option>
-                <option value="Interviewing">Interviewing</option>
-                <option value="Offer Received">Offer Received</option>
-                <option value="Offer Accepted">Offer Accepted</option>
-                <option value="Offer Declined">Offer Declined</option>
-              </select>
-            </div>
             <div>
               <label className="form-label">Offer Date</label>
               <input
@@ -322,6 +383,7 @@ export default function JobSalaryDetails() {
                 className="form-input"
               />
             </div>
+
             <div>
               <label className="form-label">Negotiation Outcome</label>
               <select
@@ -329,27 +391,26 @@ export default function JobSalaryDetails() {
                 value={form.negotiationOutcome}
                 onChange={handleChange}
                 className="form-input"
-                disabled={isFirstEntry} // 🔒 lock dropdown for first entry
+                disabled={isFirstEntry}
               >
                 <option value="Not attempted">Not attempted</option>
-                <option value="Improved" disabled={isFirstEntry}>Improved</option>
-                <option value="No change" disabled={isFirstEntry}>No change</option>
-                <option value="Worse" disabled={isFirstEntry}>Worse</option>
-                <option value="Lost offer" disabled={isFirstEntry}>Lost offer</option>
+                <option value="Improved">Improved</option>
+                <option value="Worse">Worse</option>
+                <option value="No change">No change</option>
+                <option value="Lost offer">Lost offer</option>
               </select>
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="form-label">Salary & Negotiation Notes</label>
+            <label className="form-label">Salary Notes</label>
             <textarea
               name="salaryNotes"
               value={form.salaryNotes}
               onChange={handleChange}
               rows={4}
               className="form-input"
-              placeholder="Notes on recruiter call, benchmark links, negotiation strategy/results..."
             />
           </div>
 

@@ -441,3 +441,5 @@ export async function computeProductivityOverview(userId) {
     recommendations,
   };
 }
+
+export { computeProductivityOverview as getProductivitySummary };

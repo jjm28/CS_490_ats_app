@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Briefcase, Loader2, ChevronDown, ArrowLeft } from 'lucide-react';
 import NewsColumn from './NewsSection';
 import '../../styles/InterviewResearch.css';
+import { useInterviewPredictionSync } from '../../hooks/useInterviewPredictionSync';
 
 interface NewsArticle {
   title: string;
@@ -81,6 +82,7 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
   const [showRelevantOnly, setShowRelevantOnly] = useState(true);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+  const { triggerJobRecalculation } = useInterviewPredictionSync();
 
   // Fetch jobs with scheduled interviews
   useEffect(() => {
@@ -183,6 +185,10 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
 
       if (response.ok) {
         setIsSaved(true);
+        const job = jobs.find(j => j._id === selectedJobId);
+        if (job) {
+          triggerJobRecalculation(job);
+        }
       } else {
         throw new Error('Failed to save');
       }

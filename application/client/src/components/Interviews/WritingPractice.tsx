@@ -11,6 +11,7 @@ import API_BASE from '../../utils/apiBase';
 import VirtualInterviewTips from './VirtualInterviewTips';
 import NerveManagementModal from './NerveManagementModal';
 import WritingPracticeDashboard from './WritingPracticeDashboard';
+import { useInterviewPredictionSync } from '../../hooks/useInterviewPredictionSync';
 
 type Job = {
   _id: string;
@@ -59,6 +60,8 @@ export default function WritingPractice({ onBack }: WritingPracticeProps) {
   const navigate = useNavigate();
   const token = localStorage.getItem('token') || localStorage.getItem('authToken') || '';
   
+  const { triggerJobRecalculation } = useInterviewPredictionSync();
+
   // Tab state - NOW WITH HISTORY
   const [activeTab, setActiveTab] = useState<'practice' | 'progress' | 'history'>('practice');
   
@@ -374,6 +377,11 @@ export default function WritingPractice({ onBack }: WritingPracticeProps) {
       setCurrentQuestion(null);
       setResponse('');
       setAnalysisResult(null);
+
+      const job = jobs.find(j => j._id === selectedJobId);
+      if (job) {
+        triggerJobRecalculation(job);
+      }
       
       // NEW: Refresh sessions list
       await fetchSessions();

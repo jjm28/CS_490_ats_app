@@ -90,6 +90,12 @@ router.get("/analytics", async (req, res) => {
 
     const interviews = [];
 
+    console.log("🔥 All jobs:", jobs.map(j => ({
+      id: j._id.toString(),
+      status: j.status,
+      interviews: j.interviews
+    })));
+
     for (const job of jobs) {
       const base = {
         jobId: job._id.toString(),
@@ -105,10 +111,11 @@ router.get("/analytics", async (req, res) => {
             ...base,
             date: iv.date,
             type: iv.type || "Unknown",
-            outcome: job.status === "offer" ? "offer" :
-              job.status === "rejected" ? "rejected" :
-                "pending",
+            outcome: iv.outcome || "pending",
+            confidenceLevel: iv.confidenceLevel ?? null,
+            anxietyLevel: iv.anxietyLevel ?? null,
           });
+          console.log("🔥 Flattened interviews:", interviews);
         }
       }
 
@@ -122,6 +129,7 @@ router.get("/analytics", async (req, res) => {
           type: "Implicit",
           outcome: job.status === "offer" ? "offer" : "pending",
         });
+        console.log("🔥 Flattened interviews:", interviews);
       }
     }
 
@@ -170,9 +178,16 @@ router.get("/analytics", async (req, res) => {
     // -------------------------
     // 1) Conversion rates
     // -------------------------
-    const completed = interviews.filter((i) =>
-      ["offer", "rejected", "passed"].includes(i.outcome)
-    );
+    // EXPLICIT interviews (phone/video/in-person) should ALWAYS count
+    // IMPLICIT interviews only count if they are completed (offer/rejected/passed)
+    // EXPLICIT interviews (phone/video/in-person) should only count if completed
+    // IMPLICIT interviews count if completed
+    const completed = interviews.filter(i => {
+      if (i.type !== "Implicit") {
+        return ["offer", "rejected", "passed"].includes(i.outcome);
+      }
+      return ["offer", "rejected", "passed"].includes(i.outcome);
+    });
     const offers = completed.filter((i) => i.outcome === "offer");
 
     const overallRate =
@@ -268,14 +283,50 @@ router.get("/analytics", async (req, res) => {
     };
     // TODO: later, derive from a real `feedbackNotes` field if you add one.
 
+    // 6) Confidence & Anxiety Tracking (REAL DATA)
+    const confidencePoints = sortedByDate
+      .filter(i => i.confidenceLevel != null && i.anxietyLevel != null)
+      .map((i, idx) => ({
+        label: `#${idx + 1}`,
+        confidence: i.confidenceLevel,
+        anxiety: i.anxietyLevel,
+      }));
+
+    // average calculations
+    const avgConfidence =
+      confidencePoints.reduce((sum, p) => sum + p.confidence, 0) /
+      (confidencePoints.length || 1);
+
+    const avgAnxiety =
+      confidencePoints.reduce((sum, p) => sum + p.anxiety, 0) /
+      (confidencePoints.length || 1);
+
+    // trends (simple first-last comparison)
+    const confidenceTrend =
+      confidencePoints.length >= 2
+        ? confidencePoints[confidencePoints.length - 1].confidence -
+        confidencePoints[0].confidence
+        : 0;
+
+    const anxietyTrend =
+      confidencePoints.length >= 2
+        ? confidencePoints[0].anxiety -
+        confidencePoints[confidencePoints.length - 1].anxiety
+        : 0;
+
     // -------------------------
-    // 6) Confidence tracking (placeholder trend)
+    // Mental Prep Score (NEW)
     // -------------------------
-    const confidencePoints = sortedByDate.map((i, idx) => ({
-      label: `#${idx + 1}`,
-      confidence: Math.min(95, 60 + idx * 5), // fake upward trend
-      anxiety: Math.max(20, 60 - idx * 5),
-    }));
+    // 50% confidence, 50% inverse anxiety
+    const mentalPrepScore = Math.round(
+      ((avgConfidence / 5) * 100) * 0.5 +
+      (((5 - avgAnxiety) / 5) * 100) * 0.5
+    );
+
+    let mentalPrepLabel = "Needs Improvement";
+    if (mentalPrepScore >= 80) mentalPrepLabel = "Excellent";
+    else if (mentalPrepScore >= 65) mentalPrepLabel = "Good";
+    else if (mentalPrepScore >= 50) mentalPrepLabel = "Fair";
 
     // -------------------------
     // 7) Coaching recommendations
@@ -314,6 +365,40 @@ router.get("/analytics", async (req, res) => {
     }
 
     // -------------------------
+    // Confidence & Anxiety Coaching (NEW)
+    // -------------------------
+
+    // Confidence-based feedback
+    if (avgConfidence >= 4) {
+      coachingRecommendations.push(
+        "Your confidence levels are strong — maintain your preparation routine."
+      );
+    } else if (avgConfidence >= 3) {
+      coachingRecommendations.push(
+        "Your confidence is solid, but there’s room for improvement. Try rehearsing with mock interviews or tightening your storytelling."
+      );
+    } else {
+      coachingRecommendations.push(
+        "Your confidence is low — consider practicing question frameworks, doing more mock interviews, and reviewing past successes to boost certainty."
+      );
+    }
+
+    // Anxiety-based feedback
+    if (avgAnxiety <= 2) {
+      coachingRecommendations.push(
+        "Excellent anxiety control — you stay calm and collected during interviews."
+      );
+    } else if (avgAnxiety <= 3) {
+      coachingRecommendations.push(
+        "Your anxiety levels are normal. Try short breathing exercises, grounding techniques, or a light walk before interviews."
+      );
+    } else {
+      coachingRecommendations.push(
+        "High anxiety detected — build a pre-interview routine including deep breathing, visualization, and structured practice to reduce stress."
+      );
+    }
+
+    // -------------------------
     // 8) Benchmarks (simple static example)
     // -------------------------
     const benchmarks = {
@@ -335,16 +420,32 @@ router.get("/analytics", async (req, res) => {
         overallRate,
         byMonth,
       },
+
       formatPerformance,
+
       improvementTrends: {
         points: improvementPoints,
       },
+
       industryComparison,
+
       feedbackThemes,
+
       confidenceTracking: {
         points: confidencePoints,
+        avgConfidence,
+        avgAnxiety,
+        confidenceTrend,
+        anxietyTrend
       },
+
+      mentalPrep: {
+        score: mentalPrepScore,
+        label: mentalPrepLabel
+      },
+
       coachingRecommendations,
+
       benchmarks,
     };
 

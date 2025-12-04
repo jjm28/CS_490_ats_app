@@ -42,7 +42,7 @@ export default function InterviewPrepChecklist({ onBack }: InterviewPrepChecklis
         setInterviews(data);
         
         // Auto-select first interview if available
-        if (data.length > 0) {
+        if (data.length > 0 && !selectedInterviewId) {
           setSelectedInterviewId(data[0]._id);
         }
       } else {
