@@ -12,7 +12,6 @@ import { AlertCircle, Clock, Linkedin, Newspaper, Target } from "lucide-react";
 import API_BASE from "../../utils/apiBase";
 import axios from "axios";
 
-
 import {
   UserPlus,
   MessageSquare,
@@ -34,89 +33,85 @@ export default function NetworkingDashboard() {
   const navigate = useNavigate();
 
   const [suggestions, setSuggestions] = useState<any[]>([]);
-const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
-async function fetchSuggestions() {
-  try {
-    setLoadingSuggestions(true);
-    const token = JSON.parse(localStorage.getItem("authUser")!).token;
+  async function fetchSuggestions() {
+    try {
+      setLoadingSuggestions(true);
+      const token = JSON.parse(localStorage.getItem("authUser")!).token;
 
-    const res = await axios.get(`/api/networking/suggestions`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+      const res = await axios.get(`/api/networking/suggestions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    setSuggestions(res.data.suggestions || []);
-  } catch (err) {
-    console.error("Failed to fetch suggestions", err);
-  } finally {
-    setLoadingSuggestions(false);
-  }
-}
-
-async function handleConnect(suggestion: any) {
-  const raw = localStorage.getItem("authUser");
-  const auth = raw ? JSON.parse(raw) : null;
-
-  const token = auth?.token;
-  const userId = auth?.user?._id;
-
-  if (!token || !userId) {
-    console.error("Missing authentication.");
-    alert("Auth error — please log in again.");
-    return;
+      setSuggestions(res.data.suggestions || []);
+    } catch (err) {
+      console.error("Failed to fetch suggestions", err);
+    } finally {
+      setLoadingSuggestions(false);
+    }
   }
 
-  const body = {
-    userid: userId,
-    name: suggestion.name,
-    jobTitle: suggestion.role,
-    company: suggestion.company,
-    email: suggestion.email,
-    relationshipStrength: 50,
-  };
+  async function handleConnect(suggestion: any) {
+    const raw = localStorage.getItem("authUser");
+    const auth = raw ? JSON.parse(raw) : null;
 
-  console.log("POST body:", body);
+    const token = auth?.token;
+    const userId = auth?.user?._id;
 
-  try {
-    const res = await fetch(`${API_BASE}/api/networking/contacts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
+    if (!token || !userId) {
+      console.error("Missing authentication.");
+      alert("Auth error — please log in again.");
+      return;
+    }
 
-    if (!res.ok) throw new Error("Failed to add");
+    const body = {
+      userid: userId,
+      name: suggestion.name,
+      jobTitle: suggestion.role,
+      company: suggestion.company,
+      email: suggestion.email,
+      relationshipStrength: 50,
+    };
 
-    // 🧹 Remove from suggestions instantly
-    setSuggestions((prev: any[]) =>
-      prev.filter((c) => c._id !== suggestion._id)
-    );
+    console.log("POST body:", body);
 
-    // 📈 Track networking success analytics
-await fetch(`${API_BASE}/api/networking/track-connect`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-});
+    try {
+      const res = await fetch(`${API_BASE}/api/networking/contacts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
 
+      if (!res.ok) throw new Error("Failed to add");
 
-    alert(`Successfully added ${suggestion.name}!`);
+      // 🧹 Remove from suggestions instantly
+      setSuggestions((prev: any[]) =>
+        prev.filter((c) => c._id !== suggestion._id)
+      );
 
-  } catch (err) {
-    console.error("Add contact failed:", err);
-    alert("Failed to add contact.");
+      // 📈 Track networking success analytics
+      await fetch(`${API_BASE}/api/networking/track-connect`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      alert(`Successfully added ${suggestion.name}!`);
+    } catch (err) {
+      console.error("Add contact failed:", err);
+      alert("Failed to add contact.");
+    }
   }
-}
 
-
-
-useEffect(() => {
-  fetchSuggestions();
-}, []);
+  useEffect(() => {
+    fetchSuggestions();
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -183,11 +178,11 @@ useEffect(() => {
         />
 
         <PremiumCard
-            title="Mentorship & Coaching"
-            description="View mentor access, permissions, and collaboration insights."
-            icon={<span className="text-3xl">🧑‍🏫</span>}
-            link="/networking/mentors"
-          />
+          title="Mentorship & Coaching"
+          description="View mentor access, permissions, and collaboration insights."
+          icon={<span className="text-3xl">🧑‍🏫</span>}
+          link="/networking/mentors"
+        />
 
         <PremiumCard
           title="Interaction History"
@@ -282,61 +277,60 @@ useEffect(() => {
         ))}
       </div>
 
-{/* -------------------------------------------
+      {/* -------------------------------------------
      ⭐ SUGGESTED CONTACTS SECTION
    -------------------------------------------- */}
-<SectionHeader
-  title="Suggested Contacts"
-  icon={<Users className="w-6 h-6 text-blue-600" />}
-/>
+      <SectionHeader
+        title="Suggested Contacts"
+        icon={<Users className="w-6 h-6 text-blue-600" />}
+      />
 
-<div className="space-y-4 max-w-4xl mx-auto mb-16">
-  {loadingSuggestions && (
-    <p className="text-center text-gray-500">Loading suggestions...</p>
-  )}
-
-  {!loadingSuggestions && suggestions.length === 0 && (
-    <p className="text-center text-gray-400 text-sm italic">
-      No recommended new contacts found yet.
-    </p>
-  )}
-
-  {suggestions.map((c: any) => (
-    <div
-      key={c._id}
-      className="flex justify-between items-center p-5 bg-white border rounded-xl shadow-sm hover:shadow-md transition-all"
-    >
-      <div>
-        <p className="font-semibold text-gray-900 text-lg">{c.name}</p>
-        <p className="text-gray-600 text-sm">
-          {c.role || "Unknown role"} @ {c.company || "Unknown company"}
-        </p>
-
-        {/* MATCH TAGS */}
-        {c.match_reason?.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {c.match_reason.map((reason: string, idx: number) => (
-              <span
-                key={idx}
-                className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium shadow-sm"
-              >
-                {reason}
-              </span>
-            ))}
-          </div>
+      <div className="space-y-4 max-w-4xl mx-auto mb-16">
+        {loadingSuggestions && (
+          <p className="text-center text-gray-500">Loading suggestions...</p>
         )}
+
+        {!loadingSuggestions && suggestions.length === 0 && (
+          <p className="text-center text-gray-400 text-sm italic">
+            No recommended new contacts found yet.
+          </p>
+        )}
+
+        {suggestions.map((c: any) => (
+          <div
+            key={c._id}
+            className="flex justify-between items-center p-5 bg-white border rounded-xl shadow-sm hover:shadow-md transition-all"
+          >
+            <div>
+              <p className="font-semibold text-gray-900 text-lg">{c.name}</p>
+              <p className="text-gray-600 text-sm">
+                {c.role || "Unknown role"} @ {c.company || "Unknown company"}
+              </p>
+
+              {/* MATCH TAGS */}
+              {c.match_reason?.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {c.match_reason.map((reason: string, idx: number) => (
+                    <span
+                      key={idx}
+                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium shadow-sm"
+                    >
+                      {reason}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => handleConnect(c)}
+              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+            >
+              Connect
+            </button>
+          </div>
+        ))}
       </div>
-
-      <button
-        onClick={() => handleConnect(c)}
-        className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-      >
-        Connect
-      </button>
-    </div>
-  ))}
-</div>
-
 
       {/* REMINDERS */}
       <SectionHeader
@@ -357,10 +351,12 @@ useEffect(() => {
       {/* CONTACTS NEEDING ATTENTION - NEW */}
       {needsAttention.length > 0 && (
         <>
-          <SectionHeader
-            title="Contacts Needing Attention"
-            icon={<AlertCircle className="w-6 h-6 text-orange-500" />}
-          />
+          <div className="mt-16">
+            <SectionHeader
+              title="Contacts Needing Attention"
+              icon={<AlertCircle className="w-6 h-6 text-orange-500" />}
+            />
+          </div>
 
           <div className="space-y-4 max-w-4xl mx-auto mb-16">
             {needsAttention.slice(0, 5).map((c) => (
@@ -381,10 +377,12 @@ useEffect(() => {
       {/* UPCOMING CHECK-INS FROM API - NEW */}
       {upcomingRemindersFromAPI.length > 0 && (
         <>
-          <SectionHeader
-            title="Upcoming Check-ins"
-            icon={<Clock className="w-6 h-6 text-blue-500" />}
-          />
+          <div className="mt-16">
+            <SectionHeader
+              title="Upcoming Check-ins"
+              icon={<Clock className="w-6 h-6 text-blue-500" />}
+            />
+          </div>
 
           <div className="space-y-4 max-w-4xl mx-auto mb-16">
             {upcomingRemindersFromAPI.slice(0, 5).map((c) => (

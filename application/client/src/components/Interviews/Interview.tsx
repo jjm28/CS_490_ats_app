@@ -196,9 +196,9 @@ const DetailView = ({
     return <ResponseCoaching onBack={onBack} />;
   }
 
-  if (card.component === 'calendar') { // NEW
-    return <InterviewSchedulerPage onBack={onBack} />;
-  }
+  // if (card.component === 'calendar') { // NEW
+  //   return <InterviewSchedulerPage onBack={onBack} />;
+  // }
 
   // Otherwise, show the default detail view
   return (
@@ -288,6 +288,8 @@ const Interview = () => {
     }
     if (card.component === 'scheduling') {
       setActiveFeature('scheduling');
+      return;
+    }
     if (card.component === 'success-probability') {
       setActiveFeature('success-probability');
       return;
@@ -342,7 +344,7 @@ const Interview = () => {
         >
           ← Back to Overview
         </button>
-        <InterviewAnalyticsDashboard userId={userId} />
+        <InterviewAnalyticsDashboard />
       </div>
     );
 
