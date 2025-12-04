@@ -6,7 +6,7 @@ import {
   getContactsNeedingAttention,
   getUpcomingReminders,
 } from "../../api/relationship";
-import { AlertCircle, Clock, Newspaper, Target } from "lucide-react";
+import { AlertCircle, Clock, Linkedin, Newspaper, Target } from "lucide-react";
 
 console.log("NETWORKING DASHBOARD LOADED NEW VERSION");
 console.log("💥 NetworkingDashboard RENDERED");
@@ -105,6 +105,13 @@ export default function NetworkingDashboard() {
           description="Find and share relevant news with your network."
           icon={<Newspaper className="w-8 h-8 text-orange-600" />}
           link="/networking/industry-news"
+        />
+
+        <PremiumCard
+          title="LinkedIn Tools"
+          description="Optimize your profile and generate networking content"
+          icon={<Linkedin className="w-8 h-8 text-[#0A66C2]" />}
+          link="/networking/linkedin"
         />
       </div>
 
