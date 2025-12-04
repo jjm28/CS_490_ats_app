@@ -19,7 +19,8 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 'success-probability' | 'calendar' | null;
+  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 
+  'success-probability' | 'calendar' | 'aicoaching' | null;
 };
 
 const cardData: CardData[] = [
