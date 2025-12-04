@@ -101,6 +101,13 @@ import CampaignDetail from './components/Networking/CampaignDetail';
 import CampaignAnalytics from './components/Networking/CampaignAnalytics';
 import QuickOutreach from './components/Networking/QuickOutreach';
 import IndustryNews from './components/Networking/IndustryNews';
+
+import LinkedInTools from "./components/Networking/LinkedIn/LinkedInTools";
+import MessageTemplates from "./components/Networking/LinkedIn/MessageTemplates";
+import ConnectionTemplates from "./components/Networking/LinkedIn/ConnectionTemplates";
+import ProfileOptimization from "./components/Networking/LinkedIn/ProfileOptimization";
+import ContentStrategyPage from "./components/Networking/LinkedIn/ContentStrategy";
+import CampaignTemplates from "./components/Networking/LinkedIn/CampaignTemplates";
 import TeamsPage from "./components/Teams/TeamsPage";
 import TeamDetailPage from "./components/Teams/TeamDetailPage";
 import CreateTeamPage from "./components/Teams/CreateTeamPage";
@@ -255,6 +262,13 @@ function App() {
               </PrivateRoute>
             }
           />
+
+          <Route path="/networking/linkedin" element={<PrivateRoute><LinkedInTools /></PrivateRoute>} />
+<Route path="/networking/linkedin/messages" element={<PrivateRoute><MessageTemplates /></PrivateRoute>} />
+<Route path="/networking/linkedin/connections" element={<PrivateRoute><ConnectionTemplates /></PrivateRoute>} />
+<Route path="/networking/linkedin/optimize" element={<PrivateRoute><ProfileOptimization /></PrivateRoute>} />
+<Route path="/networking/linkedin/content" element={<PrivateRoute><ContentStrategyPage /></PrivateRoute>} />
+<Route path="/networking/linkedin/campaigns" element={<PrivateRoute><CampaignTemplates /></PrivateRoute>} />
 
           <Route
             path="/Applications"

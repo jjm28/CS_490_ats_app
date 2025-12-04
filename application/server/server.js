@@ -69,6 +69,7 @@ import supportersRoutes from "./routes/supporters.js";
 import networkingRoutes from "./routes/networking.js";
 import outreachRoutes from "./routes/outreach.js";
 import advisorRoutes from "./routes/advisor.routes.js";
+import linkedinRoutes from './routes/linkedin.js';
 
 // 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";
@@ -163,8 +164,7 @@ try {
   app.use("/api/jobs", jobSalaryRoutes);
 
   // Salary Analytics (UC-100) — MUST COME FIRST
-  app.use("/api/salary", salaryRouter);
-  app.use('/api/salary', salaryRouter);
+  // app.use("/api/salary", salaryRoutes);
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
 
   // Salary CRUD — MUST COME AFTER
@@ -188,6 +188,8 @@ try {
   //networking 
   app.use("/api/networking", networkingRoutes);
   app.use("/api/networking/outreach", outreachRoutes);
+  app.use('/api/linkedin', linkedinRoutes);
+
   // ⚙️ AUTOMATION
   app.use("/api/automation", automationRoutes);
 
