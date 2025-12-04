@@ -889,17 +889,26 @@ function generatePdfFilename(filename: string) {
 }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold mb-2">Coverletter Editor Mode</h1>
+   <div className="max-w-7xl mx-auto px-6 py-10 space-y-6">
+  {/* TITLE */}
+  <div>
+    <h1 className="text-2xl font-semibold text-gray-900">
+      Cover Letter – Editor Mode
+    </h1>
+    <p className="mt-1 text-sm text-gray-500">
+      Draft, refine, and collaborate on your cover letter before sending.
+    </p>
+  </div>
 
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Left: Share */}
-        <div className="flex items-center gap-2">
+  {/* TOOLBAR ROW */}
+  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    {/* Left: Share + review progress */}
+    <div className="flex flex-wrap items-center gap-3">
       <Button
+        type="button"
         onClick={() => setShowShareSettings(true)}
         disabled={!CoverletterID}
+        className="text-xs px-3 py-1"
       >
         Share
       </Button>
@@ -908,93 +917,106 @@ function generatePdfFilename(filename: string) {
         reviewers={reviewers}
         reviewDeadline={shareDeadline || undefined}
       />
-      
-    <div className="flex items-center gap-1">
-      <span className="text-xs text-gray-500">Status:</span>
-      <button
-        type="button"
-        disabled={updatingWorkflow || !CoverletterID}
-        className={`
-          inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs border
-          ${workflowStatus === "approved"
-            ? "bg-green-50 border-green-200 text-green-700"
-            : workflowStatus === "in_review"
-            ? "bg-blue-50 border-blue-200 text-blue-700"
-            : workflowStatus === "changes_requested"
-            ? "bg-amber-50 border-amber-200 text-amber-700"
-            : "bg-gray-50 border-gray-200 text-gray-700"}
-        `}
-      >
-        <span className="capitalize">
-          {workflowStatus.replace("_", " ")}
-        </span>
-        {!updatingWorkflow && <span className="text-[10px]">▼</span>}
-        {updatingWorkflow && (
-          <span className="text-[10px] text-gray-400">…</span>
-        )}
-      </button>
     </div>
 
-    {/* Simple inline status controls under toolbar */}
-<div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
-  <span>Quick status:</span>
-  <button
-    type="button"
-    className={`px-2 py-1 rounded border ${
-      workflowStatus === "draft" ? "border-gray-400" : "border-gray-200"
-    }`}
-    onClick={() => handleChangeWorkflowStatus("draft")}
-    disabled={updatingWorkflow || !CoverletterID}
-  >
-    Draft
-  </button>
-  <button
-    type="button"
-    className={`px-2 py-1 rounded border ${
-      workflowStatus === "in_review" ? "border-blue-400" : "border-gray-200"
-    }`}
-    onClick={() => handleChangeWorkflowStatus("in_review")}
-    disabled={updatingWorkflow || !CoverletterID}
-  >
-    In review
-  </button>
-  <button
-    type="button"
-    className={`px-2 py-1 rounded border ${
-      workflowStatus === "changes_requested" ? "border-amber-400" : "border-gray-200"
-    }`}
-    onClick={() => handleChangeWorkflowStatus("changes_requested")}
-    disabled={updatingWorkflow || !CoverletterID}
-  >
-    Changes requested
-  </button>
-  <button
-    type="button"
-    className={`px-2 py-1 rounded border ${
-      workflowStatus === "approved" ? "border-green-500" : "border-gray-200"
-    }`}
-    onClick={() => handleChangeWorkflowStatus("approved")}
-    disabled={updatingWorkflow || !CoverletterID}
-  >
-    Approved
-  </button>
+    {/* Right: Status controls + feedback summary */}
+    <div className="flex flex-col items-start gap-2 md:items-end">
+      {/* Current status pill */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-500">Status:</span>
+        <button
+          type="button"
+          disabled={updatingWorkflow || !CoverletterID}
+          className={`
+            inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs
+            ${
+              workflowStatus === "approved"
+                ? "bg-green-50 border-green-200 text-green-700"
+                : workflowStatus === "in_review"
+                ? "bg-blue-50 border-blue-200 text-blue-700"
+                : workflowStatus === "changes_requested"
+                ? "bg-amber-50 border-amber-200 text-amber-700"
+                : "bg-gray-50 border-gray-200 text-gray-700"
+            }
+          `}
+        >
+          <span className="capitalize">
+            {workflowStatus.replace("_", " ")}
+          </span>
+          {!updatingWorkflow && <span className="text-[10px]">▼</span>}
+          {updatingWorkflow && (
+            <span className="text-[10px] text-gray-400">…</span>
+          )}
+        </button>
+      </div>
 
-  {workflowStatus === "approved" && approvedByName && (
-    <span className="ml-2 text-[10px] text-green-700">
-      Approved by {approvedByName}
-      {approvedAt && ` on ${new Date(approvedAt).toLocaleDateString()}`}
-    </span>
-  )}
-</div>
+      {/* Quick status buttons + approved info + feedback summary */}
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+        <span className="mr-1">Quick status:</span>
+
+        <button
+          type="button"
+          className={`rounded border px-2 py-1 ${
+            workflowStatus === "draft" ? "border-gray-400" : "border-gray-200"
+          }`}
+          onClick={() => handleChangeWorkflowStatus("draft")}
+          disabled={updatingWorkflow || !CoverletterID}
+        >
+          Draft
+        </button>
+        <button
+          type="button"
+          className={`rounded border px-2 py-1 ${
+            workflowStatus === "in_review"
+              ? "border-blue-400"
+              : "border-gray-200"
+          }`}
+          onClick={() => handleChangeWorkflowStatus("in_review")}
+          disabled={updatingWorkflow || !CoverletterID}
+        >
+          In review
+        </button>
+        <button
+          type="button"
+          className={`rounded border px-2 py-1 ${
+            workflowStatus === "changes_requested"
+              ? "border-amber-400"
+              : "border-gray-200"
+          }`}
+          onClick={() => handleChangeWorkflowStatus("changes_requested")}
+          disabled={updatingWorkflow || !CoverletterID}
+        >
+          Changes requested
+        </button>
+        <button
+          type="button"
+          className={`rounded border px-2 py-1 ${
+            workflowStatus === "approved" ? "border-green-500" : "border-gray-200"
+          }`}
+          onClick={() => handleChangeWorkflowStatus("approved")}
+          disabled={updatingWorkflow || !CoverletterID}
+        >
+          Approved
+        </button>
+
+        {workflowStatus === "approved" && approvedByName && (
+          <span className="ml-2 text-[10px] text-green-700">
+            Approved by {approvedByName}
+            {approvedAt && ` on ${new Date(approvedAt).toLocaleDateString()}`}
+          </span>
+        )}
 
         <Button
-      type="button"
-      variant="secondary"
-      onClick={handleOpenFeedbackSummary}
-      disabled={!CoverletterID}
-    >
-      Feedback summary
-    </Button>
+          type="button"
+          variant="secondary"
+          onClick={handleOpenFeedbackSummary}
+          disabled={!CoverletterID}
+          className="ml-auto text-xs px-3 py-1"
+        >
+          Feedback summary
+        </Button>
+      
+
     </div>
 {showShareSettings && (
   <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">

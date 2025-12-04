@@ -113,7 +113,7 @@ const [isOwner, setisOwner] = useState(false);
         }
 
         const payload: GetSharedCoverletterResponse = res;
-
+        console.log(payload)
         // Set state from API
         setFilename(payload.filename ?? "Untitled");
         setTemplateKey(payload.templateKey ?? "formal");
@@ -514,7 +514,7 @@ const [isOwner, setisOwner] = useState(false);
                         >
                           {isResolved ? "Resolved" : "Open"}
                         </span>
-                        {sharingMeta?.isOwner || sharingMeta?.canResolve && (
+                        {(sharingMeta?.isOwner || sharingMeta?.canResolve)  && (
                           <button
                             type="button"
                             onClick={() =>
