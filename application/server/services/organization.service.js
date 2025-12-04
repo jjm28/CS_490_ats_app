@@ -27,7 +27,7 @@ export async function getBrandingForOrg(organizationId) {
       isOrgBranded: false,
     };
   }
-
+console.log(org)
   return {
     orgName: org.name,
     logoUrl: org.logoUrl || "/default-logo.png",
@@ -35,6 +35,8 @@ export async function getBrandingForOrg(organizationId) {
     secondaryColor: org.secondaryColor || "#e5e7eb",
     poweredBy: true,
     isOrgBranded: true,
+    backgroundcolor: org.backgroundcolor || "#F6F4EF",
+    navbarbg: org.navbarbg ||"bg-white"
   };
 }
 

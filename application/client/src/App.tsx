@@ -121,6 +121,7 @@ function App() {
       // we are currently ON the editor page → don't clear yet
       return;
     }
+ 
     console.log("working")
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");

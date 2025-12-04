@@ -10,26 +10,39 @@ import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X, User, ChevronDown } from "lucide-react";
 import "../styles/Navbar.css";
 import Button from "./StyledComponents/Button";
+import { getAuthMeta } from "../types/cohort";
 
-function getCurrentUserRole(): string | null {
-  try {
-    const raw = localStorage.getItem("authUser");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.user?.role || null;
-  } catch {
-    return null;
-  }
+interface OrgTheme {
+  orgName: string;
+  logoUrl: string;
+  primaryColor: string;
+  secondaryColor: string;
+  poweredBy: boolean;
+  isOrgBranded: boolean;
+  navbarbg: string;
+  backgroundcolor: string;
 }
 
-const role = getCurrentUserRole()
+const DEFAULT_THEME: OrgTheme = {
+  orgName: "ATS for Candidates",
+  logoUrl: logo,
+  navbarbg: "bg-white",
+  primaryColor: "#2563eb",
+  secondaryColor: "#e5e7eb",
+  poweredBy: true,
+  isOrgBranded: false,
+  backgroundcolor: "#F6F4EF"
+};
+
+  const { userId, role, organizationId } = getAuthMeta();
+
 function Navbar() {
   const [loggedIn, setLoggedIn] = useState<boolean>(
     () => !!localStorage.getItem("authToken")
   );
   const navigate = useNavigate();
   const { pathname } = useLocation();
-
+  const [theme, setTheme] = useState(DEFAULT_THEME);
   useEffect(() => {
     setLoggedIn(!!localStorage.getItem("authToken"));
   }, [pathname]);
@@ -50,13 +63,66 @@ function Navbar() {
     navigate("/Logout");
   };
 
+    
+    useEffect(() => {
+     if (organizationId) loadTheme();
+    }, []);
+
+    async function loadTheme() {
+      try {
+        const res = await fetch("/api/org/branding/me", {
+          credentials: "include",   headers: {
+              ...(userId
+                ? {
+                    "x-user-id": userId,
+                    "x-user-role": role,
+                    "x-org-id": organizationId || "",
+                  }
+                : {}),
+            },
+        });
+
+
+        const json = await res.json();
+        setTheme({ ...DEFAULT_THEME, ...json });
+        
+        const docstyle = { ...DEFAULT_THEME, ...json }
+        document.body.style.backgroundColor = docstyle.backgroundcolor;
+  //   const root = document.getElementById("root") as HTMLElement | null;
+  //   if (!root) {
+  //     console.warn("#root not found");
+  //     return;
+  //   }
+
+  //   // Example: change some of your CSS variables
+  //   // root.style.setProperty("--brand-navy", "#ff5722");
+        
+  //       root.style.setProperty('--brand-teal', docstyle.primaryColor);
+  // root.style.setProperty('--link', docstyle.primaryColor);
+  // root.style.setProperty('--brand-olive', docstyle.secondaryColor);
+
+  // root.style.setProperty('--bg-light', docstyle.backgroundcolor);
+  // root.style.setProperty('--body-bg', docstyle.backgroundcolor);
+
+  // root.style.setProperty('--navbar-bg', docstyle.navbarbg);
+      } catch (err) {
+        console.error("Theme load failed:", err);
+        setTheme(DEFAULT_THEME);
+      }
+    }
+  
+
+
+  
   return (
-    <nav className="relative border-b border-gray-300 shadow-sm bg-white">
+    <nav className={`relative border-b border-gray-300 shadow-sm ${theme.navbarbg}`}>
+      
       <div className="px-2 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
+            
             <Link to="/">
-              <img src={logo} alt="Logo" className="w-32" />
+              <img src={theme.logoUrl} alt="Logo" className="w-32" />
             </Link>
           </div>
 
@@ -72,6 +138,8 @@ function Navbar() {
             >
               Dashboard
             </NavLink>
+
+            
  {(role === "org_admin" || role === "super_admin") && (  <NavLink
               to="/enterprise/cohorts"
               className={({ isActive }) =>
@@ -124,7 +192,11 @@ Bulk Onboarding
 Analytics            </NavLink>
 
           )}
+
+
+           {(role === "job_seeker" || role === "super_admin") && (   
             <Popover className="relative">
+          
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Qualifications
                 <ChevronDown size={16} />
@@ -150,7 +222,8 @@ Analytics            </NavLink>
                 </NavLink>
               </PopoverPanel>
             </Popover>
-
+           )}
+            {(role === "job_seeker" || role === "super_admin") && (  
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Experience
@@ -171,6 +244,8 @@ Analytics            </NavLink>
                 </NavLink>
               </PopoverPanel>
             </Popover>
+            )}
+             {(role === "job_seeker" || role === "super_admin") && (  
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Documents
@@ -197,6 +272,8 @@ Analytics            </NavLink>
                 </NavLink>
               </PopoverPanel>
             </Popover>
+             )}
+              {(role === "job_seeker" || role === "super_admin") && (  
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
                 Job Search
@@ -327,7 +404,7 @@ Analytics            </NavLink>
                 </NavLink>
               </PopoverPanel>
             </Popover>
-            
+              )}
           </div>
 
           <div className="flex items-center space-x-4">
