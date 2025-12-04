@@ -12,8 +12,8 @@ import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from "./jobs/notificationcron.js";
 
 // 🧩 Middleware
-import { attachDevUser } from "./middleware/devUser.js";
-
+import { attachDevUser } from './middleware/devUser.js';
+import { attachUserFromHeaders } from "./middleware/auth.js";
 //
 // ===============================
 // 📁 FEATURE IMPORTS (Grouped)
@@ -85,6 +85,12 @@ import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
+//import networkingRoutes from "./routes/networking.js";
+//import outreachRoutes from "./routes/outreach.js";
+import cohortRoutes from "./routes/cohort.routes.js";
+import enterpriseRoutes from "./routes/enterprise.routes.js";
+import jobseekersRoutes from "./routes/jobseekers.route.js"
+import organizationRoutes from "./routes/organization.routes.js";
 
 
 import teamProgressRouter from "./routes/teamProgress.js";
@@ -110,19 +116,17 @@ const __dirname = path.dirname(__filename);
 
 app.set("baseUrl", BASE);
 
-app.use(
-  cors({
-    origin: CORS_ORIGIN,
-    credentials: true,
+app.use(cors({
+  origin: CORS_ORIGIN,
+  credentials: true,
     allowedHeaders: [
       "Content-Type",
       "Authorization",
       "x-user-id",
       "x-dev-user-id",
-    ],
-  })
-);
-
+      "x-user-role",
+      "x-org-id",
+    ],}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -237,6 +241,11 @@ try {
   // 🤝 JOB SEARCH SHARING
   app.use("/api", jobSearchSharingRoutes);
   app.use("/api", advisorRoutes);
+  
+    app.use("/api",attachUserFromHeaders, jobseekersRoutes);
+  app.use("/api", attachUserFromHeaders, cohortRoutes);
+  app.use("/api",attachUserFromHeaders, enterpriseRoutes);
+app.use("/api",attachUserFromHeaders, organizationRoutes);
 
   // 📈 MARKET INTELLIGENCE (UC-102)
   app.use("/api/market", attachDevUser, marketRoutes);
