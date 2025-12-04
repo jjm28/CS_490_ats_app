@@ -1035,7 +1035,7 @@ return (
                   Maintain Relationship
                 </h2>
                 <p className="text-xs text-gray-600 mt-1">
-                  {activeRefForRelationship.full_name} —{" "}
+                  {activeRefForRelationship.full_name}: {" "}
                   {activeRefForRelationship.title}{" "}
                   {activeRefForRelationship.organization &&
                     ` @ ${activeRefForRelationship.organization}`}

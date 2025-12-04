@@ -5,7 +5,6 @@ import 'dotenv/config';
 import { SchemaType } from '@google/generative-ai';
 
 
-
 export async function createReferee({ user_id, full_name, title, organization, relationship, email, preferred_contact_method, phone, tags, last_used_at, usage_count,availability_status,availability_other_note,preferred_opportunity_types,preferred_number_of_uses}) {
   const db = getDb();
   const references = db.collection('Referees');
@@ -53,7 +52,8 @@ export async function getALLReferee({ userid}) {
    result = await db
     .collection("Referees")
     .find(     { user_id: userid }  ).toArray();
- 
+    
+ if (!result) {console.log("Could not find refereees")}
 
   return result ;
 }
@@ -732,4 +732,114 @@ Guidance:
     dontSayList: parsed.dontSayList || [],
     callScript90s: parsed.callScript90s || "",
   };
+}
+
+
+
+
+export async function generateReferencePortfolioWithAI(opts) {
+  const { goal, candidates, limit = 5, temperature = 0.4 } = opts || {};
+
+  if (!goal || !Array.isArray(candidates) || candidates.length === 0) return [];
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    systemInstruction:
+      "You are an expert career coach and reference-strategy advisor. " +
+      "Your job is to select the best references for a candidate's specific career goal. " +
+      "You MUST output strictly valid JSON matching the provided schema. " +
+      "Do not include markdown, bullets, or commentary outside JSON. " +
+      "Focus on practical, realistic reasoning based ONLY on provided data. " +
+      "Penalize references who are 'unavailable' or clearly over-used. " +
+      "Favor references with higher success rates, more relevant tags/industries/titles, " +
+      "and appropriate availability.",
+  });
+
+  const responseSchema = {
+    type: SchemaType.OBJECT,
+    properties: {
+      references: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            reference_id: { type: SchemaType.STRING },
+            score: { type: SchemaType.NUMBER },
+            summary: { type: SchemaType.STRING },
+            rationale: { type: SchemaType.STRING },
+          },
+          required: ["reference_id", "score", "summary"],
+        },
+      },
+    },
+    required: ["references"],
+  };
+
+  const prompt =
+    `You are designing a reference portfolio for a candidate.\n\n` +
+    `Candidate's target career goal (verbatim): "${goal}".\n\n` +
+    `You are given a list of references in JSON.\n` +
+    `Each reference includes:\n` +
+    `- reference_id: string (stable ID, MUST be used when referring to that reference)\n` +
+    `- full_name, title, organization, relationship, email\n` +
+    `- tags: keywords describing skills/industries/roles\n` +
+    `- usage: { applications, offers, success_rate, example_titles, industries }\n` +
+    `- availability_status: e.g. 'available', 'limited', 'unavailable'\n` +
+    `- preferred_number_of_uses and current usage_count\n\n` +
+    `Your task:\n` +
+    `1) Select up to ${limit} references that best support this career goal.\n` +
+    `2) For each chosen reference, assign a numeric score from 0–100 (higher = better fit).\n` +
+    `   Consider: relevance of tags/titles/industries to the goal, success_rate, and availability.\n` +
+    `3) Write a concise 1–2 sentence summary explaining WHY this reference is a good fit.\n` +
+    `4) Optionally include a 'rationale' field with more internal explanation.\n\n` +
+    `Hard constraints:\n` +
+    `- ONLY use data in the JSON below. Do NOT invent roles, companies, or success metrics.\n` +
+    `- If a reference is 'unavailable', either exclude them or give them a very low score.\n` +
+    `- If usage_count >= preferred_number_of_uses, slightly reduce that reference's score.\n` +
+    `- Prefer diversity in industries/roles if multiple references are roughly equally good.\n` +
+    `- Output strictly valid JSON matching the schema: { "references": [ ... ] }.\n\n` +
+    `=== REFERENCES JSON ===\n` +
+    JSON.stringify(candidates, null, 2) +
+    `\n\nReturn ONLY JSON.`;
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature,
+      maxOutputTokens: 1200,
+      responseMimeType: "application/json",
+      responseSchema,
+    },
+  });
+
+  const raw =
+    result.response &&
+    result.response.candidates &&
+    result.response.candidates[0] &&
+    result.response.candidates[0].content &&
+    result.response.candidates[0].content.parts &&
+    result.response.candidates[0].content.parts[0] &&
+    (result.response.candidates[0].content.parts[0].text ||
+      result.response.candidates[0].content.parts[0].inlineData?.data);
+
+  if (!raw) return [];
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    console.error("❌ Failed to parse AI portfolio JSON:", err);
+    return [];
+  }
+
+  if (!parsed || !Array.isArray(parsed.references)) return [];
+
+  return parsed.references
+    .filter((r) => r && typeof r.reference_id === "string")
+    .map((r) => ({
+      reference_id: r.reference_id,
+      score: typeof r.score === "number" ? r.score : 0,
+      summary: r.summary || "",
+      rationale: r.rationale || "",
+    }));
 }
