@@ -79,13 +79,10 @@ import productivityRoutes from "./routes/productivity.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
-<<<<<<< HEAD
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
-=======
 import teamProgressRouter from "./routes/teamProgress.js";
 
 import teamRoutes from "./routes/teams.js";
->>>>>>> 8ff01f5 (UC108 + 109)
 
 import marketRoutes from "./routes/market.js";
 
