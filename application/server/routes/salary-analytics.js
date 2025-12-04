@@ -340,8 +340,7 @@ router.get("/", async (req, res) => {
             recommendations,
             compSummary,
             compProgression,
-            careerProgression,
-            careerMoveTiming,
+            careerProgression
         });
     } catch (err) {
         console.error("❌ Salary analytics error:", err);
