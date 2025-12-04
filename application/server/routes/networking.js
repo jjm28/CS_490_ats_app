@@ -70,11 +70,6 @@ router.get("/contacts", verifyJWT, async (req, res) => {
 });
 
 /* ===========================================================
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> d77e21fb296fdf151a7ca65e7d5b731c7c1160fe
    RELATIONSHIP MAINTENANCE - UC-093
 =========================================================== */
 
@@ -103,10 +98,6 @@ router.get("/reminders/upcoming", verifyJWT, async (req, res) => {
 });
 
 /* ===========================================================
-<<<<<<< HEAD
-=======
->>>>>>> develop
->>>>>>> d77e21fb296fdf151a7ca65e7d5b731c7c1160fe
    GET ONE CONTACT  ->  GET /api/networking/contacts/:id
 =========================================================== */
 router.get("/contacts/:id", verifyJWT, async (req, res) => {

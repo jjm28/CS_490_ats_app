@@ -185,23 +185,7 @@ function Navbar() {
                 >
                   Family Support
                 </NavLink>
-                <NavLink
-                  to="/job-search/sharing"
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
-                Sharing & Accountability
-              </NavLink>
-              <NavLink
-                  to="/advisors"
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
-                Advisors & Coaches
-              </NavLink>
-                  <NavLink
-                    to="/networking"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                  >
-                    Networking Hub
-                  </NavLink>
-              </PopoverPanel>
+                </PopoverPanel>
             </Popover>
 
             {/* Analytics Dropdown */}
@@ -346,7 +330,6 @@ function Navbar() {
                 </PopoverPanel>
               </Popover>
             )}
-            
 
             {/* Mobile Menu Button */}
             <Disclosure as="div" className="lg:hidden">

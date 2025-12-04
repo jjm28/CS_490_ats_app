@@ -52,10 +52,6 @@ const ContactSchema = new mongoose.Schema(
     opportunitiesGenerated: { type: Number, default: 0 }, // Track referrals, job leads, etc.
     nextSuggestedContact: { type: Date }, // Auto-calculated based on engagement frequency
     lastReminderSent: { type: Date },
-<<<<<<< HEAD
-=======
-
->>>>>>> d77e21fb296fdf151a7ca65e7d5b731c7c1160fe
   },
   { timestamps: true }
 );

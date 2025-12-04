@@ -196,6 +196,20 @@ useEffect(() => {
           link="/networking/interactions"
         />
 
+        <PremiumCard
+          title="Networking Campaigns"
+          description="Create and track targeted networking campaigns."
+          icon={<Target className="w-8 h-8 text-indigo-600" />}
+          link="/networking/campaigns"
+        />
+
+        <PremiumCard
+          title="Industry News"
+          description="Find and share relevant news with your network."
+          icon={<Newspaper className="w-8 h-8 text-orange-600" />}
+          link="/networking/industry-news"
+        />
+
         {/* ⭐ NEW — NETWORKING EVENTS CARD */}
         <PremiumCard
           title="Networking Events & Opportunities"
@@ -217,6 +231,7 @@ useEffect(() => {
           icon={<Linkedin className="w-8 h-8 text-[#0A66C2]" />}
           link="/networking/linkedin"
         />
+
         <PremiumCard
           title="Networking Analytics"
           description="Track your networking performance, ROI, and relationship-building progress."
@@ -253,8 +268,6 @@ useEffect(() => {
           icon={<Bell className="w-8 h-8 text-orange-500" />}
           link="/referrals/insights"
         />
-
-        
       </div>
 
       {/* STRONGEST RELATIONSHIPS */}
