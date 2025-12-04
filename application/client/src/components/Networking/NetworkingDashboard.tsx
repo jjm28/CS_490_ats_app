@@ -179,10 +179,12 @@ export default function NetworkingDashboard() {
       {/* CONTACTS NEEDING ATTENTION - NEW */}
       {needsAttention.length > 0 && (
         <>
-          <SectionHeader
-            title="Contacts Needing Attention"
-            icon={<AlertCircle className="w-6 h-6 text-orange-500" />}
-          />
+          <div className="mt-16">
+            <SectionHeader
+              title="Contacts Needing Attention"
+              icon={<AlertCircle className="w-6 h-6 text-orange-500" />}
+            />
+          </div>
 
           <div className="space-y-4 max-w-4xl mx-auto mb-16">
             {needsAttention.slice(0, 5).map((c) => (
@@ -203,10 +205,12 @@ export default function NetworkingDashboard() {
       {/* UPCOMING CHECK-INS FROM API - NEW */}
       {upcomingRemindersFromAPI.length > 0 && (
         <>
-          <SectionHeader
-            title="Upcoming Check-ins"
-            icon={<Clock className="w-6 h-6 text-blue-500" />}
-          />
+          <div className="mt-16">
+            <SectionHeader
+              title="Upcoming Check-ins"
+              icon={<Clock className="w-6 h-6 text-blue-500" />}
+            />
+          </div>
 
           <div className="space-y-4 max-w-4xl mx-auto mb-16">
             {upcomingRemindersFromAPI.slice(0, 5).map((c) => (
