@@ -28,7 +28,7 @@ router.get('/profile', async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const db = getDb();
-    const user = await db.collection('users').findOne({ _id: userId });
+    const user = await db.collection('users').findOne({ _id: req.user._id });
     
     if (!user || !user.linkedInId) {
       return res.status(404).json({ error: 'No LinkedIn profile connected' });
@@ -38,7 +38,7 @@ router.get('/profile', async (req, res) => {
 
     return res.json({
       linkedInId: user.linkedInId,
-      linkedInProfileUrl: profile?.linkedInProfileUrl,
+      linkedInProfileUrl: profile?.linkedInProfileUrl || null, // ✅ Return actual URL
       headline: profile?.headline,
       photoUrl: profile?.photoUrl,
       email: user.email,
@@ -191,27 +191,145 @@ router.post('/profile/optimize', async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const db = getDb();
-    const profile = await db.collection('profiles').findOne({ 
-      userId: userId
-    });
+    
+    // Get user's LinkedIn data
+    const user = await db.collection('users').findOne({ _id: userId });
+    const profile = await db.collection('profiles').findOne({ userId: userId });
 
-    if (!profile) {
-      return res.status(404).json({ error: 'Profile not found' });
+    if (!user || !user.linkedInId) {
+      return res.status(404).json({ error: 'No LinkedIn account connected' });
     }
 
     console.log('Generating AI profile optimization');
     
-    const suggestions = await generateProfileOptimization({
-      headline: profile.headline,
-      jobTitle: profile.fullName, // or whatever field has job title
-      industry: profile.industry,
-      experienceLevel: profile.experienceLevel,
-    });
+    // Use stored context if available, otherwise use request body
+    const { currentRole, yearsOfExperience, targetRole, skills } = req.body || {};
+    
+    const contextToUse = {
+      currentRole: currentRole || profile?.linkedInOptimization?.currentRole || profile?.headline || "Professional",
+      yearsOfExperience: yearsOfExperience || profile?.linkedInOptimization?.yearsOfExperience || profile?.experienceLevel,
+      targetRole: targetRole || profile?.linkedInOptimization?.targetRole,
+      skills: skills || profile?.linkedInOptimization?.skills,
+      industry: profile?.industry,
+      linkedInProfileUrl: profile?.linkedInProfileUrl,
+    };
+    
+    const suggestions = await generateProfileOptimization(contextToUse);
 
-    return res.json(suggestions);
+    // 🆕 Save to database
+    const now = new Date();
+    const analysisCount = (profile?.linkedInOptimization?.analysisCount || 0) + 1;
+    
+    await db.collection('profiles').updateOne(
+      { userId: userId },
+      {
+        $set: {
+          'linkedInOptimization.currentRole': contextToUse.currentRole,
+          'linkedInOptimization.yearsOfExperience': contextToUse.yearsOfExperience,
+          'linkedInOptimization.targetRole': contextToUse.targetRole,
+          'linkedInOptimization.skills': contextToUse.skills,
+          'linkedInOptimization.suggestions': suggestions.map(s => ({
+            ...s,
+            completed: false,
+            completedAt: null,
+            notes: ''
+          })),
+          'linkedInOptimization.lastAnalyzedAt': now,
+          'linkedInOptimization.analysisCount': analysisCount,
+          updatedAt: now
+        }
+      },
+      { upsert: true }
+    );
+
+    return res.json({
+      suggestions,
+      context: {
+        currentRole: contextToUse.currentRole,
+        yearsOfExperience: contextToUse.yearsOfExperience,
+        targetRole: contextToUse.targetRole,
+        skills: contextToUse.skills,
+      },
+      meta: {
+        lastAnalyzedAt: now,
+        analysisCount
+      }
+    });
   } catch (error) {
     console.error('Error generating profile optimization:', error);
     return res.status(500).json({ error: 'Failed to optimize profile' });
+  }
+});
+
+// GET /api/linkedin/profile/optimize - Get saved optimization data
+router.get('/profile/optimize', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const db = getDb();
+    const profile = await db.collection('profiles').findOne({ userId: userId });
+
+    if (!profile?.linkedInOptimization) {
+      return res.status(404).json({ error: 'No optimization data found' });
+    }
+
+    return res.json({
+      suggestions: profile.linkedInOptimization.suggestions || [],
+      context: {
+        currentRole: profile.linkedInOptimization.currentRole,
+        yearsOfExperience: profile.linkedInOptimization.yearsOfExperience,
+        targetRole: profile.linkedInOptimization.targetRole,
+        skills: profile.linkedInOptimization.skills,
+      },
+      meta: {
+        lastAnalyzedAt: profile.linkedInOptimization.lastAnalyzedAt,
+        analysisCount: profile.linkedInOptimization.analysisCount || 0,
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching optimization data:', error);
+    return res.status(500).json({ error: 'Failed to fetch optimization data' });
+  }
+});
+
+// PATCH /api/linkedin/profile/optimize/suggestion/:index - Mark suggestion as completed
+router.patch('/profile/optimize/suggestion/:index', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { index } = req.params;
+    const { completed, notes } = req.body;
+
+    const db = getDb();
+    const profile = await db.collection('profiles').findOne({ userId: userId });
+
+    if (!profile?.linkedInOptimization?.suggestions?.[index]) {
+      return res.status(404).json({ error: 'Suggestion not found' });
+    }
+
+    const updateFields = {
+      [`linkedInOptimization.suggestions.${index}.completed`]: completed,
+      [`linkedInOptimization.suggestions.${index}.notes`]: notes || '',
+      updatedAt: new Date()
+    };
+
+    if (completed) {
+      updateFields[`linkedInOptimization.suggestions.${index}.completedAt`] = new Date();
+    } else {
+      updateFields[`linkedInOptimization.suggestions.${index}.completedAt`] = null;
+    }
+
+    await db.collection('profiles').updateOne(
+      { userId: userId },
+      { $set: updateFields }
+    );
+
+    return res.json({ message: 'Suggestion updated successfully' });
+  } catch (error) {
+    console.error('Error updating suggestion:', error);
+    return res.status(500).json({ error: 'Failed to update suggestion' });
   }
 });
 
@@ -298,6 +416,47 @@ router.get('/campaigns/templates', async (req, res) => {
   } catch (error) {
     console.error('Error fetching campaign templates:', error);
     return res.status(500).json({ error: 'Failed to fetch templates' });
+  }
+});
+
+// PUT /api/linkedin/profile/url - Update LinkedIn profile URL
+router.put('/profile/url', async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { linkedInProfileUrl } = req.body;
+    
+    if (!linkedInProfileUrl) {
+      return res.status(400).json({ error: 'LinkedIn profile URL is required' });
+    }
+
+    // Basic validation
+    if (!linkedInProfileUrl.includes('linkedin.com')) {
+      return res.status(400).json({ error: 'Please enter a valid LinkedIn URL' });
+    }
+
+    const db = getDb();
+    
+    // Update profile
+    await db.collection('profiles').updateOne(
+      { userId: String(req.user._id) },
+      { 
+        $set: { 
+          linkedInProfileUrl: linkedInProfileUrl,
+          updatedAt: new Date()
+        } 
+      },
+      { upsert: true }
+    );
+
+    return res.json({ 
+      message: 'LinkedIn profile URL updated successfully',
+      linkedInProfileUrl 
+    });
+  } catch (error) {
+    console.error('Error updating LinkedIn URL:', error);
+    return res.status(500).json({ error: 'Failed to update LinkedIn URL' });
   }
 });
 

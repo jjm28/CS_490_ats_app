@@ -166,15 +166,18 @@ export async function generateProfileOptimization(userProfile) {
 
   const promptContext = `Analyze this LinkedIn profile and provide optimization suggestions:
 
-Headline: ${userProfile.headline || "Not set"}
-Current role: ${userProfile.jobTitle || "Not specified"}
+Current Role/Headline: ${userProfile.currentRole || userProfile.headline || "Not specified"}
+Years of Experience: ${userProfile.experienceLevel || userProfile.yearsOfExperience || "Not specified"}
+Target Role: ${userProfile.targetRole || "Not specified"}
 Industry: ${userProfile.industry || "Not specified"}
-Experience level: ${userProfile.experienceLevel || "Not specified"}
+Skills: ${userProfile.skills || "Not specified"}
+${userProfile.linkedInProfileUrl ? `LinkedIn URL: ${userProfile.linkedInProfileUrl}` : ""}
 
-Provide 5-8 specific suggestions to improve this profile for:
+Provide 5-8 specific suggestions to improve this LinkedIn profile for:
 - Better visibility in recruiter searches
 - Stronger professional brand
 - Increased engagement and connection opportunities
+${userProfile.targetRole ? `- Positioning for ${userProfile.targetRole} roles` : ""}
 
 Focus on practical, achievable improvements.`;
 

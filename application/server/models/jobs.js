@@ -71,6 +71,7 @@ const JobSchema = new Schema({
     salaryMin: { type: Schema.Types.Decimal128 },
     salaryMax: { type: Schema.Types.Decimal128 },
     jobPostingUrl: { type: String, default: '' },
+    linkedInProfileUrl: { type: String, default: null },
     applicationDeadline: { type: Date },
     description: { type: String, default: '', maxlength: 2000 },
     skillsExtracted: { type: [String], default: [] },

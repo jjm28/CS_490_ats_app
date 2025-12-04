@@ -1,12 +1,63 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getLinkedInProfile, type LinkedInProfile } from "../../../api/linkedin";
-import { Linkedin, MessageSquare, UserPlus, TrendingUp, FileText, Target } from "lucide-react";
+import {
+  getLinkedInProfile,
+  type LinkedInProfile,
+} from "../../../api/linkedin";
+import {
+  Linkedin,
+  MessageSquare,
+  UserPlus,
+  TrendingUp,
+  FileText,
+  Target,
+} from "lucide-react";
+import API_BASE from "../../../utils/apiBase";
 
 export default function LinkedInTools() {
   const [profile, setProfile] = useState<LinkedInProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showUrlModal, setShowUrlModal] = useState(false);
   const navigate = useNavigate();
+  const [linkedInUrl, setLinkedInUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSaveUrl() {
+    if (!linkedInUrl.trim()) {
+      alert("Please enter a LinkedIn URL");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const token =
+        localStorage.getItem("authToken") || localStorage.getItem("token");
+
+      const response = await fetch(`${API_BASE}/api/linkedin/profile/url`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ linkedInProfileUrl: linkedInUrl }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save URL");
+      }
+
+      // Reload profile
+      await loadProfile();
+      setShowUrlModal(false);
+      setLinkedInUrl("");
+    } catch (err: any) {
+      console.error("Failed to save LinkedIn URL:", err);
+      alert(err.message || "Failed to save LinkedIn URL");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useEffect(() => {
     loadProfile();
@@ -56,6 +107,7 @@ export default function LinkedInTools() {
       </div>
 
       {/* Profile Overview */}
+      {/* Profile Overview */}
       {profile ? (
         <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
           <div className="flex items-center gap-4">
@@ -66,12 +118,14 @@ export default function LinkedInTools() {
                 className="w-16 h-16 rounded-full border-2 border-blue-500"
               />
             )}
-            <div>
+            <div className="flex-1">
               <h2 className="text-xl font-semibold text-gray-900">
                 {profile.firstName} {profile.lastName}
               </h2>
-              <p className="text-gray-700">{profile.headline || "No headline set"}</p>
-              {profile.linkedInProfileUrl && (
+              <p className="text-gray-700">
+                {profile.headline || "No headline set"}
+              </p>
+              {profile.linkedInProfileUrl ? (
                 <a
                   href={profile.linkedInProfileUrl}
                   target="_blank"
@@ -80,6 +134,13 @@ export default function LinkedInTools() {
                 >
                   View LinkedIn Profile →
                 </a>
+              ) : (
+                <button
+                  onClick={() => setShowUrlModal(true)}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  + Add LinkedIn Profile URL
+                </button>
               )}
             </div>
           </div>
@@ -87,10 +148,11 @@ export default function LinkedInTools() {
       ) : (
         <div className="mb-8 p-6 bg-yellow-50 rounded-xl border border-yellow-200">
           <p className="text-gray-700">
-            No LinkedIn account connected. 
+            No LinkedIn account connected.
             <a href="/login" className="text-blue-600 hover:underline ml-1">
               Sign in with LinkedIn
-            </a> to access these tools.
+            </a>{" "}
+            to access these tools.
           </p>
         </div>
       )}
@@ -132,6 +194,56 @@ export default function LinkedInTools() {
           link="/networking/linkedin/campaigns"
         />
       </div>
+      {/* LinkedIn URL Modal */}
+      {showUrlModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Add Your LinkedIn Profile URL
+            </h3>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Enter your custom LinkedIn profile URL. You can find this by going
+              to your LinkedIn profile and copying the URL from your browser.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                LinkedIn Profile URL
+              </label>
+              <input
+                type="url"
+                value={linkedInUrl}
+                onChange={(e) => setLinkedInUrl(e.target.value)}
+                placeholder="https://www.linkedin.com/in/yourprofile"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Example: https://www.linkedin.com/in/johndoe
+              </p>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowUrlModal(false);
+                  setLinkedInUrl("");
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveUrl}
+                disabled={saving}
+                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

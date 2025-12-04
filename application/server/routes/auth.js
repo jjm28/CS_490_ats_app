@@ -258,13 +258,15 @@ router.get('/linkedin/callback', async (req, res) => {
         }
       );
 
+      console.log("payload: ", payload);
+
       // Create profile with LinkedIn data
       await upsertProfileByUserId(String(user._id), {
         fullName: `${payload.given_name} ${payload.family_name}`,
         email: payload.email,
-        headline: payload.name ?? null, // LinkedIn sometimes returns name in 'name' field
+        headline: payload.name ?? null,
         photoUrl: payload.picture ?? '',
-        linkedInProfileUrl: payload.sub ? `https://www.linkedin.com/in/${payload.sub}` : null,
+        linkedInProfileUrl: null, // 🆕 Use the correct URL
       });
 
       token = jwt.sign({ id: String(user._id), email: payload.email }, process.env.JWT_SECRET, {
@@ -288,11 +290,19 @@ router.get('/linkedin/callback', async (req, res) => {
         }
       );
 
-      // Update profile with LinkedIn data if not already set
-      await upsertProfileByUserId(String(user._id), {
+      // Update profile with LinkedIn data (don't overwrite existing URL)
+      const profile = await db.collection('profiles').findOne({ userId: String(user._id) });
+      const updateData = {
         photoUrl: payload.picture ?? '',
-        linkedInProfileUrl: payload.sub ? `https://www.linkedin.com/in/${payload.sub}` : null,
-      });
+      };
+
+      // Only set to null if user hasn't already added their URL
+      if (!profile?.linkedInProfileUrl) {
+        updateData.linkedInProfileUrl = null;
+      }
+
+      // Update profile with LinkedIn data
+      await upsertProfileByUserId(String(user._id), updateData);
 
       const verifiedUser = await verifyUser({ email: payload.email, password: null }, true);
       token = jwt.sign({ id: String(verifiedUser._id), email: payload.email }, process.env.JWT_SECRET, {

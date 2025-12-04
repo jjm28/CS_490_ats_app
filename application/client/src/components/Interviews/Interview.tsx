@@ -110,6 +110,7 @@ const cardData: CardData[] = [
     details: 'Get data-driven predictions for your interview success based on preparation level, company research, practice sessions, and historical performance. Receive actionable recommendations to improve your chances.',
     component: 'success-probability' // ADD THIS
   },
+  
 ];
 
 type InterviewCardProps = {
