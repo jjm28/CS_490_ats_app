@@ -116,6 +116,18 @@ import TeamReviewPage from "./components/Teams/TeamReviewPage";
 import CandidateSharingPage from "./components/Teams/CandidateSharingPage";
 import TeamFeedbackPage from "./components/Teams/TeamFeedbackPage";
 import TeamCommentsPage from "./components/Teams/TeamCommentsPage";
+import NetworkingEventsPage from './components/Networking/NetworkingEventsPage';
+import DiscoverEvents from './components/Networking/DiscoverEvents';
+import EventDetailsPage from './components/Networking/EventDetails';
+import NetworkingAnalyticsPage from './components/Networking/NetworkingAnalyticsPage';
+import InformationalInterviews from './components/Networking/InformationalInterviews';
+import NewInformationalInterview from './components/Networking/NewInformationalInterview';
+import InformationalInterviewDetails from './components/Networking/InformationalInterviewDetails';
+import MentorInvitePage from './components/Networking/MentorInvitePage';
+import MentorInvite from './components/Networking/MentorInvite';
+import MentorDashboard from './components/Networking/MentorDashboard';
+import MentorDetails from './components/Networking/MentorDetails';
+
 
 
 function App() {
@@ -221,7 +233,6 @@ function App() {
             }
           />
 
-
           <Route
             path="/networking/interactions/:id"
             element={<InteractionHistory />}
@@ -267,25 +278,50 @@ function App() {
               </PrivateRoute>
             }
           />
+                   
+          <Route
+            path="/networking/informational"
+            element={<InformationalInterviews />}
+          />
+          
+          <Route
+            path="/networking/informational/new"
+            element={<NewInformationalInterview />}
+          />
 
-<Route
-  path="/referrals/request"
-  element={
-    <PrivateRoute>
-      <ReferralRequestPage />
-    </PrivateRoute>
-  }
-/>
+          <Route
+            path="/networking/informational/:id"
+            element={<InformationalInterviewDetails />}
+          />
 
 
-<Route
-  path="/referrals/insights"
-  element={
-    <PrivateRoute>
-      <ReferralInsights jobTitle={''} relationship={''} />
-    </PrivateRoute>
-  }
-/>
+          <Route path="/networking/events" element={<NetworkingEventsPage />} />
+          <Route path="/networking/discover" element={<DiscoverEvents />} />
+          <Route path="/networking/events/:eventId" element={<EventDetailsPage />} />
+          <Route path="/networking/analytics" element={<NetworkingAnalyticsPage />} />
+          <Route path="/networking/mentors/invite" element={<MentorInvitePage />} />
+          <Route path="/networking/mentors/invite" element={<MentorInvite />} />
+          <Route path="/networking/mentors" element={<MentorDashboard />} />
+          <Route path="/networking/mentors/:id" element={<MentorDetails />} />
+
+          <Route
+            path="/referrals/request"
+            element={
+              <PrivateRoute>
+                <ReferralRequestPage />
+              </PrivateRoute>
+            }
+          />
+
+
+          <Route
+            path="/referrals/insights"
+            element={
+              <PrivateRoute>
+                <ReferralInsights jobTitle={''} relationship={''} />
+              </PrivateRoute>
+            }
+          />
 
           <Route path="/referrals" element={<ReferralDashboard />} />
           <Route path="/referrals/timeline/:id" element={<ReferralTimeline />} />

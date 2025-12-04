@@ -74,6 +74,7 @@ import supportersRoutes from "./routes/supporters.js";
 import networkingRoutes from "./routes/networking.js";
 import outreachRoutes from "./routes/outreach.js";
 import advisorRoutes from "./routes/advisor.routes.js";
+ import informationalRoutes from "./routes/informational.js";
 
 // 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";
@@ -94,6 +95,8 @@ import networkingRoutes from "./routes/networking.js";
 import outreachRoutes from "./routes/outreach.js";
 //import referralSources from "./routes/referralSources.js";
 import referralRoutes from "./routes/referrals.js";
+import networkingDiscovery from "./routes/networkingDiscovery.js";
+import mentorRoutes from "./routes/mentor.routes.js";
 
 
 import teamRoutes from "./routes/teams.js";
@@ -202,18 +205,12 @@ try {
 
   //networking 
   app.use("/api/networking", networkingRoutes);
+  app.use("/api/networking", networkingDiscovery);
   app.use("/api/networking/outreach", outreachRoutes);
 
 
 
   // 🔔 NOTIFICATIONS (Must be after DB)
-
-  //referrals
- // FIXED ORDER
-app.use("/api/referrals", referralRoutes);
-//app.use("/api/referrals/sources", referralSources);
-
-
 
 
   // Notification routes and cron job
@@ -231,6 +228,10 @@ app.use("/api/referrals", referralRoutes);
   app.use("/api/reference", reference);
   app.use("/api/peer-groups", peergroups);
   app.use("/api/supporters", supportersRoutes);
+  app.use("/api/informational", informationalRoutes);
+  app.use("/api/mentors", mentorRoutes);
+
+
 
   // 🎯 GOALS & PRODUCTIVITY
   app.use("/api/goals", attachDevUser, goalsRoutes);
@@ -249,6 +250,9 @@ app.use("/api/referrals", referralRoutes);
   // 📈 MARKET INTELLIGENCE (UC-102)
   app.use("/api/market", attachDevUser, marketRoutes);
 
+  app.use("/api/referrals", referralRoutes);
+
+  // Health check
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 
