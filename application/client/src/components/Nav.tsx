@@ -88,17 +88,6 @@ function Navbar() {
 
       const docstyle = { ...DEFAULT_THEME, ...json };
       document.body.style.backgroundColor = docstyle.backgroundcolor;
-      // const root = document.getElementById("root") as HTMLElement | null;
-      // if (!root) {
-      //   console.warn("#root not found");
-      //   return;
-      // }
-      // root.style.setProperty('--brand-teal', docstyle.primaryColor);
-      // root.style.setProperty('--link', docstyle.primaryColor);
-      // root.style.setProperty('--brand-olive', docstyle.secondaryColor);
-      // root.style.setProperty('--bg-light', docstyle.backgroundcolor);
-      // root.style.setProperty('--body-bg', docstyle.backgroundcolor);
-      // root.style.setProperty('--navbar-bg', docstyle.navbarbg);
     } catch (err) {
       console.error("Theme load failed:", err);
       setTheme(DEFAULT_THEME);
@@ -192,7 +181,8 @@ function Navbar() {
                 Analytics
               </NavLink>
             )}
-                      {(role === "advisor" || role === "super_admin") && (
+
+            {(role === "advisor" || role === "super_admin") && (
               <NavLink
                 to="/advisor/clients"
                 className={({ isActive }) =>
@@ -458,6 +448,12 @@ function Navbar() {
                   <User size={24} />
                 </PopoverButton>
                 <PopoverPanel className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
+                  <NavLink
+                    to="/ProfileDashboard"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Dashboard
+                  </NavLink>
                   <NavLink
                     to="/ProfilePage"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"

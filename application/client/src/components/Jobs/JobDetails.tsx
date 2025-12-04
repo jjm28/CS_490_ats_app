@@ -20,6 +20,8 @@ import ReferencesPanel from "./ReferencesPanel";
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 const RESUME_VERSIONS_ENDPOINT = `${API_BASE}/api/resume-versions`; // NEW
 import MilestoneShareModal from "../Support/MilestoneShareModal";
+import { useNavigate } from "react-router-dom";
+
 
 // NEW: type for linked resume versions coming from backend
 interface LinkedResumeVersion {
@@ -30,6 +32,14 @@ interface LinkedResumeVersion {
   isDefault?: boolean;
   createdAt?: string;
 }
+
+  interface NetworkingEventSource {
+  _id: string;
+  name: string;
+  date: string;
+  location: string;
+}
+
 
 export default function JobDetails({
   jobId,
@@ -67,6 +77,10 @@ export default function JobDetails({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [shareOpen, setShareOpen] = useState(false);
   const currentuserId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
+  const [networkingSources, setNetworkingSources] =
+  useState<NetworkingEventSource[]>([]);
+  const navigate = useNavigate();
+
 
     const [allResumes, setAllResumes] = useState<any[]>([]);
   const [allCoverLetters, setAllCoverLetters] = useState<any[]>([]);
@@ -133,6 +147,15 @@ export default function JobDetails({
     fetchJob();
   }, [jobId]);
 
+function authHeaders() {
+  const raw = localStorage.getItem("authUser");
+  const token = raw ? JSON.parse(raw).token : null;
+
+  return {
+    "Content-Type": "application/json",
+    Authorization: token ? `Bearer ${token}` : "",
+  };
+}
 
   const handleSaveApplicationPackage = async () => {
     if (!job?._id) return;
@@ -184,6 +207,21 @@ export default function JobDetails({
       setSavingPackage(false);
     }
   };
+useEffect(() => {
+  async function fetchSources() {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/networking/events/by-job/${jobId}`,
+        { headers: authHeaders() }
+      );
+      const data = await res.json();
+      setNetworkingSources(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  fetchSources();
+}, [jobId]);
 
   const fetchJob = async () => {
     try {
@@ -1053,6 +1091,31 @@ export default function JobDetails({
               )}
             </div>
           </section>
+          <div className="mt-10">
+  <h2 className="text-xl font-bold mb-3">Networking Activity</h2>
+
+  {networkingSources.length === 0 ? (
+    <p className="text-gray-500 italic">
+      No networking activities linked to this job.
+    </p>
+  ) : (
+    networkingSources.map((ev) => (
+      <div key={ev._id} className="p-4 border rounded mb-3 bg-white shadow">
+        <div className="font-semibold">{ev.name}</div>
+        <div className="text-sm text-gray-600">
+          {ev.date} — {ev.location}
+        </div>
+
+        <button
+          onClick={() => navigate(`/networking/events/${ev._id}`)}
+          className="mt-2 text-blue-600 underline"
+        >
+          View Event
+        </button>
+      </div>
+    ))
+  )}
+</div>
 
           {/*Linked resume versions section at the BOTTOM */}
           <section>

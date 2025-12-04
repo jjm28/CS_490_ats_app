@@ -121,14 +121,14 @@ export default function InteractionHistory() {
         Interaction History for <span className="capitalize">{contact.fullname}</span>
       </h1>
 
-      <div className="flex justify-center mt-6">
+      {/* <div className="flex justify-center mt-6">
         <Link
-          to={`/networking/contacts/${contactId}/add-interaction`}
+          to={`/networking/interactions/${contactId}/add`}
           className="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 transition"
         >
           + Add Interaction
         </Link>
-      </div>
+      </div> */}
 
       {/* No interactions */}
       {interactions.length === 0 ? (

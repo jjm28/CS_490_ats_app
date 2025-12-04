@@ -45,8 +45,10 @@ import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 // 📊 INTERVIEW & COMPANY RESEARCH
 import interviewRoutes from "./routes/interview-insights.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
-import interviewQuestionsRoute from "./routes/interview-questions.js";
-import companyResearch from "./routes/company-research.js";
+import companyResearch from './routes/company-research.js';
+import interviewQuestions from "./routes/interview-questions.js";
+import coachingInsights from "./routes/coachinginsights.js";
+import practiceSessions from "./routes/practicesession.js";
 import writingPracticeRoutes from './routes/writingPractice.js';
 import interviewPredictionRoutes from "./routes/interview-success-prediction.js";
 
@@ -69,6 +71,8 @@ import supportersRoutes from "./routes/supporters.js";
 import networkingRoutes from "./routes/networking.js";
 import outreachRoutes from "./routes/outreach.js";
 import advisorRoutes from "./routes/advisor.routes.js";
+import linkedinRoutes from './routes/linkedin.js';
+ import informationalRoutes from "./routes/informational.js";
 
 // 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";
@@ -79,6 +83,7 @@ import productivityRoutes from "./routes/productivity.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
+
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
@@ -87,6 +92,13 @@ import enterpriseRoutes from "./routes/enterprise.routes.js";
 import jobseekersRoutes from "./routes/jobseekers.route.js"
 import organizationRoutes from "./routes/organization.routes.js";
 
+
+import teamProgressRouter from "./routes/teamProgress.js";
+
+import networkingDiscovery from "./routes/networkingDiscovery.js";
+import mentorRoutes from "./routes/mentor.routes.js";
+import teamRoutes from "./routes/teams.js";
+import referralRoutes from "./routes/referrals.js";
 import marketRoutes from "./routes/market.js";
 
 //
@@ -164,6 +176,7 @@ try {
   app.use("/api/jobs", jobSalaryRoutes);
 
   // Salary Analytics (UC-100) — MUST COME FIRST
+  // app.use("/api/salary", salaryRoutes);
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
 
   // Salary CRUD — MUST COME AFTER
@@ -172,10 +185,13 @@ try {
   // 📊 INTERVIEW & COMPANY RESEARCH
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use("/api/interviews", interviewAnalyticsRoutes);
-  app.use("/api/interview-questions", interviewQuestionsRoute);
-  app.use("/api/company/research", attachDevUser, companyResearch);
-  app.use(companyResearch);
+  app.use("/api/company/research", attachDevUser, companyResearch); //interview research 
+  app.use(companyResearch); // stand alone research for ANY company
+  app.use("/api/interview-questions", interviewQuestions);
+  app.use("/api/coaching-insights", coachingInsights);
+  app.use("/api/practice-sessions", practiceSessions);
   app.use('/api/writing-practice', writingPracticeRoutes);
+  app.use('/api/interview', interviewAnalyticsRoutes);
   app.use("/api/interview-predictions", interviewPredictionRoutes);
 
   // 📄 RESUMES + TEMPLATES
@@ -186,7 +202,16 @@ try {
 
   //networking 
   app.use("/api/networking", networkingRoutes);
+  app.use("/api/networking", networkingDiscovery);
   app.use("/api/networking/outreach", outreachRoutes);
+
+  //referrals
+  app.use("/api/referrals", referralRoutes);
+  //app.use("/api/referrals/sources", referralSources);
+
+  //linkedin
+  app.use('/api/linkedin', linkedinRoutes);
+
   // ⚙️ AUTOMATION
   app.use("/api/automation", automationRoutes);
 
@@ -198,6 +223,10 @@ try {
   app.use("/api/reference", reference);
   app.use("/api/peer-groups", peergroups);
   app.use("/api/supporters", supportersRoutes);
+  app.use("/api/informational", informationalRoutes);
+  app.use("/api/mentors", mentorRoutes);
+
+
 
   // 🎯 GOALS & PRODUCTIVITY
   app.use("/api/goals", attachDevUser, goalsRoutes);
@@ -221,10 +250,19 @@ app.use("/api",attachUserFromHeaders, organizationRoutes);
   // 📈 MARKET INTELLIGENCE (UC-102)
   app.use("/api/market", attachDevUser, marketRoutes);
 
+  app.use("/api/referrals", referralRoutes);
+
+  // Health check
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 
   // 🚀 START SERVER
+  //team page routing
+  app.use("/api/teams",teamRoutes);
+  app.use("/api/teams",  teamProgressRouter);
+
+  // Health check
+  app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
     console.log(`Server running on ${BASE}`);
     console.log(`Server connected to ${DB}`);

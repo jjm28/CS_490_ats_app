@@ -8,6 +8,7 @@ import { connectDB, getDb } from "../db/connection.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { createDefaultNotificationPreferences } from '../utils/notificationhelpers.js';
+import { upsertProfileByUserId } from '../services/profile.js';
 
 const router = express.Router();
 const oauth2 = new google.auth.OAuth2(  
@@ -213,6 +214,134 @@ catch (e){
     return res.status(500).send("OAuth error");
 }
 
+});
+
+// LinkedIn OAuth
+router.get('/linkedin/login', async (req, res) => {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: process.env.LINKEDIN_CLIENT_ID,
+    redirect_uri: process.env.LINKEDIN_REDIRECT_URI,
+    scope: 'openid profile email',
+  });
+  res.redirect(`https://www.linkedin.com/oauth/v2/authorization?${params}`);
+});
+
+router.get('/linkedin/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+
+    // Exchange code for access token
+    const tokenRes = await axios.post(
+      'https://www.linkedin.com/oauth/v2/accessToken',
+      new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        client_id: process.env.LINKEDIN_CLIENT_ID,
+        client_secret: process.env.LINKEDIN_CLIENT_SECRET,
+        redirect_uri: process.env.LINKEDIN_REDIRECT_URI,
+      }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+
+    const accessToken = tokenRes.data.access_token;
+
+    // Get user profile
+    const profileRes = await axios.get('https://api.linkedin.com/v2/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    const payload = profileRes.data;
+
+    if (!payload?.email) {
+      return res.status(400).send('LinkedIn account email is not available.');
+    }
+
+    // Create or Verify User
+    let user = await findUserByEmailCaseSensitve(payload.email);
+    let token;
+
+    if (!user) {
+      // Register new user
+      user = await createUser({
+        email: payload.email,
+        password: null,
+        firstName: payload.given_name ?? null,
+        lastName: payload.family_name ?? null,
+      });
+
+      const db = getDb();
+      
+      // Add LinkedIn data to user
+      await db.collection('users').updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            linkedInId: payload.sub,
+            linkedInAccessToken: accessToken,
+            linkedInTokenExpiry: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60 days
+          },
+        }
+      );
+
+      console.log("payload: ", payload);
+
+      // Create profile with LinkedIn data
+      await upsertProfileByUserId(String(user._id), {
+        fullName: `${payload.given_name} ${payload.family_name}`,
+        email: payload.email,
+        headline: payload.name ?? null,
+        photoUrl: payload.picture ?? '',
+        linkedInProfileUrl: null, // 🆕 Use the correct URL
+      });
+
+      token = jwt.sign({ id: String(user._id), email: payload.email }, process.env.JWT_SECRET, {
+        expiresIn: '2h',
+      });
+
+      // Create default notification preferences
+      await createDefaultNotificationPreferences(String(user._id));
+    } else {
+      // User exists - verify and update LinkedIn data
+      const db = getDb();
+      
+      await db.collection('users').updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            linkedInId: payload.sub,
+            linkedInAccessToken: accessToken,
+            linkedInTokenExpiry: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          },
+        }
+      );
+
+      // Update profile with LinkedIn data (don't overwrite existing URL)
+      const profile = await db.collection('profiles').findOne({ userId: String(user._id) });
+      const updateData = {
+        photoUrl: payload.picture ?? '',
+      };
+
+      // Only set to null if user hasn't already added their URL
+      if (!profile?.linkedInProfileUrl) {
+        updateData.linkedInProfileUrl = null;
+      }
+
+      // Update profile with LinkedIn data
+      await upsertProfileByUserId(String(user._id), updateData);
+
+      const verifiedUser = await verifyUser({ email: payload.email, password: null }, true);
+      token = jwt.sign({ id: String(verifiedUser._id), email: payload.email }, process.env.JWT_SECRET, {
+        expiresIn: '2h',
+      });
+    }
+
+    const userB64 = Buffer.from(JSON.stringify(user)).toString('base64url');
+    return res.redirect(`${process.env.FRONTEND_ORIGIN}/auth/callback?token=${token}&u=${userB64}`);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).send('LinkedIn OAuth error');
+  }
 });
 
 router.delete("/delete", async (req, res) => {

@@ -58,6 +58,13 @@ const CommentSchema = new Schema(
   { _id: false } // IMPORTANT because we already set _id manually inside object
 );
 
+const CommentSchema = new mongoose.Schema({
+  viewerId: { type: String, required: false },
+  text: String,
+  createdAt: { type: Date, default: Date.now },
+  resolved: { type: Boolean, default: false },
+});
+
 const ResumeSchema = new Schema(
   {
     // Canonical owner field (match other models)
@@ -112,5 +119,7 @@ ResumeSchema.index({ userId: 1, updatedAt: -1 });
 
 const Resume =
   mongoose.models.Resume || mongoose.model('Resume', ResumeSchema);
+
+
 
 export default Resume;

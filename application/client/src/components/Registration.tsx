@@ -60,11 +60,9 @@ function Registration() {
     }
     return null;
   };
-
-  const go = () =>
-    (window.location.href = "http://localhost:5050/api/auth/google/login");
-  const mi = () =>
-    (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
+  const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
+  const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
+  const li = () => (window.location.href = "http://localhost:5050/api/auth/linkedin/login");
 
   const onBlurEmail = () => {
     setErrEmail(validateEmail(email));
@@ -311,6 +309,9 @@ function Registration() {
                     alt="Microsoft"
                     className="h-6 w-6"
                   />
+                </button>
+                <button type="button" onClick={li} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+                  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg" alt="LinkedIn" className="h-6 w-6" />
                 </button>
               </div>
             </div>

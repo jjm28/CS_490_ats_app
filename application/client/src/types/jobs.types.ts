@@ -33,6 +33,7 @@ export interface Job {
   applicationSource?: string;
   autoArchiveDays?: number;  // Changed from string to number to match schema
   autoArchiveDate?: string | Date;
+  linkedInProfileUrl: string;
 
   // Status tracking
   status: JobStatus;
@@ -237,6 +238,7 @@ export interface JobFormData {
   applicationMethod: string;
   applicationSource: string;
   autoArchiveDays: string;
+  linkedInProfileUrl: string;
 }
 
 // ============================================

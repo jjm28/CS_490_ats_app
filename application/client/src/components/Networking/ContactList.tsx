@@ -129,6 +129,12 @@ export default function ContactList() {
                   <div className="text-sm text-gray-600">
                     {c.jobTitle || "No title"} @ {c.company || "No company"}
                   </div>
+                {/* ⭐ Relationship Strength */}
+                  {typeof c.relationshipStrength === "number" && (
+                    <div className="text-sm text-blue-600 font-semibold mt-1">
+                      {c.relationshipStrength}/100
+                    </div>
+                  )}
                 </div>
               </div>
             </Link>

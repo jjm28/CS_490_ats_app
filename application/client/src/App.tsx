@@ -87,6 +87,14 @@ import InteractionHistory from './components/Networking/InteractionHistory';
 import CampaignList from './components/Networking/CampaignList';
 import AllInteractionsPage from './components/Networking/AllInteractionsPage';
 import ImportGoogle from "./components/Networking/ImportGoogle";
+
+import { Toaster } from "react-hot-toast";
+import ReferralDashboard from './components/Referral/ReferralDashboard';
+import ReferralTimeline from './components/Referral/ReferralTimeline';
+import ReferralRequestPage from "./components/Referral/ReferralRequestPage";
+import ReferralInsights from './components/Referral/ReferralInsights';
+
+
 import AdvisorsPage from './components/Advisors/AdvisorsPage';
 import AdvisorAcceptInvitePage from './components/Advisors/AdvisorAcceptInvitePage';
 import AdvisorClientsPage from './components/Advisors/AdvisorClientsPage';
@@ -107,6 +115,34 @@ import CampaignDetail from './components/Networking/CampaignDetail';
 import CampaignAnalytics from './components/Networking/CampaignAnalytics';
 import QuickOutreach from './components/Networking/QuickOutreach';
 import IndustryNews from './components/Networking/IndustryNews';
+
+import LinkedInTools from "./components/Networking/LinkedIn/LinkedInTools";
+import MessageTemplates from "./components/Networking/LinkedIn/MessageTemplates";
+import ConnectionTemplates from "./components/Networking/LinkedIn/ConnectionTemplates";
+import ProfileOptimization from "./components/Networking/LinkedIn/ProfileOptimization";
+import ContentStrategyPage from "./components/Networking/LinkedIn/ContentStrategy";
+import CampaignTemplates from "./components/Networking/LinkedIn/CampaignTemplates";
+import TeamsPage from "./components/Teams/TeamsPage";
+import TeamDetailPage from "./components/Teams/TeamDetailPage";
+import CreateTeamPage from "./components/Teams/CreateTeamPage";
+import TeamReviewPage from "./components/Teams/TeamReviewPage";
+import CandidateSharingPage from "./components/Teams/CandidateSharingPage";
+import TeamFeedbackPage from "./components/Teams/TeamFeedbackPage";
+import TeamCommentsPage from "./components/Teams/TeamCommentsPage";
+import NetworkingEventsPage from './components/Networking/NetworkingEventsPage';
+import DiscoverEvents from './components/Networking/DiscoverEvents';
+import EventDetailsPage from './components/Networking/EventDetails';
+import NetworkingAnalyticsPage from './components/Networking/NetworkingAnalyticsPage';
+import InformationalInterviews from './components/Networking/InformationalInterviews';
+import NewInformationalInterview from './components/Networking/NewInformationalInterview';
+import InformationalInterviewDetails from './components/Networking/InformationalInterviewDetails';
+import MentorInvitePage from './components/Networking/MentorInvitePage';
+import MentorInvite from './components/Networking/MentorInvite';
+import MentorDashboard from './components/Networking/MentorDashboard';
+import MentorDetails from './components/Networking/MentorDetails';
+
+
+
 function App() {
   const location = useLocation();
   const hideNavbarRoutes = ["/Login", "/Registration", "/forgot-password", "/reset-password", "/login"];
@@ -135,6 +171,9 @@ function App() {
   return (
     <>
       {showNavbar && <Nav />}
+
+      <Toaster position="top-center" />
+
       <div className="main-content">
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -208,7 +247,6 @@ function App() {
             }
           />
 
-
           <Route
             path="/networking/interactions/:id"
             element={<InteractionHistory />}
@@ -253,6 +291,59 @@ function App() {
               </PrivateRoute>
             }
           />
+                   
+          <Route
+            path="/networking/informational"
+            element={<InformationalInterviews />}
+          />
+          
+          <Route
+            path="/networking/informational/new"
+            element={<NewInformationalInterview />}
+          />
+
+          <Route
+            path="/networking/informational/:id"
+            element={<InformationalInterviewDetails />}
+          />
+
+
+          <Route path="/networking/events" element={<NetworkingEventsPage />} />
+          <Route path="/networking/discover" element={<DiscoverEvents />} />
+          <Route path="/networking/events/:eventId" element={<EventDetailsPage />} />
+          <Route path="/networking/analytics" element={<NetworkingAnalyticsPage />} />
+          <Route path="/networking/mentors/invite" element={<MentorInvitePage />} />
+          <Route path="/networking/mentors/invite" element={<MentorInvite />} />
+          <Route path="/networking/mentors" element={<MentorDashboard />} />
+          <Route path="/networking/mentors/:id" element={<MentorDetails />} />
+
+          <Route
+            path="/referrals/request"
+            element={
+              <PrivateRoute>
+                <ReferralRequestPage />
+              </PrivateRoute>
+            }
+          />
+
+
+          <Route
+            path="/referrals/insights"
+            element={
+              <PrivateRoute>
+                <ReferralInsights jobTitle={''} relationship={''} />
+              </PrivateRoute>
+            }
+          />
+
+          <Route path="/referrals" element={<ReferralDashboard />} />
+          <Route path="/referrals/timeline/:id" element={<ReferralTimeline />} />
+          <Route path="/networking/linkedin" element={<PrivateRoute><LinkedInTools /></PrivateRoute>} />
+<Route path="/networking/linkedin/messages" element={<PrivateRoute><MessageTemplates /></PrivateRoute>} />
+<Route path="/networking/linkedin/connections" element={<PrivateRoute><ConnectionTemplates /></PrivateRoute>} />
+<Route path="/networking/linkedin/optimize" element={<PrivateRoute><ProfileOptimization /></PrivateRoute>} />
+<Route path="/networking/linkedin/content" element={<PrivateRoute><ContentStrategyPage /></PrivateRoute>} />
+<Route path="/networking/linkedin/campaigns" element={<PrivateRoute><CampaignTemplates /></PrivateRoute>} />
 
           <Route
             path="/Applications"
@@ -445,6 +536,95 @@ function App() {
   path="/enterprise/analytics"
   element={<OrgAnalyticsPage />}
 />
+          <Route
+            path="/job-search/sharing"
+            element={
+              <PrivateRoute>
+                <JobSearchSharingPage />
+              </PrivateRoute>
+            } />
+          <Route
+            path="/job-sharing/:ownerId"
+            element={
+              <PrivateRoute>
+                <JobSearchSharingPartnerPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/job-sharing/accept"
+            element={
+              <PrivateRoute>
+                <JobSearchPartnerInviteAcceptPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/advisors"
+            element={
+              <PrivateRoute>
+                <AdvisorsPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/advisor/accept"
+            element={<PrivateRoute><AdvisorAcceptInvitePage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisor/clients"
+            element={<PrivateRoute><AdvisorClientsPage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisor/clients/:relationshipId"
+            element={<PrivateRoute><AdvisorClientProfilePage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisors/:relationshipId/messages"
+            element={<PrivateRoute><AdvisorMessagesPage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisors/:relationshipId/sessions"
+            element={<PrivateRoute><AdvisorSessionsPage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisor/clients/:relationshipId/messages"
+            element={<PrivateRoute><AdvisorClientMessagesPage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisors/:relationshipId/recommendations"
+            element={<AdvisorRecommendationsPage />}
+          />
+          <Route path="/advisor/availability" element={<AdvisorAvailabilityPage />} />
+          <Route 
+            path="/teams" 
+            element={<PrivateRoute><TeamsPage /></PrivateRoute>} 
+          />
+          <Route 
+            path="/teams/:teamId" 
+            element={<PrivateRoute><TeamDetailPage /></PrivateRoute>} 
+          />
+          <Route
+           path="/teams/new" 
+           element={<PrivateRoute><CreateTeamPage /></PrivateRoute>} 
+           />
+           <Route 
+           path="/teams/:teamId/review" 
+           element={<PrivateRoute><TeamReviewPage /></PrivateRoute>} 
+           />
+
+           <Route 
+           path="/teams/sharing" 
+           element={<PrivateRoute><CandidateSharingPage /></PrivateRoute>} 
+           />
+           <Route 
+           path="/teams/:teamId/feedback" 
+           element={<PrivateRoute><TeamFeedbackPage /></PrivateRoute>} 
+           />
+
+          <Route 
+          path="/teams/:teamId/comments" 
+          element={<PrivateRoute><TeamCommentsPage /></PrivateRoute>} />
         </Routes>
       </div>
     </>
