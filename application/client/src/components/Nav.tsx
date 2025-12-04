@@ -42,28 +42,19 @@ function Navbar() {
     <nav className="relative border-b border-gray-300 shadow-sm bg-white">
       <div className="px-2 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center">
+          {/* Logo */}
+          <div className="flex items-center flex-shrink-0">
             <Link to="/">
               <img src={logo} alt="Logo" className="w-32" />
             </Link>
           </div>
 
-          <div className="hidden md:flex space-x-4">
-            <NavLink
-              to="/ProfileDashboard"
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-lg font-medium ${isActive
-                  ? "bg-(--brand-sage) text-(--brand-navy)"
-                  : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                }`
-              }
-            >
-              Dashboard
-            </NavLink>
-
+          {/* Main Navigation */}
+          <div className="hidden lg:flex space-x-4">
+            {/* Background Dropdown */}
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
-                Qualifications
+                Background
                 <ChevronDown size={16} />
               </PopoverButton>
               <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
@@ -85,15 +76,6 @@ function Navbar() {
                 >
                   Certifications
                 </NavLink>
-              </PopoverPanel>
-            </Popover>
-
-            <Popover className="relative">
-              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
-                Experience
-                <ChevronDown size={16} />
-              </PopoverButton>
-              <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
                 <NavLink
                   to="/Projects"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -108,12 +90,32 @@ function Navbar() {
                 </NavLink>
               </PopoverPanel>
             </Popover>
+
+            {/* Job Search Dropdown */}
             <Popover className="relative">
               <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
-                Documents
+                Job Search
                 <ChevronDown size={16} />
               </PopoverButton>
               <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
+                <NavLink
+                  to="/Jobs"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Job Opportunities
+                </NavLink>
+                <NavLink
+                  to="/Applications"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Application Pipeline
+                </NavLink>
+                <NavLink
+                  to="/company-research"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Company Search
+                </NavLink>
                 <NavLink
                   to="/resumes/new"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -132,34 +134,6 @@ function Navbar() {
                 >
                   Cover Letters
                 </NavLink>
-              </PopoverPanel>
-            </Popover>
-            <Popover className="relative">
-              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
-                Job Search
-                <ChevronDown size={16} />
-              </PopoverButton>
-
-              {/* MAIN MENU */}
-              <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
-                <NavLink
-                  to="/Jobs"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  Browse Jobs
-                </NavLink>
-                <NavLink
-                  to="/Applications"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  My Applications
-                </NavLink>
-                <NavLink
-                  to="/company-research"
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                >
-                  Company Search
-                </NavLink>
                 <NavLink
                   to="/manage-references"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -170,43 +144,59 @@ function Navbar() {
                   to="/Interview-Prep"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >
-                  Interview Prep
+                  Interview Prep Suite
                 </NavLink>
-                <NavLink 
-                to="/peer-groups" 
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
-                  Peer Support Groups
-                  </NavLink>
-                     <NavLink 
-                to="/support" 
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100">
-                  Family Support
-                  </NavLink>
-                    <NavLink
+                </PopoverPanel>
+            </Popover>
+
+            {/* Network Dropdown */}
+            <Popover className="relative">
+              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
+                Network
+                <ChevronDown size={16} />
+              </PopoverButton>
+              <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
+                <NavLink
+                  to="/networking"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Networking Hub
+                </NavLink>
+                <NavLink
                   to="/job-search/sharing"
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
-                Sharing & Accountability
-              </NavLink>
- <NavLink
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Sharing & Accountability
+                </NavLink>
+                <NavLink
                   to="/advisors"
-                className="block px-4 py-2 text-gray-700 hover:bg-gray-100" >
-                Advisors & Coaches
-              </NavLink>
-                  <NavLink
-                    to="/networking"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
-                  >
-                    Networking Hub
-                  </NavLink>
-                {/* DIVIDER */}
-                <div className="border-t border-gray-200 my-2"></div>
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Advisors & Coaches
+                </NavLink>
+                <NavLink
+                  to="/peer-groups"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Peer Support Groups
+                </NavLink>
+                <NavLink
+                  to="/support"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Family Support
+                </NavLink>
+                </PopoverPanel>
+            </Popover>
 
-                {/* ANALYTICS SUBMENU HEADER */}
-                <div className="px-4 py-2 text-gray-500 text-sm font-semibold select-none">
-                  Analytics
-                </div>
-
-                {/* ANALYTICS SUB PAGES */}
+            {/* Analytics Dropdown */}
+            <Popover className="relative">
+              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
+                Analytics
+                <ChevronDown size={16} />
+              </PopoverButton>
+              <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
+                
                 <NavLink
                   to="/analytics/overview"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -259,14 +249,43 @@ function Navbar() {
                   to="/analytics/market-trends"
                   className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >
-
                   Market Trends
                 </NavLink>
               </PopoverPanel>
             </Popover>
-            
+            {/* Teams / Coaching */}
+            <Popover className="relative">
+              <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
+                Teams
+                <ChevronDown size={16} />
+              </PopoverButton>
+              <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
+                <NavLink
+                  to="/teams"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Teams &amp; Coaching
+                </NavLink>
+
+                {/* Future subpages can go here, for example:
+                <NavLink
+                  to="/teams"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  My Teams
+                </NavLink>
+                <NavLink
+                  to="/teams?view=admin"
+                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  Admin & Billing
+                </NavLink>
+                */}
+              </PopoverPanel>
+            </Popover>
           </div>
 
+          {/* Right Side - Auth Buttons / User Menu */}
           <div className="flex items-center space-x-4">
             {!loggedIn ? (
               <>
@@ -286,6 +305,12 @@ function Navbar() {
                   <User size={24} />
                 </PopoverButton>
                 <PopoverPanel className="absolute right-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
+                  <NavLink
+                    to="/ProfileDashboard"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Dashboard
+                  </NavLink>
                   <NavLink
                     to="/ProfilePage"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -308,7 +333,8 @@ function Navbar() {
               </Popover>
             )}
 
-            <Disclosure as="div" className="md:hidden">
+            {/* Mobile Menu Button */}
+            <Disclosure as="div" className="lg:hidden">
               {({ open }) => (
                 <>
                   <Disclosure.Button className="p-2 text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md focus:outline-none">

@@ -41,6 +41,7 @@ export default function Login() {
 
   const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
   const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
+  const li = () => (window.location.href = "http://localhost:5050/api/auth/linkedin/login");
 
   // If you want looser login rules, replace with: `return value ? null : "Enter your password.";`
   const validatePwdForLogin = (value: string): string | null => {
@@ -172,6 +173,9 @@ export default function Login() {
               </button>
               <button type="button" onClick={mi} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft" className="h-6 w-6" />
+              </button>
+              <button type="button" onClick={li} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
+                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg" alt="LinkedIn" className="h-6 w-6" />
               </button>
             </div>
           </div>

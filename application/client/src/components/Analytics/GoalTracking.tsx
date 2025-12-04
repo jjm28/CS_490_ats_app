@@ -333,7 +333,7 @@ export default function GoalTracking() {
       <div className="w-full flex items-center justify-center my-6">
         <div className="flex-1 border-t border-gray-300"></div>
         <h1 className="mx-4 text-3xl font-bold text-(--brand-navy)">
-          Goal Tracking & Insights
+          Goal Tracking
         </h1>
         <div className="flex-1 border-t border-gray-300"></div>
       </div>
@@ -344,12 +344,6 @@ export default function GoalTracking() {
           className="px-4 py-2 rounded-lg bg-(--brand-navy) text-white font-medium hover:bg-(--brand-navy-dark)"
         >
           + Add SMART Goal
-        </button>
-      </div>
-
-      <div className="flex justify-start mt-2">
-        <button onClick={toggleAccountability}>
-          {accountabilityEnabled ? "Disable Accountability" : "Enable Accountability"}
         </button>
       </div>
 
@@ -369,13 +363,6 @@ export default function GoalTracking() {
           <span className="text-(--brand-navy) text-lg">
             {analyticsOpen ? "▲" : "▼"}
           </span>
-        </button>
-
-        <button
-          onClick={() => setShareOpen(true)}
-          className="px-4 py-2 bg-(--brand-navy) text-white rounded-lg shadow hover:bg-(--brand-navy-dark)"
-        >
-          Share Weekly Progress
         </button>
 
         {analyticsOpen && (
@@ -407,33 +394,6 @@ export default function GoalTracking() {
                   </p>
                 )}
               </div>
-            </div>
-
-            {/* Job Success Impact */}
-            <div className="border rounded-lg p-4 bg-gray-50 space-y-2">
-              <h3 className="text-sm font-semibold text-(--brand-navy)">Job Success Impact</h3>
-
-              <p className="text-sm">
-                Goals Leading to Interviews:{" "}
-                <strong>{insights.careerSuccess.goalsLeadingToInterviews}</strong>
-              </p>
-
-              <p className="text-sm">
-                Goals Leading to Offers (count):{" "}
-                <strong>{insights.careerSuccess.goalsLeadingToOffers}</strong>
-              </p>
-
-              <p className="text-sm">
-                Goals Leading to Offers (% of linked goals):{" "}
-                <strong>{insights.careerSuccess.offerConversionRate}%</strong>
-              </p>
-
-              {insights.careerSuccess.goalsLeadingToOffers === 0 && (
-                <p className="text-xs text-gray-500">
-                  Link goals to applications and track them through the pipeline to see offer
-                  conversion here.
-                </p>
-              )}
             </div>
 
             {/* Engine Recommendations */}

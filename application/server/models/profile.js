@@ -18,6 +18,31 @@ const ProfileSchema = new Schema(
     bio: String,
     industry: String,
     experienceLevel: String,
+     // 🆕 LinkedIn Profile Optimization Data
+    linkedInProfileUrl: String,
+    linkedInOptimization: {
+      // User-provided context (persisted)
+      currentRole: String,
+      yearsOfExperience: String,
+      targetRole: String,
+      skills: String,
+      
+      // AI-generated suggestions (persisted)
+      suggestions: [{
+        category: {
+          type: String,
+          enum: ['headline', 'summary', 'experience', 'skills', 'other']
+        },
+        suggestion: String,
+        priority: {
+          type: String,
+          enum: ['high', 'medium', 'low']
+        },
+        completed: { type: Boolean, default: false },
+        completedAt: Date,
+        notes: String, // User can add notes on implementation
+      }],
+    },
     // optional
     profileType: { type: String, default: 'default' },
     photoUrl: { type: String, default: '' },

@@ -6,10 +6,19 @@ import "dotenv/config";
 
 const router = express.Router();
 
-// ✅ Helper function to extract user ID from JWT
-function getUserIdFromToken(req) {
+/* ============================================================
+   Extract user ID from JWT OR from x-dev-user-id (dev mode)
+============================================================ */
+function resolveUserId(req) {
+  // 1️⃣ Dev mode override
+  if (req.headers["x-dev-user-id"]) {
+    return req.headers["x-dev-user-id"];
+  }
+
+  // 2️⃣ Standard JWT authentication
   const authHeader = req.headers.authorization;
   if (!authHeader) return null;
+
   const token = authHeader.split(" ")[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -19,24 +28,30 @@ function getUserIdFromToken(req) {
   }
 }
 
-// ✅ Get all skills for a specific user
+/* ============================================================
+   GET all user skills
+============================================================ */
 router.get("/", async (req, res) => {
   try {
-    const userId = getUserIdFromToken(req);
+    const userId = resolveUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const db = getDb();
     const skills = await db.collection("skills").find({ userId }).toArray();
+
     res.status(200).json(skills);
   } catch (err) {
-    res.status(500).json({ message: "Error fetching skills", error: err });
+    console.error("Error fetching skills:", err);
+    res.status(500).json({ message: "Error fetching skills" });
   }
 });
 
-// ✅ Add a new skill
+/* ============================================================
+   ADD new skill
+============================================================ */
 router.post("/", async (req, res) => {
   try {
-    const userId = getUserIdFromToken(req);
+    const userId = resolveUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const { name, category, proficiency } = req.body;
@@ -46,7 +61,6 @@ router.post("/", async (req, res) => {
 
     const db = getDb();
 
-    // Prevent duplicates per user
     const existingSkill = await db.collection("skills").findOne({ name, userId });
     if (existingSkill) {
       return res.status(409).json({ message: "Skill already exists for this user" });
@@ -57,18 +71,22 @@ router.post("/", async (req, res) => {
 
     res.status(201).json({ _id: result.insertedId, ...newSkill });
   } catch (err) {
-    res.status(500).json({ message: "Error adding skill", error: err });
+    console.error("Error adding skill:", err);
+    res.status(500).json({ message: "Error adding skill" });
   }
 });
 
-// ✅ Update skill proficiency
+/* ============================================================
+   UPDATE skill
+============================================================ */
 router.put("/:id", async (req, res) => {
   try {
-    const userId = getUserIdFromToken(req);
+    const userId = resolveUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const id = req.params.id;
     const updatedSkill = req.body;
+
     const db = getDb();
 
     const result = await db
@@ -81,14 +99,17 @@ router.put("/:id", async (req, res) => {
 
     res.status(200).json({ message: "Skill updated successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Error updating skill", error: err });
+    console.error("Error updating skill:", err);
+    res.status(500).json({ message: "Error updating skill" });
   }
 });
 
-// ✅ Delete skill
+/* ============================================================
+   DELETE skill
+============================================================ */
 router.delete("/:id", async (req, res) => {
   try {
-    const userId = getUserIdFromToken(req);
+    const userId = resolveUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const id = req.params.id;
@@ -104,11 +125,17 @@ router.delete("/:id", async (req, res) => {
 
     res.status(200).json({ message: "Skill deleted successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Error deleting skill", error: err });
+    console.error("Error deleting skill:", err);
+    res.status(500).json({ message: "Error deleting skill" });
   }
 });
+
+/* ============================================================
+   GET skills by user (exported util)
+============================================================ */
 export async function getSkillsByUser(userId) {
   const db = getDb();
   return await db.collection("skills").find({ userId }).toArray();
 }
+
 export default router;
