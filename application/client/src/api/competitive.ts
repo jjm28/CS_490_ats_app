@@ -129,3 +129,5 @@ export async function getCompetitiveAnalysis(
   const data = (await res.json()) as CompetitiveAnalysisResponse;
   return data;
 }
+
+
