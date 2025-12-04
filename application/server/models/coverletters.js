@@ -2,6 +2,43 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
+
+const ReviewerPermission  = new Schema(
+  {
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
+    role: {
+      type: String,
+      enum: ["mentor", "peer", "advisor", "recruiter", "other"],
+      required: true,
+    },
+    canComment: {
+      type: Boolean,
+      default: true,
+    },
+    canResolve: {
+      type: Boolean,
+      default: false,
+    },
+    status: {
+      type: String,
+      enum: ["invited", "viewed", "commented", "completed"],
+      default: "invited",
+      required: true,
+    },
+    lastActivityAt: {
+      type: Date,
+    },
+    completedAt: {
+      type: Date,},
+  },
+  { timestamps: true }
+);
+
 const CoverletterSchema = new Schema(
   {
     // Canonical owner field (match other models)
@@ -26,9 +63,26 @@ const CoverletterSchema = new Schema(
       enum: ["public" , "unlisted" , "restricted"],
       default: "restricted",
       index: true,
+    },   
+   reviewDeadline: {
+      type: Date,
+      default: null, // to handle `Date | null`
+    },
+    reviewers: {
+      type: [ReviewerPermission],
+      default: [],
     },
     restricteduserid:  { type: [String], default: [] },
-    allowComments: { type: Boolean, default: true }
+    allowComments: { type: Boolean, default: true },
+        workflowStatus: {
+      type: String,
+      enum: ["draft", "in_review", "approved", "changes_requested"],
+      default: "draft",
+      index: true,
+    },
+    approvedBy: { type: String, default: null },
+    approvedByName: { type: String, default: null },
+    approvedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

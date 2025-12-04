@@ -14,19 +14,19 @@ import {
   updateCoverletter,
   createdsharedcoverletter,
   Getfullcoverletter,
-  authHeaders,
+  authHeaders,getCoverletterFeedbackSummary,updateCoverletterWorkflow
 } from "../../api/coverletter";
-import type { GetCoverletterResponse } from "../../api/coverletter";
+import type { GetCoverletterResponse,FeedbackSummaryResponse,WorkflowStatus } from "../../api/coverletter";
 import type { Job } from "./hooks/useJobs";
 import type { AIcoverletterPromptResponse } from "../../api/coverletter";
 const API_URL = "http://localhost:5050/api/coverletter";
-
+import MiniReviewProgress from "./MiniReviewProgress";
 import {
   startProductivitySession,
   endProductivitySession,
 } from "../../api/productivity";
 import { set } from "date-fns";
-
+import type { ReviewerStatus } from "../../api/coverletter";
 type LocationState = {
   template: Template;
   Coverletterid?: string;
@@ -38,6 +38,13 @@ type LocationState = {
 };
 
 
+type ReviewerMeta = {
+  email: string;
+  role?: "mentor" | "peer" | "advisor" | "recruiter" | "other";
+  status?: ReviewerStatus;
+  lastActivityAt?: string;
+  completedAt?: string;
+};
 //const API = import.meta.env.VITE_API_URL || `http://${location.hostname}:5050/`;
 
 
@@ -104,7 +111,7 @@ export default function CoverletterEditor() {
       ?.relevantExperiences ?? [];
 
   const [exportOpen, setExportOpen] = useState(false);
-
+ const [reviewers, setReviewers] = useState<ReviewerMeta[]>([]);
   // redirect if no template
   useEffect(() => {
     if (!template) navigate("/coverletter", { replace: true });
@@ -153,11 +160,68 @@ const [inviteEmail, setInviteEmail] = useState("");
 const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
 const [inviteError, setInviteError] = useState<string | null>(null);
 
+const [shareDeadline, setShareDeadline] = useState<string>(""); // ISO date string "YYYY-MM-DD"
+
+const [inviteRole, setInviteRole] = useState<"mentor" | "peer" | "advisor" | "recruiter" | "other">("mentor");
+const [inviteCanComment, setInviteCanComment] = useState<boolean>(true);
+const [inviteCanResolve, setInviteCanResolve] = useState<boolean>(false);
+  const [feedbackSummaryOpen, setFeedbackSummaryOpen] = useState(false);
+  const [feedbackSummaryLoading, setFeedbackSummaryLoading] = useState(false);
+  const [feedbackSummaryError, setFeedbackSummaryError] = useState<string | null>(null);
+  const [feedbackSummary, setFeedbackSummary] = useState<FeedbackSummaryResponse | null>(null);
+  const [workflowStatus, setWorkflowStatus] = useState<WorkflowStatus>("draft");
+  const [approvedByName, setApprovedByName] = useState<string | undefined>();
+  const [approvedAt, setApprovedAt] = useState<string | undefined>();
+  const [updatingWorkflow, setUpdatingWorkflow] = useState(false);
 
 
+    const handleOpenFeedbackSummary = async () => {
+    if (!CoverletterID) return;
+
+    setFeedbackSummaryOpen(true);
+    setFeedbackSummaryLoading(true);
+    setFeedbackSummaryError(null);
+
+    try {
+      const summary = await getCoverletterFeedbackSummary({
+        userid: currentUserid,
+        coverletterid: CoverletterID,
+      });
+      setFeedbackSummary(summary);
+    } catch (err: unknown) {
+      console.error("Failed to load feedback summary", err);
+      const msg =
+        err instanceof Error ? err.message : "Failed to load feedback summary";
+      setFeedbackSummaryError(msg);
+    } finally {
+      setFeedbackSummaryLoading(false);
+    }
+  };
+  const handleChangeWorkflowStatus = async (next: WorkflowStatus) => {
+    if (!CoverletterID || next === workflowStatus) return;
+
+    try {
+      setUpdatingWorkflow(true);
+      const res = await updateCoverletterWorkflow({
+        coverletterid: CoverletterID,
+        status: next,
+      });
+
+      setWorkflowStatus(res.workflowStatus);
+      setApprovedByName(res.approvedByName);
+      setApprovedAt(res.approvedAt || undefined);
+    } catch (err) {
+      console.error("Failed to update workflow status", err);
+      // optional: show toast
+    } finally {
+      setUpdatingWorkflow(false);
+    }
+  };
 
 const handleRemoveInvite = async (emailToRemove: string) => {
   setInvitedEmails((prev) => prev.filter((e) => e !== emailToRemove));
+    setReviewers((prev) => prev.filter((r) => r.email !== emailToRemove));
+
           let inviteremoveData = {
         coverletterid: CoverletterID, email :emailToRemove
         }
@@ -224,13 +288,41 @@ const handleRemoveInvite = async (emailToRemove: string) => {
         coverletterid: CoverletterID,
       })
         .then((resp) => {
+
+        const status = resp.workflowStatus || "draft";
+        setWorkflowStatus(status);
+        setApprovedByName(resp.approvedByName);
+        setApprovedAt(resp.approvedAt || undefined);
           setFilename(resp.filename);
           setData(resp.coverletterdata);
           sessionStorage.setItem("CoverletterID", CoverletterID);
           setShareAllowComments(resp.allowComments ?? true)
           setShareVisibility(resp.visibility ?? 'restricted')
-          setInvitedEmails(resp.restricteduserid ?? [])
-          setVariations(null);
+          const iso =resp.reviewDeadline ?? ""
+const formattedDate = iso.split("T")[0];  // "2222-12-21"
+
+
+          setShareDeadline(formattedDate )
+setInvitedEmails(
+  resp.reviewers?.map(r => r.email) ??
+  resp.restricteduserid ??
+  []
+);     
+setReviewers(
+  resp.reviewers?.map(r => ({
+    email: r.email,
+    role: r.role as ReviewerMeta["role"],
+    status: r.status,
+    lastActivityAt: r.lastActivityAt
+      ? new Date(r.lastActivityAt).toISOString()
+      : undefined,
+    completedAt: r.completedAt
+      ? new Date(r.completedAt).toISOString()
+      : undefined,
+  })) ?? []
+);
+
+setVariations(null);
           setChoiceLocked(true);
         })
         .catch((err) => setErr(err?.message ?? String(err)));
@@ -653,6 +745,7 @@ const handleRemoveInvite = async (emailToRemove: string) => {
         coverletterdata: data,
         visibility: shareVisibility,
           allowComments: shareAllowComments,
+           reviewDeadline: shareDeadline
       });
         setShareUrl(Sharedcoverletter.url || null);
 
@@ -690,22 +783,34 @@ const handleRemoveInvite = async (emailToRemove: string) => {
   if (!invitedEmails.includes(email)) {
     setInvitedEmails((prev) => [...prev, email]);
   }
+   setReviewers((prev) => {
+    // avoid duplicates
+    if (prev.some((r) => r.email === email)) return prev;
+    return [
+      ...prev,
+      {
+        email,
+        role: inviteRole,
+        status: "invited",
+      },
+    ];
+  });
 
   setInviteEmail("");
   setInviteError(null);
     try {
-
       const Sharedcoverletter = await createdsharedcoverletter({
         userid: currentUserid,
         coverletterid: CoverletterID ?? "",
         coverletterdata: data,
         visibility: shareVisibility,
           allowComments: shareAllowComments,
+          reviewDeadline: shareDeadline
       });
         setShareUrl(Sharedcoverletter.url || null);
 
         let inviteData = {
-        toemail :inviteEmail, sharedurl: Sharedcoverletter.url, coverletterid: CoverletterID
+        toemail :inviteEmail, sharedurl: Sharedcoverletter.url, coverletterid: CoverletterID, role: inviteRole, canComment: inviteCanComment, canResolve: inviteCanResolve, reviewDeadline: shareDeadline
         }
 
       const res = await fetch(
@@ -791,12 +896,106 @@ function generatePdfFilename(filename: string) {
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">
           {/* Left: Share */}
-                  <Button
-                onClick={() => setShowShareSettings(true)}
-                disabled={!CoverletterID}
-              >
-                Share
-              </Button>
+        <div className="flex items-center gap-2">
+      <Button
+        onClick={() => setShowShareSettings(true)}
+        disabled={!CoverletterID}
+      >
+        Share
+      </Button>
+
+      <MiniReviewProgress
+        reviewers={reviewers}
+        reviewDeadline={shareDeadline || undefined}
+      />
+      
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-gray-500">Status:</span>
+      <button
+        type="button"
+        disabled={updatingWorkflow || !CoverletterID}
+        className={`
+          inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs border
+          ${workflowStatus === "approved"
+            ? "bg-green-50 border-green-200 text-green-700"
+            : workflowStatus === "in_review"
+            ? "bg-blue-50 border-blue-200 text-blue-700"
+            : workflowStatus === "changes_requested"
+            ? "bg-amber-50 border-amber-200 text-amber-700"
+            : "bg-gray-50 border-gray-200 text-gray-700"}
+        `}
+      >
+        <span className="capitalize">
+          {workflowStatus.replace("_", " ")}
+        </span>
+        {!updatingWorkflow && <span className="text-[10px]">▼</span>}
+        {updatingWorkflow && (
+          <span className="text-[10px] text-gray-400">…</span>
+        )}
+      </button>
+    </div>
+
+    {/* Simple inline status controls under toolbar */}
+<div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+  <span>Quick status:</span>
+  <button
+    type="button"
+    className={`px-2 py-1 rounded border ${
+      workflowStatus === "draft" ? "border-gray-400" : "border-gray-200"
+    }`}
+    onClick={() => handleChangeWorkflowStatus("draft")}
+    disabled={updatingWorkflow || !CoverletterID}
+  >
+    Draft
+  </button>
+  <button
+    type="button"
+    className={`px-2 py-1 rounded border ${
+      workflowStatus === "in_review" ? "border-blue-400" : "border-gray-200"
+    }`}
+    onClick={() => handleChangeWorkflowStatus("in_review")}
+    disabled={updatingWorkflow || !CoverletterID}
+  >
+    In review
+  </button>
+  <button
+    type="button"
+    className={`px-2 py-1 rounded border ${
+      workflowStatus === "changes_requested" ? "border-amber-400" : "border-gray-200"
+    }`}
+    onClick={() => handleChangeWorkflowStatus("changes_requested")}
+    disabled={updatingWorkflow || !CoverletterID}
+  >
+    Changes requested
+  </button>
+  <button
+    type="button"
+    className={`px-2 py-1 rounded border ${
+      workflowStatus === "approved" ? "border-green-500" : "border-gray-200"
+    }`}
+    onClick={() => handleChangeWorkflowStatus("approved")}
+    disabled={updatingWorkflow || !CoverletterID}
+  >
+    Approved
+  </button>
+
+  {workflowStatus === "approved" && approvedByName && (
+    <span className="ml-2 text-[10px] text-green-700">
+      Approved by {approvedByName}
+      {approvedAt && ` on ${new Date(approvedAt).toLocaleDateString()}`}
+    </span>
+  )}
+</div>
+
+        <Button
+      type="button"
+      variant="secondary"
+      onClick={handleOpenFeedbackSummary}
+      disabled={!CoverletterID}
+    >
+      Feedback summary
+    </Button>
+    </div>
 {showShareSettings && (
   <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/30">
     <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border p-6">
@@ -927,6 +1126,22 @@ function generatePdfFilename(filename: string) {
             </label>
           </div>
 
+          {/* NEW: Review deadline */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">
+              Review deadline <span className="text-xs text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="date"
+              value={shareDeadline}
+              onChange={(e) => setShareDeadline(e.target.value)}
+              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Let reviewers know when you’d like feedback by.
+            </p>
+          </div>
+
           {/* Last shared URL (optional) */}
           {shareUrl && (
             <div className="mb-4 text-xs text-gray-600 break-all bg-gray-50 border rounded px-3 py-2">
@@ -943,7 +1158,7 @@ function generatePdfFilename(filename: string) {
             <label className="block text-sm font-medium mb-1">
               Invite by email
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-2">
               <input
                 type="email"
                 value={inviteEmail}
@@ -960,15 +1175,63 @@ function generatePdfFilename(filename: string) {
                 Add
               </button>
             </div>
+
+            {/* NEW: Role selector */}
+            <div className="flex flex-wrap items-center gap-3 mb-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-700">Role</span>
+                <select
+                  value={inviteRole}
+                  onChange={(e) =>
+                    setInviteRole(e.target.value as
+                      | "mentor"
+                      | "peer"
+                      | "advisor"
+                      | "recruiter"
+                      | "other")
+                  }
+                  className="rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="mentor">Mentor</option>
+                  <option value="peer">Peer</option>
+                  <option value="advisor">Advisor</option>
+                  <option value="recruiter">Recruiter</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* NEW: Permissions toggles */}
+              <label className="inline-flex items-center gap-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={inviteCanComment}
+                  onChange={(e) => setInviteCanComment(e.target.checked)}
+                  className="h-3 w-3"
+                />
+                <span className="text-gray-600">Can comment</span>
+              </label>
+
+              <label className="inline-flex items-center gap-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={inviteCanResolve}
+                  onChange={(e) => setInviteCanResolve(e.target.checked)}
+                  className="h-3 w-3"
+                />
+                <span className="text-gray-600">Can resolve comments</span>
+              </label>
+            </div>
+
             {inviteError && (
               <p className="mt-1 text-xs text-red-500">{inviteError}</p>
             )}
             <p className="mt-1 text-xs text-gray-500">
-              We’ll email them a link to view this cover letter.
+              We’ll email them a link to view this cover letter with the role and permissions you selected.
             </p>
           </div>
 
-          {invitedEmails.length > 0 && (
+          {/* UPDATED: People with access list uses invitedReviewers */}
+             {invitedEmails.length > 0 && (
             <div>
               <div className="text-xs font-medium text-gray-700 mb-1">
                 People with access
@@ -1274,6 +1537,156 @@ function generatePdfFilename(filename: string) {
       >
         <EditorForm />
       </Modal>
+
+
+       {/* Feedback summary modal */}
+      <Modal
+        open={feedbackSummaryOpen}
+        onClose={() => setFeedbackSummaryOpen(false)}
+        title="Feedback summary"
+      >
+        {feedbackSummaryLoading && (
+          <p className="text-sm text-gray-600">Loading feedback summary…</p>
+        )}
+
+        {feedbackSummaryError && (
+          <div className="mb-3 text-sm text-red-600">
+            {feedbackSummaryError}
+            <div className="mt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleOpenFeedbackSummary}
+              >
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {feedbackSummary && !feedbackSummaryLoading && !feedbackSummaryError && (
+          <div className="space-y-4 text-sm max-h-[420px] overflow-y-auto pr-1">
+            {/* Top stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-gray-500">Reviewers</p>
+                <p className="font-semibold">
+                  {feedbackSummary.totalReviewers}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Comments</p>
+                <p className="font-semibold">
+                  {feedbackSummary.totalComments}{" "}
+                  <span className="text-[11px] text-gray-500">
+                    ({feedbackSummary.resolvedComments} resolved)
+                  </span>
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Open comments</p>
+                <p className="font-semibold">
+                  {feedbackSummary.openComments}
+                </p>
+              </div>
+            </div>
+
+            {/* By-role breakdown */}
+            {feedbackSummary.byRole?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-700 mb-1">
+                  By reviewer role
+                </p>
+                <ul className="space-y-1">
+                  {feedbackSummary.byRole.map((r) => (
+                    <li
+                      key={r.role}
+                      className="flex justify-between gap-2 text-xs text-gray-600"
+                    >
+                      <span>
+                        {r.role
+                          ? r.role[0].toUpperCase() + r.role.slice(1)
+                          : "Unknown"}
+                      </span>
+                      <span className="text-gray-500">
+                        {r.reviewers} reviewers · {r.comments} comments (
+                        {r.resolvedComments} resolved)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* AI summary */}
+            {feedbackSummary.aiSummary && (
+              <div className="space-y-3 border-t pt-3">
+                {feedbackSummary.aiSummary.themes?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                      Key themes
+                    </p>
+                    <ul className="space-y-2">
+                      {feedbackSummary.aiSummary.themes.map((theme, idx) => (
+                        <li
+                          key={idx}
+                          className="border rounded-md p-2 bg-gray-50"
+                        >
+                          <p className="text-xs font-semibold">
+                            {theme.label}
+                            {typeof theme.frequency === "number" &&
+                              theme.frequency > 0 && (
+                                <span className="ml-1 text-[10px] text-gray-500">
+                                  · {theme.frequency} mentions
+                                </span>
+                              )}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {theme.description}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {feedbackSummary.aiSummary.strengths?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                      Strengths reviewers highlighted
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      {feedbackSummary.aiSummary.strengths.map((s, idx) => (
+                        <li key={idx} className="text-xs text-gray-600">
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {feedbackSummary.aiSummary.improvementSuggestions?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">
+                      Suggested improvements
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      {feedbackSummary.aiSummary.improvementSuggestions.map(
+                        (s, idx) => (
+                          <li key={idx} className="text-xs text-gray-600">
+                            {s}
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
     </div>
   );
 }

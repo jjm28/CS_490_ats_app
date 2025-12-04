@@ -17,6 +17,30 @@ const API_URL = "http://localhost:5050/api/coverletter";
 // Types your API returns
 // ----------------------
 
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatDaysLeft(dateStr: string): string {
+  const due = new Date(dateStr);
+  if (isNaN(due.getTime())) return "";
+  const now = new Date();
+  const msDiff = due.getTime() - now.getTime();
+  const days = Math.ceil(msDiff / (1000 * 60 * 60 * 24));
+
+  if (days > 1) return `${days} days left`;
+  if (days === 1) return "1 day left";
+  if (days === 0) return "due today";
+  if (days === -1) return "1 day past due";
+  return `${Math.abs(days)} days past due`;
+}
+
 
 // ----------------------
 export default function ShareView() {
@@ -42,6 +66,7 @@ const [isOwner, setisOwner] = useState(false);
     const [sharingMeta, setSharingMeta] = useState<SharingMeta | null>(null);
   
     const totalResolved = comments.filter((c) => c.resolved).length;
+
 
   // Core doc state
   const [filename, setFilename] = useState<string>("Untitled");
@@ -81,7 +106,7 @@ const [isOwner, setisOwner] = useState(false);
         setLoading(true);
         setErr(null);
         
-        const res = await fetchSharedCoverletter({sharedid})
+        const res = await fetchSharedCoverletter({sharedid, currentUseremail})
   
         if (!res) {
           throw new Error(`Failed to load share`);
@@ -95,7 +120,19 @@ const [isOwner, setisOwner] = useState(false);
         setData(payload.coverletterdata);
         setlastSaved(payload.lastSaved)
         console.log(payload?.sharing )
-       if (payload?.sharing) payload.sharing.isOwner = (payload.owner == currentUserid)
+       if (payload?.sharing) {
+        payload.sharing.isOwner = (payload.owner == currentUserid)
+        payload.sharing.allowComments =  payload.reviewers?.find(r => r.email === currentUseremail)?.canComment
+         payload.sharing.canResolve =  payload.reviewers?.find(r => r.email === currentUseremail)?.canResolve
+           payload.sharing.viewerRole = payload.reviewers?.find(r => r.email === currentUseremail)?.role
+              const iso =  payload.reviewDeadline ?? ""
+            const formattedDate = iso.split("T")[0];  // "2222-12-21"
+
+
+
+           payload.sharing.reviewDueAt =  formattedDate
+     console.log(payload.reviewers?.find(r => r.email === currentUseremail)?.canComment)
+    }
         console.log(payload.sharing)
         setSharingMeta(
           (payload?.sharing || {
@@ -106,7 +143,10 @@ const [isOwner, setisOwner] = useState(false);
         setComments((payload?.comments || []) as CoverletterFeedbackComment[]);
 
         setisOwner(payload.owner == currentUserid)
-        sethasAccess((payload.restricteduserid?.includes(currentUseremail) || payload.owner == currentUserid) ?? false)
+          const emails =  payload.reviewers?.map(r => r.email) ??
+  payload.restricteduserid ??
+  []
+        sethasAccess((emails.includes(currentUseremail) || payload.owner == currentUserid) ?? false)
       } catch (e: any) {
         if (e.name !== "AbortError") {
           setErr(e?.message ?? "Failed to load shared document.");
@@ -181,14 +221,14 @@ const [isOwner, setisOwner] = useState(false);
     }
     try {
        setSubmittingComment(true);
-
+      
              const res = await fetch(
         `${API_URL}/shared/${encodeURIComponent(sharedid)}/comments?userId=${currentUserid}`,
         {
           method: "POST",
           credentials: "include",
           headers: authHeaders(),
-          body: JSON.stringify({ message: newComment.trim() }),
+          body: JSON.stringify({ message: newComment.trim(), currentUseremail: currentUseremail }),
         }
       );
 
@@ -216,8 +256,8 @@ const [isOwner, setisOwner] = useState(false);
 
       const handleToggleResolved = async (commentId: string, resolved: boolean) => {
    if (!sharedid) return;
-    if (!sharingMeta?.isOwner) {
-      setFeedbackError("Only the resume owner can resolve feedback.");
+    if (!sharingMeta?.canResolve) {
+      setFeedbackError("You have not been given permission to resolve feedback.");
       return;
     }
     try {
@@ -293,8 +333,33 @@ const [isOwner, setisOwner] = useState(false);
                 {hasAccess ?  <div className="max-w-7xl mx-auto px-6 py-10">
       <div className="mb-4">
 
-        <h1 className="text-2xl font-semibold mb-2">Coverletter (Shared View)</h1>
-
+        <h1 className="text-2xl font-semibold mb-2">Coverletter (Shared View)</h1> 
+        {(sharingMeta?.viewerRole || sharingMeta?.reviewDueAt) && (
+      <div className="mb-3">
+        <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-800">
+          {sharingMeta?.viewerRole && (
+            <span>
+              Role:{" "}
+              <span className="font-medium">
+                {sharingMeta.viewerRole}
+              </span>
+            </span>
+          )}
+          {sharingMeta?.viewerRole && sharingMeta?.reviewDueAt && (
+            <span className="text-blue-300">•</span>
+          )}
+          {sharingMeta?.reviewDueAt && (
+            <span>
+              Review due:{" "}
+              <span className="font-medium">
+                {formatShortDate(sharingMeta.reviewDueAt)} (
+                {formatDaysLeft(sharingMeta.reviewDueAt)})
+              </span>
+            </span>
+          )}
+        </span>
+      </div>
+    )}   
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">
           <label htmlFor="filename" className="text-sm font-medium text-gray-700 whitespace-nowrap">
@@ -449,7 +514,7 @@ const [isOwner, setisOwner] = useState(false);
                         >
                           {isResolved ? "Resolved" : "Open"}
                         </span>
-                        {sharingMeta?.isOwner && (
+                        {sharingMeta?.isOwner || sharingMeta?.canResolve && (
                           <button
                             type="button"
                             onClick={() =>

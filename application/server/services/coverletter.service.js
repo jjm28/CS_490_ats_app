@@ -15,11 +15,16 @@ export async function createCoverletter({ userid, filename, lastSaved,templateKe
 
   const doc = {
     owner: userid,
-    filename: filename,
-    templateKey: templateKey,
-    coverletterdata: coverletterdata,
-    lastSaved: lastSaved
+    filename,
+    templateKey,
+    coverletterdata,
+    lastSaved,
+    workflowStatus: "draft",
+    approvedBy: null,
+    approvedByName: null,
+    approvedAt: null,
   };
+
 
   const res = await coverletters.insertOne(doc);
   return { _id: res.insertedId, owner: doc.id };
@@ -47,12 +52,12 @@ export async function updateCoverletter({ coverletterid,userid, filename, lastSa
   return { _id: coverletterid};
 }
 
-export async function updateCoverletterSharedsettings({ coverletterid,userid,visibility,allowComments}) {
+export async function updateCoverletterSharedsettings({ coverletterid,userid,visibility,allowComments,reviewDeadline}) {
  
     const update = {};
     if (visibility) update.visibility = visibility;
     if (typeof allowComments === "boolean") update.allowComments = allowComments;
-
+    if (reviewDeadline) update.reviewDeadline = reviewDeadline
     const updated = await Coverletter.findOneAndUpdate(
       { _id: new ObjectId(coverletterid), owner: userid },      // ensure user owns this cover letter
       { $set: update },        // update ONLY the provided fields
@@ -66,13 +71,15 @@ export async function updateCoverletterSharedsettings({ coverletterid,userid,vis
 
 }
 
-export async function addreviewerCoverletterSharedsettings({ coverletterid,userId,toemail}) {
+export async function updateCoverletterSharedreviewer({ coverletterid,userid,visibility,allowComments,reviewDeadline}) {
  
-
-
+    const update = {};
+    if (visibility) update.visibility = visibility;
+    if (typeof allowComments === "boolean") update.allowComments = allowComments;
+    if (reviewDeadline) update.reviewDeadline = reviewDeadline
     const updated = await Coverletter.findOneAndUpdate(
-      { _id: new ObjectId(coverletterid), owner: userId },      // ensure user owns this cover letter
-      { $push: {restricteduserid: toemail}},        // update ONLY the provided fields
+      { _id: new ObjectId(coverletterid), owner: userid },      // ensure user owns this cover letter
+      { $set: update },        // update ONLY the provided fields
       { new: true }
     );
 
@@ -82,13 +89,70 @@ export async function addreviewerCoverletterSharedsettings({ coverletterid,userI
 
 
 }
+
+export async function addreviewerCoverletterSharedsettings({ coverletterid,userId,toemail,role ,canComment,canResolve}) {
+ 
+
+
+   const baseFilter = {
+  _id: new ObjectId(coverletterid),
+  owner: userId,
+};
+
+const reviewerFields = {
+  role,
+  canComment,
+  canResolve,
+  status: "invited",
+  lastActivityAt: new Date(),
+};
+
+let updated = await Coverletter.findOneAndUpdate(
+  {
+    ...baseFilter,
+    "reviewers.email": toemail, // only match if email exists
+  },
+  {
+    $set: {
+      "reviewers.$.role": reviewerFields.role,
+      "reviewers.$.canComment": reviewerFields.canComment,
+      "reviewers.$.canResolve": reviewerFields.canResolve,
+      "reviewers.$.status": reviewerFields.status,
+      "reviewers.$.lastActivityAt": reviewerFields.lastActivityAt,
+    },
+  },
+  { new: true }
+);
+
+// If no existing reviewer with that email -> push a new one
+if (!updated) {
+  updated = await Coverletter.findOneAndUpdate(
+    baseFilter,
+    {
+      $push: {
+        reviewers: {
+          email: toemail,
+          ...reviewerFields,
+        },
+      },
+    },
+    { new: true }
+  );
+}
+
+
+
+}
+
+
+
 export async function removereviewerCoverletterSharedsettings({ coverletterid,userId,email}) {
  
 
 
     const updated = await Coverletter.updateMany(
       { _id: new ObjectId(coverletterid), owner: userId },      // ensure user owns this cover letter
-      { $pull: {restricteduserid: email}},        // update ONLY the provided fields
+      { $pull: {reviewers: { email: email }}},        // update ONLY the provided fields
       { new: true }
     );
 
@@ -103,15 +167,15 @@ export async function removereviewerCoverletterSharedsettings({ coverletterid,us
  */
 export async function inviteReviewer({ownerUserId,
   email,
-  url
+  url, role, reviewDeadline
 }) {
   const db = getDb()
     const users = await db.collection("profiles").findOne({ userId:ownerUserId  },    { projection: {fullName:1} })
 
-console.log(users.fullName)
   // Fire-and-forget email sending (don't block the main response on failure)
   try {
-    await sendDocumentAccessEmail({toEmail: email,sharedurl: url,grantedBy: "John Doe"})
+    console.log(reviewDeadline)
+    await sendDocumentAccessEmail({toEmail: email,sharedurl: url,grantedBy: users.fullName,  role: role, reviewDeadline: reviewDeadline})
   } catch (e) {
     console.error("Error sending supporter invite email:", e);
     // You might want to log this to monitoring, but we still return supporter
@@ -164,7 +228,7 @@ export async function createSharedLink({ userid,coverletterid,coverletterdata}) 
   return { sharedid: res.insertedId, url: `${process.env.FRONTEND_ORIGIN}/coverletter/share?sharedid=${res.insertedId}`, owner: coverletter.owner };
 }
 
-export async function fetchSharedCoverletter({ sharedid}) {
+export async function fetchSharedCoverletter({ sharedid,currentUseremail}) {
     const db = getDb();
     const sharedcoverletter = await db
     .collection("sharedcoverletters")
@@ -172,7 +236,7 @@ export async function fetchSharedCoverletter({ sharedid}) {
 
     const accesscontrollsettings = await Coverletter.findOne(
       { _id: new ObjectId(sharedcoverletter.coverletterid), owner: sharedcoverletter.owner }, 
-    ).select("allowComments visibility restricteduserid");
+    ).select("allowComments visibility restricteduserid reviewers reviewDeadline");
     const users = await db.collection("profiles").findOne({ userId: sharedcoverletter.owner  },    { projection: {fullName:1, email:1} })
 
     if (!accesscontrollsettings) {
@@ -189,6 +253,25 @@ export async function fetchSharedCoverletter({ sharedid}) {
     }
 
     const comments =  sharedcoverletter.comments || []
+
+const updated = await Coverletter.findOneAndUpdate(
+  {_id: new ObjectId(sharedcoverletter.coverletterid), owner: sharedcoverletter.owner,     "reviewers.email": currentUseremail},
+  {
+    $set: {
+       
+      "reviewers.$.status": "viewed",
+      "reviewers.$.lastActivityAt": new Date(),
+    },
+  },
+  { new: true }
+);
+
+if (!updated) {
+  // no document matched this _id + email
+  console.warn("No matching reviewer found for");
+  // return 404 or similar
+}
+
     return { ...sharedcoverletter, ...accesscontrollsettings._doc , sharing, comments} 
 
 }
@@ -196,6 +279,7 @@ export async function addSharedCoverletterComment({
   sharedid,
   viewerid,
   message,
+  currentUseremail
 }) {
   const db = getDb();
   const coll = db.collection("sharedcoverletters");
@@ -231,6 +315,25 @@ export async function addSharedCoverletterComment({
     { _id: doc._id },
     { projection: { comments: 1 } }
   );
+console.log(currentUseremail)
+
+  const updatedstatus = await Coverletter.findOneAndUpdate(
+  {_id: new ObjectId(doc.coverletterid), owner: doc.owner,  "reviewers.email": currentUseremail},
+  {
+    $set: {
+       
+      "reviewers.$.status": "commented",
+      "reviewers.$.lastActivityAt": new Date(),
+    },
+  },
+  { new: true }
+);
+
+if (!updatedstatus) {
+  // no document matched this _id + email
+  console.warn("No matching reviewer found for");
+  // return 404 or similar
+}
 
   return { comments: updated?.comments || [] };
 }
@@ -248,9 +351,7 @@ export async function updateSharedCoverletterComment({
   if (!doc) return null;
 
   const isOwner = String(doc.owner) === String(viewerid);
-  if (!isOwner) {
-    return { error: "forbidden" };
-  }
+ 
 
   const nowIso = new Date().toISOString();
   const commentObjectId = new ObjectId(commentId);
@@ -820,6 +921,505 @@ efficient → productive, streamlined, effective, optimized, high-performing
     return [];
   }
 }
+export async function getCoverletterFeedbackSummary({ userid, coverletterid }) {
+  const db = getDb();
+
+  // 1) Load cover letter with reviewers
+  const coverletter = await Coverletter.findOne(
+    { _id: new ObjectId(coverletterid), owner: userid },
+    { reviewers: 1, workflowStatus: 1 }
+  ).lean();
+
+  if (!coverletter) {
+    const error = new Error("Cover letter not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const reviewers = Array.isArray(coverletter.reviewers)
+    ? coverletter.reviewers
+    : [];
+
+  // 2) Reviewer stats
+  const totalReviewers = reviewers.length;
+
+  const statusCounts = reviewers.reduce((acc, r) => {
+    const status = r.status || "unknown";
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  // role-level stats we’ll enrich with comment counts later
+  const byRoleMap = {};
+  for (const r of reviewers) {
+    const role = r.role || "other";
+    if (!byRoleMap[role]) {
+      byRoleMap[role] = {
+        role,
+        reviewers: 0,
+        comments: 0,
+        resolvedComments: 0,
+      };
+    }
+    byRoleMap[role].reviewers += 1;
+  }
+
+  // 3) Load comments from sharedcoverletters (if they exist)
+  const sharedDoc = await db
+    .collection("sharedcoverletters")
+    .findOne(
+      { coverletterid, owner: userid },
+      { projection: { comments: 1 } }
+    );
+
+  const comments = Array.isArray(sharedDoc?.comments)
+    ? sharedDoc.comments
+    : [];
+
+  const totalComments = comments.length;
+  const resolvedComments = comments.filter((c) => c.resolved).length;
+  const openComments = totalComments - resolvedComments;
+
+  // Map comment counts by author email to connect to reviewer roles
+  const commentsByEmail = comments.reduce((acc, c) => {
+    const email = (c.authorEmail || "").toLowerCase();
+    if (!email) return acc;
+    acc[email] = (acc[email] || 0) + 1;
+    return acc;
+  }, {});
+
+  const resolvedByEmail = comments.reduce((acc, c) => {
+    if (!c.resolved) return acc;
+    const email = (c.authorEmail || "").toLowerCase();
+    if (!email) return acc;
+    acc[email] = (acc[email] || 0) + 1;
+    return acc;
+  }, {});
+
+  for (const r of reviewers) {
+    const role = r.role || "other";
+    const email = (r.email || "").toLowerCase();
+    const roleStats = byRoleMap[role];
+    if (!roleStats) continue;
+
+    if (email) {
+      roleStats.comments += commentsByEmail[email] || 0;
+      roleStats.resolvedComments += resolvedByEmail[email] || 0;
+    }
+  }
+
+  const byRole = Object.values(byRoleMap);
+
+  // 4) Build a small context string for AI
+  const documentContext = [
+    `Total reviewers: ${totalReviewers}`,
+    `Total comments: ${totalComments}`,
+    coverletter.workflowStatus
+      ? `Workflow status: ${coverletter.workflowStatus}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  // 5) Ask Gemini for themes/strengths/improvements (optional)
+  const aiSummary = await generateFeedbackSummaryAI({
+    comments,
+    documentContext,
+  });
+
+  // 6) Final payload
+  return {
+    coverletterId: coverletterid,
+    totalReviewers,
+    statusCounts, // e.g. { invited: 2, viewed: 1, commented: 1, ... }
+    totalComments,
+    openComments,
+    resolvedComments,
+    byRole, // [{ role, reviewers, comments, resolvedComments }]
+    aiSummary, // null if AI fails or no comments
+  };
+}
+async function generateFeedbackSummaryAI({ comments, documentContext = "" }) {
+  try {
+    if (!comments || comments.length === 0) {
+      return null;
+    }
+
+    // Limit to first 50 comments to keep prompt small
+    const limitedComments = comments.slice(0, 50);
+
+    const commentsBlock = limitedComments
+      .map((c) => {
+        const who = c.authorEmail || "reviewer";
+        const msg = (c.message || "").replace(/\s+/g, " ").trim();
+        const when = c.createdAt || "";
+        return `- ${who}${when ? ` [${when}]` : ""}: ${msg}`;
+      })
+      .join("\n");
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction:
+        "You are an assistant that analyzes review feedback on a job application document (e.g., resume or cover letter). " +
+        "You ONLY use the comments provided. Do NOT invent issues or strengths that are not present. " +
+        "Group similar comments into themes, identify strengths, and suggest improvements. " +
+        "Output MUST be valid JSON matching the provided schema. " +
+        "Do not include markdown, emojis, or any text outside of the JSON.",
+    });
+
+    const responseSchema = {
+      type: SchemaType.OBJECT,
+      properties: {
+        themes: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              label: { type: SchemaType.STRING },
+              description: { type: SchemaType.STRING },
+              frequency: { type: SchemaType.NUMBER },
+              exampleComments: {
+                type: SchemaType.ARRAY,
+                items: { type: SchemaType.STRING },
+              },
+            },
+            required: ["label", "description"],
+          },
+        },
+        strengths: {
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING },
+        },
+        improvementSuggestions: {
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING },
+        },
+      },
+      required: ["themes", "strengths", "improvementSuggestions"],
+    };
+
+    const prompt =
+      `You are analyzing review feedback for a job application document (cover letter).\n\n` +
+      `=== DOCUMENT CONTEXT ===\n${documentContext || "Not provided."}\n\n` +
+      `=== REVIEW COMMENTS ===\n` +
+      `${commentsBlock}\n\n` +
+      `Hard constraints:\n` +
+      `- Use ONLY the information in the comments.\n` +
+      `- Group related comments into 3–7 themes.\n` +
+      `- For each theme, explain briefly what reviewers are saying.\n` +
+      `- Identify 2–6 strengths reviewers highlighted.\n` +
+      `- Identify 3–7 improvement suggestions.\n` +
+      `- Output VALID JSON matching the schema.\n` +
+      `- No markdown, no emojis, no extra commentary.\n`;
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.5,
+        topP: 0.9,
+        maxOutputTokens: 768,
+        candidateCount: 1,
+        responseMimeType: "application/json",
+        responseSchema,
+      },
+    });
+
+    const candidates = result.response?.candidates || [];
+    if (!candidates.length) {
+      return null;
+    }
+
+    const rawText =
+      candidates[0].content?.parts?.[0]?.text || candidates[0].text || "";
+    if (!rawText) {
+      return null;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch (err) {
+      console.error("❌ Failed to parse Gemini feedback summary JSON:", err);
+      return null;
+    }
+
+    if (!Array.isArray(parsed.themes)) parsed.themes = [];
+    if (!Array.isArray(parsed.strengths)) parsed.strengths = [];
+    if (!Array.isArray(parsed.improvementSuggestions))
+      parsed.improvementSuggestions = [];
+
+    parsed.themes = parsed.themes.map((t) => ({
+      label: t.label || "General",
+      description: t.description || "",
+      frequency:
+        typeof t.frequency === "number" && Number.isFinite(t.frequency)
+          ? t.frequency
+          : 0,
+      exampleComments: Array.isArray(t.exampleComments)
+        ? t.exampleComments
+        : [],
+    }));
+
+    return {
+      themes: parsed.themes,
+      strengths: parsed.strengths,
+      improvementSuggestions: parsed.improvementSuggestions,
+    };
+  } catch (err) {
+    console.error("❌ Gemini feedback summary failed:", err?.message || err);
+    return null; // important: never break the feature, just drop AI
+  }
+}
+
+// 🔹 Track review impact on application success rates
+
+/**
+ * Record a snapshot of the coverletter's review state at the time of an application event.
+ *
+ * @param {Object} params
+ * @param {string} params.userid         - Owner user id
+ * @param {string} params.coverletterid  - Coverletter id
+ * @param {string} params.jobId          - Job/application id (string from your jobs system)
+ * @param {string} [params.jobTitle]     - Optional job title
+ * @param {string} [params.companyName]  - Optional company name
+ * @param {string} [params.outcome]      - Optional outcome tag: "applied", "interview", "offer", "rejected", etc.
+ */
+export async function recordCoverletterApplicationSnapshot({
+  userid,
+  coverletterid,
+  jobId,
+  jobTitle,
+  companyName,
+  outcome = "applied",
+}) {
+  if (!userid || !coverletterid || !jobId) {
+    const err = new Error("Missing userid, coverletterid, or jobId");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const db = getDb();
+
+  // 1) Load coverletter reviewers + workflow
+  const coverletter = await Coverletter.findOne(
+    { _id: new ObjectId(coverletterid), owner: userid },
+    { reviewers: 1, workflowStatus: 1 }
+  ).lean();
+
+  if (!coverletter) {
+    const err = new Error("Cover letter not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const reviewers = Array.isArray(coverletter.reviewers)
+    ? coverletter.reviewers
+    : [];
+  const totalReviewers = reviewers.length;
+
+  const statusCounts = reviewers.reduce((acc, r) => {
+    const status = r.status || "unknown";
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  // 2) Load comments from sharedcoverletters
+  const sharedDoc = await db.collection("sharedcoverletters").findOne(
+    {
+      coverletterid,
+      owner: userid,
+    },
+    { projection: { comments: 1 } }
+  );
+
+  const comments = Array.isArray(sharedDoc?.comments)
+    ? sharedDoc.comments
+    : [];
+
+  const totalComments = comments.length;
+  const resolvedComments = comments.filter((c) => c.resolved).length;
+  const openComments = totalComments - resolvedComments;
+
+  // Role-level stats
+  const byRoleMap = {};
+  for (const r of reviewers) {
+    const role = r.role || "other";
+    if (!byRoleMap[role]) {
+      byRoleMap[role] = {
+        role,
+        reviewers: 0,
+        comments: 0,
+        resolvedComments: 0,
+      };
+    }
+    byRoleMap[role].reviewers += 1;
+  }
+
+  const commentsByEmail = comments.reduce((acc, c) => {
+    const email = (c.authorEmail || "").toLowerCase();
+    if (!email) return acc;
+    acc[email] = (acc[email] || 0) + 1;
+    return acc;
+  }, {});
+
+  const resolvedByEmail = comments.reduce((acc, c) => {
+    if (!c.resolved) return acc;
+    const email = (c.authorEmail || "").toLowerCase();
+    if (!email) return acc;
+    acc[email] = (acc[email] || 0) + 1;
+    return acc;
+  }, {});
+
+  for (const r of reviewers) {
+    const role = r.role || "other";
+    const email = (r.email || "").toLowerCase();
+    const roleStats = byRoleMap[role];
+    if (!roleStats || !email) continue;
+    roleStats.comments += commentsByEmail[email] || 0;
+    roleStats.resolvedComments += resolvedByEmail[email] || 0;
+  }
+
+  const byRole = Object.values(byRoleMap);
+
+  // Compute a simple "reviewed" flag: has reviewers OR comments OR non-draft status
+  const workflowStatus = coverletter.workflowStatus || "draft";
+  const isReviewed =
+    totalReviewers > 0 ||
+    totalComments > 0 ||
+    workflowStatus !== "draft";
+
+  const reviewCompletedCount =
+    statusCounts.completed || statusCounts["completed"] || 0;
+  const percentReviewersCompleted =
+    totalReviewers > 0
+      ? Math.round((reviewCompletedCount / totalReviewers) * 100)
+      : 0;
+
+  const snapshots = db.collection("coverletter_review_impact");
+
+  const doc = {
+    owner: userid,
+    coverletterId: coverletterid,
+    jobId,
+    jobTitle: jobTitle || null,
+    companyName: companyName || null,
+    outcome, // "applied" | "interview" | "offer" | "rejected" | ...
+    snapshotAt: new Date(),
+
+    reviewStats: {
+      workflowStatus,
+      isReviewed,
+      totalReviewers,
+      statusCounts,
+      totalComments,
+      openComments,
+      resolvedComments,
+      byRole,
+      percentReviewersCompleted,
+    },
+  };
+
+  const result = await snapshots.insertOne(doc);
+  return { ...doc, _id: result.insertedId };
+}
+
+/**
+ * Aggregate metrics for how reviewed vs non-reviewed cover letters
+ * correlate with application outcomes for a given user.
+ *
+ * Groups by "reviewed" flag and by workflowStatus.
+ */
+export async function getCoverletterReviewImpactMetrics({ userid }) {
+  if (!userid) {
+    const err = new Error("Missing userid");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const db = getDb();
+  const snapshots = await db
+    .collection("coverletter_review_impact")
+    .find({ owner: userid })
+    .sort({ snapshotAt: 1 })
+    .toArray();
+
+  const totalApplications = snapshots.length;
+
+  // helper: categorize we consider "interview" vs "offer"
+  const isInterview = (outcome) =>
+    ["interview", "onsite", "final"].includes(
+      String(outcome || "").toLowerCase()
+    );
+  const isOffer = (outcome) =>
+    ["offer", "accepted_offer"].includes(
+      String(outcome || "").toLowerCase()
+    );
+
+  const initBucket = () => ({
+    applications: 0,
+    interviews: 0,
+    offers: 0,
+  });
+
+  const withReviewed = initBucket();
+  const withoutReviewed = initBucket();
+
+  const byWorkflowStatus = {};
+
+  for (const snap of snapshots) {
+    const { reviewStats, outcome } = snap;
+    const reviewed = reviewStats?.isReviewed ? true : false;
+    const wf = reviewStats?.workflowStatus || "unknown";
+
+    if (!byWorkflowStatus[wf]) {
+      byWorkflowStatus[wf] = initBucket();
+    }
+
+    const targetBucket = reviewed ? withReviewed : withoutReviewed;
+    const wfBucket = byWorkflowStatus[wf];
+
+    targetBucket.applications += 1;
+    wfBucket.applications += 1;
+
+    if (isInterview(outcome)) {
+      targetBucket.interviews += 1;
+      wfBucket.interviews += 1;
+    }
+    if (isOffer(outcome)) {
+      targetBucket.offers += 1;
+      wfBucket.offers += 1;
+    }
+  }
+
+  const computeRates = (bucket) => {
+    if (bucket.applications === 0) {
+      return { ...bucket, interviewRate: 0, offerRate: 0 };
+    }
+    return {
+      ...bucket,
+      interviewRate: bucket.interviews / bucket.applications,
+      offerRate: bucket.offers / bucket.applications,
+    };
+  };
+
+  const withReviewedStats = computeRates(withReviewed);
+  const withoutReviewedStats = computeRates(withoutReviewed);
+
+  const breakdownByWorkflowStatus = Object.entries(byWorkflowStatus).map(
+    ([workflowStatus, bucket]) => ({
+      workflowStatus,
+      ...computeRates(bucket),
+    })
+  );
+
+  return {
+    totalApplications,
+    withReviewed: withReviewedStats,
+    withoutReviewed: withoutReviewedStats,
+    breakdownByWorkflowStatus,
+  };
+}
+
 
 /*export async function GenerateCoverletterBasedON(userProfile, company, job, opts = {}) {
   const { temperature = 0.8, maxWords = 450 ,candidateCount= 3 } = opts;

@@ -5,6 +5,7 @@ import type { Job } from "../components/Coverletter/hooks/useJobs";
 const API_URL = "http://localhost:5050/api/coverletter/";
 
 
+
 export const authHeaders = (): HeadersInit => {
   const token = localStorage.getItem("token");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -32,6 +33,8 @@ export type CoverletterFeedbackComment = {
   resolvedByName?: string;
 };
 
+
+
 export type SharingMeta = {
   ownerName?: string;
   ownerEmail?: string;
@@ -39,6 +42,9 @@ export type SharingMeta = {
   allowComments?: boolean;
   canComment?: boolean; // this specific viewer can comment or not
   isOwner?: boolean; // is the current viewer the owner
+  canResolve? : boolean
+   viewerRole?: string | null;      // "Mentor", "Recruiter", etc.
+  reviewDueAt?: string | null;
 };
 export interface ListCoverletter {
   userid: string;
@@ -49,6 +55,20 @@ export interface GetCoverletter {
   coverletterid: string;
 
 }
+
+export interface ReviewerPermission {
+  email: string;
+  role: ReviewerRole;
+  canComment: boolean;
+  canResolve: boolean;
+  status: ReviewerStatus;
+  lastActivityAt?: Date;
+  completedAt?: Date;
+}
+
+export type ReviewerRole = "mentor" | "peer" | "advisor" | "recruiter" | "other";
+export type ReviewerStatus = "invited" | "viewed" | "commented" | "completed";
+
 export interface GetCoverletterResponse {
   userid: string;
   filename: string;
@@ -59,7 +79,95 @@ export interface GetCoverletterResponse {
   
 visibility? : "public" | "unlisted" | "restricted"
 restricteduserid? : [string]
+  reviewers?: ReviewerPermission[];
+   reviewDeadline?: string;
+
+  workflowStatus?: WorkflowStatus;
+  approvedByName?: string;
+  approvedAt?: string;
 }
+
+export interface ReviewImpactSnapshotRequest {
+  coverletterid: string;
+  jobId: string;
+  jobTitle?: string;
+  companyName?: string;
+  outcome?: string; // "applied" | "interview" | "offer" | "rejected" | etc.
+}
+
+export interface ReviewImpactSnapshotResponse {
+  _id: string;
+  owner: string;
+  coverletterId: string;
+  jobId: string;
+  jobTitle?: string | null;
+  companyName?: string | null;
+  outcome: string;
+  snapshotAt: string;
+  reviewStats: {
+    workflowStatus: string;
+    isReviewed: boolean;
+    totalReviewers: number;
+    statusCounts: Record<string, number>;
+    totalComments: number;
+    openComments: number;
+    resolvedComments: number;
+    byRole: Array<{
+      role: string;
+      reviewers: number;
+      comments: number;
+      resolvedComments: number;
+    }>;
+    percentReviewersCompleted: number;
+  };
+}
+
+export interface ReviewImpactBucket {
+  applications: number;
+  interviews: number;
+  offers: number;
+  interviewRate: number;
+  offerRate: number;
+}
+
+export interface ReviewImpactMetrics {
+  totalApplications: number;
+  withReviewed: ReviewImpactBucket;
+  withoutReviewed: ReviewImpactBucket;
+  breakdownByWorkflowStatus: Array<
+    ReviewImpactBucket & { workflowStatus: string }
+  >;
+}
+
+export async function recordReviewImpactSnapshot(
+  payload: ReviewImpactSnapshotRequest
+): Promise<ReviewImpactSnapshotResponse> {
+  const res = await fetch(`${API_URL}review-impact/snapshot`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to record review impact snapshot");
+  }
+  return data as ReviewImpactSnapshotResponse;
+}
+
+export async function getReviewImpactMetrics(): Promise<ReviewImpactMetrics> {
+  const res = await fetch(`${API_URL}review-impact/metrics`, {
+    headers: authHeaders(),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to load review impact metrics");
+  }
+  return data as ReviewImpactMetrics;
+}
+
+
 
 export interface UpdateCoverletter {
   coverletterid: string;
@@ -133,6 +241,35 @@ export type AIcoverletterPromptResponse = {
 
 
 
+export interface UpdateWorkflowRequest {
+  coverletterid: string;
+  status: WorkflowStatus;
+}
+
+export interface UpdateWorkflowResponse {
+  workflowStatus: WorkflowStatus;
+  approvedByName?: string;
+  approvedAt?: string;
+}
+
+export async function updateCoverletterWorkflow(
+  params: UpdateWorkflowRequest
+): Promise<UpdateWorkflowResponse> {
+  const { coverletterid, status } = params;
+
+  const res = await fetch(`${API_URL}${coverletterid}/workflow`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ status }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to update workflow status");
+  }
+  return data as UpdateWorkflowResponse;
+}
+
 export  const Getfullcoverletter = async (  coverletterinfo: GetCoverletter ): Promise<GetCoverletterResponse> => {
   const res = await fetch(API_URL+ `?userid=${coverletterinfo.userid}&coverletterid=${coverletterinfo.coverletterid}` , {
     headers: authHeaders() ,  });
@@ -186,6 +323,9 @@ export  const  updateCoverletter = async (  coverletterinfo: UpdateCoverletter )
   return data as Promise<PostCoverletterResponse>;
 };
 
+export type WorkflowStatus = "draft" | "in_review" | "approved" | "changes_requested";
+
+
 
 export interface CreateSharedCoverletter {
   userid: string;
@@ -193,6 +333,7 @@ export interface CreateSharedCoverletter {
   coverletterdata: CoverLetterData;
     visibility?: string,
   allowComments?: boolean,
+   reviewDeadline: string
 }
 export interface PostSharedCoverletterResponse {
   sharedid: string;
@@ -215,7 +356,7 @@ export  const createdsharedcoverletter = async (  coverletterinfo: CreateSharedC
 
 export interface fetchSharedCoverletter {
 sharedid: string;
-
+currentUseremail: string;
 }
 export interface GetSharedCoverletterResponse {
   _id: string;
@@ -226,10 +367,13 @@ export interface GetSharedCoverletterResponse {
   lastSaved: string;
   visibility? : "public" | "unlisted" | "restricted"
 restricteduserid? : [string]
-sharing: SharingMeta
+sharing?: SharingMeta
+comments: CoverletterFeedbackComment[]
+  reviewers?: ReviewerPermission[];
+   reviewDeadline?: string;
 }
 export  const fetchSharedCoverletter = async (  coverletterinfo: fetchSharedCoverletter ): Promise<GetSharedCoverletterResponse> => {
-  const res = await fetch(API_URL+ `share?sharedid=${coverletterinfo.sharedid}` , {
+  const res = await fetch(API_URL+ `share?sharedid=${coverletterinfo.sharedid}&currentUseremail=${coverletterinfo.currentUseremail}` , {
     headers: authHeaders() ,  });
   console.log(API_URL+ `/share?sharedid=${coverletterinfo.sharedid}`)
   const data = await res.json();
@@ -339,3 +483,66 @@ export  const GetAiGeneratedContent = async (  AIcoverletterPrompt: AIcoverlette
 
   return data as Promise<AIcoverletterPromptResponse>;
 };
+
+
+// ---- Feedback summary types ----
+
+export interface FeedbackTheme {
+  label: string;
+  description: string;
+  frequency?: number;
+  exampleComments?: string[];
+}
+
+export interface FeedbackSummaryAI {
+  themes: FeedbackTheme[];
+  strengths: string[];
+  improvementSuggestions: string[];
+}
+
+export interface FeedbackSummaryByRole {
+  role: "mentor" | "peer" | "advisor" | "recruiter" | "other" | "unknown" | string;
+  reviewers: number;
+  comments: number;
+  resolvedComments: number;
+}
+
+export interface FeedbackSummaryResponse {
+  coverletterId: string;
+  totalReviewers: number;
+  statusCounts: Record<string, number>;
+  totalComments: number;
+  openComments: number;
+  resolvedComments: number;
+  byRole: FeedbackSummaryByRole[];
+  aiSummary: FeedbackSummaryAI | null;
+}
+
+export interface GetFeedbackSummaryRequest {
+  userid: string;
+  coverletterid: string;
+}
+
+// ---- Fetch feedback summary (stats + optional AI themes) ----
+export async function getCoverletterFeedbackSummary(
+  params: GetFeedbackSummaryRequest
+): Promise<FeedbackSummaryResponse> {
+  const { userid, coverletterid } = params;
+
+  const url = `${API_URL}${coverletterid}/feedback-summary?userid=${encodeURIComponent(
+    userid
+  )}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to load feedback summary");
+  }
+
+  return data as FeedbackSummaryResponse;
+}

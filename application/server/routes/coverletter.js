@@ -6,13 +6,98 @@ import 'dotenv/config';
 import jwt from "jsonwebtoken";
 import { jobs } from 'googleapis/build/src/apis/jobs/index.js';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
+import Coverletter from '../models/coverletters.js';
+import { getCoverletterFeedbackSummary,  recordCoverletterApplicationSnapshot,
+  getCoverletterReviewImpactMetrics, } from '../services/coverletter.service.js';
 //const genAI_rewrite = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
 
 
 const router = express.Router();
 
 router.use(verifyJWT);
+
+
+// GET /api/coverletter/review-impact/metrics
+router.get("/review-impact/metrics", async (req, res) => {
+  try {
+    const userid = req.user?._id;
+    if (!userid) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const metrics = await getCoverletterReviewImpactMetrics({
+      userid: userid.toString(),
+    });
+
+    return res.json(metrics);
+  } catch (err) {
+    console.error("Error loading review impact metrics:", err);
+    return res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error" });
+  }
+});
+
+// POST /api/coverletter/review-impact/snapshot
+// Body: { coverletterid, jobId, jobTitle?, companyName?, outcome? }
+router.post("/review-impact/snapshot", async (req, res) => {
+  try {
+    const { coverletterid, jobId, jobTitle, companyName, outcome } = req.body;
+
+    if (!coverletterid || !jobId) {
+      return res
+        .status(400)
+        .json({ error: "coverletterid and jobId are required" });
+    }
+
+    // using authenticated user from JWT (same as your other protected routes)
+    const userid = req.user?._id;
+    if (!userid) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const snapshot = await recordCoverletterApplicationSnapshot({
+      userid: userid.toString(),
+      coverletterid,
+      jobId,
+      jobTitle,
+      companyName,
+      outcome,
+    });
+
+    return res.status(201).json(snapshot);
+  } catch (err) {
+    console.error("Error recording review impact snapshot:", err);
+    return res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error" });
+  }
+});
+
+// GET /api/coverletter/:coverletterid/feedback-summary
+router.get("/:coverletterid/feedback-summary", async (req, res) => {
+  try {
+    const { coverletterid } = req.params;
+    const { userid } = req.query; // keeping consistent with your other coverletter routes
+
+    if (!userid || !coverletterid) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const summary = await getCoverletterFeedbackSummary({
+      userid,
+      coverletterid,
+    });
+
+    return res.status(200).json(summary);
+  } catch (err) {
+    console.error("Error generating feedback summary:", err);
+    return res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error generating summary" });
+  }
+});
+
 
 // GET /api/coverletter/
 router.get("/", async (req, res) => {
@@ -63,6 +148,54 @@ router.post('/save', async (req, res) => {
   }
 });
 
+// PATCH /api/coverletter/:coverletterid/workflow
+router.patch("/:coverletterid/workflow", async (req, res) => {
+  try {
+    const { status } = req.body; // status: WorkflowStatus
+    const { coverletterid } = req.params;
+
+    if (!status) {
+      return res.status(400).json({ error: "Missing status" });
+    }
+
+    // only owner can update workflow for now
+    const coverletter = await Coverletter.findOne({
+      _id: coverletterid,
+      owner: req.user._id,
+    });
+
+    if (!coverletter) {
+      return res.status(404).json({ error: "Not found" });
+    }
+coverletter.lastSaved = new Date();
+    coverletter.workflowStatus = status;
+
+    if (status === "approved") {
+      coverletter.approvedBy = req.user._id.toString();
+      coverletter.approvedByName = req.user.name || null;
+      coverletter.approvedAt = new Date();
+    } else {
+      // if reverting away from approved, clear approver info
+      coverletter.approvedBy = null;
+      coverletter.approvedByName = null;
+      coverletter.approvedAt = null;
+    }
+
+    await coverletter.save();
+
+    return res.json({
+      workflowStatus: coverletter.workflowStatus,
+      approvedByName: coverletter.approvedByName,
+      approvedAt: coverletter.approvedAt,
+    });
+  } catch (err) {
+    console.error("Error updating workflow status", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+
 // PUT /api/coverletter/update
 router.put('/update', async (req, res) => {
   try {
@@ -84,11 +217,11 @@ router.put('/update', async (req, res) => {
   // POST /api/coverletter/share
 router.post('/share', async (req, res) => {
   try {
-    const { coverletterid, userid,coverletterdata,visibility,allowComments} = req.body || {};
+    const { coverletterid, userid,coverletterdata,visibility,allowComments, reviewDeadline} = req.body || {};
     if (!userid || !coverletterid || !coverletterdata ||  !visibility ||  !allowComments) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    await updateCoverletterSharedsettings({coverletterid,userid,visibility,allowComments})
+    await updateCoverletterSharedsettings({coverletterid,userid,visibility,allowComments,reviewDeadline})
     const coverletter = await createSharedLink({ userid,coverletterid,coverletterdata});
 
   
@@ -101,11 +234,12 @@ router.post('/share', async (req, res) => {
   // GET /api/coverletter/share
 router.get('/share', async (req, res) => {
   try {
-    const { sharedid } = req.query 
+    const { sharedid, currentUseremail } = req.query 
     if (!sharedid ) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const sharedcoverletter = await fetchSharedCoverletter({ sharedid});
+    const sharedcoverletter = await fetchSharedCoverletter({ sharedid, currentUseremail});
+    
     if (sharedcoverletter == null){
       return res.status(404).json({ error: "Share link invalid or expired" });
 
@@ -123,15 +257,14 @@ router.post(
   async (req, res) => {
     try {
       const viewerId = req.query.userId
-      const { message } = req.body || {};
+      const { message,currentUseremail } = req.body || {};
       if (!viewerId || !message || !message.trim()) {
         return res.status(400).json({ error: "Missing viewer or message" });
       }
-
       const updated = await addSharedCoverletterComment({
         sharedid: req.params.sharedid,
         viewerid: viewerId,
-        message: message.trim(),
+        message: message.trim(), currentUseremail: currentUseremail
       });
 
       if (!updated) {
@@ -320,8 +453,7 @@ Return only the rewritten text. No headers, no markdown, no explanations.
 router.post("/invite", async (req, res) => {
   try {
     const { userId } = req.query;
-    const { toemail, sharedurl,coverletterid } = req.body;
-
+    const { toemail, sharedurl,coverletterid, role ,canComment,canResolve,reviewDeadline} = req.body;
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
     }
@@ -332,8 +464,8 @@ router.post("/invite", async (req, res) => {
     }
 
     const sent = await inviteReviewer({
-    ownerUserId: userId, email: toemail, url: sharedurl  });
-    await addreviewerCoverletterSharedsettings({coverletterid,userId,toemail})
+    ownerUserId: userId, email: toemail, url: sharedurl, role: role, reviewDeadline: reviewDeadline  });
+    await addreviewerCoverletterSharedsettings({coverletterid,userId,toemail,role ,canComment,canResolve})
     res.status(201).json(sent);
   } catch (err) {
     console.error("Error inviting supporter:", err);
