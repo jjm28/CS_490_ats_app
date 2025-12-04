@@ -24,15 +24,13 @@ function getCurrentUserId(): string | null {
 
 export default function AdvisorClientProfilePage() {
   const { relationshipId } = useParams<{ relationshipId: string }>();
-  const [profile, setProfile] =
-    useState<AdvisorClientProfile | null>(null);
+  const [profile, setProfile] = useState<AdvisorClientProfile | null>(null);
   const [impact, setImpact] =
     useState<AdvisorRelationshipImpact | null>(null);
   const [loading, setLoading] = useState(true);
   const [impactLoading, setImpactLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [impactError, setImpactError] =
-    useState<string | null>(null);
+  const [impactError, setImpactError] = useState<string | null>(null);
   const navigate = useNavigate();
   const advisorUserId = getCurrentUserId();
 
@@ -55,18 +53,13 @@ export default function AdvisorClientProfilePage() {
         );
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error(
-            body?.error || "Failed to load client profile"
-          );
+          throw new Error(body?.error || "Failed to load client profile");
         }
-        const data =
-          (await res.json()) as AdvisorClientProfile;
+        const data = (await res.json()) as AdvisorClientProfile;
         setProfile(data);
       } catch (err: any) {
         console.error("Error loading client profile:", err);
-        setError(
-          err.message || "Failed to load client profile"
-        );
+        setError(err.message || "Failed to load client profile");
       } finally {
         setLoading(false);
       }
@@ -95,19 +88,14 @@ export default function AdvisorClientProfilePage() {
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error(
-            body?.error || "Failed to load impact"
-          );
+          throw new Error(body?.error || "Failed to load impact");
         }
 
-        const data =
-          (await res.json()) as AdvisorRelationshipImpact;
+        const data = (await res.json()) as AdvisorRelationshipImpact;
         setImpact(data);
       } catch (err: any) {
         console.error("Error loading impact:", err);
-        setImpactError(
-          err.message || "Failed to load impact summary"
-        );
+        setImpactError(err.message || "Failed to load impact summary");
       } finally {
         setImpactLoading(false);
       }
@@ -116,79 +104,109 @@ export default function AdvisorClientProfilePage() {
     fetchImpact();
   }, [advisorUserId, relationshipId]);
 
+  // Missing ids state
   if (!relationshipId || !advisorUserId) {
     return (
-      <p className="p-4 text-sm text-red-600">
-        Missing ids
-      </p>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <Card className="p-4 bg-red-50 border border-red-100">
+          <p className="text-sm text-red-700">
+            Missing advisor or relationship id.
+          </p>
+        </Card>
+      </div>
     );
   }
 
+  // Loading state for main profile
   if (loading) {
     return (
-      <p className="p-4 text-sm">Loading client...</p>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <Card className="p-4">
+          <p className="text-sm text-gray-600">Loading client…</p>
+        </Card>
+      </div>
     );
   }
 
+  // Error state for main profile
   if (error) {
     return (
-      <p className="p-4 text-sm text-red-600">
-        {error || "Could not load client"}
-      </p>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <Card className="p-4 bg-red-50 border border-red-100">
+          <p className="text-sm text-red-700">
+            {error || "Could not load client"}
+          </p>
+        </Card>
+      </div>
     );
   }
 
+  const basic = profile?.basicProfile;
+  const jobSummary = profile?.jobSummary;
+
+  const candidateName =
+    basic?.fullName || "Unnamed candidate";
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
-      <div className="flex items-center justify-between gap-3">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      {/* Header with back link + candidate name */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
-          className="text-sm text-blue-600 hover:underline"
+          className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 hover:underline"
           onClick={() => navigate("/advisor/clients")}
         >
           ← Back to clients
         </button>
-      </div>
-
-      {profile && profile.basicProfile && (
-        <Card className="p-4 space-y-2">
-          <h2 className="text-lg font-semibold">
-            Candidate Overview
-          </h2>
-          <div>
-            <p className="font-medium">
-              {profile.basicProfile.fullName ||
-                "Unnamed candidate"}
-            </p>
-            {profile.basicProfile.headline && (
-              <p className="text-sm text-gray-600">
-                {profile.basicProfile.headline}
-              </p>
-            )}
-          </div>
-          {profile.basicProfile.bio && (
-            <p className="text-sm text-gray-700">
-              {profile.basicProfile.bio}
+        <div className="text-right sm:text-left">
+          <p className="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+            Client workspace
+          </p>
+          <p className="text-base font-semibold text-gray-900">
+            {candidateName}
+          </p>
+          {basic?.headline && (
+            <p className="text-xs text-gray-500">
+              {basic.headline}
             </p>
           )}
-          <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-            {profile.basicProfile.industry && (
-              <span>
-                Industry: {profile.basicProfile.industry}
+        </div>
+      </div>
+
+      {/* Candidate overview */}
+      {basic && (
+        <Card className="p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Candidate overview
+            </h2>
+          </div>
+
+          {basic.bio && (
+            <p className="text-sm text-gray-700 leading-relaxed">
+              {basic.bio}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+            {basic.industry && (
+              <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1">
+                <span className="font-medium mr-1">Industry:</span>
+                {basic.industry}
               </span>
             )}
-            {profile.basicProfile.experienceLevel && (
-              <span>
-                Experience:{" "}
-                {profile.basicProfile.experienceLevel}
+            {basic.experienceLevel && (
+              <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1">
+                <span className="font-medium mr-1">Experience:</span>
+                {basic.experienceLevel}
               </span>
             )}
-            {profile.basicProfile.location && (
-              <span>
-                Location:{" "}
+            {basic.location && (
+              <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1">
+                <span className="font-medium mr-1">Location:</span>
                 {[
-                  profile.basicProfile.location.city,
-                  profile.basicProfile.location.state,
+                  basic.location.city,
+                  basic.location.state,
                 ]
                   .filter(Boolean)
                   .join(", ")}
@@ -198,43 +216,49 @@ export default function AdvisorClientProfilePage() {
         </Card>
       )}
 
-      {profile && profile.jobSummary && (
-        <Card className="p-4 space-y-3">
-          <h2 className="text-lg font-semibold">
-            Job Search Summary
-          </h2>
-          <p className="text-sm text-gray-600">
-            Total tracked opportunities:{" "}
-            <strong>{profile.jobSummary.totalJobs}</strong>
-          </p>
-          <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-            {Object.entries(
-              profile.jobSummary.statusCounts
-            ).map(([status, count]) => (
-              <span
-                key={status}
-                className="px-2 py-0.5 bg-gray-50 rounded-full"
-              >
-                {status}: {count}
+      {/* Job search summary */}
+      {jobSummary && (
+        <Card className="p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Job search summary
+            </h2>
+            <p className="text-xs text-gray-500">
+              Total tracked opportunities:{" "}
+              <span className="font-semibold">
+                {jobSummary.totalJobs}
               </span>
-            ))}
+            </p>
           </div>
 
-          {profile.jobSummary.topJobs.length > 0 && (
-            <div className="border-top pt-3 space-y-2">
-              <h3 className="text-sm font-medium">
+          <div className="flex flex-wrap gap-2 text-xs text-gray-700">
+            {Object.entries(jobSummary.statusCounts || {}).map(
+              ([status, count]) => (
+                <span
+                  key={status}
+                  className="px-2 py-0.5 rounded-full bg-gray-100"
+                >
+                  {status}: {count}
+                </span>
+              )
+            )}
+          </div>
+
+          {jobSummary.topJobs.length > 0 && (
+            <div className="border-t border-gray-100 pt-3 space-y-2">
+              <h3 className="text-xs font-semibold text-gray-900">
                 Recent opportunities
               </h3>
               <ul className="space-y-1 text-sm text-gray-700">
-                {profile.jobSummary.topJobs.map((job) => (
-                  <li key={job.id}>
+                {jobSummary.topJobs.map((job) => (
+                  <li key={job.id} className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">
                       {job.jobTitle}
-                    </span>{" "}
+                    </span>
                     <span className="text-gray-500">
                       at {job.company}
-                    </span>{" "}
-                    <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
+                    </span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
                       {job.status}
                     </span>
                   </li>
@@ -245,18 +269,24 @@ export default function AdvisorClientProfilePage() {
         </Card>
       )}
 
-      {/* NEW: Impact card */}
+      {/* Impact card */}
       {!impactLoading && !impactError && impact && (
-        <Card className="p-4 space-y-3">
-          <h2 className="text-sm font-semibold">
-            Impact on this search
-          </h2>
-          <div className="flex flex-wrap gap-4 text-sm">
+        <Card className="p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Your impact on this search
+            </h2>
+            <p className="text-xs text-gray-500">
+              Based on shared jobs, recommendations, and sessions.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
             <div>
               <div className="text-xs text-gray-500">
                 Shared jobs you can see
               </div>
-              <div className="font-medium">
+              <div className="mt-0.5 font-medium text-gray-900">
                 {impact.sharedJobCount}
               </div>
             </div>
@@ -264,7 +294,7 @@ export default function AdvisorClientProfilePage() {
               <div className="text-xs text-gray-500">
                 Shared jobs at interview stage
               </div>
-              <div className="font-medium">
+              <div className="mt-0.5 font-medium text-gray-900">
                 {impact.sharedJobsAtInterviewStage}
               </div>
             </div>
@@ -272,7 +302,7 @@ export default function AdvisorClientProfilePage() {
               <div className="text-xs text-gray-500">
                 Shared jobs with offers
               </div>
-              <div className="font-medium">
+              <div className="mt-0.5 font-medium text-gray-900">
                 {impact.sharedJobsWithOffers}
               </div>
             </div>
@@ -280,7 +310,7 @@ export default function AdvisorClientProfilePage() {
               <div className="text-xs text-gray-500">
                 Completed recommendations
               </div>
-              <div className="font-medium">
+              <div className="mt-0.5 font-medium text-gray-900">
                 {impact.completedRecommendations}/
                 {impact.totalRecommendations}
               </div>
@@ -289,7 +319,7 @@ export default function AdvisorClientProfilePage() {
               <div className="text-xs text-gray-500">
                 Completed sessions
               </div>
-              <div className="font-medium">
+              <div className="mt-0.5 font-medium text-gray-900">
                 {impact.completedSessions}
               </div>
             </div>
@@ -297,26 +327,26 @@ export default function AdvisorClientProfilePage() {
               <div className="text-xs text-gray-500">
                 Upcoming sessions
               </div>
-              <div className="font-medium">
+              <div className="mt-0.5 font-medium text-gray-900">
                 {impact.upcomingSessions}
               </div>
             </div>
           </div>
         </Card>
       )}
+
       {impactError && (
-        <Card className="p-4 bg-yellow-50 text-yellow-800">
-          <p className="text-xs">
+        <Card className="p-4 bg-yellow-50 border border-yellow-100">
+          <p className="text-xs text-yellow-800">
             {impactError}
           </p>
         </Card>
       )}
 
-      {!profile?.basicProfile && !profile?.jobSummary && (
-        <Card className="p-4">
+      {!basic && !jobSummary && (
+        <Card className="p-4 sm:p-5">
           <p className="text-sm text-gray-600">
-            This candidate hasn’t shared any profile or job
-            summary details with you yet.
+            This candidate hasn’t shared any profile or job summary details with you yet.
           </p>
         </Card>
       )}
@@ -334,7 +364,7 @@ export default function AdvisorClientProfilePage() {
           <AdvisorClientSessionsSection
             relationshipId={relationshipId || ""}
             advisorUserId={advisorUserId}
-            ownerUserId={profile.ownerUserId} // 🔧 fix: use ownerUserId from profile
+            ownerUserId={profile.ownerUserId} // use ownerUserId from profile
           />
         </>
       )}

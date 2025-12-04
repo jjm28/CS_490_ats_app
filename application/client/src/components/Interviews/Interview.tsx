@@ -9,8 +9,11 @@ import Questions from './Questions';
 import '../../styles/InterviewPrepUI.css';
 import WritingPractice from '../../components/Interviews/WritingPractice';
 import InterviewFollowUpPage from './InterviewFollowUpPage';
+import ResponseCoaching from './ResponseCoach';
+import InterviewAnalyticsDashboard from './Analytics';
+import Scheduling from './Scheduling';
 import InterviewSuccessProbability from './InterviewSuccessProbability';
-import InterviewSchedulerPage from './InterviewSchedulerPage'; // NEW IMPORT
+import InterviewSchedulerPage from './InterviewSchedulerPage';
 
 type CardData = {
   label: string;
@@ -18,10 +21,14 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 'success-probability' | 'calendar' | null;
+  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 
+  'success-probability' | 'calendar' | 'aicoaching' | 'scheduling' | 'mock-interview' | 'analytics' | null;
 };
 
 const cardData: CardData[] = [
+  // ============================================
+  // 📚 RESEARCH & PREPARATION
+  // ============================================
   {
     label: 'Research',
     title: 'Company Research',
@@ -31,46 +38,6 @@ const cardData: CardData[] = [
     component: 'research'
   },
   {
-    label: 'Role Questions',
-    title: 'Role-Specific Qs',
-    description: 'Tailored questions for your position',
-    color: '#0E3B43',
-    details: 'Get a database of real interview questions asked for this exact role at this company. Filter by round (phone screen, onsite), experience level, and question type (coding, behavioral, system design).',
-    component: 'questions'
-  },
-  {
-    label: 'AI Coaching',
-    title: 'AI Coaching',
-    description: 'Real-time feedback on your responses',
-    color: '#0E3B43',
-    details: 'Record yourself answering questions and receive instant AI feedback on clarity, structure, technical accuracy, and communication style. Compare your answers to strong examples.',
-    component: null
-  },
-  {
-    label: 'Mock Interviews/Tech Prep',
-    title: 'Mock Interviews',
-    description: 'Practice with coding challenges, system design, realistic scenarios',
-    color: '#0E3B43',
-    details: 'Simulate real interview conditions with timed coding challenges, system design prompts, and behavioral scenarios. Get scored on problem-solving, efficiency, and communication.',
-    component: null
-  },
-  {
-    label: 'Calendar',
-    title: 'Calendar Integration',
-    description: 'Schedule and track your interviews',
-    color: '#0E3B43',
-    details: 'Sync with Google Calendar to auto-schedule prep time, track upcoming interviews, set reminders, and log feedback after each round.',
-    component: 'calendar'
-  },
-  {
-    label: 'Analytics',
-    title: 'Performance Analytics',
-    description: 'Track your progress and improvements',
-    color: '#0E3B43',
-    details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
-    component: null
-  },
-  {
     label: 'Preparation',
     title: 'Preparation Checklist',
     description: 'Customized prep tasks for each interview',
@@ -78,29 +45,13 @@ const cardData: CardData[] = [
     details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
     component: 'checklist'
   },
-   {
-    label: 'Writing Practice',
-    title: 'Response Writing Practice',
-    description: 'Improve clarity, structure, and storytelling',
-    color: '#0E3B43',
-    details: 'Practice writing interview responses with timed exercises, get AI feedback on clarity and structure, track improvement over time, and build confidence for virtual interviews.',
-    component: 'writing-practice'
-  },
   {
-    label: 'Follow-Up',
-    title: 'Interview Follow-Up',
-    description: 'Send professional follow-up emails',
+    label: 'Role Questions',
+    title: 'Role-Specific Questions',
+    description: 'Tailored questions for your position',
     color: '#0E3B43',
-    details: 'Generate and send thank you emails, status inquiries, feedback requests, and networking follow-ups after your interviews.',
-    component: 'followup'
-  },
-  {
-    label: 'Salary Negotiation',
-    title: 'Salary Negotiation',
-    description: 'AI-powered negotiation preparation and strategy',
-    color: '#0E3B43',
-    details: 'Get personalized negotiation talking points, scripts for different scenarios, market salary analysis, and counter-offer recommendations based on real market data.',
-    component: 'negotiation'
+    details: 'Get a database of real interview questions asked for this exact role at this company. Filter by round (phone screen, onsite), experience level, and question type (coding, behavioral, system design).',
+    component: 'questions'
   },
   {
     label: 'Success Probability',
@@ -110,7 +61,84 @@ const cardData: CardData[] = [
     details: 'Get data-driven predictions for your interview success based on preparation level, company research, practice sessions, and historical performance. Receive actionable recommendations to improve your chances.',
     component: 'success-probability'
   },
-  
+
+  // ============================================
+  // 🎯 PRACTICE & COACHING
+  // ============================================
+  {
+    label: 'Mock Interviews/Tech Prep',
+    title: 'Mock Interviews',
+    description: 'Practice with coding challenges, system design, realistic scenarios',
+    color: '#123F32',
+    details: 'Simulate real interview conditions with timed coding challenges, system design prompts, and behavioral scenarios. Get scored on problem-solving, efficiency, and communication.',
+    component: 'mock-interview'
+  },
+  {
+    label: 'AI Coaching',
+    title: 'AI Response Coaching',
+    description: 'Real-time feedback on your responses',
+    color: '#123F32',
+    details: 'Answer interview questions and receive instant AI feedback on clarity, structure, technical accuracy, and communication style. Compare your answers to strong examples.',
+    component: 'aicoaching'
+  },
+
+  {
+    label: 'Scheduled Interviews',
+    title: 'Scheduled Interviews',
+    description: 'Manage and edit all your scheduled interviews',
+    color: '#2B3A55',
+    details: 'View your future scheduled interviews and prepare accordingly.',
+    component: 'scheduling'
+  },
+  // ============================================
+  // 📅 SCHEDULING & TRACKING
+  // ============================================
+  {
+    label: 'Calendar',
+    title: 'Calendar Integration',
+    description: 'Schedule and track your interviews',
+    color: '#2B3A55',
+    details: 'Sync with Google Calendar to auto-schedule prep time, track upcoming interviews, set reminders, and log feedback after each round.',
+    component: 'calendar'
+  },
+
+  {
+    label: 'Writing Practice',
+    title: 'Response Writing Practice',
+    description: 'Improve clarity, structure, and storytelling',
+    color: '#123F32',
+    details: 'Practice writing interview responses with timed exercises, get AI feedback on clarity and structure, track improvement over time, and build confidence for virtual interviews.',
+    component: 'writing-practice'
+  },
+
+  {
+    label: 'Analytics',
+    title: 'Performance Analytics',
+    description: 'Track your progress and improvements',
+    color: '#2B3A55',
+    details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
+    component: 'analytics'
+  },
+
+  // ============================================
+  // 💼 POST-INTERVIEW
+  // ============================================
+  {
+    label: 'Follow-Up',
+    title: 'Interview Follow-Up',
+    description: 'Send professional follow-up emails',
+    color: '#442B48',
+    details: 'Generate and send thank you emails, status inquiries, feedback requests, and networking follow-ups after your interviews.',
+    component: 'followup'
+  },
+  {
+    label: 'Salary Negotiation',
+    title: 'Salary Negotiation',
+    description: 'AI-powered negotiation preparation and strategy',
+    color: '#442B48',
+    details: 'Get personalized negotiation talking points, scripts for different scenarios, market salary analysis, and counter-offer recommendations based on real market data.',
+    component: 'negotiation'
+  },
 ];
 
 type InterviewCardProps = {
@@ -147,93 +175,83 @@ const DetailView = ({
   card: CardData; 
   onBack: () => void;
 }) => {
-  // If the card has a component, render it
-  if (card.component === 'research') {
-    return <InterviewPrepResearch onBack={onBack} />;
-  }
-  if (card.component === 'questions') {
-    return <Questions onBack={onBack} />;
-  }
-
-  if (card.component === 'checklist') {
-    return <InterviewPrepChecklist onBack={onBack} />;
-  }
-
-  if (card.component === 'negotiation') {
-    return <SalaryNegotiationPage onBack={onBack} />;
-  }
-
-  if (card.component === 'followup') {
-    return <InterviewFollowUpPage onBack={onBack} />;
-  }
-
-  if (card.component === 'calendar') { // NEW
-    return <InterviewSchedulerPage onBack={onBack} />;
-  }
-
-  // Otherwise, show the default detail view
-  return (
-    <div 
-      className="interview-detail-view"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        backgroundColor: card.color || '#0E3B43',
-        color: 'white',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '2rem',
-        boxSizing: 'border-box',
-        zIndex: 1000,
-        overflowY: 'auto'
-      }}
-    >
-      {/* Back Button */}
-      <button
-        onClick={onBack}
-        style={{
-          alignSelf: 'flex-start',
-          background: 'rgba(255,255,255,0.15)',
-          border: '1px solid rgba(255,255,255,0.3)',
-          color: 'white',
-          padding: '0.5rem 1rem',
-          borderRadius: '20px',
-          cursor: 'pointer',
-          fontSize: '0.9rem',
-          marginBottom: '2rem'
-        }}
-      >
-        ← Back to Overview
-      </button>
-
-      {/* Content */}
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <span 
-          className="magic-bento-card__label"
-          style={{ 
-            display: 'inline-block',
-            marginBottom: '1rem',
-            background: 'rgba(255,255,255,0.1)',
-            padding: '0.25rem 0.75rem',
-            borderRadius: '4px'
+  // Route to appropriate component based on card type
+  switch (card.component) {
+    case 'research':
+      return <InterviewPrepResearch onBack={onBack} />;
+    case 'questions':
+      return <Questions onBack={onBack} />;
+    case 'checklist':
+      return <InterviewPrepChecklist onBack={onBack} />;
+    case 'negotiation':
+      return <SalaryNegotiationPage onBack={onBack} />;
+    case 'followup':
+      return <InterviewFollowUpPage onBack={onBack} />;
+    case 'aicoaching':
+      return <ResponseCoaching onBack={onBack} />;
+    case 'calendar':
+      return <InterviewSchedulerPage onBack={onBack} />;
+    default:
+      // Default detail view for cards without specific components
+      return (
+        <div 
+          className="interview-detail-view"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: card.color || '#0E3B43',
+            color: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '2rem',
+            boxSizing: 'border-box',
+            zIndex: 1000,
+            overflowY: 'auto'
           }}
         >
-          {card.label}
-        </span>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '1rem' }}>
-          {card.title}
-        </h1>
-        <p style={{ fontSize: '1.1rem', lineHeight: '1.7', opacity: 0.9 }}>
-          {card.details || card.description}
-        </p>
+          <button
+            onClick={onBack}
+            style={{
+              alignSelf: 'flex-start',
+              background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              borderRadius: '20px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              marginBottom: '2rem'
+            }}
+          >
+            ← Back to Overview
+          </button>
 
-        {/* You can add more content here later — forms, buttons, etc. */}
-      </div>
-    </div>
-  );
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <span 
+              className="magic-bento-card__label"
+              style={{ 
+                display: 'inline-block',
+                marginBottom: '1rem',
+                background: 'rgba(255,255,255,0.1)',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '4px'
+              }}
+            >
+              {card.label}
+            </span>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: '700', marginBottom: '1rem' }}>
+              {card.title}
+            </h1>
+            <p style={{ fontSize: '1.1rem', lineHeight: '1.7', opacity: 0.9 }}>
+              {card.details || card.description}
+            </p>
+          </div>
+        </div>
+      );
+  }
 };
 
 const Interview = () => {
@@ -243,14 +261,24 @@ const Interview = () => {
   const handleCardClick = (index: number) => {
     const card = cardData[index];
     
-    // ✅ Check if it's Mock Interview card
-    if (card.label === 'Mock Interviews/Tech Prep') {
+    // Handle special features that need full-page rendering
+    if (card.component === 'mock-interview') {
       setActiveFeature('mock-interview');
-      return; // Don't set selectedCardIndex
+      return;
     }
 
     if (card.component === 'writing-practice') {
       setActiveFeature('writing-practice');
+      return;
+    }
+
+    if (card.component === 'analytics') {
+      setActiveFeature('analytics');
+      return;
+    }
+
+    if (card.component === 'scheduling') {
+      setActiveFeature('scheduling');
       return;
     }
 
@@ -259,7 +287,7 @@ const Interview = () => {
       return;
     }
     
-    // For other cards, show the detail view
+    // Default: show detail view
     setSelectedCardIndex(index);
   };
 
@@ -268,12 +296,11 @@ const Interview = () => {
     setActiveFeature(null);
   };
 
-  // Show Success Probability feature
+  // Render full-page features
   if (activeFeature === 'success-probability') {
     return <InterviewSuccessProbability onBack={handleBack} />;
   }
 
-  // ✅ Show Mock Interview feature
   if (activeFeature === 'mock-interview') {
     return <MockPractice onBack={handleBack} />;
   }
@@ -282,12 +309,43 @@ const Interview = () => {
     return <WritingPractice onBack={handleBack} />;
   }
 
-  // 🔍 Detail Mode (existing)
+  if (activeFeature === 'scheduling') {
+    return <Scheduling onBack={handleBack} />;
+  }
+
+  if (activeFeature === 'analytics') {
+    return (
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={handleBack}
+          style={{
+            position: 'fixed',
+            top: '2rem',
+            left: '2rem',
+            background: '#357266',
+            border: 'none',
+            color: 'white',
+            padding: '0.5rem 1rem',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            zIndex: 1000,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}
+        >
+          ← Back to Overview
+        </button>
+        <InterviewAnalyticsDashboard />
+      </div>
+    );
+  }
+
+  // Detail Mode
   if (selectedCardIndex !== null) {
     return <DetailView card={cardData[selectedCardIndex]} onBack={handleBack} />;
   }
 
-  // 📊 Grid Mode (existing)
+  // Grid Mode
   return (
     <div className="magic-bento-container">
       <div className="card-grid">

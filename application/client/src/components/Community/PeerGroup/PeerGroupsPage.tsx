@@ -137,6 +137,11 @@ export default function PeerGroupsPage() {
     return Array.from(set).sort();
   }, [groups]);
 
+  const myGroups = useMemo(
+    () => groups.filter((g) => isMember(g._id)),
+    [groups, membershipByGroupId]
+  );
+
   // Recommended groups (simple scoring by targetRole / targetIndustry)
   const recommendedGroups = useMemo(() => {
     if (groups.length === 0) return [];
@@ -294,11 +299,17 @@ export default function PeerGroupsPage() {
   };
 
   if (loading) {
-    return <div className="p-4">Loading peer support groups...</div>;
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="animate-pulse text-sm text-gray-500">
+          Loading peer support groups...
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="px-4 py-6 max-w-6xl mx-auto space-y-6">
       {/* Privacy modal */}
       <GroupPrivacyModal
         open={isPrivacyModalOpen}
@@ -323,13 +334,15 @@ export default function PeerGroupsPage() {
         onSubmit={handleSubmitGroupForm}
       />
 
-      {/* Header + create button */}
-      <div className="flex items-start justify-between gap-3">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Peer Support Groups</h1>
-          <p className="text-sm text-gray-600">
-            Join industry or role-specific job search groups to share
-            experiences, stay accountable, and support each other.
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Peer Support Groups
+          </h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Find peers searching in similar industries or roles, share
+            experiences, and keep each other accountable.
           </p>
         </div>
         <Button
@@ -342,74 +355,318 @@ export default function PeerGroupsPage() {
         </Button>
       </div>
 
-      {error && <div className="text-sm text-red-600">{error}</div>}
+      {/* Top stats + filters */}
+      <div className="grid gap-4 lg:grid-cols-[2fr,3fr]">
+        {/* Stats card */}
+        <Card className="p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-800">
+              Your group overview
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-lg bg-gray-50 px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                Groups joined
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {myGroups.length}
+              </div>
+            </div>
+            <div className="rounded-lg bg-gray-50 px-3 py-2">
+              <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                Total groups
+              </div>
+              <div className="mt-1 text-lg font-semibold">
+                {groups.length}
+              </div>
+            </div>
+          </div>
+          {userProfile && (userProfile.targetRole || userProfile.targetIndustry) && (
+            <div className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-[13px] text-emerald-900 border border-emerald-100">
+              <div className="font-medium text-xs uppercase tracking-wide">
+                Your target focus
+              </div>
+              <div className="mt-1">
+                {userProfile.targetRole && (
+                  <span className="mr-2">
+                    🎯 <span className="font-medium">Role:</span>{" "}
+                    {userProfile.targetRole}
+                  </span>
+                )}
+                {userProfile.targetIndustry && (
+                  <span>
+                    🏢 <span className="font-medium">Industry:</span>{" "}
+                    {userProfile.targetIndustry}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </Card>
 
-      {/* Filter bar */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <input
-          type="text"
-          placeholder="Search groups..."
-          className="border rounded px-3 py-1 text-sm"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        {/* Filter card */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-800">
+              Discover groups
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-3 items-center">
+            <input
+              type="text"
+              placeholder="Search by name, description, or tags..."
+              className="border rounded px-3 py-1.5 text-sm flex-1 min-w-[160px]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
 
-        <select
-          className="border rounded px-2 py-1 text-sm"
-          value={selectedIndustry}
-          onChange={(e) => setSelectedIndustry(e.target.value)}
-        >
-          <option value="all">All industries</option>
-          {industryOptions.map((ind) => (
-            <option key={ind} value={ind}>
-              {ind}
-            </option>
-          ))}
-        </select>
+            <select
+              className="border rounded px-2 py-1.5 text-sm"
+              value={selectedIndustry}
+              onChange={(e) => setSelectedIndustry(e.target.value)}
+            >
+              <option value="all">All industries</option>
+              {industryOptions.map((ind) => (
+                <option key={ind} value={ind}>
+                  {ind}
+                </option>
+              ))}
+            </select>
 
-        <select
-          className="border rounded px-2 py-1 text-sm"
-          value={selectedRole}
-          onChange={(e) => setSelectedRole(e.target.value)}
-        >
-          <option value="all">All roles</option>
-          {roleOptions.map((role) => (
-            <option key={role} value={role}>
-              {role}
-            </option>
-          ))}
-        </select>
+            <select
+              className="border rounded px-2 py-1.5 text-sm"
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+            >
+              <option value="all">All roles</option>
+              {roleOptions.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Card>
       </div>
 
-      {/* Recommended groups */}
-      {recommendedGroups.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-lg font-medium">Recommended for you</h2>
+      {error && (
+        <div className="text-sm text-red-600 border border-red-100 bg-red-50 px-3 py-2 rounded">
+          {error}
+        </div>
+      )}
+
+      {/* Main content layout: left column (recommended + my groups), right column (all groups) */}
+      <div className="grid gap-6 lg:grid-cols-[2fr,3fr]">
+        <div className="space-y-4">
+          {/* Recommended groups */}
+          {recommendedGroups.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-800">
+                  Recommended for you
+                </h2>
+                <span className="text-[11px] text-gray-500">
+                  Based on your profile & target goals
+                </span>
+              </div>
+              <div className="space-y-2">
+                {recommendedGroups.map((group) => {
+                  const member = isMember(group._id);
+                  return (
+                    <Card
+                      key={group._id}
+                      className="flex justify-between items-start p-3 gap-3 border border-emerald-100 bg-emerald-50/40"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-sm">
+                            {group.name}
+                          </div>
+                          <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5">
+                            Recommended
+                          </span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-gray-600">
+                          {group.industry && <span>{group.industry}</span>}
+                          {group.industry && group.role && <span> · </span>}
+                          {group.role && <span>{group.role}</span>}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-gray-500">
+                          👥 {group.memberCount ?? 0} members
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Button
+                          onClick={() => handleJoinLeave(group)}
+                          disabled={joiningId === group._id}
+                        >
+                          {member ? "Leave" : "Join"}
+                        </Button>
+
+                        {member && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() =>
+                              navigate(`/peer-groups/${group._id}`)
+                            }
+                          >
+                            View group
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* My groups */}
           <div className="space-y-2">
-            {recommendedGroups.map((group) => {
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-800">
+                Your groups
+              </h2>
+              <span className="text-[11px] text-gray-500">
+                {myGroups.length === 0
+                  ? "You haven’t joined any groups yet."
+                  : `${myGroups.length} joined`}
+              </span>
+            </div>
+            {myGroups.length === 0 ? (
+              <Card className="p-3 text-xs text-gray-500 bg-gray-50">
+                Join a group from the list to start sharing updates and staying
+                accountable with peers.
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {myGroups.slice(0, 4).map((group) => (
+                  <Card
+                    key={group._id}
+                    className="flex justify-between items-start p-3 gap-3"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-sm">
+                          {group.name}
+                        </div>
+                        {isOwner(group) && (
+                          <span className="text-[10px] uppercase tracking-wide bg-gray-100 border rounded px-1.5 py-0.5 text-gray-600">
+                            You are owner
+                          </span>
+                        )}
+                      </div>
+                      {group.description && (
+                        <p className="text-[11px] text-gray-600 mt-1 line-clamp-2">
+                          {group.description}
+                        </p>
+                      )}
+                      <div className="mt-1 text-[11px] text-gray-500">
+                        👥 {group.memberCount ?? 0} members
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => navigate(`/peer-groups/${group._id}`)}
+                      >
+                        Open
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+                {myGroups.length > 4 && (
+                  <div className="text-[11px] text-gray-500">
+                    + {myGroups.length - 4} more in “All groups”
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* All groups (filtered) */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-800">
+              All peer support groups
+            </h2>
+            <span className="text-[11px] text-gray-500">
+              Showing {filteredGroups.length} result
+              {filteredGroups.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2">
+            {filteredGroups.map((group) => {
               const member = isMember(group._id);
+              const owner = isOwner(group);
+
               return (
                 <Card
                   key={group._id}
-                  className="flex justify-between items-start p-3 gap-3 border border-emerald-100 bg-emerald-50/40"
+                  className="flex flex-col justify-between p-4 gap-3"
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="font-medium text-sm">{group.name}</div>
-                      <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5">
-                        Recommended
+                      <h3 className="font-medium text-sm">{group.name}</h3>
+                      {owner && (
+                        <span className="text-[10px] uppercase tracking-wide bg-gray-100 border rounded px-1.5 py-0.5 text-gray-600">
+                          You are owner
+                        </span>
+                      )}
+                      {member && !owner && (
+                        <span className="text-[10px] uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-1.5 py-0.5">
+                          Joined
+                        </span>
+                      )}
+                    </div>
+
+                    {group.description && (
+                      <p className="text-xs text-gray-600 line-clamp-3">
+                        {group.description}
+                      </p>
+                    )}
+
+                    <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-gray-500">
+                      {group.industry && (
+                        <span className="inline-flex items-center gap-1">
+                          🏢 {group.industry}
+                        </span>
+                      )}
+                      {group.role && (
+                        <span className="inline-flex items-center gap-1">
+                          🎯 {group.role}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1">
+                        👥 {group.memberCount ?? 0} members
                       </span>
                     </div>
-                    <div className="mt-1 text-[11px] text-gray-600">
-                      {group.industry && <span>{group.industry}</span>}
-                      {group.industry && group.role && <span> · </span>}
-                      {group.role && <span>{group.role}</span>}
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-gray-500">
-                      👥 {group.memberCount ?? 0} members
-                    </div>
+
+                    {group.tags && group.tags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {group.tags.slice(0, 4).map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                        {group.tags.length > 4 && (
+                          <span className="text-[11px] text-gray-400">
+                            +{group.tags.length - 4} more
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-col items-end gap-2">
+
+                  <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-gray-100">
                     <Button
                       onClick={() => handleJoinLeave(group)}
                       disabled={joiningId === group._id}
@@ -417,152 +674,60 @@ export default function PeerGroupsPage() {
                       {member ? "Leave" : "Join"}
                     </Button>
 
-                    {isMember(group._id) && (
-                   <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() =>
-                        navigate(`/peer-groups/${group._id}`)
-                      }
-                    >
-                      View group
-                    </Button>
-                          )}
- 
+                    {member && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => openPrivacyModal(group)}
+                      >
+                        Privacy
+                      </Button>
+                    )}
+
+                    {member && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => navigate(`/peer-groups/${group._id}`)}
+                      >
+                        View
+                      </Button>
+                    )}
+
+                    {owner && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => {
+                            setEditingGroup(group);
+                            setIsModalOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => handleDeleteGroup(group)}
+                        >
+                          Delete
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </Card>
               );
             })}
           </div>
-        </div>
-      )}
 
-      {/* All groups (filtered) */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-medium">All peer support groups</h2>
-        {filteredGroups.map((group) => {
-          const member = isMember(group._id);
-          const owner = isOwner(group);
-
-          return (
-            <Card
-              key={group._id}
-              className="flex justify-between items-start p-4 gap-4"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium">{group.name}</h3>
-                  {owner && (
-                    <span className="text-[10px] uppercase tracking-wide bg-gray-100 border rounded px-1.5 py-0.5 text-gray-600">
-                      You are owner
-                    </span>
-                  )}
-                  {member && !owner && (
-                    <span className="text-[10px] uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-100 rounded px-1.5 py-0.5">
-                      Joined
-                    </span>
-                  )}
-                </div>
-                {group.description && (
-                  <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                    {group.description}
-                  </p>
-                )}
-
-                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-gray-500">
-                  {group.industry && (
-                    <span className="inline-flex items-center gap-1">
-                      🏢 {group.industry}
-                    </span>
-                  )}
-                  {group.role && (
-                    <span className="inline-flex items-center gap-1">
-                      🎯 {group.role}
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1">
-                    👥 {group.memberCount ?? 0} members
-                  </span>
-                </div>
-
-                {group.tags && group.tags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {group.tags.slice(0, 4).map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                    {group.tags.length > 4 && (
-                      <span className="text-[11px] text-gray-400">
-                        +{group.tags.length - 4} more
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col items-end gap-2">
-                <Button
-                  onClick={() => handleJoinLeave(group)}
-                  disabled={joiningId === group._id}
-                >
-                  {member ? "Leave" : "Join"}
-                </Button>
-
-                {member && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => openPrivacyModal(group)}
-                  >
-                    Privacy
-                  </Button>
-                )}
-                    {isMember(group._id) && (
-                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      onClick={() => navigate(`/peer-groups/${group._id}`)}
-                                    >
-                                      View group
-                                    </Button>
-                    )}
-                                    
-
-                {owner && (
-                  <div className="flex gap-2 mt-1">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setEditingGroup(group);
-                        setIsModalOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleDeleteGroup(group)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                )}
-              </div>
+          {filteredGroups.length === 0 && (
+            <Card className="p-4 text-sm text-gray-500 bg-gray-50">
+              No groups match your filters. Try clearing search or changing the
+              industry/role filters.
             </Card>
-          );
-        })}
-
-        {filteredGroups.length === 0 && (
-          <div className="text-sm text-gray-500">
-            No groups match your filters. Try clearing search or dropdowns.
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

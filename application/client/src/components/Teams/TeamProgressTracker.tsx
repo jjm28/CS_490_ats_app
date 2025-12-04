@@ -312,16 +312,11 @@ const TeamProgressTracker: React.FC<TeamProgressTrackerProps> = ({
                   </li>
                   <li>
                     <strong>Conversion Rate:</strong>{" "}
-                    {jobStats.overallConversion
-                      ? `${jobStats.overallConversion}%`
+                    {jobStats.offersReceived / jobStats.applicationsSent
+                      ? `${jobStats.interviewScheduled / jobStats.applicationsSent}%`
                       : "N/A"}
                   </li>
-                  <li>
-                    <strong>Productivity:</strong>{" "}
-                    {productivity.averageHoursPerWeek
-                      ? `${productivity.averageHoursPerWeek} hrs/week`
-                      : "N/A"}
-                  </li>
+                  
                 </ul>
 
                 {/* Goals & milestones for this mentee */}
