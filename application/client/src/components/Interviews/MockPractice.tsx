@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 
 import { useNavigate } from "react-router-dom";
 import '../../styles/InterviewStyles/MockPractice.css';
+import { useInterviewPredictionSync } from '../../hooks/useInterviewPredictionSync';
 
 type InterviewStep = 'type-select' | 'job-select' | 'interview' | 'summary';
 
@@ -52,6 +53,8 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+
+  const { triggerJobRecalculation } = useInterviewPredictionSync();
 
   useEffect(() => {
     if (textareaRef.current) {

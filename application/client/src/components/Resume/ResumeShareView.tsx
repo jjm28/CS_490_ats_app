@@ -6,7 +6,9 @@ import {
   resumePreviewRegistry,
   resumePdfRegistry,
 } from "../../components/Resume";
-import type { ResumeData, TemplateKey } from "../../api/resumes";
+import { fetchSharedResume, type GetSharedResumeResponse, type ResumeData, type TemplateKey } from "../../api/resumes";
+import API_BASE from "../../utils/apiBase";
+const API_URL = "http://localhost:5050/api/resumes";
 
 const API =
   (import.meta as any).env?.VITE_API_URL ||
@@ -33,9 +35,12 @@ type SharingMeta = {
   allowComments?: boolean;
   canComment?: boolean; // this specific viewer can comment or not
   isOwner?: boolean; // is the current viewer the owner
+  canResolve? : boolean
+   viewerRole?: string | null;      // "Mentor", "Recruiter", etc.
+  reviewDueAt?: string | null;
 };
 
-type ResumeFeedbackComment = {
+export type ResumeFeedbackComment = {
   _id: string;
   authorName: string;
   authorRole?: string;
@@ -46,10 +51,35 @@ type ResumeFeedbackComment = {
   resolvedByName?: string;
 };
 
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatDaysLeft(dateStr: string): string {
+  const due = new Date(dateStr);
+  if (isNaN(due.getTime())) return "";
+  const now = new Date();
+  const msDiff = due.getTime() - now.getTime();
+  const days = Math.ceil(msDiff / (1000 * 60 * 60 * 24));
+
+  if (days > 1) return `${days} days left`;
+  if (days === 1) return "1 day left";
+  if (days === 0) return "due today";
+  if (days === -1) return "1 day past due";
+  return `${Math.abs(days)} days past due`;
+}
+
 export default function ResumeShareView() {
   const [sp] = useSearchParams();
   const sharedid = sp.get("sharedid");
-
+   const currentUserid =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id || "dfs";
+    const currentUseremail =  JSON.parse(localStorage.getItem("authUser") ?? "").user.email || "dfs";
   const [loading, setLoading] = useState(true);
   const [error, setErr] = useState<string | null>(null);
   const [filename, setFilename] = useState<string>("Untitled");
@@ -73,6 +103,11 @@ export default function ResumeShareView() {
   const [updatingCommentId, setUpdatingCommentId] = useState<string | null>(
     null
   );
+    const [hasAccess, sethasAccess] = useState(false);
+const [isOwner, setisOwner] = useState(false);
+
+  
+
 
   useEffect(() => {
     (async () => {
@@ -86,32 +121,32 @@ export default function ResumeShareView() {
                       const raw = localStorage.getItem("authUser");
                     const u = raw ? JSON.parse(raw) : null;
                     const uid = u?.user?._id ?? u?._id ?? null;
-        const res = await fetch(
-        `${API}/resumes/shared/${encodeURIComponent(uid)}/${encodeURIComponent(sharedid)}`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: getAuthHeaders(),
-          }
-        );
-        if (res.status === 404) {
-          setErr("Shared resume not found.");
-          setLoading(false);
-          return;
+        const res = await fetchSharedResume(uid,sharedid,currentUseremail)
+     
+        if (!res) {
+          throw new Error(`Failed to load share`);
         }
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error(j?.error || res.statusText);
-        }
-        const payload = await res.json();
+       const payload: GetSharedResumeResponse = res;
+                console.log(payload, "Here")
 
         // resume core
         setFilename(payload?.filename ?? "Untitled");
         setTemplateKey((payload?.templateKey as TemplateKey) ?? "chronological");
         setData((payload?.resumedata ?? {}) as ResumeData);
         setLastSaved(payload?.lastSaved ?? null);
+        
+       if (payload?.sharing) {
+        payload.sharing.isOwner = (payload.owner == currentUserid)
+        payload.sharing.allowComments =  payload.reviewers?.find(r => r.email === currentUseremail)?.canComment
+         payload.sharing.canResolve =  payload.reviewers?.find(r => r.email === currentUseremail)?.canResolve
+           payload.sharing.viewerRole = payload.reviewers?.find(r => r.email === currentUseremail)?.role
+              const iso =  payload.reviewDeadline ?? ""
+            const formattedDate = iso.split("T")[0];  // "2222-12-21"
 
-        // NEW: sharing + comments
+
+
+           payload.sharing.reviewDueAt =  formattedDate
+    }
         setSharingMeta(
           (payload?.sharing || {
             visibility: "unlisted",
@@ -119,6 +154,13 @@ export default function ResumeShareView() {
           }) as SharingMeta
         );
         setComments((payload?.comments || []) as ResumeFeedbackComment[]);
+
+        setisOwner(payload.owner == currentUserid)
+          const emails =  payload.reviewers?.map(r => r.email) ??
+  payload.restricteduserid ??
+  []
+        sethasAccess((emails.includes(currentUseremail) || payload.owner == currentUserid) ?? false)
+
       } catch (e: any) {
         setErr(e?.message ?? "Failed to load shared resume.");
       } finally {
@@ -232,7 +274,7 @@ export default function ResumeShareView() {
           method: "POST",
           credentials: "include",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ message: newComment.trim() }),
+          body: JSON.stringify({ message: newComment.trim(), currentUseremail: currentUseremail }),
         }
       );
       if (!res.ok) {
@@ -267,7 +309,7 @@ export default function ResumeShareView() {
       const res = await fetch(
         `${API}/resumes/shared/${encodeURIComponent(
           sharedid
-        )}/comments/${encodeURIComponent(commentId)}`,
+        )}/comments/${encodeURIComponent(commentId)}?userId=${currentUserid}`,
         {
           method: "PATCH",
           credentials: "include",
@@ -325,10 +367,37 @@ export default function ResumeShareView() {
   const totalResolved = comments.filter((c) => c.resolved).length;
 
   return (
+      <div>
+                {hasAccess ? 
     <div className="max-w-7xl mx-auto px-6 py-10">
       <div className="mb-4">
         <h1 className="text-2xl font-semibold mb-2">Resume (Shared View)</h1>
-
+        {(sharingMeta?.viewerRole || sharingMeta?.reviewDueAt) && (
+      <div className="mb-3">
+        <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-800">
+          {sharingMeta?.viewerRole && (
+            <span>
+              Role:{" "}
+              <span className="font-medium">
+                {sharingMeta.viewerRole}
+              </span>
+            </span>
+          )}
+          {sharingMeta?.viewerRole && sharingMeta?.reviewDueAt && (
+            <span className="text-blue-300">•</span>
+          )}
+          {sharingMeta?.reviewDueAt && (
+            <span>
+              Review due:{" "}
+              <span className="font-medium">
+                {formatShortDate(sharingMeta.reviewDueAt)} (
+                {formatDaysLeft(sharingMeta.reviewDueAt)})
+              </span>
+            </span>
+          )}
+        </span>
+      </div>
+    )} 
         <div className="flex items-center gap-3 flex-wrap">
           <label
             htmlFor="filename"
@@ -541,7 +610,8 @@ export default function ResumeShareView() {
                         >
                           {isResolved ? "Resolved" : "Open"}
                         </span>
-                        {sharingMeta?.isOwner && (
+                          
+                        {(sharingMeta?.isOwner || sharingMeta?.canResolve) && (
                           <button
                             type="button"
                             onClick={() =>
@@ -577,6 +647,7 @@ export default function ResumeShareView() {
           )}
         </div>
       </section>
+    </div> :<div><h1>You don't have access</h1></div>}
     </div>
   );
 }

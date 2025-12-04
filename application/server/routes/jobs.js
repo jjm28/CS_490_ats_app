@@ -189,11 +189,11 @@ router.post("/", async (req, res) => {
     const created = await createJob({ userId, payload: r.value });
     // increment goals that are are application unit (intuitive logic)
     try {
-    await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
+      await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
     } catch (err) {
-    console.error("Error auto-incrementing application goals:", err);
-    // don't throw: job creation should still succeed even if this fails
-      }
+      console.error("Error auto-incrementing application goals:", err);
+      // don't throw: job creation should still succeed even if this fails
+    }
     res.status(201).json(created);
   } catch (err) {
     res.status(400).json({ error: err?.message || "Create failed" });
@@ -349,7 +349,7 @@ router.post("/:id/interview", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const { type, date, locationOrLink, notes, interviewer, contactInfo } = req.body;
+    const { type, date, locationOrLink, notes, interviewer, contactInfo, confidenceLevel, anxietyLevel } = req.body;
     if (!type || !date) return res.status(400).json({ error: "Type and date are required" });
     const job = await Jobs.findOne({ _id: req.params.id, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
@@ -361,6 +361,8 @@ router.post("/:id/interview", async (req, res) => {
       notes,
       interviewer,
       contactInfo,
+      confidenceLevel,
+      anxietyLevel,
       outcome: "pending",
       reminderSent: false
     };
@@ -391,7 +393,7 @@ router.put("/:id/interview/:interviewId", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const { id, interviewId } = req.params;
-    const { type, date, locationOrLink, notes, interviewer, contactInfo, outcome } = req.body;
+    const { type, date, locationOrLink, notes, interviewer, contactInfo, confidenceLevel, anxietyLevel, outcome } = req.body;
     const job = await Jobs.findOne({ _id: id, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
     const interview = job.interviews.find(i => i._id.toString() === interviewId);
@@ -402,6 +404,8 @@ router.put("/:id/interview/:interviewId", async (req, res) => {
     if (notes !== undefined) interview.notes = notes;
     if (interviewer !== undefined) interview.interviewer = interviewer;
     if (contactInfo !== undefined) interview.contactInfo = contactInfo;
+    if (confidenceLevel !== undefined) interview.confidenceLevel = confidenceLevel;
+    if (anxietyLevel !== undefined) interview.anxietyLevel = anxietyLevel;
     if (outcome !== undefined) interview.outcome = outcome;
     await job.save();
     res.json(interview);
@@ -457,30 +461,30 @@ router.post("/:id/interview/:interviewId/generate-checklist", async (req, res) =
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    
+
     const { id: jobId, interviewId } = req.params;
-    
+
     // Fetch the job to get context
     const job = await Jobs.findOne({ _id: jobId, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
-    
+
     // Find the specific interview
     const interview = job.interviews.find(i => i._id.toString() === interviewId);
     if (!interview) return res.status(404).json({ error: "Interview not found" });
-    
+
     // Check if checklist already exists
     if (interview.preparationChecklist?.items?.length > 0) {
-      return res.status(200).json({ 
+      return res.status(200).json({
         message: "Checklist already exists",
-        checklist: interview.preparationChecklist 
+        checklist: interview.preparationChecklist
       });
     }
-    
+
     // Generate checklist items based on job and interview context
     const checklistItems = await generateChecklistItems(job, interview);
 
     console.log("Generated checklist items:", checklistItems);
-    
+
     // Initialize the checklist
     interview.preparationChecklist = {
       items: checklistItems,
@@ -490,14 +494,14 @@ router.post("/:id/interview/:interviewId/generate-checklist", async (req, res) =
 
     console.log("Assigned checklist to interview:", interview.preparationChecklist);
     console.log("Saved items to checklist:", interview.preparationChecklist.items);
-    
+
     await job.save();
-    
+
     res.status(201).json({
       message: "Checklist generated successfully",
       checklist: interview.preparationChecklist
     });
-    
+
   } catch (err) {
     console.error("Error generating checklist:", err);
     res.status(500).json({ error: err.message || "Failed to generate checklist" });
@@ -512,36 +516,36 @@ router.patch("/:id/interview/:interviewId/checklist/:itemId", async (req, res) =
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    
+
     const { id: jobId, interviewId, itemId } = req.params;
     const { completed } = req.body;
-    
+
     const job = await Jobs.findOne({ _id: jobId, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
-    
+
     const interview = job.interviews.find(i => i._id.toString() === interviewId);
     if (!interview) return res.status(404).json({ error: "Interview not found" });
-    
+
     if (!interview.preparationChecklist?.items) {
       return res.status(404).json({ error: "Checklist not found. Generate it first." });
     }
-    
+
     // Find and update the specific item
     const item = interview.preparationChecklist.items.find(i => i.id === itemId);
     if (!item) return res.status(404).json({ error: "Checklist item not found" });
-    
+
     item.completed = completed;
     item.completedAt = completed ? new Date() : null;
     interview.preparationChecklist.lastUpdatedAt = new Date();
-    
+
     await job.save();
-    
+
     res.json({
       message: "Checklist item updated",
       item: item,
       checklist: interview.preparationChecklist
     });
-    
+
   } catch (err) {
     console.error("Error updating checklist item:", err);
     res.status(500).json({ error: err.message || "Failed to update checklist item" });
@@ -556,22 +560,22 @@ router.get("/:id/interview/:interviewId/checklist", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    
+
     const { id: jobId, interviewId } = req.params;
-    
+
     const job = await Jobs.findOne({ _id: jobId, userId }).lean();
     if (!job) return res.status(404).json({ error: "Job not found" });
-    
+
     const interview = job.interviews.find(i => i._id.toString() === interviewId);
     if (!interview) return res.status(404).json({ error: "Interview not found" });
-    
+
     if (!interview.preparationChecklist) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: "Checklist not generated yet",
-        checklistExists: false 
+        checklistExists: false
       });
     }
-    
+
     res.json({
       checklist: interview.preparationChecklist,
       interviewDate: interview.date,
@@ -579,7 +583,7 @@ router.get("/:id/interview/:interviewId/checklist", async (req, res) => {
       company: job.company,
       jobTitle: job.jobTitle
     });
-    
+
   } catch (err) {
     console.error("Error fetching checklist:", err);
     res.status(500).json({ error: err.message || "Failed to fetch checklist" });
@@ -640,18 +644,25 @@ router.put("/:id", async (req, res) => {
           }
         }
 
-        // ---------- 2) TOTAL COMPENSATION HISTORY ----------
-        const finalSalary =
-          r.value.finalSalary ?? jobDoc.finalSalary ?? 0;
+                // ---------- 2) TOTAL COMPENSATION HISTORY ----------
+        const isLostOffer = r.value.negotiationOutcome === "Lost offer";
 
-        const salaryBonus =
-          r.value.salaryBonus ?? jobDoc.salaryBonus ?? 0;
+        // For a lost offer, force everything to 0
+        const finalSalary = isLostOffer
+          ? 0
+          : (r.value.finalSalary ?? jobDoc.finalSalary ?? 0);
 
-        const salaryEquity =
-          r.value.salaryEquity ?? jobDoc.salaryEquity ?? 0;
+        const salaryBonus = isLostOffer
+          ? 0
+          : (r.value.salaryBonus ?? jobDoc.salaryBonus ?? 0);
 
-        const benefitsValue =
-          r.value.benefitsValue ?? jobDoc.benefitsValue ?? 0;
+        const salaryEquity = isLostOffer
+          ? 0
+          : (r.value.salaryEquity ?? jobDoc.salaryEquity ?? 0);
+
+        const benefitsValue = isLostOffer
+          ? 0
+          : (r.value.benefitsValue ?? jobDoc.benefitsValue ?? 0);
 
         const newTotalComp =
           Number(finalSalary) +
@@ -659,22 +670,20 @@ router.put("/:id", async (req, res) => {
           Number(salaryEquity) +
           Number(benefitsValue);
 
-        if (newTotalComp > 0) {
-          jobDoc.compHistory = jobDoc.compHistory || [];
+        jobDoc.compHistory = jobDoc.compHistory || [];
 
-          const lastComp =
-            jobDoc.compHistory.length > 0
-              ? jobDoc.compHistory[jobDoc.compHistory.length - 1].totalComp
-              : null;
+        const lastCompValue =
+          jobDoc.compHistory.length > 0
+            ? Number(jobDoc.compHistory[jobDoc.compHistory.length - 1].totalComp)
+            : null;
 
-          if (lastComp !== newTotalComp) {
-            jobDoc.compHistory.push({
-              totalComp: newTotalComp,
-              date: new Date(),
-            });
-          }
+        // Record whenever total comp changes (including to 0 for lost offer)
+        if (lastCompValue !== newTotalComp) {
+          jobDoc.compHistory.push({
+            totalComp: newTotalComp,
+            date: new Date(),
+          });
         }
-
         await jobDoc.save();
       }
     }
@@ -739,6 +748,27 @@ router.patch("/:id/status", async (req, res) => {
           });
           await jobDoc.save();
         }
+      }
+    }
+
+    // ⭐ AUTO-SYNC INTERVIEW OUTCOME BASED ON JOB STATUS ⭐
+    if (updated) {
+      const jobDoc = await Jobs.findById(req.params.id);
+
+      if (jobDoc && jobDoc.interviews && jobDoc.interviews.length > 0) {
+        const lastInterview = jobDoc.interviews[jobDoc.interviews.length - 1];
+
+        // If user moves job → OFFER, mark last interview as "offer" (if still pending)
+        if (r.value.status === "offer" && lastInterview.outcome === "pending") {
+          lastInterview.outcome = "offer";
+        }
+
+        // If user moves job → REJECTED, mark last interview as "rejected" (if pending)
+        if (r.value.status === "rejected" && lastInterview.outcome === "pending") {
+          lastInterview.outcome = "rejected";
+        }
+
+        await jobDoc.save();
       }
     }
 
@@ -1017,10 +1047,10 @@ router.post("/:id/interview/:interviewId/follow-up/generate", async (req, res) =
     console.log('📥 Route params:', req.params);
     console.log('📥 Route body:', req.body);
     console.log('👤 req.user:', req.user);
-    
+
     const userId = getUserId(req); // ← Make sure this function exists
     console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
-    
+
     if (!userId) {
       console.log('❌ No userId - returning 401');
       return res.status(401).json({ error: "Unauthorized" });
@@ -1039,7 +1069,7 @@ router.post("/:id/interview/:interviewId/follow-up/generate", async (req, res) =
       interviewId: req.params.interviewId,
       type: req.body.type
     });
-    
+
     console.log('✅ Success - returning result');
     res.json(result);
   } catch (err) {
@@ -1055,10 +1085,10 @@ router.post("/:id/interview/:interviewId/follow-up", async (req, res) => {
     console.log('📥 Route params:', req.params);
     console.log('📥 Route body:', req.body);
     console.log('👤 req.user:', req.user);
-    
+
     const userId = getUserId(req);
     console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
-    
+
     if (!userId) {
       console.log('❌ No userId - returning 401');
       return res.status(401).json({ error: "Unauthorized" });
@@ -1077,7 +1107,7 @@ router.post("/:id/interview/:interviewId/follow-up", async (req, res) => {
       interviewId: req.params.interviewId,
       payload: req.body
     });
-    
+
     console.log('✅ Success - returning result');
     res.json(result);
   } catch (err) {
@@ -1093,10 +1123,10 @@ router.patch("/:id/interview/:interviewId/follow-up/:followUpId", async (req, re
     console.log('📥 Route params:', req.params);
     console.log('📥 Route body:', req.body);
     console.log('👤 req.user:', req.user);
-    
+
     const userId = getUserId(req);
     console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
-    
+
     if (!userId) {
       console.log('❌ No userId - returning 401');
       return res.status(401).json({ error: "Unauthorized" });
@@ -1117,7 +1147,7 @@ router.patch("/:id/interview/:interviewId/follow-up/:followUpId", async (req, re
       followUpId: req.params.followUpId,
       updates: req.body
     });
-    
+
     console.log('✅ Success - returning result');
     res.json(result);
   } catch (err) {
@@ -1139,10 +1169,10 @@ router.post("/:id/negotiation/generate", async (req, res) => {
     console.log('🎯 ===== ROUTE: Generate Negotiation Prep =====');
     console.log('📥 Route params:', req.params);
     console.log('👤 req.user:', req.user);
-    
+
     const userId = getUserId(req);
     console.log('👤 Extracted userId:', userId, '| type:', typeof userId);
-    
+
     if (!userId) {
       console.log('❌ No userId - returning 401');
       return res.status(401).json({ error: "Unauthorized" });
@@ -1157,10 +1187,10 @@ router.post("/:id/negotiation/generate", async (req, res) => {
       userId,
       jobId: req.params.id
     });
-    
+
     console.log('✅ Success - returning result');
     res.json(result);
-    
+
   } catch (err) {
     console.error("❌ Route error:", err.message);
     res.status(500).json({ error: err.message || "Failed to generate negotiation prep" });
@@ -1174,27 +1204,27 @@ router.post("/:id/negotiation/generate", async (req, res) => {
 router.get("/:id/negotiation", async (req, res) => {
   try {
     console.log('🎯 ===== ROUTE: Get Negotiation Prep =====');
-    
+
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    
+
     const job = await Jobs.findOne({ _id: req.params.id, userId }).lean();
     if (!job) return res.status(404).json({ error: "Job not found" });
-    
+
     if (!job.negotiationPrep) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: "Negotiation prep not generated yet",
-        exists: false 
+        exists: false
       });
     }
-    
+
     res.json({
       negotiationPrep: job.negotiationPrep,
       jobTitle: job.jobTitle,
       company: job.company,
       currentOffer: job.finalSalary
     });
-    
+
   } catch (err) {
     console.error("❌ Error fetching negotiation prep:", err);
     res.status(500).json({ error: err.message || "Failed to fetch negotiation prep" });
@@ -1209,19 +1239,19 @@ router.patch("/:id/negotiation", async (req, res) => {
   try {
     console.log('🎯 ===== ROUTE: Update Negotiation Prep =====');
     console.log('📥 Route body:', req.body);
-    
+
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    
+
     const { counterOffer, strategy, outcome } = req.body;
-    
+
     const job = await Jobs.findOne({ _id: req.params.id, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
-    
+
     if (!job.negotiationPrep) {
       return res.status(404).json({ error: "Generate negotiation prep first" });
     }
-    
+
     // Update fields
     if (counterOffer) {
       job.negotiationPrep.counterOffer = {
@@ -1229,50 +1259,50 @@ router.patch("/:id/negotiation", async (req, res) => {
         ...counterOffer
       };
     }
-    
+
     if (strategy) {
       job.negotiationPrep.strategy = {
         ...job.negotiationPrep.strategy,
         ...strategy
       };
     }
-    
+
     if (outcome) {
       job.negotiationPrep.outcome = {
         ...job.negotiationPrep.outcome,
         ...outcome
       };
-      
+
       // 🔗 Sync to salaryAnalysis for future UC-100 analytics
       if (outcome.attempted) {
         job.salaryAnalysis = job.salaryAnalysis || {};
         job.salaryAnalysis.negotiation = job.salaryAnalysis.negotiation || {};
         job.salaryAnalysis.negotiation.attempted = true;
-        
+
         if (outcome.result) {
           job.salaryAnalysis.negotiation.outcome = outcome.result;
         }
         if (outcome.finalSalary) {
           job.salaryAnalysis.negotiation.finalOffer = outcome.finalSalary;
           job.salaryAnalysis.negotiation.initialOffer = job.negotiationPrep.marketData.yourOffer;
-          job.salaryAnalysis.negotiation.improvedAmount = 
+          job.salaryAnalysis.negotiation.improvedAmount =
             outcome.finalSalary - job.negotiationPrep.marketData.yourOffer;
         }
       }
     }
-    
+
     job.negotiationPrep.lastUpdatedAt = new Date();
     job.markModified('negotiationPrep');
     job.markModified('salaryAnalysis');
-    
+
     await job.save();
-    
+
     console.log('✅ Negotiation prep updated successfully');
     res.json({
       message: "Negotiation prep updated",
       negotiationPrep: job.negotiationPrep
     });
-    
+
   } catch (err) {
     console.error("❌ Error updating negotiation prep:", err);
     res.status(500).json({ error: err.message || "Failed to update negotiation prep" });
