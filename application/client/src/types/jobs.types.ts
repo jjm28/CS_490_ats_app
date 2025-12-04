@@ -388,8 +388,8 @@ export interface Interview {
   interviewer?: string;
   contactInfo?: string;
   eventId?: string;
-  confidenceLevel?: number;
-  anxietyLevel?: number;
+  confidenceLevel?: number | null;
+  anxietyLevel?: number | null;
   preparationChecklist?: {
     items: Array<{
       id: string;
