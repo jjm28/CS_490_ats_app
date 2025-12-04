@@ -85,6 +85,8 @@ import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
 
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
+
+
 import teamProgressRouter from "./routes/teamProgress.js";
 
 import networkingDiscovery from "./routes/networkingDiscovery.js";
@@ -185,6 +187,7 @@ try {
   app.use("/api/coaching-insights", coachingInsights);
   app.use("/api/practice-sessions", practiceSessions);
   app.use('/api/writing-practice', writingPracticeRoutes);
+  app.use('/api/interview', interviewAnalyticsRoutes);
   app.use("/api/interview-predictions", interviewPredictionRoutes);
 
   // 📄 RESUMES + TEMPLATES

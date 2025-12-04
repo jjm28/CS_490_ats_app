@@ -10,9 +10,9 @@ import '../../styles/InterviewPrepUI.css';
 import WritingPractice from '../../components/Interviews/WritingPractice';
 import InterviewFollowUpPage from './InterviewFollowUpPage';
 import ResponseCoaching from './ResponseCoach';
+import InterviewAnalyticsDashboard from './Analytics';
+import Scheduling from './Scheduling';
 import InterviewSuccessProbability from './InterviewSuccessProbability';
-import InterviewSchedulerPage from './InterviewSchedulerPage'; // NEW IMPORT
-
 type CardData = {
   label: string;
   title: string;
@@ -20,7 +20,7 @@ type CardData = {
   color?: string;
   details?: string;
   component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 
-  'success-probability' | 'calendar' | 'aicoaching' | null;
+  'success-probability' | 'calendar' | 'aicoaching' | 'scheduling' | null;
 };
 
 const cardData: CardData[] = [
@@ -56,13 +56,37 @@ const cardData: CardData[] = [
     details: 'Simulate real interview conditions with timed coding challenges, system design prompts, and behavioral scenarios. Get scored on problem-solving, efficiency, and communication.',
     component: null
   },
-  {
-    label: 'Calendar',
-    title: 'Calendar Integration',
-    description: 'Schedule and track your interviews',
+   {
+    label: 'Scheduled Interviews',
+    title: 'Scheduled Interview',
+    description: 'Manage and edit all your scheduled interviews',
     color: '#0E3B43',
     details: 'Sync with Google Calendar to auto-schedule prep time, track upcoming interviews, set reminders, and log feedback after each round.',
-    component: 'calendar'
+    component: 'scheduling'
+  },
+  {
+    label: 'Analytics',
+    title: 'Performance Analytics',
+    description: 'Track your progress and improvements',
+    color: '#0E3B43',
+    details: 'Visualize your skill growth over time. See strengths, weaknesses, improvement areas, and readiness scores for different companies and roles.',
+    component: null
+  },
+  {
+    label: 'Preparation',
+    title: 'Preparation Checklist',
+    description: 'Customized prep tasks for each interview',
+    color: '#0E3B43',
+    details: 'Get a personalized checklist for every interview with company research, logistics verification, practice reminders, and confidence-building activities.',
+    component: 'checklist' // 🆕 Add this
+  },
+   {
+    label: 'Writing Practice',
+    title: 'Response Writing Practice',
+    description: 'Improve clarity, structure, and storytelling',
+    color: '#0E3B43',
+    details: 'Practice writing interview responses with timed exercises, get AI feedback on clarity and structure, track improvement over time, and build confidence for virtual interviews.',
+    component: 'writing-practice'
   },
   {
     label: 'Analytics',
@@ -240,7 +264,6 @@ const DetailView = ({
     </div>
   );
 };
-
 const Interview = () => {
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
   const [activeFeature, setActiveFeature] = useState<string | null>(null);
@@ -248,10 +271,9 @@ const Interview = () => {
   const handleCardClick = (index: number) => {
     const card = cardData[index];
     
-    // ✅ Check if it's Mock Interview card
     if (card.label === 'Mock Interviews/Tech Prep') {
       setActiveFeature('mock-interview');
-      return; // Don't set selectedCardIndex
+      return;
     }
 
     if (card.component === 'writing-practice') {
@@ -259,12 +281,18 @@ const Interview = () => {
       return;
     }
 
+    // ✅ ADD THIS
+    if (card.label === 'Analytics') {
+      setActiveFeature('analytics');
+      return;
+    }
+    if (card.component === 'scheduling') {
+      setActiveFeature('scheduling');
     if (card.component === 'success-probability') {
       setActiveFeature('success-probability');
       return;
     }
     
-    // For other cards, show the detail view
     setSelectedCardIndex(index);
   };
 
@@ -286,13 +314,47 @@ const Interview = () => {
   if (activeFeature === 'writing-practice') {
     return <WritingPractice onBack={handleBack} />;
   }
+  if (activeFeature === 'scheduling') {
+    return <Scheduling onBack={handleBack} />;
+  }
 
-  // 🔍 Detail Mode (existing)
+  // ✅ Show Analytics (your existing code is correct here)
+  if (activeFeature === 'analytics') {
+   const userId = localStorage.getItem('userId'); // TODO: Replace with actual user ID
+    return (
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={handleBack}
+          style={{
+            position: 'fixed',
+            top: '2rem',
+            left: '2rem',
+            background: '#357266',
+            border: 'none',
+            color: 'white',
+            padding: '0.5rem 1rem',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            zIndex: 1000,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}
+        >
+          ← Back to Overview
+        </button>
+        <InterviewAnalyticsDashboard userId={userId} />
+      </div>
+    );
+
+      
+  }
+
+  // Detail Mode
   if (selectedCardIndex !== null) {
     return <DetailView card={cardData[selectedCardIndex]} onBack={handleBack} />;
   }
 
-  // 📊 Grid Mode (existing)
+  // Grid Mode
   return (
     <div className="magic-bento-container">
       <div className="card-grid">
