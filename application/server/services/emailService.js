@@ -42,7 +42,9 @@ export async function sendSupporterInviteEmail({
     inviteToken
   )}`;
 
-  const subject = `${jobSeekerName || "Someone"} invited you to support their job search`;
+  const subject = `${
+    jobSeekerName || "Someone"
+  } invited you to support their job search`;
   const greetingName = supporterName || "there";
 
   const textBody = `
@@ -161,7 +163,6 @@ If you weren’t expecting this email, you can ignore it.
   });
 }
 
-
 export async function sendAdvisorInviteEmail({
   toEmail,
   advisorName,
@@ -231,12 +232,85 @@ If you weren’t expecting this email, you can ignore it.
   });
 }
 
+/**
+ * Org → job seeker invite (enterprise onboarding)
+ */
+export async function sendJobSeekerInviteEmail({
+  toEmail,
+  orgName,
+  inviteLink,
+}) {
+  if (!inviteLink) {
+    console.warn(
+      "sendJobSeekerInviteEmail called without inviteLink – email not sent"
+    );
+    return;
+  }
+
+  const safeOrgName = orgName || "a career program";
+  const subject = `You’ve been invited to join ${safeOrgName}`;
+  const greetingName = toEmail || "there"; // we don’t know their name yet
+
+  const textBody = `
+Hi ${greetingName},
+
+You’ve been invited to join ${safeOrgName} on the ATS for Candidates platform.
+
+By accepting this invite, you’ll be onboarded into the organization and can:
+- Track your job search in one place
+- Share progress with your career services team
+- Access tools for resumes, applications, and more
+
+To accept the invite and create your account, click this link:
+${inviteLink}
+
+If you weren’t expecting this email, you can ignore it.
+`;
+
+  const htmlBody = `
+  <p>Hi ${greetingName},</p>
+  <p>
+    You’ve been invited to join <strong>${safeOrgName}</strong> on the ATS for Candidates platform.
+  </p>
+  <p>
+    By accepting this invite, you’ll be onboarded into the organization and can:
+  </p>
+  <ul>
+    <li>Track your job search in one place</li>
+    <li>Share progress with your career services team</li>
+    <li>Access tools for resumes, applications, and more</li>
+  </ul>
+  <p style="margin: 16px 0;">
+    <a href="${inviteLink}"
+       style="background-color:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;">
+      Accept invite &amp; create your account
+    </a>
+  </p>
+  <p>If the button doesn’t work, copy and paste this link into your browser:</p>
+  <p><code style="font-size:12px;">${inviteLink}</code></p>
+  <p style="font-size:12px;color:#888;">
+    If you weren’t expecting this email, you can ignore it.
+  </p>
+  `;
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text: textBody,
+    html: htmlBody,
+  });
+}
+
+/**
+ * Document access email (for reviewers / mentors / recruiters)
+ */
 export async function sendDocumentAccessEmail({
   toEmail,
   sharedurl,
-  grantedBy = null,     // optional – name of the person who granted access
-  role = null,          // optional – reviewer role label (e.g. "mentor", "recruiter")
-  reviewDeadline = null, // optional – ISO string/date for requested review deadline
+  grantedBy = null, // optional – name of the person who granted access
+  role = null, // optional – reviewer role label (e.g. "mentor", "recruiter")
+  reviewDeadline = null, // optional – requested review deadline
   documentName = "cover letter", // optional – e.g. "Cover letter for Acme – SWE Intern"
 }) {
   if (!FRONTEND_ORIGIN) {
@@ -246,7 +320,6 @@ export async function sendDocumentAccessEmail({
 
   const accessUrl = sharedurl;
 
-  // Build small text fragments
   const byFragment = grantedBy ? ` by ${grantedBy}` : "";
   const roleFragment = role ? ` as a ${role}` : "";
 
@@ -262,7 +335,6 @@ export async function sendDocumentAccessEmail({
         day: "numeric",
       });
       deadlineText = `\nWe’d appreciate it if you could share your feedback by ${formatted}.\n`;
-      console.log("dafds")
       deadlineHtml = `
         <p>
           We’d appreciate it if you could share your feedback by
@@ -288,9 +360,11 @@ ${deadlineText || ""}If you weren’t expecting this email, you can ignore it.
   const htmlBody = `
   <p>Hi,</p>
   <p>
-    You have been granted access${byFragment ? ` by <strong>${grantedBy}</strong>` : ""}${roleFragment
-      ? ` as a <strong>${role}</strong>`
-      : ""} to review a private ${documentName}.
+    You have been granted access${
+      byFragment ? ` by <strong>${grantedBy}</strong>` : ""
+    }${
+    roleFragment ? ` as a <strong>${role}</strong>` : ""
+  } to review a private ${documentName}.
   </p>
   ${deadlineHtml}
   <p style="margin: 16px 0;">

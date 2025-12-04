@@ -6,7 +6,7 @@ import { ObjectId } from "mongodb";
 
 const ROUNDS = 10;
 
-export async function createUser({ email, password, firstName, lastName }) {
+export async function createUser({ email, password, firstName, lastName,role }) {
   const db = getDb();
   const users = db.collection('users');
   const emailLower = String(email).toLowerCase();
@@ -26,10 +26,13 @@ export async function createUser({ email, password, firstName, lastName }) {
     isDeleted: false,
     createdAt: new Date(),
     updatedAt: new Date(),
+    role: role,
+    organizationId: null
   };
 
   const res = await users.insertOne(doc); // throws an error if duplicate email is entered
-  return { _id: res.insertedId, email: doc.email, firstName, lastName };
+  return { _id: res.insertedId, email: doc.email, firstName, lastName, role: doc.role,
+    organizationId: doc.organizationId };
 }
 
 export async function verifyUser({ email, password },isprovider) {
@@ -58,7 +61,8 @@ if(!isprovider){
 }
   console.log(user)
   //return { _id: user._id, email: email}
-    return { _id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName };
+    return { _id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName, role : user.role,
+        organizationId : user.organizationId};
 }
 
 export async function findUserByEmail(email) {
@@ -69,4 +73,28 @@ export async function findUserByEmailCaseSensitve(email) {
   const db = getDb()
   const users = db.collection('users');
   return await users.findOne({ email: email});
+}
+
+export async function UpdateUser({ userId, role,organizationId }) {
+  const db = getDb();
+  const users = db.collection('users');
+
+  let user = await users.findOne({ _id: userId});
+
+  if (!user) {
+    const err =  Error('Invalid credentials');
+    err.statusCode = 400;
+    throw err
+    }
+
+ user = await users.findOneAndUpdate(
+      { _id: userId}, 
+      { $set: {role: role, organizationId: organizationId} },
+      {returnDocument: "after"}
+    );
+
+
+  //return { _id: user._id, email: email}
+    return { _id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName, role : user.role,
+        organizationId : user.organizationId};
 }
