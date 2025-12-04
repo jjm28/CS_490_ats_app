@@ -39,7 +39,16 @@ import certificationRoutes from "./routes/certifications.js";
 // 💼 JOBS & SALARY
 import jobRoutes from "./routes/jobs.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
+<<<<<<< Updated upstream
 import salaryRoutes from "./routes/salary.js";
+=======
+
+
+import salaryRouter from "./routes/salary.js";
+
+//import salaryRoutes from "./routes/salary.js";
+
+>>>>>>> Stashed changes
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 
 // 📊 INTERVIEW & COMPANY RESEARCH
@@ -95,6 +104,11 @@ import organizationRoutes from "./routes/organization.routes.js";
 
 import teamProgressRouter from "./routes/teamProgress.js";
 
+import salaryRoutes from  "./routes/salary.js"
+//import networkingRoutes from "./routes/networking.js";
+//import outreachRoutes from "./routes/outreach.js";
+//import referralSources from "./routes/referralSources.js";
+import referralRoutes from "./routes/referrals.js";
 import networkingDiscovery from "./routes/networkingDiscovery.js";
 import mentorRoutes from "./routes/mentor.routes.js";
 import teamRoutes from "./routes/teams.js";

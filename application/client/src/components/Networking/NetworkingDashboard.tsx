@@ -261,6 +261,17 @@ export default function NetworkingDashboard() {
           icon={<Calendar className="w-8 h-8 text-teal-600" />}
           link="/networking/discover"
         />
+
+
+        <PremiumCard
+          title="Networking Analytics"
+          description="Track your networking performance, ROI, and relationship-building progress."
+          icon={<BarChart2 className="w-8 h-8 text-teal-600" />}
+          link="/analytics/networking-roi"
+        />
+
+
+
       </div>
 
       {/* -------------------------------------------
