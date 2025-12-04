@@ -20,6 +20,8 @@ import ReferencesPanel from "./ReferencesPanel";
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 const RESUME_VERSIONS_ENDPOINT = `${API_BASE}/api/resume-versions`; // NEW
 import MilestoneShareModal from "../Support/MilestoneShareModal";
+import { useNavigate } from "react-router-dom";
+
 
 // NEW: type for linked resume versions coming from backend
 interface LinkedResumeVersion {
@@ -30,6 +32,14 @@ interface LinkedResumeVersion {
   isDefault?: boolean;
   createdAt?: string;
 }
+
+  interface NetworkingEventSource {
+  _id: string;
+  name: string;
+  date: string;
+  location: string;
+}
+
 
 export default function JobDetails({
   jobId,
@@ -67,6 +77,20 @@ export default function JobDetails({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [shareOpen, setShareOpen] = useState(false);
   const currentuserId =  JSON.parse(localStorage.getItem("authUser") ?? "").user._id ;
+  const [networkingSources, setNetworkingSources] =
+  useState<NetworkingEventSource[]>([]);
+  const navigate = useNavigate();
+
+
+    const [allResumes, setAllResumes] = useState<any[]>([]);
+  const [allCoverLetters, setAllCoverLetters] = useState<any[]>([]);
+  const [packageModalOpen, setPackageModalOpen] = useState(false);
+  const [packageError, setPackageError] = useState<string | null>(null);
+  const [savingPackage, setSavingPackage] = useState(false);
+
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
+  const [selectedCoverLetterId, setSelectedCoverLetterId] = useState<string | null>(null);
+    const [packagePortfolioUrl, setPackagePortfolioUrl] = useState<string>("");
 
   const token = useMemo(
     () =>
@@ -76,7 +100,7 @@ export default function JobDetails({
 
   useEffect(() => {
     const loadNames = async () => {
-      if (!job?.applicationPackage) return;
+      if (!job) return;
 
       try {
         const userId = job.userId;
@@ -86,28 +110,118 @@ export default function JobDetails({
           listCoverletters({ userid: userId }),
         ]);
 
-        const resume = resumes.find(
-          (r: any) => r._id === job.applicationPackage?.resumeId
-        );
-        const coverLetter = coverLetters.find(
-          (c: any) => c._id === job.applicationPackage?.coverLetterId
-        );
+        setAllResumes(resumes || []);
+        setAllCoverLetters(coverLetters || []);
 
-        setResumeName(resume ? resume.filename : null);
-        setCoverLetterName(coverLetter ? coverLetter.filename : null);
+        if (job.applicationPackage) {
+          const resume = resumes.find(
+            (r: any) => r._id === job.applicationPackage?.resumeId
+          );
+          const coverLetter = coverLetters.find(
+            (c: any) => c._id === job.applicationPackage?.coverLetterId
+          );
+
+          setResumeName(resume ? resume.filename : null);
+          setCoverLetterName(coverLetter ? coverLetter.filename : null);
+
+          setSelectedResumeId(job.applicationPackage.resumeId || null);
+          setSelectedCoverLetterId(job.applicationPackage.coverLetterId || null);
+          setPackagePortfolioUrl(job.applicationPackage.portfolioUrl || "");
+        } else {
+          setResumeName(null);
+          setCoverLetterName(null);
+          setSelectedResumeId(null);
+          setSelectedCoverLetterId(null);
+          setPackagePortfolioUrl("");
+        }
       } catch (err) {
         console.error("Failed to resolve resume/cover letter names:", err);
       }
     };
 
-    loadNames();
+    void loadNames();
   }, [job]);
+
 
   useEffect(() => {
     fetchJob();
   }, [jobId]);
 
+function authHeaders() {
+  const raw = localStorage.getItem("authUser");
+  const token = raw ? JSON.parse(raw).token : null;
 
+  return {
+    "Content-Type": "application/json",
+    Authorization: token ? `Bearer ${token}` : "",
+  };
+}
+
+  const handleSaveApplicationPackage = async () => {
+    if (!job?._id) return;
+
+    try {
+      setSavingPackage(true);
+      setPackageError(null);
+
+      const payload: any = {
+        applicationPackage: {
+          resumeId: selectedResumeId || null,
+          coverLetterId: selectedCoverLetterId || null,
+          portfolioUrl: packagePortfolioUrl?.trim() || "",
+          generatedAt:
+            job.applicationPackage?.generatedAt ||
+            new Date().toISOString(),
+        },
+      };
+
+      const response = await fetch(`${JOBS_ENDPOINT}/${job._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save application package");
+      }
+
+      setJob(data);
+      setFormData((prev) => ({ ...prev, applicationPackage: data.applicationPackage }));
+
+      // update display names
+      const resume = allResumes.find((r) => r._id === selectedResumeId);
+      const cover = allCoverLetters.find((c) => c._id === selectedCoverLetterId);
+      setResumeName(resume ? resume.filename : null);
+      setCoverLetterName(cover ? cover.filename : null);
+
+      setPackageModalOpen(false);
+      if (onUpdate) onUpdate?.();
+    } catch (err: any) {
+      console.error("Error saving application package:", err);
+      setPackageError(err?.message || "Failed to save application package");
+    } finally {
+      setSavingPackage(false);
+    }
+  };
+useEffect(() => {
+  async function fetchSources() {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/networking/events/by-job/${jobId}`,
+        { headers: authHeaders() }
+      );
+      const data = await res.json();
+      setNetworkingSources(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  fetchSources();
+}, [jobId]);
 
   const fetchJob = async () => {
     try {
@@ -562,11 +676,31 @@ export default function JobDetails({
     }
   />
           <section>
-            <h3 className="font-semibold text-lg mb-3">Application Package</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-lg">Application Package</h3>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  // ensure the modal reflects the current job state
+                  if (job.applicationPackage) {
+                    setSelectedResumeId(job.applicationPackage.resumeId || null);
+                    setSelectedCoverLetterId(job.applicationPackage.coverLetterId || null);
+                    setPackagePortfolioUrl(job.applicationPackage.portfolioUrl || "");
+                  } else {
+                    setSelectedResumeId(null);
+                    setSelectedCoverLetterId(null);
+                    setPackagePortfolioUrl("");
+                  }
+                  setPackageModalOpen(true);
+                }}
+              >
+                {job.applicationPackage ? "Change" : "Add"}
+              </Button>
+            </div>
 
             {job.applicationPackage ? (
               <div className="bg-gray-50 p-4 rounded space-y-2 text-sm">
-
                 <div className="flex justify-between">
                   <span className="font-medium">Resume</span>
                   <span>
@@ -611,7 +745,6 @@ export default function JobDetails({
                       : "Unknown"}
                   </span>
                 </div>
-
               </div>
             ) : (
               <p className="text-gray-500 text-sm">
@@ -958,6 +1091,31 @@ export default function JobDetails({
               )}
             </div>
           </section>
+          <div className="mt-10">
+  <h2 className="text-xl font-bold mb-3">Networking Activity</h2>
+
+  {networkingSources.length === 0 ? (
+    <p className="text-gray-500 italic">
+      No networking activities linked to this job.
+    </p>
+  ) : (
+    networkingSources.map((ev) => (
+      <div key={ev._id} className="p-4 border rounded mb-3 bg-white shadow">
+        <div className="font-semibold">{ev.name}</div>
+        <div className="text-sm text-gray-600">
+          {ev.date} — {ev.location}
+        </div>
+
+        <button
+          onClick={() => navigate(`/networking/events/${ev._id}`)}
+          className="mt-2 text-blue-600 underline"
+        >
+          View Event
+        </button>
+      </div>
+    ))
+  )}
+</div>
 
           {/*Linked resume versions section at the BOTTOM */}
           <section>
@@ -1044,6 +1202,165 @@ export default function JobDetails({
           </Card>
         </div>
       )}
+
+              {/* Application Package picker modal */}
+        {packageModalOpen && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[10001]">
+            <Card className="w-full max-w-3xl max-h-[80vh] overflow-y-auto p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-semibold text-lg">
+                  Select resume & cover letter
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPackageModalOpen(false);
+                    setPackageError(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-800"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {packageError && (
+                <p className="text-sm text-red-600 mb-3">{packageError}</p>
+              )}
+
+              <div className="space-y-4 text-sm">
+                {/* Resume list */}
+                <section>
+                  <h4 className="font-semibold mb-1">Resume</h4>
+                  {allResumes.length === 0 ? (
+                    <p className="text-xs text-gray-500">
+                      You don’t have any resumes yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="radio"
+                          name="resumeChoice"
+                          value=""
+                          checked={!selectedResumeId}
+                          onChange={() => setSelectedResumeId(null)}
+                        />
+                        <span>No resume attached</span>
+                      </label>
+                      {allResumes.map((r: any) => (
+                        <label
+                          key={r._id}
+                          className="flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="resumeChoice"
+                              value={r._id}
+                              checked={selectedResumeId === r._id}
+                              onChange={() => setSelectedResumeId(r._id)}
+                            />
+                            <span className="font-medium">
+                              {r.filename || r.name || "Untitled resume"}
+                            </span>
+                          </span>
+                          {r.updatedAt && (
+                            <span className="text-[11px] text-gray-500">
+                              Updated{" "}
+                              {new Date(r.updatedAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Cover letter list */}
+                <section>
+                  <h4 className="font-semibold mb-1">Cover Letter</h4>
+                  {allCoverLetters.length === 0 ? (
+                    <p className="text-xs text-gray-500">
+                      You don’t have any cover letters yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="radio"
+                          name="coverChoice"
+                          value=""
+                          checked={!selectedCoverLetterId}
+                          onChange={() => setSelectedCoverLetterId(null)}
+                        />
+                        <span>No cover letter attached</span>
+                      </label>
+                      {allCoverLetters.map((c: any) => (
+                        <label
+                          key={c._id}
+                          className="flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="coverChoice"
+                              value={c._id}
+                              checked={selectedCoverLetterId === c._id}
+                              onChange={() => setSelectedCoverLetterId(c._id)}
+                            />
+                            <span className="font-medium">
+                              {c.filename || c.name || "Untitled cover letter"}
+                            </span>
+                          </span>
+                          {c.updatedAt && (
+                            <span className="text-[11px] text-gray-500">
+                              Updated{" "}
+                              {new Date(c.updatedAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Portfolio URL */}
+                <section>
+                  <h4 className="font-semibold mb-1">Portfolio URL (optional)</h4>
+                  <input
+                    type="url"
+                    value={packagePortfolioUrl}
+                    onChange={(e) => setPackagePortfolioUrl(e.target.value)}
+                    className="w-full form-input text-sm"
+                    placeholder="https://your-portfolio.com"
+                  />
+                </section>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setPackageModalOpen(false);
+                    setPackageError(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={handleSaveApplicationPackage}
+                  disabled={savingPackage}
+                >
+                  {savingPackage ? "Saving..." : "Save package"}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
 
       </Card>
 

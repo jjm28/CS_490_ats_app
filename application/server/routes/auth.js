@@ -1,5 +1,5 @@
 import express from 'express';
-import { createUser,verifyUser,findUserByEmailCaseSensitve} from '../services/user.service.js';
+import { createUser,verifyUser,findUserByEmailCaseSensitve,UpdateUser} from '../services/user.service.js';
 import 'dotenv/config';
 import jwt from "jsonwebtoken";
 import { google, paymentsresellersubscription_v1 } from 'googleapis';
@@ -20,11 +20,12 @@ const oauth2 = new google.auth.OAuth2(
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, firstName, lastName } = req.body || {};
+    const { email, password, firstName, lastName,role } = req.body || {};
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const user = await createUser({ email, password, firstName, lastName });
+    console.log(role)
+    const user = await createUser({ email, password, firstName, lastName,role });
     // Return new userId so client can use it for subsequent profile calls
     const token = jwt.sign({id: String(user._id),email}, process.env.JWT_SECRET,{expiresIn: "1h"});
 
@@ -63,6 +64,31 @@ router.post('/login', async (req, res) => {
     return res.status(500).json({ error: 'Server error' });
   }
 });
+router.patch('/update', async (req, res) => {
+  try {
+    const { userId, role, organizationId} = req.body || {};
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    const user = await UpdateUser({userId,role,organizationId})
+ 
+     if (!user || user.isDeleted) {
+      return res.status(401).json({ error: 'Account deleted or not found' });
+    }
+
+    // Return new userId so client can use it for subsequent profile calls
+      
+    const token = jwt.sign({id: String(user._id),email: user.email}, process.env.JWT_SECRET,{expiresIn: "2h"});
+       return res.status(201).json({token, userId: String(user._id), user });
+  } catch (err) {
+    console.error(err)
+    if (err.statusCode === 400) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 router.get('/google/login', async (req, res) => {
 const url = oauth2.generateAuthUrl({ access_type: "online", scope: ["openid", "email", "profile"], prompt: 'consent'})

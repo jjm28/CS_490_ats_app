@@ -20,3 +20,41 @@ export function verifyJWT(req, res, next) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 }
+
+
+export function requireAuth(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  next();
+}
+
+export function requireRole(allowedRoles = []) {
+  console.log(allowedRoles)
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    next();
+  };
+}
+export function attachUserFromHeaders(req, res, next) {
+  const id = req.header("x-user-id");
+  const role = req.header("x-user-role");
+  const organizationId = req.header("x-org-id");
+
+  if (id) {
+    req.user = {
+      id,
+      role: role || "job_seeker", // default
+      organizationId: organizationId || null,
+    };
+  }
+
+  next();
+}
