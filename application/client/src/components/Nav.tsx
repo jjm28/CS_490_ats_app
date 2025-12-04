@@ -192,6 +192,20 @@ function Navbar() {
                 Analytics
               </NavLink>
             )}
+                      {(role === "advisor" || role === "super_admin") && (
+              <NavLink
+                to="/advisor/clients"
+                className={({ isActive }) =>
+                  `rounded-md px-3 py-2 text-lg font-medium ${
+                    isActive
+                      ? "bg-(--brand-sage) text-(--brand-navy)"
+                      : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                  }`
+                }
+              >
+                Clients
+              </NavLink>
+            )}
 
             {(role === "job_seeker" || role === "super_admin") && (
               <Popover className="relative">
