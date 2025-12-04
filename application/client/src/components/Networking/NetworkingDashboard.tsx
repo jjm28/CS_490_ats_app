@@ -21,6 +21,8 @@ import {
   Star,
   Calendar,
   BarChart2,
+  Mic2,
+  GraduationCap,
 } from "lucide-react";
 
 export default function NetworkingDashboard() {
@@ -88,12 +90,10 @@ export default function NetworkingDashboard() {
 
       if (!res.ok) throw new Error("Failed to add");
 
-      // 🧹 Remove from suggestions instantly
       setSuggestions((prev: any[]) =>
         prev.filter((c) => c._id !== suggestion._id)
       );
 
-      // 📈 Track networking success analytics
       await fetch(`${API_BASE}/api/networking/track-connect`, {
         method: "POST",
         headers: {
@@ -154,7 +154,12 @@ export default function NetworkingDashboard() {
         Professional Network Dashboard
       </h1>
 
-      {/* PREMIUM QUICK ACTION CARDS */}
+      {/* -------------------------------------------
+           📇 CONTACT MANAGEMENT SECTION
+         -------------------------------------------- */}
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        Contact Management
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
         <PremiumCard
           title="Manage Contacts"
@@ -164,31 +169,32 @@ export default function NetworkingDashboard() {
         />
 
         <PremiumCard
-          title="AI Outreach Generator"
-          description="Craft personalized outreach messages instantly."
-          icon={<MessageSquare className="w-8 h-8 text-purple-600" />}
-          link="/networking/outreach"
-        />
-
-        <PremiumCard
-          title="Informational Interviews"
-          description="Request interviews, prepare effectively, and track outcomes."
-          icon={<span className="text-3xl">🎙️</span>}
-          link="/networking/informational"
-        />
-
-        <PremiumCard
-          title="Mentorship & Coaching"
-          description="View mentor access, permissions, and collaboration insights."
-          icon={<span className="text-3xl">🧑‍🏫</span>}
-          link="/networking/mentors"
-        />
-
-        <PremiumCard
           title="Interaction History"
           description="Track calls, meetings, referrals & more."
           icon={<PhoneCall className="w-8 h-8 text-emerald-600" />}
           link="/networking/interactions"
+        />
+
+        <PremiumCard
+          title="Networking Analytics"
+          description="Track your networking performance, ROI, and relationship-building progress."
+          icon={<BarChart2 className="w-8 h-8 text-teal-600" />}
+          link="/networking/analytics"
+        />
+      </div>
+
+      {/* -------------------------------------------
+           💬 OUTREACH & COMMUNICATION SECTION
+         -------------------------------------------- */}
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        Outreach & Communication
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <PremiumCard
+          title="AI Outreach Generator"
+          description="Craft personalized outreach messages instantly."
+          icon={<MessageSquare className="w-8 h-8 text-purple-600" />}
+          link="/networking/outreach"
         />
 
         <PremiumCard
@@ -204,8 +210,44 @@ export default function NetworkingDashboard() {
           icon={<Newspaper className="w-8 h-8 text-orange-600" />}
           link="/networking/industry-news"
         />
+      </div>
 
-        {/* ⭐ NEW — NETWORKING EVENTS CARD */}
+      {/* -------------------------------------------
+           🤝 RELATIONSHIP BUILDING SECTION
+         -------------------------------------------- */}
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        Relationship Building
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <PremiumCard
+          title="Informational Interviews"
+          description="Request interviews, prepare effectively, and track outcomes."
+          icon={<Mic2 className="w-8 h-8 text-blue-600" />}
+          link="/networking/informational"
+        />
+
+        <PremiumCard
+          title="Mentorship & Coaching"
+          description="View mentor access, permissions, and collaboration insights."
+          icon={<GraduationCap className="w-8 h-8 text-violet-600" />}
+          link="/networking/mentors"
+        />
+
+        <PremiumCard
+          title="LinkedIn Tools"
+          description="Optimize your profile and generate networking content"
+          icon={<Linkedin className="w-8 h-8 text-[#0A66C2]" />}
+          link="/networking/linkedin"
+        />
+      </div>
+
+      {/* -------------------------------------------
+           📅 EVENTS & OPPORTUNITIES SECTION
+         -------------------------------------------- */}
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        Events & Opportunities
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
         <PremiumCard
           title="Networking Events & Opportunities"
           description="Track events, goals, connections, and follow-ups."
@@ -219,29 +261,14 @@ export default function NetworkingDashboard() {
           icon={<Calendar className="w-8 h-8 text-teal-600" />}
           link="/networking/discover"
         />
-
-        <PremiumCard
-          title="LinkedIn Tools"
-          description="Optimize your profile and generate networking content"
-          icon={<Linkedin className="w-8 h-8 text-[#0A66C2]" />}
-          link="/networking/linkedin"
-        />
-
-        <PremiumCard
-          title="Networking Analytics"
-          description="Track your networking performance, ROI, and relationship-building progress."
-          icon={<BarChart2 className="w-8 h-8 text-teal-600" />}
-          link="/networking/analytics"
-        />
       </div>
 
       {/* -------------------------------------------
            ⭐ REFERRAL TOOLS SECTION
          -------------------------------------------- */}
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
         Referral Tools
       </h2>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
         <PremiumCard
           title="Request a Referral"
@@ -265,6 +292,10 @@ export default function NetworkingDashboard() {
         />
       </div>
 
+      {/* -------------------------------------------
+           📊 DASHBOARD INSIGHTS
+         -------------------------------------------- */}
+
       {/* STRONGEST RELATIONSHIPS */}
       <SectionHeader
         title="Strongest Relationships"
@@ -277,9 +308,7 @@ export default function NetworkingDashboard() {
         ))}
       </div>
 
-      {/* -------------------------------------------
-     ⭐ SUGGESTED CONTACTS SECTION
-   -------------------------------------------- */}
+      {/* SUGGESTED CONTACTS */}
       <SectionHeader
         title="Suggested Contacts"
         icon={<Users className="w-6 h-6 text-blue-600" />}
@@ -307,7 +336,6 @@ export default function NetworkingDashboard() {
                 {c.role || "Unknown role"} @ {c.company || "Unknown company"}
               </p>
 
-              {/* MATCH TAGS */}
               {c.match_reason?.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {c.match_reason.map((reason: string, idx: number) => (
@@ -338,7 +366,7 @@ export default function NetworkingDashboard() {
         icon={<Bell className="w-6 h-6 text-red-500" />}
       />
 
-      <div className="space-y-4 max-w-4xl mx-auto">
+      <div className="space-y-4 max-w-4xl mx-auto mb-16">
         {upcomingReminders.length === 0 ? (
           <p className="text-center text-gray-500 italic">
             No upcoming reminders
@@ -348,7 +376,7 @@ export default function NetworkingDashboard() {
         )}
       </div>
 
-      {/* CONTACTS NEEDING ATTENTION - NEW */}
+      {/* CONTACTS NEEDING ATTENTION */}
       {needsAttention.length > 0 && (
         <>
           <div className="mt-16">
@@ -374,7 +402,7 @@ export default function NetworkingDashboard() {
         </>
       )}
 
-      {/* UPCOMING CHECK-INS FROM API - NEW */}
+      {/* UPCOMING CHECK-INS FROM API */}
       {upcomingRemindersFromAPI.length > 0 && (
         <>
           <div className="mt-16">
