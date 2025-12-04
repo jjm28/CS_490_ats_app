@@ -25,6 +25,7 @@ import {
   getRelationshipAnalytics,
 } from "../services/relationship_maintenance.service.js";
 import { getDb } from "../db/connection.js";
+import { getNetworkRelationshipAnalytics } from "../services/networkRelationshipAnalytics.service.js";
 
 const router = express.Router();
 
@@ -894,5 +895,16 @@ router.get("/industry-news", verifyJWT, async (req, res) => {
     });
   }
 });
+
+router.get("/analytics/relationships/summary", verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const analytics = await getNetworkRelationshipAnalytics(userId);
+    res.json(analytics);
+  } catch (err) {
+    console.error("GET NETWORK RELATIONSHIP SUMMARY ERROR:", err);
+    res.status(500).json({ error: "Failed to load network relationship analytics" });
+  }
+})
 
 export default router;

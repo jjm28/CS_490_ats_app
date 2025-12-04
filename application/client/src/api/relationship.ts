@@ -159,3 +159,15 @@ export async function markOpportunityGenerated(
   if (!res.ok) throw new Error("Failed to mark opportunity");
   return res.json();
 }
+
+export async function getNetworkRelationshipSummary() {
+  console.log("FETCHING:", `${API_BASE}/api/networking/analytics/relationships/summary`);
+  const res = await fetch(
+    `${API_BASE}/api/networking/analytics/relationships/summary`,
+    {
+      headers: authHeaders(),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to fetch network relationship summary");
+  return res.json();
+}
