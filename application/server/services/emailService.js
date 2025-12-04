@@ -230,3 +230,87 @@ If you weren’t expecting this email, you can ignore it.
     html: htmlBody,
   });
 }
+
+export async function sendDocumentAccessEmail({
+  toEmail,
+  sharedurl,
+  grantedBy = null,     // optional – name of the person who granted access
+  role = null,          // optional – reviewer role label (e.g. "mentor", "recruiter")
+  reviewDeadline = null, // optional – ISO string/date for requested review deadline
+  documentName = "cover letter", // optional – e.g. "Cover letter for Acme – SWE Intern"
+}) {
+  if (!FRONTEND_ORIGIN) {
+    console.warn("FRONTEND_ORIGIN is not set, cannot build access link");
+    return;
+  }
+
+  const accessUrl = sharedurl;
+
+  // Build small text fragments
+  const byFragment = grantedBy ? ` by ${grantedBy}` : "";
+  const roleFragment = role ? ` as a ${role}` : "";
+
+  let deadlineText = "";
+  let deadlineHtml = "";
+  if (reviewDeadline) {
+    const d = new Date(reviewDeadline);
+
+    if (!isNaN(d.getTime())) {
+      const formatted = d.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      deadlineText = `\nWe’d appreciate it if you could share your feedback by ${formatted}.\n`;
+      console.log("dafds")
+      deadlineHtml = `
+        <p>
+          We’d appreciate it if you could share your feedback by
+          <strong>${formatted}</strong>.
+        </p>
+      `;
+    }
+  }
+
+  const subject = `Review request: ${documentName}`;
+
+  const textBody = `
+Hi,
+
+You have been granted access${byFragment}${roleFragment} to review a private ${documentName}.
+
+Open it here:
+${accessUrl}
+
+${deadlineText || ""}If you weren’t expecting this email, you can ignore it.
+`.trim();
+
+  const htmlBody = `
+  <p>Hi,</p>
+  <p>
+    You have been granted access${byFragment ? ` by <strong>${grantedBy}</strong>` : ""}${roleFragment
+      ? ` as a <strong>${role}</strong>`
+      : ""} to review a private ${documentName}.
+  </p>
+  ${deadlineHtml}
+  <p style="margin: 16px 0;">
+    <a href="${accessUrl}"
+       style="background-color:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;">
+      Open document
+    </a>
+  </p>
+  <p>If the button doesn’t work, copy and paste this link into your browser:</p>
+  <p><code style="font-size:12px;">${accessUrl}</code></p>
+  <p style="font-size:12px;color:#888;">
+    If you weren’t expecting this email, you can ignore it.
+  </p>
+  `;
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text: textBody,
+    html: htmlBody,
+  });
+}
