@@ -45,8 +45,10 @@ import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 // 📊 INTERVIEW & COMPANY RESEARCH
 import interviewRoutes from "./routes/interview-insights.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
-import interviewQuestionsRoute from "./routes/interview-questions.js";
-import companyResearch from "./routes/company-research.js";
+import companyResearch from './routes/company-research.js';
+import interviewQuestions from "./routes/interview-questions.js";
+import coachingInsights from "./routes/coachinginsights.js";
+import practiceSessions from "./routes/practicesession.js";
 import writingPracticeRoutes from './routes/writingPractice.js';
 import interviewPredictionRoutes from "./routes/interview-success-prediction.js";
 
@@ -173,9 +175,11 @@ try {
   // 📊 INTERVIEW & COMPANY RESEARCH
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use("/api/interviews", interviewAnalyticsRoutes);
-  app.use("/api/interview-questions", interviewQuestionsRoute);
-  app.use("/api/company/research", attachDevUser, companyResearch);
-  app.use(companyResearch);
+  app.use("/api/company/research", attachDevUser, companyResearch); //interview research 
+  app.use(companyResearch); // stand alone research for ANY company
+  app.use("/api/interview-questions", interviewQuestions);
+  app.use("/api/coaching-insights", coachingInsights);
+  app.use("/api/practice-sessions", practiceSessions);
   app.use('/api/writing-practice', writingPracticeRoutes);
   app.use("/api/interview-predictions", interviewPredictionRoutes);
 

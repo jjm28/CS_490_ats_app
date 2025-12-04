@@ -286,11 +286,9 @@ router.post("/evaluate-session", async (req, res) => {
     console.error("Evaluation error:", err);
     res.status(500).json({ error: "Failed to evaluate session" });
   }
-});
-
-router.post("/generate-questions", async (req, res) => {
+});router.post("/generate-questions", async (req, res) => {
   try {
-    const { jobTitle, company } = req.body;
+    const { jobTitle, company, type } = req.body; // ADD type parameter
     
     if (!jobTitle) {
       return res.status(400).json({ error: "Job title required" });
@@ -302,7 +300,28 @@ router.post("/generate-questions", async (req, res) => {
         generationConfig: { temperature: 0.6, maxOutputTokens: 1500 }
       });
 
-      const prompt = `Generate exactly 10 behavioral interview questions for a ${jobTitle} position at ${company || "a company"}.
+      // Different prompts based on type
+      let prompt;
+      
+      if (type === 'technical') {
+        prompt = `Generate exactly 5 technical situational interview questions for a ${jobTitle} position at ${company || "a company"}.
+
+Requirements:
+- Each question should ask the candidate to EXPLAIN or DESCRIBE a technical concept, approach, or design
+- Focus on: system design, architecture, databases, APIs, algorithms, data structures, scalability, trade-offs
+- Questions should test understanding and reasoning, NOT coding ability
+- Keep questions clear and concise
+- Return ONLY a JSON array, no other text
+- Format: ["Question 1", "Question 2", "Question 3", "Question 4", "Question 5"]
+
+Examples of good technical situational questions:
+- "Explain the difference between SQL and NoSQL databases. When would you use each?"
+- "How would you design a URL shortening service like bit.ly?"
+- "Describe how you would implement caching in a web application. What strategies would you use?"
+- "What are the trade-offs between microservices and monolithic architecture?"`;
+      } else {
+        // Behavioral questions (default)
+        prompt = `Generate exactly 10 behavioral interview questions for a ${jobTitle} position at ${company || "a company"}.
 
 Requirements:
 - Each question must be behavioral (asking about past experiences, situations, or approach)
@@ -311,6 +330,7 @@ Requirements:
 - Keep questions clear and concise
 - Return ONLY a JSON array, no other text
 - Format: ["Question 1", "Question 2", "Question 3"]`;
+      }
 
       const response = await model.generateContent(prompt);
       let raw = response.response.text();
@@ -326,18 +346,22 @@ Requirements:
       
       const questions = JSON.parse(arrayMatch[0]);
       
-      // Ensure we have exactly 10 questions
-      if (!Array.isArray(questions) || questions.length < 10) {
-        throw new Error('Insufficient questions generated');
+      // Validate based on type
+      const expectedCount = type === 'technical' ? 5 : 10;
+      if (!Array.isArray(questions) || questions.length < expectedCount) {
+        throw new Error(`Insufficient questions generated. Expected ${expectedCount}, got ${questions.length}`);
       }
       
-      return questions.slice(0, 10);
+      return questions.slice(0, expectedCount);
     });
 
     res.json({ questions: result });
   } catch (err) {
     console.error("Question generation error:", err);
-    res.status(500).json({ error: "Failed to generate questions" });
+    res.status(500).json({ 
+      error: "Failed to generate questions",
+      details: err.message 
+    });
   }
 });
 

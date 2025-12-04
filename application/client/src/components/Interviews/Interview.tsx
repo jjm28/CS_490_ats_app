@@ -9,6 +9,7 @@ import Questions from './Questions';
 import '../../styles/InterviewPrepUI.css';
 import WritingPractice from '../../components/Interviews/WritingPractice';
 import InterviewFollowUpPage from './InterviewFollowUpPage';
+import ResponseCoaching from './ResponseCoach';
 import InterviewSuccessProbability from './InterviewSuccessProbability';
 import InterviewSchedulerPage from './InterviewSchedulerPage'; // NEW IMPORT
 
@@ -18,7 +19,8 @@ type CardData = {
   description: string;
   color?: string;
   details?: string;
-  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 'success-probability' | 'calendar' | null;
+  component?: 'research' | 'checklist' | 'followup' | 'negotiation' | 'questions' | 'writing-practice' | 
+  'success-probability' | 'calendar' | 'aicoaching' | null;
 };
 
 const cardData: CardData[] = [
@@ -43,8 +45,8 @@ const cardData: CardData[] = [
     title: 'AI Coaching',
     description: 'Real-time feedback on your responses',
     color: '#0E3B43',
-    details: 'Record yourself answering questions and receive instant AI feedback on clarity, structure, technical accuracy, and communication style. Compare your answers to strong examples.',
-    component: null
+    details: 'Answer interview questions and receive instant AI feedback on clarity, structure, technical accuracy, and communication style. Compare your answers to strong examples.',
+    component: 'aicoaching'
   },
   {
     label: 'Mock Interviews/Tech Prep',
@@ -165,6 +167,9 @@ const DetailView = ({
 
   if (card.component === 'followup') {
     return <InterviewFollowUpPage onBack={onBack} />;
+  }
+  if (card.component === 'aicoaching') {
+    return <ResponseCoaching onBack={onBack} />;
   }
 
   if (card.component === 'calendar') { // NEW
