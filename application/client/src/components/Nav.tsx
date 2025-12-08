@@ -136,6 +136,21 @@ function Navbar() {
                 Cohorts
               </NavLink>
             )}
+            {(role === "advisor" ) && (
+              <NavLink
+                to="/advisor/clients"
+                className={({ isActive }) =>
+                  `rounded-md px-3 py-2 text-lg font-medium ${
+                    isActive
+                      ? "bg-(--brand-sage) text-(--brand-navy)"
+                      : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
+                  }`
+                }
+              >
+                My Client
+              </NavLink>
+            )}
+
 
             {(role === "org_admin" || role === "super_admin") && (
               <NavLink
@@ -355,6 +370,12 @@ function Navbar() {
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                   >
                     Advisors & Coaches
+                  </NavLink>
+                                    <NavLink
+                    to="/teams"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                   Teams
                   </NavLink>
                 </PopoverPanel>
               </Popover>

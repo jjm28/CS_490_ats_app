@@ -39,16 +39,13 @@ import certificationRoutes from "./routes/certifications.js";
 // 💼 JOBS & SALARY
 import jobRoutes from "./routes/jobs.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
-<<<<<<< Updated upstream
 import salaryRoutes from "./routes/salary.js";
-=======
 
 
 import salaryRouter from "./routes/salary.js";
 
 //import salaryRoutes from "./routes/salary.js";
 
->>>>>>> Stashed changes
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 
 // 📊 INTERVIEW & COMPANY RESEARCH
@@ -104,11 +101,9 @@ import organizationRoutes from "./routes/organization.routes.js";
 
 import teamProgressRouter from "./routes/teamProgress.js";
 
-import salaryRoutes from  "./routes/salary.js"
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
 //import referralSources from "./routes/referralSources.js";
-import referralRoutes from "./routes/referrals.js";
 import networkingDiscovery from "./routes/networkingDiscovery.js";
 import mentorRoutes from "./routes/mentor.routes.js";
 import teamRoutes from "./routes/teams.js";
@@ -196,6 +191,10 @@ try {
 
   // Salary Analytics (UC-100) — MUST COME FIRST
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
+  // 🚀 START SERVER
+  //team page routing
+  app.use("/api/teams",teamRoutes);
+  app.use("/api/teams",  teamProgressRouter);
 
   // Salary CRUD — MUST COME AFTER
   app.use("/api/salary", salaryRoutes);
@@ -257,13 +256,13 @@ try {
   app.use("/api/competitive-analysis", attachDevUser, competitiveAnalysisRouter);
 
   // 🤝 JOB SEARCH SHARING
-  app.use("/api", jobSearchSharingRoutes);
-  app.use("/api", advisorRoutes);
+  app.use("/api/job-search", jobSearchSharingRoutes);
+  app.use("/api/advisors", advisorRoutes);
   
-    app.use("/api",attachUserFromHeaders, jobseekersRoutes);
-  app.use("/api", attachUserFromHeaders, cohortRoutes);
-  app.use("/api",attachUserFromHeaders, enterpriseRoutes);
-app.use("/api",attachUserFromHeaders, organizationRoutes);
+    app.use("/api/public",attachUserFromHeaders, jobseekersRoutes);
+  app.use("/api/enterprise", attachUserFromHeaders, cohortRoutes);
+  app.use("/api/enterprise",attachUserFromHeaders, enterpriseRoutes);
+app.use("/api/org",attachUserFromHeaders, organizationRoutes);
 
   // 📈 MARKET INTELLIGENCE (UC-102)
   app.use("/api/market", attachDevUser, marketRoutes);
@@ -274,10 +273,6 @@ app.use("/api",attachUserFromHeaders, organizationRoutes);
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 
-  // 🚀 START SERVER
-  //team page routing
-  app.use("/api/teams",teamRoutes);
-  app.use("/api/teams",  teamProgressRouter);
 
   app.use("/api/success", successOverview);
   app.use("/api/success-snapshots", successSnapshots);

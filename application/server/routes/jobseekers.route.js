@@ -23,11 +23,11 @@ import {
 const router = express.Router();
 
 // ALL enterprise routes require org_admin / super_admin
-router.use(requireRole(["org_admin", "super_admin", "job_seeker"]));
+router.use(requireRole(["org_admin", "super_admin", "job_seeker", "advisor"]));
 
 // PUBLIC invite endpoints
 
-router.get("/public/jobseeker-invites/:token", async (req, res) => {
+router.get("/jobseeker-invites/:token", async (req, res) => {
   try {
     const { token } = req.params;
     const info = await getInviteByToken({ token });
@@ -40,7 +40,7 @@ router.get("/public/jobseeker-invites/:token", async (req, res) => {
   }
 });
 
-router.post("/public/jobseeker-invites/:token/accept", async (req, res) => {
+router.post("/jobseeker-invites/:token/accept", async (req, res) => {
   try {
     const { token } = req.params;
     const { password, profile } = req.body;
