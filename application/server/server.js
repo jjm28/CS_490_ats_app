@@ -192,9 +192,7 @@ try {
   // Salary Analytics (UC-100) — MUST COME FIRST
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
   // 🚀 START SERVER
-  //team page routing
-  app.use("/api/teams",teamRoutes);
-  app.use("/api/teams",  teamProgressRouter);
+
 
   // Salary CRUD — MUST COME AFTER
   app.use("/api/salary", salaryRoutes);
@@ -273,7 +271,10 @@ app.use("/api/org",attachUserFromHeaders, organizationRoutes);
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 
-
+  //team page routing
+  app.use("/api/teams",teamRoutes);
+  app.use("/api/teams",  teamProgressRouter);
+  
   app.use("/api/success", successOverview);
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);
