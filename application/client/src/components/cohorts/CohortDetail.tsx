@@ -44,7 +44,7 @@ const CohortDetail: React.FC = () => {
       formData.append("file", importFile);
 
       const res = await fetch(
-        `/api/integrations/handshake/import-students?cohortId=${cohortId}`,
+        `/api/enterprise/integrations/handshake/import-students?cohortId=${cohortId}`,
         {
           method: "POST",
           body: formData,

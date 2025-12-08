@@ -32,7 +32,7 @@ router.use(requireRole(["org_admin", "super_admin"]));
  * GET /api/enterprise/analytics/overview
  * Query: from, to, cohortId
  */
-router.get("/enterprise/analytics/overview", async (req, res) => {
+router.get("/analytics/overview", async (req, res) => {
   try {
     const { from, to, cohortId } = req.query;
 
@@ -54,7 +54,7 @@ router.get("/enterprise/analytics/overview", async (req, res) => {
 });
 
 
-router.get("/enterprise/jobseekers", async (req, res) => {
+router.get("/jobseekers", async (req, res) => {
   try {
     const { search, includeDeleted, page, pageSize } = req.query;
 
@@ -75,7 +75,7 @@ router.get("/enterprise/jobseekers", async (req, res) => {
   }
 });
 
-router.patch("/enterprise/jobseekers/deletion", async (req, res) => {
+router.patch("/jobseekers/deletion", async (req, res) => {
   try {
     const { userIds, isDeleted } = req.body;
 
@@ -94,7 +94,7 @@ router.patch("/enterprise/jobseekers/deletion", async (req, res) => {
   }
 });
 
-router.post("/enterprise/jobseekers/add-to-cohort", async (req, res) => {
+router.post("/jobseekers/add-to-cohort", async (req, res) => {
   try {
     const { userIds, cohortId } = req.body;
 
@@ -115,7 +115,7 @@ router.post("/enterprise/jobseekers/add-to-cohort", async (req, res) => {
 });
 
 router.post(
-  "/enterprise/onboarding/import",
+  "/onboarding/import",
   upload.single("file"),
   async (req, res) => {
     try {
@@ -141,7 +141,7 @@ router.post(
   }
 );
 
-router.post("/enterprise/onboarding/invite", async (req, res) => {
+router.post("/onboarding/invite", async (req, res) => {
   try {
     const { email, cohortId } = req.body;
 

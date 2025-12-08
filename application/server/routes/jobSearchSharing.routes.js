@@ -23,10 +23,10 @@ import {
 const router = express.Router();
 
 /**
- * GET /api/job-search/sharing?userId=...
+ * GET /api/sharing?userId=...
  * Fetch the current user's sharing profile.
  */
-router.get("/job-search/sharing", async (req, res) => {
+router.get("/sharing", async (req, res) => {
   try {
     const { userId } = req.query;
 
@@ -43,10 +43,10 @@ router.get("/job-search/sharing", async (req, res) => {
 });
 
 /**
- * POST /api/job-search/sharing?userId=...
+ * POST /api/sharing?userId=...
  * Create or update the user's sharing settings.
  */
-router.post("/job-search/sharing", async (req, res) => {
+router.post("/sharing", async (req, res) => {
   try {
     const { userId } = req.query;
 
@@ -79,8 +79,8 @@ router.post("/job-search/sharing", async (req, res) => {
 });
 
 
-// GET /api/job-search/goals?userId=...
-router.get("/job-search/goals", async (req, res) => {
+// GET /api/goals?userId=...
+router.get("/goals", async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
@@ -95,8 +95,8 @@ router.get("/job-search/goals", async (req, res) => {
   }
 });
 
-// POST /api/job-search/goals?userId=...
-router.post("/job-search/goals", async (req, res) => {
+// POST /api/goals?userId=...
+router.post("/goals", async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
@@ -124,7 +124,7 @@ router.post("/job-search/goals", async (req, res) => {
 });
 
 // POST /api/job-search/goals/:goalId/progress?userId=...
-router.post("/job-search/goals/:goalId/progress", async (req, res) => {
+router.post("/goals/:goalId/progress", async (req, res) => {
   try {
     const { userId } = req.query;
     const { goalId } = req.params;
@@ -153,7 +153,7 @@ router.post("/job-search/goals/:goalId/progress", async (req, res) => {
 // ----- MILESTONES -----
 
 // GET /api/job-search/milestones?userId=...
-router.get("/job-search/milestones", async (req, res) => {
+router.get("/milestones", async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
@@ -169,7 +169,7 @@ router.get("/job-search/milestones", async (req, res) => {
 });
 
 // POST /api/job-search/milestones?userId=...
-router.post("/job-search/milestones", async (req, res) => {
+router.post("/milestones", async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
@@ -196,7 +196,7 @@ router.post("/job-search/milestones", async (req, res) => {
   }
 });
 
-router.post("/job-search/reports/generate", async (req, res) => {
+router.post("/reports/generate", async (req, res) => {
   try {
     const { ownerId, viewerId } = req.query;
     const { rangeFrom, rangeTo } = req.body || {};
@@ -224,7 +224,7 @@ router.post("/job-search/reports/generate", async (req, res) => {
  * GET /api/job-search/encouragement?userId=...
  * List recent encouragement events for a user.
  */
-router.get("/job-search/encouragement", async (req, res) => {
+router.get("/encouragement", async (req, res) => {
   try {
     const { userId, limit } = req.query;
     if (!userId) {
@@ -255,7 +255,7 @@ router.get("/job-search/encouragement", async (req, res) => {
  *   type          - "view_progress" | "view_report" | "view_milestones" | "encouragement_reaction"
  *   contextId?    - optional, e.g. reportId or goalId
  */
-router.post("/job-search/engagement/log", async (req, res) => {
+router.post("/engagement/log", async (req, res) => {
   try {
     const { ownerUserId, partnerUserId, type, contextId } = req.body || {};
 
@@ -286,7 +286,7 @@ router.post("/job-search/engagement/log", async (req, res) => {
  *
  * Returns aggregated partner engagement + simple effectiveness stats.
  */
-router.get("/job-search/engagement/summary", async (req, res) => {
+router.get("/engagement/summary", async (req, res) => {
   try {
     const { ownerId, sinceDays } = req.query;
 
@@ -313,7 +313,7 @@ router.get("/job-search/engagement/summary", async (req, res) => {
  *
  * Returns visual/motivation stats for job search.
  */
-router.get("/job-search/motivation", async (req, res) => {
+router.get("/motivation", async (req, res) => {
   try {
     const { ownerId, viewerId, sinceDays } = req.query;
 
@@ -337,11 +337,11 @@ router.get("/job-search/motivation", async (req, res) => {
 });
 
 /**
- * GET /api/job-search/insights?ownerId=...&sinceWeeks=8
+ * GET /api/insights?ownerId=...&sinceWeeks=8
  *
  * Returns insights on accountability impact on job search success.
  */
-router.get("/job-search/insights", async (req, res) => {
+router.get("/insights", async (req, res) => {
   try {
     const { ownerId, sinceWeeks } = req.query;
 
@@ -364,9 +364,9 @@ router.get("/job-search/insights", async (req, res) => {
 });
 
 /**
- * GET /api/job-search/discussion?ownerId=...&viewerId=...&limit=50
+ * GET /api/discussion?ownerId=...&viewerId=...&limit=50
  */
-router.get("/job-search/discussion", async (req, res) => {
+router.get("/discussion", async (req, res) => {
   try {
     const { ownerId, viewerId, limit } = req.query;
 
@@ -392,10 +392,10 @@ router.get("/job-search/discussion", async (req, res) => {
 });
 
 /**
- * POST /api/job-search/discussion
+ * POST /api/discussion
  * Body: { ownerUserId, senderUserId, text, contextType?, contextId? }
  */
-router.post("/job-search/discussion", async (req, res) => {
+router.post("/discussion", async (req, res) => {
   try {
     const { ownerUserId, senderUserId, text, contextType, contextId } =
       req.body || {};
@@ -424,10 +424,10 @@ router.post("/job-search/discussion", async (req, res) => {
 });
 
 /**
- * POST /api/job-search/discussion/:messageId/react
+ * POST /api/discussion/:messageId/react
  * Body: { userId, type }
  */
-router.post("/job-search/discussion/:messageId/react", async (req, res) => {
+router.post("/discussion/:messageId/react", async (req, res) => {
   try {
     const { messageId } = req.params;
     const { userId, type } = req.body || {};
@@ -452,7 +452,7 @@ router.post("/job-search/discussion/:messageId/react", async (req, res) => {
     });
   }
 });
-router.get("/job-search/sharing-profile", async (req, res) => {
+router.get("/sharing-profile", async (req, res) => {
   try {
     const { ownerId } = req.query;
     if (!ownerId) {
@@ -469,10 +469,10 @@ router.get("/job-search/sharing-profile", async (req, res) => {
   }
 });
 /**
- * POST /api/job-search/partners
+ * POST /api/partners
  * Body: { ownerUserId, partnerUserId }
  */
-router.post("/job-search/partners", async (req, res) => {
+router.post("/partners", async (req, res) => {
   try {
     const { ownerUserId, partnerUserId } = req.body || {};
     if (!ownerUserId || !partnerUserId) {
@@ -496,10 +496,10 @@ router.post("/job-search/partners", async (req, res) => {
 });
 
 /**
- * DELETE /api/job-search/partners
+ * DELETE /api/partners
  * Body: { ownerUserId, partnerUserId }
  */
-router.delete("/job-search/partners", async (req, res) => {
+router.delete("/partners", async (req, res) => {
   try {
     const { ownerUserId, partnerUserId } = req.body || {};
     if (!ownerUserId || !partnerUserId) {
@@ -524,10 +524,10 @@ router.delete("/job-search/partners", async (req, res) => {
 
 
 /**
- * POST /api/job-search/partners/invite
+ * POST /api/partners/invite
  * Body: { ownerUserId, email, jobSeekerName?, partnerName? }
  */
-router.post("/job-search/partners/invite", async (req, res) => {
+router.post("/partners/invite", async (req, res) => {
   try {
     const { ownerUserId, email, jobSeekerName, partnerName } = req.body || {};
     if (!ownerUserId || !email) {
@@ -553,9 +553,9 @@ router.post("/job-search/partners/invite", async (req, res) => {
 });
 
 /**
- * GET /api/job-search/partners/invites?ownerId=...
+ * GET /api/partners/invites?ownerId=...
  */
-router.get("/job-search/partners/invites", async (req, res) => {
+router.get("/partners/invites", async (req, res) => {
   try {
     const { ownerId } = req.query;
     if (!ownerId) {
@@ -580,7 +580,7 @@ router.get("/job-search/partners/invites", async (req, res) => {
  * POST /api/job-search/partners/invites/accept-token
  * Body: { token, userId }
  */
-router.post("/job-search/partners/invites/accept-token", async (req, res) => {
+router.post("/partners/invites/accept-token", async (req, res) => {
   try {
     const { token, userId } = req.body || {};
     if (!token || !userId) {
@@ -605,7 +605,7 @@ router.post("/job-search/partners/invites/accept-token", async (req, res) => {
 
 
 router.post(
-  "/job-search/partners/invites/:inviteId/respond",
+  "/partners/invites/:inviteId/respond",
   async (req, res) => {
     try {
       const { inviteId } = req.params;
@@ -634,10 +634,10 @@ router.post(
 );
 
 /**
- * GET /api/job-search/partners/as-partner?userId=...
+ * GET /api/partners/as-partner?userId=...
  * Returns list of owners where this user is in allowedUserIds
  */
-router.get("/job-search/partners/as-partner", async (req, res) => {
+router.get("/partners/as-partner", async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
