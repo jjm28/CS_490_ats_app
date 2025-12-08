@@ -271,13 +271,6 @@ app.use("/api/org",attachUserFromHeaders, organizationRoutes);
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 
-<<<<<<< Updated upstream
-  //team page routing
-  app.use("/api/teams",teamRoutes);
-  app.use("/api/teams",  teamProgressRouter);
-  
-=======
->>>>>>> Stashed changes
   app.use("/api/success", successOverview);
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);
