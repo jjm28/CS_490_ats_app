@@ -276,8 +276,7 @@ const Interview = () => {
       setActiveFeature('analytics');
       return;
     }
-
-    if (card.component === 'scheduling') {
+    if (card.component === 'scheduling') 
       setActiveFeature('scheduling');
       return;
     }
