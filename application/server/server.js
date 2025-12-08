@@ -39,7 +39,7 @@ import certificationRoutes from "./routes/certifications.js";
 // 💼 JOBS & SALARY
 import jobRoutes from "./routes/jobs.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
-//import salaryRoutes from "./routes/salary.js";
+import salaryRoutes from "./routes/salary.js";
 
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 
