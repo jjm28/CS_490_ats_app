@@ -10,7 +10,7 @@ const router = express.Router();
 /**
  * GET branding for the current user's organization
  */
-router.get("/org/branding/me",  async (req, res) => {
+router.get("/branding/me",  async (req, res) => {
   try {
     const orgId = req.user.organizationId;
     const branding = await getBrandingForOrg(orgId);
@@ -26,7 +26,7 @@ router.get("/org/branding/me",  async (req, res) => {
  * Allowed roles: super_admin, org_admin
  */
 router.patch(
-  "/org/branding/me",
+  "/branding/me",
   requireAuth,
   requireRole(["org_admin", "super_admin"]),
   async (req, res) => {

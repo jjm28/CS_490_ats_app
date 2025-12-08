@@ -29,10 +29,10 @@ import {
 
 const router = express.Router();
 /**
- * GET /api/advisors/performance?advisorUserId=
+ * GET /api/performance?advisorUserId=
  * Overall performance + impact summary for an advisor
  */
-router.get("/advisors/performance", async (req, res) => {
+router.get("/performance", async (req, res) => {
   try {
     const { advisorUserId } = req.query;
     if (!advisorUserId) {
@@ -65,7 +65,7 @@ router.get("/advisors/performance", async (req, res) => {
  * Per-relationship impact of an advisor on a specific client
  */
 router.get(
-  "/advisors/clients/:relationshipId/impact",
+  "/clients/:relationshipId/impact",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -107,7 +107,7 @@ router.get(
  * Body: { role, userId, rating, feedback }
  */
 router.post(
-  "/advisors/sessions/:sessionId/feedback",
+  "/sessions/:sessionId/feedback",
   async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -145,7 +145,7 @@ router.post(
 /**
  * GET /api/advisors/performance?advisorUserId=
  */
-router.get("/advisors/performance", async (req, res) => {
+router.get("/performance", async (req, res) => {
   try {
     const { advisorUserId } = req.query;
     if (!advisorUserId) {
@@ -173,7 +173,7 @@ router.get("/advisors/performance", async (req, res) => {
  * POST /api/advisors/invite
  * Candidate creates an advisor invite.
  */
-router.post("/advisors/invite", async (req, res) => {
+router.post("/invite", async (req, res) => {
   try {
     const {
       ownerUserId,
@@ -213,7 +213,7 @@ router.post("/advisors/invite", async (req, res) => {
  * GET /api/advisors?ownerUserId=...
  * List advisors for a candidate.
  */
-router.get("/advisors", async (req, res) => {
+router.get("", async (req, res) => {
   try {
     const { ownerUserId } = req.query;
 
@@ -241,7 +241,7 @@ router.get("/advisors", async (req, res) => {
  * PATCH /api/advisors/:relationshipId
  * Update advisor metadata (name, type) for a candidate.
  */
-router.patch("/advisors/:relationshipId", async (req, res) => {
+router.patch("/:relationshipId", async (req, res) => {
   try {
     const { relationshipId } = req.params;
     const { ownerUserId, advisorName, advisorType } = req.body;
@@ -273,11 +273,11 @@ router.patch("/advisors/:relationshipId", async (req, res) => {
 });
 
 /**
- * PATCH /api/advisors/:relationshipId/permissions
+ * PATCH /api/:relationshipId/permissions
  * Update advisor permissions for a candidate.
  */
 router.patch(
-  "/advisors/:relationshipId/permissions",
+  "/:relationshipId/permissions",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -314,7 +314,7 @@ router.patch(
  * Revoke advisor access (candidate side).
  */
 router.patch(
-  "/advisors/:relationshipId/revoke",
+  "/:relationshipId/revoke",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -348,7 +348,7 @@ router.patch(
  * DELETE /api/advisors/:relationshipId
  * Delete advisor relationship (only if pending).
  */
-router.delete("/advisors/:relationshipId", async (req, res) => {
+router.delete("/:relationshipId", async (req, res) => {
   try {
     const { relationshipId } = req.params;
     const { ownerUserId } = req.body;
@@ -378,10 +378,10 @@ router.delete("/advisors/:relationshipId", async (req, res) => {
 });
 
 /**
- * POST /api/advisors/accept
+ * POST /api/accept
  * Advisor accepts invite by token.
  */
-router.post("/advisors/accept", async (req, res) => {
+router.post("/accept", async (req, res) => {
   try {
     const { token, advisorUserId, advisorProfileInput } = req.body;
 
@@ -410,10 +410,10 @@ router.post("/advisors/accept", async (req, res) => {
 });
 
 /**
- * GET /api/advisors/clients?advisorUserId=...
+ * GET /api/clients?advisorUserId=...
  * Advisor portal: list clients.
  */
-router.get("/advisors/clients", async (req, res) => {
+router.get("/clients", async (req, res) => {
   try {
     const { advisorUserId } = req.query;
 
@@ -440,11 +440,11 @@ router.get("/advisors/clients", async (req, res) => {
 });
 
 /**
- * GET /api/advisors/clients/:relationshipId/profile?advisorUserId=...
+ * GET /api/clients/:relationshipId/profile?advisorUserId=...
  * Advisor portal: view single client profile.
  */
 router.get(
-  "/advisors/clients/:relationshipId/profile",
+  "/clients/:relationshipId/profile",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -481,12 +481,12 @@ router.get(
 
 
 /**
- * GET /api/advisors/clients/:relationshipId/messages
+ * GET /api/clients/:relationshipId/messages
  * List messages for a relationship (candidate or advisor).
  * Query: role=candidate|advisor, userId=<currentUserId>
  */
 router.get(
-  "/advisors/clients/:relationshipId/messages",
+  "/clients/:relationshipId/messages",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -519,12 +519,12 @@ router.get(
 );
 
 /**
- * POST /api/advisors/clients/:relationshipId/messages
+ * POST /api/clients/:relationshipId/messages
  * Create a new message in a relationship (candidate or advisor).
  * Body: { role, userId, body }
  */
 router.post(
-  "/advisors/clients/:relationshipId/messages",
+  "/clients/:relationshipId/messages",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -558,11 +558,11 @@ router.post(
 );
 
 /**
- * GET /api/advisors/:relationshipId/sharing-config
+ * GET /api/:relationshipId/sharing-config
  * Candidate: view current sharing config and available items.
  */
 router.get(
-  "/advisors/:relationshipId/sharing-config",
+  "/:relationshipId/sharing-config",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -596,11 +596,11 @@ router.get(
   }
 );
 /**
- * PATCH /api/advisors/:relationshipId/sharing-config
+ * PATCH /api/:relationshipId/sharing-config
  * Candidate: update which resumes, cover letters, jobs, and progress are shared.
  */
 router.patch(
-  "/advisors/:relationshipId/sharing-config",
+  "/:relationshipId/sharing-config",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -644,11 +644,11 @@ router.patch(
   }
 );
 /**
- * GET /api/advisors/clients/:relationshipId/materials
+ * GET /api/clients/:relationshipId/materials
  * Advisor portal: view client documents, applications, and progress.
  */
 router.get(
-  "/advisors/clients/:relationshipId/materials",
+  "/clients/:relationshipId/materials",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -684,11 +684,11 @@ router.get(
 
 
 /**
- * GET /api/advisors/clients/:relationshipId/recommendations
+ * GET /api/clients/:relationshipId/recommendations
  * role=candidate|advisor, userId=<id>
  */
 router.get(
-  "/advisors/clients/:relationshipId/recommendations",
+  "/clients/:relationshipId/recommendations",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -720,12 +720,12 @@ router.get(
   }
 );
 /**
- * POST /api/advisors/clients/:relationshipId/recommendations
+ * POST /api/clients/:relationshipId/recommendations
  * Advisor creates a recommendation.
  * Body: { advisorUserId, title, description?, category?, jobId?, resumeId?, coverLetterId? }
  */
 router.post(
-  "/advisors/clients/:relationshipId/recommendations",
+  "/clients/:relationshipId/recommendations",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -770,11 +770,11 @@ router.post(
   }
 );
 /**
- * PATCH /api/advisors/recommendations/:recommendationId
+ * PATCH /api/recommendations/:recommendationId
  * Body: { role, userId, ...fields }
  */
 router.patch(
-  "/advisors/recommendations/:recommendationId",
+  "/recommendations/:recommendationId",
   async (req, res) => {
     try {
       const { recommendationId } = req.params;
@@ -808,9 +808,9 @@ router.patch(
 );
 
 /**
- * GET /api/advisors/me/availability?advisorUserId=...
+ * GET /api/me/availability?advisorUserId=...
  */
-router.get("/advisors/me/availability", async (req, res) => {
+router.get("/me/availability", async (req, res) => {
   try {
     const { advisorUserId } = req.query;
     if (!advisorUserId) {
@@ -835,10 +835,10 @@ router.get("/advisors/me/availability", async (req, res) => {
 });
 
 /**
- * PUT /api/advisors/me/availability
+ * PUT /api/me/availability
  * Body: { advisorUserId, weeklySlots, sessionTypes, timezone? }
  */
-router.put("/advisors/me/availability", async (req, res) => {
+router.put("/me/availability", async (req, res) => {
   try {
     const { advisorUserId, weeklySlots, sessionTypes, timezone } =
       req.body;
@@ -869,11 +869,11 @@ router.put("/advisors/me/availability", async (req, res) => {
   }
 });
 /**
- * GET /api/advisors/clients/:relationshipId/slots
+ * GET /api/clients/:relationshipId/slots
  * Query: advisorUserId, daysAhead?
  */
 router.get(
-  "/advisors/clients/:relationshipId/slots",
+  "/clients/:relationshipId/slots",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -911,10 +911,10 @@ router.get(
   }
 );
 /**
- * GET /api/advisors/clients/:relationshipId/sessions?role=&userId=
+ * GET /api/clients/:relationshipId/sessions?role=&userId=
  */
 router.get(
-  "/advisors/clients/:relationshipId/sessions",
+  "/clients/:relationshipId/sessions",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -949,11 +949,11 @@ router.get(
 );
 
 /**
- * POST /api/advisors/clients/:relationshipId/sessions
+ * POST /api/clients/:relationshipId/sessions
  * Body: { role, createdByUserId, ownerUserId, advisorUserId, startTime, endTime, sessionType, note? }
  */
 router.post(
-  "/advisors/clients/:relationshipId/sessions",
+  "/clients/:relationshipId/sessions",
   async (req, res) => {
     try {
       const { relationshipId } = req.params;
@@ -1009,11 +1009,11 @@ router.post(
 );
 
 /**
- * PATCH /api/advisors/sessions/:sessionId
+ * PATCH /api/sessions/:sessionId
  * Body: { role, userId, status }
  */
 router.patch(
-  "/advisors/sessions/:sessionId",
+  "/sessions/:sessionId",
   async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -1048,9 +1048,9 @@ router.patch(
   }
 );
 /**
- * GET /api/advisors/me/billing-settings?advisorUserId=...
+ * GET /api/me/billing-settings?advisorUserId=...
  */
-router.get("/advisors/me/billing-settings", async (req, res) => {
+router.get("/me/billing-settings", async (req, res) => {
   try {
     const { advisorUserId } = req.query;
     if (!advisorUserId) {
@@ -1075,10 +1075,10 @@ router.get("/advisors/me/billing-settings", async (req, res) => {
 });
 
 /**
- * PUT /api/advisors/me/billing-settings
+ * PUT /api/me/billing-settings
  * Body: { advisorUserId, isPaidCoach, rateAmount, currency }
  */
-router.put("/advisors/me/billing-settings", async (req, res) => {
+router.put("/me/billing-settings", async (req, res) => {
   try {
     const { advisorUserId, isPaidCoach, rateAmount, currency } =
       req.body;
@@ -1109,11 +1109,11 @@ router.put("/advisors/me/billing-settings", async (req, res) => {
 });
 
 /**
- * PATCH /api/advisors/sessions/:sessionId/payment
+ * PATCH /api/sessions/:sessionId/payment
  * Body: { advisorUserId, paymentStatus }
  */
 router.patch(
-  "/advisors/sessions/:sessionId/payment",
+  "/sessions/:sessionId/payment",
   async (req, res) => {
     try {
       const { sessionId } = req.params;

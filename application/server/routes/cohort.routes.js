@@ -20,7 +20,7 @@ router.use(requireRole(["org_admin", "super_admin"]));
  * GET /api/enterprise/cohorts
  * Query: status, search, page, pageSize
  */
-router.get("/enterprise/cohorts", async (req, res) => {
+router.get("/cohorts", async (req, res) => {
   try {
     const { status, search, page, pageSize } = req.query;
     console.log(req.user)
@@ -44,7 +44,7 @@ router.get("/enterprise/cohorts", async (req, res) => {
 /**
  * POST /api/enterprise/cohorts
  */
-router.post("/enterprise/cohorts", async (req, res) => {
+router.post("/cohorts", async (req, res) => {
   try {
     const { name, description, tags } = req.body;
 
@@ -68,7 +68,7 @@ router.post("/enterprise/cohorts", async (req, res) => {
 /**
  * GET /api/enterprise/cohorts/:cohortId
  */
-router.get("/enterprise/cohorts/:cohortId", async (req, res) => {
+router.get("/cohorts/:cohortId", async (req, res) => {
   try {
     const { cohortId } = req.params;
 
@@ -87,9 +87,9 @@ router.get("/enterprise/cohorts/:cohortId", async (req, res) => {
 });
 
 /**
- * PATCH /api/enterprise/cohorts/:cohortId
+ * PATCH /api/cohorts/:cohortId
  */
-router.patch("/enterprise/cohorts/:cohortId", async (req, res) => {
+router.patch("/cohorts/:cohortId", async (req, res) => {
   try {
     const { cohortId } = req.params;
 
@@ -109,9 +109,9 @@ router.patch("/enterprise/cohorts/:cohortId", async (req, res) => {
 });
 
 /**
- * POST /api/enterprise/cohorts/:cohortId/archive
+ * POST /api/cohorts/:cohortId/archive
  */
-router.post("/enterprise/cohorts/:cohortId/archive", async (req, res) => {
+router.post("/cohorts/:cohortId/archive", async (req, res) => {
   try {
     const { cohortId } = req.params;
 
@@ -133,7 +133,7 @@ router.post("/enterprise/cohorts/:cohortId/archive", async (req, res) => {
  * GET /api/enterprise/cohorts/:cohortId/members
  * Query: search, page, pageSize
  */
-router.get("/enterprise/cohorts/:cohortId/members", async (req, res) => {
+router.get("/cohorts/:cohortId/members", async (req, res) => {
   try {
     const { cohortId } = req.params;
     const { search, page, pageSize } = req.query;
@@ -159,7 +159,7 @@ router.get("/enterprise/cohorts/:cohortId/members", async (req, res) => {
  * POST /api/enterprise/cohorts/:cohortId/members
  * Body: { jobSeekerUserIds: string[] }
  */
-router.post("/enterprise/cohorts/:cohortId/members", async (req, res) => {
+router.post("/cohorts/:cohortId/members", async (req, res) => {
   try {
     const { cohortId } = req.params;
     const { jobSeekerUserIds } = req.body;
@@ -184,7 +184,7 @@ router.post("/enterprise/cohorts/:cohortId/members", async (req, res) => {
  * DELETE /api/enterprise/cohorts/:cohortId/members
  * Body: { jobSeekerUserIds: string[] }
  */
-router.delete("/enterprise/cohorts/:cohortId/members", async (req, res) => {
+router.delete("/cohorts/:cohortId/members", async (req, res) => {
   try {
     const { cohortId } = req.params;
     const { jobSeekerUserIds } = req.body;
@@ -204,23 +204,5 @@ router.delete("/enterprise/cohorts/:cohortId/members", async (req, res) => {
   }
 });
 
-router.get("/enterprise/jobseekers", async (req, res) => {
-  try {
-    const { search, page, pageSize } = req.query;
 
-    const result = await searchJobSeekers({
-      organizationId: req.user.organizationId,
-      search,
-      page: page ? Number(page) : 1,
-      pageSize: pageSize ? Number(pageSize) : 10,
-    });
-
-    res.json(result);
-  } catch (err) {
-    console.error("Error searching job seekers:", err);
-    res
-      .status(err.statusCode || 500)
-      .json({ error: err.message || "Server error searching job seekers" });
-  }
-});
 export default router;
