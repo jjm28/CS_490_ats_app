@@ -167,6 +167,7 @@ describe("Projects Router", () => {
       expect(mockInsertOne).toHaveBeenCalledWith({
         ...validProjectData,
         userId: mockUserId,
+        thumbnailUrl: "",
       });
     });
 
@@ -287,6 +288,30 @@ describe("Projects Router", () => {
           industry: validProjectData.industry,
           status: validProjectData.status,
           mediaUrl: validProjectData.mediaUrl,
+          thumbnailUrl: "",
+        })
+      );
+    });
+
+    test("should use provided thumbnailUrl when present", async () => {
+      const dataWithThumbnail = {
+        ...validProjectData,
+        thumbnailUrl: "https://example.com/thumb.png",
+      };
+
+      mockInsertOne.mockResolvedValue({
+        insertedId: mockProjectId,
+      });
+
+      const res = await request(app)
+        .post("/projects")
+        .set("Authorization", `Bearer ${validToken}`)
+        .send(dataWithThumbnail);
+
+      expect(res.status).toBe(201);
+      expect(mockInsertOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          thumbnailUrl: "https://example.com/thumb.png",
         })
       );
     });

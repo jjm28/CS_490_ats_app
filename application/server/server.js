@@ -39,11 +39,6 @@ import certificationRoutes from "./routes/certifications.js";
 // 💼 JOBS & SALARY
 import jobRoutes from "./routes/jobs.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
-import salaryRoutes from "./routes/salary.js";
-
-
-import salaryRouter from "./routes/salary.js";
-
 //import salaryRoutes from "./routes/salary.js";
 
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
@@ -197,6 +192,11 @@ try {
   // Salary CRUD — MUST COME AFTER
   app.use("/api/salary", salaryRoutes);
 
+    // 🚀 START SERVER
+  //team page routing
+  app.use("/api/teams",teamRoutes);
+  app.use("/api/teams",  teamProgressRouter);
+
   // 📊 INTERVIEW & COMPANY RESEARCH
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use("/api/interviews", interviewAnalyticsRoutes);
@@ -271,10 +271,13 @@ app.use("/api/org",attachUserFromHeaders, organizationRoutes);
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 
+<<<<<<< Updated upstream
   //team page routing
   app.use("/api/teams",teamRoutes);
   app.use("/api/teams",  teamProgressRouter);
   
+=======
+>>>>>>> Stashed changes
   app.use("/api/success", successOverview);
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);
