@@ -6,6 +6,8 @@ import {
   getSalaryResearch,
   cacheSalaryData,
 } from "../services/salary.service.js";
+// routes/salary.js
+import { getSalaryBenchmark } from "../services/salaryData.service.js";
 
 const router = express.Router();
 
@@ -144,5 +146,41 @@ router.get("/:id", async (req, res) => {
     return res.status(500).json({ error: "Failed to fetch salary data" });
   }
 });
+
+
+
+/**
+ * GET /api/salary/benchmark
+ *
+ * Query params:
+ *   - title (required): job title, e.g. "Software Engineer"
+ *   - location (optional but recommended): e.g. "New York, NY" or "NY"
+ *   - jobId (optional): Job._id as string (for tracing)
+ */
+router.get("/get/benchmark", async (req, res) => {
+  try {
+    const { title, location, jobId } = req.query;
+    if (!title) {
+      return res
+        .status(400)  
+        .json({ error: "Query parameter 'title' is required." });
+    }
+
+    const benchmark = await getSalaryBenchmark({
+      title,
+      location: location || "",
+      jobId: jobId || null,
+    });
+
+    return res.json(benchmark);
+  } catch (err) {
+    console.error("Error fetching salary benchmark:", err);
+    return res
+      .status(500)
+      .json({ error: "Server error fetching salary benchmark" });
+  }
+});
+
+
 
 export default router;
