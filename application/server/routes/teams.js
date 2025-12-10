@@ -25,11 +25,14 @@ import {
   exportTeamCoverletterService,
 } from "../services/teams.service.js";
 import { getDb } from "../db/connection.js";
-import { ObjectId } from "mongodb"; // ⬅️ NEW
+import { ObjectId } from "mongodb"; 
 import mongoose from "mongoose";
 import Resume from "../models/resume.js";
 import Coverletter from "../models/coverletters.js";
 import SharedDoc from "../models/sharedDoc.js";
+import {
+  addSharedDocComment as addSharedDocCommentService,
+} from "../services/sharedDocs.service.js";
 import {
   sendTeamMessage,
   getTeamMessages,
@@ -564,19 +567,40 @@ router.get("/:teamId/export/coverletter/:coverletterId", async (req, res) => {
 router.post("/shared-docs/:sharedId/comments", async (req, res) => {
   try {
     const { sharedId } = req.params;
-    const { text, authorId, authorName } = req.body;
+    const { type, text } = req.body; // type = "resume" | "coverletter"
+    const { userId } = getAuthContext(req);
 
-    const sharedDoc = await SharedDoc.findById(sharedId);
-    if (!sharedDoc) return res.status(404).json({ message: "Shared doc not found" });
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    if (!type || !["resume", "coverletter"].includes(type)) {
+      return res.status(400).json({ error: "Invalid document type" });
+    }
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: "Comment text is required" });
+    }
 
-    const newComment = { text, authorId, authorName };
-    sharedDoc.comments.push(newComment);
-    await sharedDoc.save();
+    // ✅ Write comment into Resume / Coverletter.comments
+    const comment = await addSharedDocCommentService(
+      sharedId,
+      type,
+      text.trim(),
+      userId
+    );
 
-    res.json({ message: "Comment added", comment: newComment });
+    // 🔁 Return full comments array so UI can refresh
+    const model = type === "resume" ? Resume : Coverletter;
+    const doc = await model.findById(sharedId).select("comments");
+    const comments = doc?.comments || [];
+
+    res.json({
+      message: "Comment added",
+      comment,
+      comments,
+    });
   } catch (err) {
     console.error("Error adding comment:", err);
-    res.status(500).json({ message: "Failed to add comment" });
+    res.status(500).json({ error: "Failed to add comment" });
   }
 });
 
@@ -584,13 +608,23 @@ router.post("/shared-docs/:sharedId/comments", async (req, res) => {
 router.get("/shared-docs/:sharedId/comments", async (req, res) => {
   try {
     const { sharedId } = req.params;
-    const sharedDoc = await SharedDoc.findById(sharedId);
+    const { type } = req.query;
 
-    if (!sharedDoc) return res.status(404).json({ message: "Shared doc not found" });
-    res.json({ comments: sharedDoc.comments });
+    if (!type || !["resume", "coverletter"].includes(type)) {
+      return res.status(400).json({ error: "Invalid document type" });
+    }
+
+    const model = type === "resume" ? Resume : Coverletter;
+    const doc = await model.findById(sharedId).select("comments");
+
+    if (!doc) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+
+    res.json({ comments: doc.comments || [] });
   } catch (err) {
     console.error("Error fetching comments:", err);
-    res.status(500).json({ message: "Failed to fetch comments" });
+    res.status(500).json({ error: "Failed to fetch comments" });
   }
 });
 
@@ -634,14 +668,24 @@ router.patch("/shared-docs/:sharedId/comments/:commentId/resolve", async (req, r
 router.get("/:teamId/messages", async (req, res) => {
   try {
     const { teamId } = req.params;
-    const requesterId = getUserId(req); // ✅ defined now
-    if (!requesterId) return res.status(401).json({ error: "Unauthorized" });
 
-    const messages = await getTeamMessages({ teamId, requesterId });
-    res.json({ messages });
+    const { userId } = getAuthContext(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const payload = await getTeamMessages({
+      teamId,
+      requesterId: userId,
+    });
+
+    // payload = { messages, members, currentUserId }
+    res.json(payload);
   } catch (err) {
     console.error("Error fetching messages:", err);
-    res.status(500).json({ error: err.message || "Failed to fetch team messages" });
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to fetch team messages" });
   }
 });
 
@@ -649,15 +693,28 @@ router.get("/:teamId/messages", async (req, res) => {
 router.post("/:teamId/messages", async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { text } = req.body;
-    const senderId = getUserId(req); // ✅ defined now
-    if (!senderId) return res.status(401).json({ error: "Unauthorized" });
+    const { text, scope, recipientIds } = req.body || {};
 
-    const message = await sendTeamMessage({ teamId, senderId, text });
+    // ⬇️ Same auth context used everywhere else
+    const { userId } = getAuthContext(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const message = await sendTeamMessage({
+      teamId,
+      senderId: userId,
+      text,
+      scope,
+      recipientIds,
+    });
+
     res.json({ message });
   } catch (err) {
     console.error("Error sending message:", err);
-    res.status(500).json({ error: err.message || "Failed to send team message" });
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to send team message" });
   }
 });
 

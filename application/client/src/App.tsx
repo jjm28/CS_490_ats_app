@@ -615,7 +615,7 @@ function App() {
            />
 
            <Route 
-           path="/teams/sharing" 
+           path="/teams/:teamId/share" 
            element={<PrivateRoute><CandidateSharingPage /></PrivateRoute>} 
            />
            <Route 

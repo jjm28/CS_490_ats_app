@@ -89,6 +89,8 @@ export type SharedCoverletterDoc = {
   isShared?: boolean;
 };
 
+export type SharedDocKind = "resume" | "coverletter";
+
 export type CandidateSharedDocs = {
   candidate: {
     id: string;
@@ -153,13 +155,13 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
   return body;
 }
 
-export type TeamMessage = {
+/*export type TeamMessage = {
   _id?: string;
   teamId?: string;
   senderId?: string;
   text: string;
   createdAt?: string;
-};
+};*/
 
 export type TeamGoalMilestone = {
   label: string;
@@ -349,21 +351,37 @@ export async function getMySharedDocs(): Promise<MySharedDocs> {
   }) as MySharedDocs;
 }
 
-export async function addSharedDocComment(sharedId: string, text: string) {
-  const res = await fetch(`/api/teams/shared-docs/${sharedId}/comments`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
+export async function addSharedDocComment(
+  sharedId: string,
+  type: SharedDocKind,
+  text: string
+) {
+  const body = await fetchWithAuth(
+    `/shared-docs/${encodeURIComponent(sharedId)}/comments`,
+    {
+      method: "POST",
+      body: JSON.stringify({ type, text }),
+    }
+  );
 
-  if (!res.ok) throw new Error("Failed to add comment");
-  return res.json();
+  return body as {
+    message: string;
+    comment?: SharedDocComment;
+    comments?: SharedDocComment[];
+  };
 }
 
-export async function getSharedDocComments(sharedId: string) {
-  const res = await fetch(`/api/teams/shared-docs/${sharedId}/comments`);
-  if (!res.ok) throw new Error("Failed to load comments");
-  return res.json();
+export async function getSharedDocComments(
+  sharedId: string,
+  type: SharedDocKind
+): Promise<{ comments: SharedDocComment[] }> {
+  const body = await fetchWithAuth(
+    `/shared-docs/${encodeURIComponent(
+      sharedId
+    )}/comments?type=${encodeURIComponent(type)}`
+  );
+
+  return (body || { comments: [] }) as { comments: SharedDocComment[] };
 }
 
 export async function resolveSharedDocComment(params: {
@@ -464,50 +482,79 @@ export async function exportTeamCoverletter(
 }
 
 // GET messages
+
+export interface TeamChatMember {
+  id: string;
+  name: string;
+  email?: string | null;
+  roles?: string[];
+}
+
+export interface TeamMessage {
+  _id?: string;
+  teamId?: string;
+  text: string;
+  createdAt?: string;
+  updatedAt?: string;
+  senderId?: string;
+  senderName?: string;
+  senderEmail?: string;
+  scope?: "team" | "direct" | null;
+  recipientIds?: string[];
+}
+
+export interface TeamMessagesResponse {
+  messages: TeamMessage[];
+  members: TeamChatMember[];
+  currentUserId?: string | null;
+}
+
+export interface SendTeamMessagePayload {
+  text: string;
+  scope?: "team" | "direct";
+  recipientIds?: string[];
+}
+//GET messages
 export async function getTeamMessages(
   teamId: string
-): Promise<{ messages: TeamMessage[] }> {
-  const url = `/api/teams/${teamId}/messages`;
+): Promise<TeamMessagesResponse> {
+  // Use the same helper as other team APIs so Authorization is attached
+  const body = (await fetchWithAuth(
+    `/${encodeURIComponent(teamId)}/messages`,
+    {
+      method: "GET",
+    }
+  )) as TeamMessagesResponse | TeamMessage[];
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(
-      `Failed to fetch team messages (${res.status}). ${text || ""}`
-    );
+  // Backward-compatible: older backend may return a bare array
+  if (Array.isArray(body)) {
+    return {
+      messages: body,
+      members: [],
+      currentUserId: undefined,
+    };
   }
 
-  const data = (await res.json()) as { messages: TeamMessage[] };
-  return data;
+  return body;
 }
-
-// POST message
+//POST messages
 export async function sendTeamMessage(
   teamId: string,
-  text: string
+  payload: SendTeamMessagePayload
 ): Promise<{ message: TeamMessage }> {
-  const url = `/api/teams/${teamId}/messages`;
+  const body = (await fetchWithAuth(
+    `/${encodeURIComponent(teamId)}/messages`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  )) as { message: TeamMessage };
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ text }),
-  });
-
-  if (!res.ok) {
-    const responseText = await res.text().catch(() => "");
-    throw new Error(
-      `Failed to send team message (${res.status}). ${responseText || ""}`
-    );
-  }
-
-  const data = (await res.json()) as { message: TeamMessage };
-  return data;
+  return body;
 }
+
+
+
 
 /**
  * 📈 MENTEE PROGRESS
@@ -628,6 +675,31 @@ export async function updateGoalMilestone(
   return data;
 }
 
+export async function markTeamGoalComplete(
+  teamId: string,
+  goalId: string,
+  completed: boolean,
+  comment?: string
+): Promise<any> {
+  const url = `/api/teams/${teamId}/goals/${goalId}/complete`;
+
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ completed, comment }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Failed to update goal status (${res.status}). ${text || ""}`
+    );
+  }
+
+  const data = await res.json();
+  return data;
+}
+
 /**
  * 💡 INSIGHTS
  * Backend (routes/team-progress.js):
@@ -635,10 +707,28 @@ export async function updateGoalMilestone(
  *  POST /api/teams/:teamId/insights
  */
 
+export type TeamInsightMember = {
+  id: string;
+  name: string;
+};
+
+export type TeamInsightsPayload = {
+  teamInsights: TeamInsight[];
+  personalInsights: TeamInsight[];
+  members: TeamInsightMember[];
+  canPost: boolean;
+};
+
+export type AddTeamInsightPayload = {
+  text: string;
+  scope?: "team" | "personal";
+  recipientIds?: string[];
+};
+
 // GET insights
 export async function getTeamInsights(
   teamId: string
-): Promise<TeamInsight[]> {
+): Promise<TeamInsightsPayload> {
   const url = `/api/teams/${teamId}/insights`;
 
   const res = await fetch(url, {
@@ -653,7 +743,7 @@ export async function getTeamInsights(
     );
   }
 
-  const data = (await res.json()) as TeamInsight[];
+  const data = (await res.json()) as TeamInsightsPayload;
   return data;
 }
 
@@ -662,16 +752,14 @@ export async function getTeamInsights(
 // but backend ONLY uses `text` + the JWT user as author)
 export async function addTeamInsight(
   teamId: string,
-  _menteeId: string,
-  text: string,
-  _source = "manual"
+  payload: AddTeamInsightPayload
 ): Promise<TeamInsight> {
   const url = `/api/teams/${teamId}/insights`;
 
   const res = await fetch(url, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
