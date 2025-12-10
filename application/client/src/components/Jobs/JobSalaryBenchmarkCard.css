@@ -1,0 +1,180 @@
+.salary-card {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 16px 18px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: 14px;
+}
+
+.salary-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.salary-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.salary-card__subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.salary-card__year {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* States */
+
+.salary-card__state {
+  margin-top: 4px;
+}
+
+.salary-card__state--error .salary-card__state-text {
+  color: #b91c1c;
+}
+
+.salary-card__state-text {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.salary-card__skeleton {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 0%,
+    #e2e8f0 40%,
+    #f1f5f9 80%
+  );
+  background-size: 200% 100%;
+  animation: salary-skeleton 1.1s infinite linear;
+}
+
+@keyframes salary-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Range */
+
+.salary-card__range {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.salary-card__range-label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.salary-card__range-value {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Bar + markers */
+
+.salary-card__bar-section {
+  margin-top: 6px;
+  padding-top: 4px;
+}
+
+.salary-card__bar {
+  position: relative;
+  height: 60px; /* enough space for dot + labels above and value below */
+  padding-top: 16px;
+}
+
+.salary-card__bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 24px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.salary-card__marker {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.salary-card__marker-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #2563eb;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #2563eb;
+  margin: 8px auto 2px;
+}
+
+.salary-card__marker-label {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.salary-card__marker-value {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* Percentiles list */
+
+.salary-card__percentiles {
+  margin-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.salary-card__percentile-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.salary-card__percentile-row span:first-child {
+  color: #64748b;
+}
+
+/* Meta */
+
+.salary-card__meta {
+  margin-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.4;
+}
