@@ -21,6 +21,7 @@ const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 const RESUME_VERSIONS_ENDPOINT = `${API_BASE}/api/resume-versions`; // NEW
 import MilestoneShareModal from "../Support/MilestoneShareModal";
 import { useNavigate } from "react-router-dom";
+import JobSalaryBenchmarkCard from "./JobSalaryBenchmarkCard";
 
 
 // NEW: type for linked resume versions coming from backend
@@ -800,7 +801,10 @@ useEffect(() => {
             isEditing={isEditing}
             onChange={(val) => setFormData({ ...formData, salaryNotes: val })}
           />
-
+    <div className="job-side-column">
+      {/* other side widgets */}
+      <JobSalaryBenchmarkCard job={job} />
+    </div>
           <TextArea
             label="Interview Notes & Feedback"
             value={formData.interviewNotes}
