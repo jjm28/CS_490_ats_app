@@ -353,6 +353,32 @@ class NotificationService {
       </html>
     `;
   }
+
+  /**
+   * Send interview follow-up email with user's name as sender
+   */
+  async sendFollowUpEmail(recipientEmail, subject, body, senderName = null) {
+    try {
+      // Construct the "from" field with user's name
+      const fromEmail = process.env.EMAIL_USER || 'noreply@jobtracker.com';
+      const fromField = senderName 
+        ? `"${senderName}" <${fromEmail}>`  // "Alieyah Narzoles" <your-email@gmail.com>
+        : fromEmail;  // Fallback to just email
+
+      await this.emailTransporter.sendMail({
+        from: fromField,
+        to: recipientEmail,
+        subject,
+        text: body, // Send as plain text
+      });
+
+      console.log(`📧 Follow-up email sent to ${recipientEmail} from ${fromField}`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Follow-up email send error:', error);
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+  }
 }
 
 export default new NotificationService();

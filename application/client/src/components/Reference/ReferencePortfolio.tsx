@@ -25,7 +25,6 @@ export default function ReferencePortfolio() {
         goal,
         limit: 5,
       });
-
       setPortfolio(resp);
     } catch (err: any) {
       console.error("Failed to generate portfolio:", err);

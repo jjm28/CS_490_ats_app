@@ -238,7 +238,7 @@ export async function getReferencePortfolio(opts: {
       "Content-Type": "application/json",
       // optionally Authorization if needed
     },
-    body: JSON.stringify(opts),
+    body: JSON.stringify({ ...opts, useAI: true }),
   });
 
   if (!res.ok) {

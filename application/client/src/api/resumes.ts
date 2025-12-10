@@ -1,3 +1,6 @@
+import type { ResumeFeedbackComment } from "../components/Resume/ResumeShareView";
+import type { ReviewerPermission, SharingMeta, WorkflowStatus } from "./coverletter";
+
 // Minimal client wrapper for your existing resume routes.
 export type TemplateKey = "chronological" | "functional" | "hybrid";
 
@@ -46,7 +49,7 @@ const API =
   (import.meta as any).env?.VITE_API_URL ||
   `${(import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5050"}/api`;
 
-function getAuthHeaders() {
+export default function getAuthHeaders() {
   const raw = localStorage.getItem("authUser");
   const u = raw ? JSON.parse(raw) : null;
   const token = (u?.token || localStorage.getItem("token") || "").replace(
@@ -59,6 +62,20 @@ function getAuthHeaders() {
 }
 
 /* ------------ CRUD + share ------------ */
+export interface GetSharedResumeResponse {
+  _id: string;
+  owner: string;
+  filename: string;
+  templateKey: TemplateKey;
+  resumedata: ResumeData;
+  lastSaved: string;
+  visibility? : "public" | "unlisted" | "restricted"
+restricteduserid? : [string]
+sharing?: SharingMeta
+comments: ResumeFeedbackComment[]
+  reviewers?: ReviewerPermission[];
+   reviewDeadline?: string;
+}
 
 export async function listResumes({
   userid,
@@ -179,12 +196,16 @@ export async function createSharedResume({
   resumedata,
   visibility,
   allowComments,
+   
+           reviewDeadline 
 }: {
   userid: string;
   resumeid: string;
   resumedata: ResumeData;
   visibility: string,
   allowComments: boolean,
+
+           reviewDeadline: string
 }) {
   const r = await fetch(
     `${API}/resumes/${encodeURIComponent(
@@ -193,13 +214,31 @@ export async function createSharedResume({
     {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ resumedata,visibility,allowComments}),
+      body: JSON.stringify({ resumedata,visibility,allowComments,reviewDeadline}),
     }
   );
   if (!r.ok) throw new Error("Share failed");
   return r.json();
 }
 
+export  const fetchSharedResume = async (uid: string,sharedid:string,currentUseremail:string  ): Promise<GetSharedResumeResponse> => {
+         const res = await fetch(
+        `${API}/resumes/shared/${encodeURIComponent(uid)}/${encodeURIComponent(sharedid)}/${encodeURIComponent(currentUseremail)}`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: getAuthHeaders(),
+          }
+        );
+
+  const data = await res.json();
+  
+  if (!res.ok) {
+    throw new Error(data.error || "Unknown error occurred");
+  }
+
+  return data as Promise<GetSharedResumeResponse>;
+};
 /* ------------ AI handling ------------ */
 
 // Keep these exports so other files can still import them
@@ -626,3 +665,93 @@ export async function getProfileContact(): Promise<{
 
   return { name, contact };
 }
+
+
+export interface UpdateWorkflowResponse {
+  workflowStatus: WorkflowStatus;
+  approvedByName?: string;
+  approvedAt?: string;
+}
+ interface UpdateWorkflowRequest {
+  resumeid: string;
+  status: WorkflowStatus;
+}
+export async function updateResumeWorkflow(
+  params: UpdateWorkflowRequest
+): Promise<UpdateWorkflowResponse> {
+  const { resumeid, status } = params;
+const API_URL = "http://localhost:5050/api/resumes/";
+  const res = await fetch(`${API_URL}${resumeid}/workflow`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to update workflow status");
+  }
+  return data as UpdateWorkflowResponse;
+}
+
+
+export interface FeedbackTheme {
+  label: string;
+  description: string;
+  frequency?: number;
+  exampleComments?: string[];
+}
+
+export interface FeedbackSummaryAI {
+  themes: FeedbackTheme[];
+  strengths: string[];
+  improvementSuggestions: string[];
+}
+
+export interface FeedbackSummaryByRole {
+  role: "mentor" | "peer" | "advisor" | "recruiter" | "other" | "unknown" | string;
+  reviewers: number;
+  comments: number;
+  resolvedComments: number;
+}
+
+export interface FeedbackSummaryResponse {
+  resumeid: string;
+  totalReviewers: number;
+  statusCounts: Record<string, number>;
+  totalComments: number;
+  openComments: number;
+  resolvedComments: number;
+  byRole: FeedbackSummaryByRole[];
+  aiSummary: FeedbackSummaryAI | null;
+}
+
+export interface GetFeedbackSummaryRequest {
+  userid: string;
+  resumeid: string;
+}
+
+export async function getResumeFeedbackSummary(
+  params: GetFeedbackSummaryRequest
+): Promise<FeedbackSummaryResponse> {
+  const { userid, resumeid } = params;
+const API_URL = "http://localhost:5050/api/resumes/";
+
+  const url = `${API_URL}${resumeid}/feedback-summary?userid=${encodeURIComponent(
+    userid
+  )}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to load feedback summary");
+  }
+
+  return data as FeedbackSummaryResponse;
+}
+

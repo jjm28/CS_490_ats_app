@@ -43,6 +43,8 @@
   border-radius: 20px;
   border: 1px solid var(--border-color);
   background: var(--background-dark);
+  font-family: 'League Spartan', system-ui, sans-serif;
+
   font-weight: 300;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -174,4 +176,44 @@
     grid-column: 4;
     grid-row: 3;
   }
+
+   /* Card 3 - Large (Teamwork) */
+  .magic-bento-card:nth-child(9) {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  /* Card 3 - Large (Teamwork) */
+  .magic-bento-card:nth-child(10) {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+}
+
+/* ================================
+   CATEGORY COLOR THEMES
+   ================================ */
+
+/* 1. Research & Preparation */
+.card--research {
+  background: #0E3B43; /* deep teal */
+  border-color: #6DA598;
+}
+
+/* 2. Practice & Coaching */
+.card--practice {
+  background: #123F32; /* deeper green */
+  border-color: #76B09A;
+}
+
+/* 3. Scheduling & Tracking */
+.card--scheduling {
+  background: #2B3A55; /* slate blue */
+  border-color: #8EA3D2;
+}
+
+/* 4. Post-Interview */
+.card--post {
+  background: #442B48; /* plum */
+  border-color: #C9A3CC;
 }

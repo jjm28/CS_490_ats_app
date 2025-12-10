@@ -17,7 +17,6 @@ export default function AuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     const u = params.get("u");
-
     if (!token || !u) {
       // handle error state
       navigate("/login");
@@ -32,7 +31,9 @@ export default function AuthCallback() {
         "_id": parseuser._id,
         "email": parseuser.email,
         "firstName": parseuser.firstName,
-        "lastName": parseuser.lastName
+        "lastName": parseuser.lastName,
+        "role" : parseuser.role,
+        "organizationId" : parseuser.organizationId
     }}
 
     setAuth(token,user)

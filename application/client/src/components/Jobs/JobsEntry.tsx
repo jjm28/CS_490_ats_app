@@ -26,6 +26,12 @@ import BulkDeadlineManager from "./BulkDeadlineManager";
 import { toggleArchiveJob } from "../../api/jobs";
 import JobUrlImporter from "./JobUrlImporter";
 
+// productivity
+import {
+  startProductivitySession,
+  endProductivitySession,
+} from "../../api/productivity";
+
 // Configuration
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
@@ -75,6 +81,7 @@ function JobsEntry() {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [flash, setFlash] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [linkedInProfile, setLinkedInProfile] = useState<any>(null);
   const [formData, setFormData] = useState<JobFormData>({
     jobTitle: "",
     company: "",
@@ -89,6 +96,7 @@ function JobsEntry() {
     applicationMethod: "Other",
     applicationSource: "Other",
     autoArchiveDays: "60",
+    linkedInProfileUrl: "",
   });
   const { showToast, Toast } = useToast();
 
@@ -121,12 +129,67 @@ function JobsEntry() {
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
   const [archivingJob, setArchivingJob] = useState<Job | null>(null);
 
+  //Productivity Session State
+  const [activeSearchSessionId, setActiveSearchSessionId] = useState<
+    string | null
+  >(null);
+  const [isStartingSearchSession, setIsStartingSearchSession] = useState(false);
+  const [isEndingSearchSession, setIsEndingSearchSession] = useState(false);
+
   const token = useMemo(
     () =>
       localStorage.getItem("authToken") || localStorage.getItem("token") || "",
     []
   );
   const isLoggedIn = !!token;
+
+  // Add this effect to fetch LinkedIn profile
+  useEffect(() => {
+    async function fetchLinkedInProfile() {
+      try {
+        const response = await fetch(`${API_BASE}/api/linkedin/profile`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const profile = await response.json();
+          setLinkedInProfile(profile);
+        }
+      } catch (err) {
+        console.log("LinkedIn profile not connected");
+      }
+    }
+
+    if (isLoggedIn) {
+      fetchLinkedInProfile();
+    }
+  }, [isLoggedIn, token]);
+
+  // Update the resetForm function to include LinkedIn URL
+  const resetForm = () => {
+    setFormData({
+      jobTitle: "",
+      company: "",
+      location: "",
+      salaryMin: "",
+      salaryMax: "",
+      jobPostingUrl: "",
+      applicationDeadline: "",
+      description: "",
+      industry: "",
+      type: "",
+      applicationMethod: "Other",
+      applicationSource: "Other",
+      autoArchiveDays: "60",
+      linkedInProfileUrl: linkedInProfile?.linkedInProfileUrl || "", // 🆕 Auto-fill
+    });
+    setErrors({});
+    setEditingJob(null);
+    setShowForm(false);
+  };
 
   // ========================================
   // SEARCH AND FILTER LOGIC
@@ -170,15 +233,15 @@ function JobsEntry() {
           typeof job.salaryMin === "object" && job.salaryMin?.$numberDecimal
             ? parseFloat(job.salaryMin.$numberDecimal)
             : job.salaryMin
-              ? Number(job.salaryMin)
-              : 0;
+            ? Number(job.salaryMin)
+            : 0;
 
         const jobSalaryMax =
           typeof job.salaryMax === "object" && job.salaryMax?.$numberDecimal
             ? parseFloat(job.salaryMax.$numberDecimal)
             : job.salaryMax
-              ? Number(job.salaryMax)
-              : Infinity;
+            ? Number(job.salaryMax)
+            : Infinity;
 
         const filterMin = salaryMinFilter ? parseFloat(salaryMinFilter) : 0;
         const filterMax = salaryMaxFilter
@@ -229,14 +292,14 @@ function JobsEntry() {
             typeof a.salaryMax === "object" && a.salaryMax?.$numberDecimal
               ? parseFloat(a.salaryMax.$numberDecimal)
               : a.salaryMax
-                ? Number(a.salaryMax)
-                : 0;
+              ? Number(a.salaryMax)
+              : 0;
           const bSalaryMax =
             typeof b.salaryMax === "object" && b.salaryMax?.$numberDecimal
               ? parseFloat(b.salaryMax.$numberDecimal)
               : b.salaryMax
-                ? Number(b.salaryMax)
-                : 0;
+              ? Number(b.salaryMax)
+              : 0;
           return bSalaryMax - aSalaryMax;
 
         case "company":
@@ -684,6 +747,40 @@ function JobsEntry() {
     }
   }, [isLoggedIn]);
 
+  // Once logged in automatically start tracking time spent for productivity
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    let canceled = false;
+    let sessionId: string | null = null;
+
+    (async () => {
+      try {
+        const session = await startProductivitySession({
+          activityType: "job_search",
+          context: "JobsEntry",
+        });
+        if (!canceled) {
+          sessionId = session._id;
+        }
+      } catch (err) {
+        console.error(
+          "[productivity] Failed to start job_search session:",
+          err
+        );
+      }
+    })();
+
+    return () => {
+      canceled = true;
+      if (sessionId) {
+        endProductivitySession({ sessionId }).catch((err) =>
+          console.error("[productivity] Failed to end job_search session:", err)
+        );
+      }
+    };
+  }, [isLoggedIn]);
+
   const fetchJobs = async () => {
     console.log("Output");
     setLoading(true);
@@ -865,26 +962,27 @@ function JobsEntry() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      jobTitle: "",
-      company: "",
-      location: "",
-      salaryMin: "",
-      salaryMax: "",
-      jobPostingUrl: "",
-      applicationDeadline: "",
-      description: "",
-      industry: "",
-      type: "",
-      applicationMethod: "Other",
-      applicationSource: "Other",
-      autoArchiveDays: "60"
-    });
-    setErrors({});
-    setEditingJob(null);
-    setShowForm(false);
-  };
+  // const resetForm = () => {
+  //   setFormData({
+  //     jobTitle: "",
+  //     company: "",
+  //     location: "",
+  //     salaryMin: "",
+  //     salaryMax: "",
+  //     jobPostingUrl: "",
+  //     applicationDeadline: "",
+  //     description: "",
+  //     industry: "",
+  //     type: "",
+  //     applicationMethod: "Other",
+  //     applicationSource: "Other",
+  //     autoArchiveDays: "60",
+  //     linkedInProfileUrl: "",
+  //   });
+  //   setErrors({});
+  //   setEditingJob(null);
+  //   setShowForm(false);
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -901,6 +999,8 @@ function JobsEntry() {
     if (formData.location) payload.location = formData.location;
     if (formData.description) payload.description = formData.description;
     if (formData.jobPostingUrl) payload.jobPostingUrl = formData.jobPostingUrl;
+    if (formData.linkedInProfileUrl)
+      payload.linkedInProfileUrl = formData.linkedInProfileUrl; // 🆕 Add this
     if (formData.applicationDeadline)
       payload.applicationDeadline = formData.applicationDeadline;
     if (formData.salaryMin) payload.salaryMin = parseFloat(formData.salaryMin);
@@ -985,6 +1085,8 @@ function JobsEntry() {
       applicationMethod: job.applicationMethod || "Other",
       applicationSource: job.applicationSource || "Other",
       autoArchiveDays: job.autoArchiveDays?.toString() || "60",
+      linkedInProfileUrl:
+        job.linkedInProfileUrl || linkedInProfile?.linkedInProfileUrl || "", // 🆕 Include
     });
 
     setShowForm(true);
@@ -1096,6 +1198,51 @@ function JobsEntry() {
     const now = new Date();
     const diffMs = target.getTime() - now.getTime();
     return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  };
+
+  //Productivity Session Helpers
+
+  const handleStartJobSearchSession = async () => {
+    if (activeSearchSessionId || isStartingSearchSession) return;
+
+    try {
+      setIsStartingSearchSession(true);
+
+      const session = await startProductivitySession({
+        activityType: "job_search",
+        context: "JobsEntry",
+        // you can later add energyLevelStart: 4 if you want to track energy
+      });
+
+      setActiveSearchSessionId(session._id);
+      showToast("Started job search focus session.");
+    } catch (error) {
+      console.error("Failed to start job search session:", error);
+      showToast("Could not start job search session. Please try again.");
+    } finally {
+      setIsStartingSearchSession(false);
+    }
+  };
+
+  const handleEndJobSearchSession = async () => {
+    if (!activeSearchSessionId || isEndingSearchSession) return;
+
+    try {
+      setIsEndingSearchSession(true);
+
+      await endProductivitySession({
+        sessionId: activeSearchSessionId,
+        // you can later add energyLevelEnd if you collect it from the user
+      });
+
+      setActiveSearchSessionId(null);
+      showToast("Ended job search focus session.");
+    } catch (error) {
+      console.error("Failed to end job search session:", error);
+      showToast("Could not end job search session. Please try again.");
+    } finally {
+      setIsEndingSearchSession(false);
+    }
   };
 
   return (
@@ -1227,6 +1374,14 @@ function JobsEntry() {
                   <Icon name="success" size={18} className="icon-teal" />
                   <span>Job Statistics</span>
                 </button>
+                {/* New: Productivity & Time Insights */}
+                <button
+                  onClick={() => navigate("/Jobs/Productivity")}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 border-t border-gray-200"
+                >
+                  <Icon name="success" size={18} className="icon-teal" />
+                  <span>Productivity &amp; Time Insights</span>
+                </button>
               </PopoverPanel>
             </Popover>
           </div>
@@ -1253,8 +1408,9 @@ function JobsEntry() {
                         name="jobTitle"
                         value={formData.jobTitle}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.jobTitle ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.jobTitle ? "!border-red-500" : ""
+                        }`}
                         placeholder="e.g. Senior Software Engineer"
                       />
                       {errors.jobTitle && (
@@ -1271,8 +1427,9 @@ function JobsEntry() {
                         name="company"
                         value={formData.company}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.company ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.company ? "!border-red-500" : ""
+                        }`}
                         placeholder="e.g. TechCorp"
                       />
                       {errors.company && (
@@ -1288,8 +1445,9 @@ function JobsEntry() {
                         name="industry"
                         value={formData.industry}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.industry ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.industry ? "!border-red-500" : ""
+                        }`}
                       >
                         <option value="">Select industry</option>
                         <option value="Technology">Technology</option>
@@ -1318,8 +1476,9 @@ function JobsEntry() {
                         name="type"
                         value={formData.type}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.type ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.type ? "!border-red-500" : ""
+                        }`}
                       >
                         <option value="">Select type</option>
                         <option value="Full-time">Full-time</option>
@@ -1354,8 +1513,9 @@ function JobsEntry() {
                         name="salaryMin"
                         value={formData.salaryMin}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.salaryMin ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.salaryMin ? "!border-red-500" : ""
+                        }`}
                         placeholder="e.g. 100000"
                       />
                       {errors.salaryMin && (
@@ -1372,8 +1532,9 @@ function JobsEntry() {
                         name="salaryMax"
                         value={formData.salaryMax}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.salaryMax ? "!border-red-500" : ""
-                          }`}
+                        className={`form-input ${
+                          errors.salaryMax ? "!border-red-500" : ""
+                        }`}
                         placeholder="e.g. 150000"
                       />
                       {errors.salaryMax && (
@@ -1397,16 +1558,40 @@ function JobsEntry() {
                         name="jobPostingUrl"
                         value={formData.jobPostingUrl}
                         onChange={handleInputChange}
-                        className={`form-input ${errors.jobPostingUrl ? "!border-red-500" : ""
-                          } ${formData.jobPostingUrl && !errors.jobPostingUrl
+                        className={`form-input ${
+                          errors.jobPostingUrl ? "!border-red-500" : ""
+                        } ${
+                          formData.jobPostingUrl && !errors.jobPostingUrl
                             ? "bg-green-50"
                             : ""
-                          }`}
+                        }`}
                         placeholder="https://example.com/job/123"
                       />
                       {errors.jobPostingUrl && (
                         <p className="text-sm text-red-600 -mt-2 mb-2">
                           {errors.jobPostingUrl}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="form-label">
+                        LinkedIn Profile URL
+                        <span className="text-xs text-gray-500 ml-2">
+                          (Optional - will auto-fill if connected)
+                        </span>
+                      </label>
+                      <input
+                        type="url"
+                        name="linkedInProfileUrl"
+                        value={formData.linkedInProfileUrl}
+                        onChange={handleInputChange}
+                        className="form-input"
+                        placeholder="https://www.linkedin.com/in/yourprofile"
+                      />
+                      {errors.linkedInProfileUrl && (
+                        <p className="text-sm text-red-600 -mt-2 mb-2">
+                          {errors.linkedInProfileUrl}
                         </p>
                       )}
                     </div>
@@ -1424,7 +1609,7 @@ function JobsEntry() {
                   </div>
 
                   <div>
-                    <label className="form-label">Application Method *</label>
+                    <label className="form-label">Application Method</label>
                     <select
                       name="applicationMethod"
                       value={formData.applicationMethod}
@@ -1441,7 +1626,7 @@ function JobsEntry() {
                     </select>
                   </div>
                   <div>
-                    <label className="form-label">Application Source *</label>
+                    <label className="form-label">Application Source</label>
                     <select
                       name="applicationSource"
                       value={formData.applicationSource}
@@ -1483,8 +1668,9 @@ function JobsEntry() {
                       value={formData.description}
                       onChange={handleInputChange}
                       rows={4}
-                      className={`form-input ${errors.description ? "!border-red-500" : ""
-                        }`}
+                      className={`form-input ${
+                        errors.description ? "!border-red-500" : ""
+                      }`}
                       placeholder="Job description, notes, or requirements..."
                     />
                     {errors.description && (
@@ -1902,25 +2088,27 @@ function JobsEntry() {
               {filteredAndSortedJobs.map((job) => (
                 <li key={job._id}>
                   <Card
-                    className={`${job.applicationDeadline
-                      ? (() => {
-                        const info = getDeadlineInfo(
-                          job.applicationDeadline
-                        );
-                        if (info.urgency === "overdue")
-                          return "border-l-4 border-l-red-500";
-                        if (info.urgency === "critical")
-                          return "border-l-4 border-l-orange-500";
-                        if (info.urgency === "warning")
-                          return "border-l-4 border-l-yellow-500";
-                        return "";
-                      })()
-                      : ""
-                      }`}
+                    className={`${
+                      job.applicationDeadline
+                        ? (() => {
+                            const info = getDeadlineInfo(
+                              job.applicationDeadline
+                            );
+                            if (info.urgency === "overdue")
+                              return "border-l-4 border-l-red-500";
+                            if (info.urgency === "critical")
+                              return "border-l-4 border-l-orange-500";
+                            if (info.urgency === "warning")
+                              return "border-l-4 border-l-yellow-500";
+                            return "";
+                          })()
+                        : ""
+                    }`}
                   >
                     <div
                       className="flex items-start justify-between gap-4 cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => setSelectedJobId(job._id)}                    >
+                      onClick={() => setSelectedJobId(job._id)}
+                    >
                       <div className="flex items-start gap-3 flex-1">
                         {/* Selection Checkbox */}
                         <input
@@ -1957,15 +2145,34 @@ function JobsEntry() {
                           </div>
                           <div className="mt-2 space-y-1 text-sm text-gray-600">
                             {job.location && <div>📍 {job.location}</div>}
-                            <div className="flex items-center">
-                              💰 {formatSalary(job.salaryMin, job.salaryMax)}
+                            <div className="text-gray-600 text-sm">
+                              <div>
+                                💰 {formatSalary(job.salaryMin, job.salaryMax)}
+                              </div>
+
                               <a
-                                onClick={() => navigate(`/SalaryResearch`)}
-                                className="ml-2 text-blue-600 hover:underline cursor-pointer text-sm font-medium"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/SalaryResearch`);
+                                }}
+                                className="text-blue-600 hover:underline cursor-pointer text-xs font-medium"
                               >
                                 Research salary →
                               </a>
                             </div>
+                            {job.status === "offer" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/jobs/${job._id}/salary`, {
+                                    state: { from: "/Jobs" },
+                                  });
+                                }}
+                                className="text-blue-600 hover:underline text-xs font-medium mt-1"
+                              >
+                                Salary details →
+                              </button>
+                            )}
                             <div className="mt-2">
                               <DeadlineIndicator
                                 applicationDeadline={job.applicationDeadline}
@@ -2009,23 +2216,44 @@ function JobsEntry() {
                               View posting →
                             </a>
                           )}
+                          {job.linkedInProfileUrl && (
+                            <a
+                              href={job.linkedInProfileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-1 inline-block text-sm text-[#0A66C2] hover:text-[#004182] hover:underline flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                              </svg>
+                              View LinkedIn Profile
+                            </a>
+                          )}
                           {job.matchScore != null && (
                             <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                               <p className="text-sm">
-                                <span className="font-medium">Match Score:</span>{" "}
+                                <span className="font-medium">
+                                  Match Score:
+                                </span>{" "}
                                 <span
                                   className={
                                     job.matchScore >= 80
                                       ? "text-green-700 font-bold"
                                       : job.matchScore >= 60
-                                        ? "text-yellow-600 font-bold"
-                                        : "text-red-600 font-bold"
+                                      ? "text-yellow-600 font-bold"
+                                      : "text-red-600 font-bold"
                                   }
                                 >
                                   {Math.round(
                                     ((job.matchBreakdown?.skills ?? 0) +
                                       (job.matchBreakdown?.experience ?? 0) +
-                                      (job.matchBreakdown?.education ?? 0)) / 3
+                                      (job.matchBreakdown?.education ?? 0)) /
+                                      3
                                   )}
                                   %
                                 </span>
@@ -2045,7 +2273,9 @@ function JobsEntry() {
                         {({ close }) => (
                           <>
                             <PopoverButton
-                              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              onClick={(e: React.MouseEvent) =>
+                                e.stopPropagation()
+                              }
                               className="p-2 hover:bg-gray-100 rounded-md"
                             >
                               <Icon name="menu" size={20} />

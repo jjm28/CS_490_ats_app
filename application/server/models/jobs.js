@@ -64,7 +64,6 @@ const StatusHistorySchema = new Schema({
 
 const JobSchema = new Schema({
     userId: { type: String, ref: 'User', required: true, index: true },
-
     // Basic job info
     jobTitle: { type: String, required: true, maxlength: 150 },
     company: { type: String, required: true, maxlength: 150 },
@@ -72,8 +71,11 @@ const JobSchema = new Schema({
     salaryMin: { type: Schema.Types.Decimal128 },
     salaryMax: { type: Schema.Types.Decimal128 },
     jobPostingUrl: { type: String, default: '' },
+    linkedInProfileUrl: { type: String, default: null },
     applicationDeadline: { type: Date },
     description: { type: String, default: '', maxlength: 2000 },
+    skillsExtracted: { type: [String], default: [] },
+    skillsParsed: { type: Boolean, default: false },
     industry: { type: String, index: true },
     companySize: { type: String, default: "Unknown", index: true },
     type: { type: String, index: true },
@@ -131,6 +133,24 @@ const JobSchema = new Schema({
         type: String,
         default: ''
     },
+    finalSalary: { type: Number, default: null },
+    salaryHistory: [
+        {
+            finalSalary: { type: Number, required: true },
+            negotiationOutcome: {
+                type: String,
+                enum: ["Not attempted", "Improved", "No change", "Worse", "Lost offer"],
+                default: "Not attempted",
+            },
+            date: { type: Date, default: Date.now }
+        }
+    ],
+    compHistory: [
+        {
+            totalComp: { type: Number, required: true },
+            date: { type: Date, default: Date.now }
+        }
+    ],
     interviewNotes: {
         type: String,
         default: ''
@@ -185,6 +205,9 @@ const JobSchema = new Schema({
             notes: { type: String, default: "" },
             interviewer: { type: String, default: "" },
             contactInfo: { type: String, default: "" },
+            confidenceLevel: { type: Number, default: null },
+            anxietyLevel: { type: Number, default: null },
+
             outcome: {
                 type: String,
                 enum: ["pending", "passed", "rejected", "offer"],
@@ -192,14 +215,254 @@ const JobSchema = new Schema({
             },
             reminderSent: { type: Boolean, default: false },
             eventId: { type: String, default: "" },
+            preparationChecklist: {
+                items: [{
+                    id: { type: String, required: true },
+                    category: {
+                        type: String,
+                        enum: ['research', 'logistics', 'materials', 'practice', 'mindset'],
+                        required: true
+                    },
+                    task: { type: String, required: true },
+                    completed: { type: Boolean, default: false },
+                    completedAt: { type: Date },
+                    order: { type: Number, required: true }
+                }],
+                generatedAt: { type: Date },
+                lastUpdatedAt: { type: Date }
+            },
+            followUps: [{
+                _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+                type: {
+                    type: String,
+                    enum: ['thank_you', 'status_inquiry', 'feedback_request', 'networking'],
+                    required: true
+                },
+                subject: { type: String, default: "" },
+                body: { type: String, required: true },
+                generatedAt: { type: Date, default: Date.now },
+                customized: { type: Boolean, default: false }, // Did user edit it?
+                sent: { type: Boolean, default: false },
+                sentAt: { type: Date },
+                sentVia: {
+                    type: String,
+                    enum: ['email', 'copied'], // 'email' = sent via nodemailer, 'copied' = user copied it
+                    default: 'copied'
+                },
+                responseReceived: { type: Boolean, default: false },
+                responseDate: { type: Date }
+            }]
         },
     ],
+
+    // Network source tracking for UC-099
+    source: {
+        type: String,
+        default: "manual", // e.g. "manual", "peer_group", "imported", "network_contact", "network_event", "referral"
+    },
+
+    // Enhanced network tracking
+    networkSource: {
+        type: {
+            sourceType: {
+                type: String,
+                enum: ['direct_application', 'network_contact', 'network_event', 'referral', 'recruiter', 'peer_group', 'other'],
+                default: 'direct_application'
+            },
+            // If sourced through a contact
+            contactId: {
+                type: String, // Contact._id from networking system
+                default: null
+            },
+            contactName: {
+                type: String,
+                default: null
+            },
+            // If sourced through an event
+            eventId: {
+                type: String, // NetworkingEvent._id
+                default: null
+            },
+            eventName: {
+                type: String,
+                default: null
+            },
+            // If through a referral
+            referralId: {
+                type: String, // Reference._id
+                default: null
+            },
+            referralName: {
+                type: String,
+                default: null
+            },
+            // Additional context
+            sourceNotes: {
+                type: String,
+                default: null,
+                maxlength: 500
+            },
+            sourcedAt: {
+                type: Date,
+                default: Date.now
+            }
+        },
+        default: null
+    },
+
+    // if this job was created from a peer group opportunity
+    sourcePeerGroupId: {
+        type: String,
+        index: true, // group._id as string
+    },
+
+    sourceOpportunityId: {
+        type: String,
+        index: true, // PeerOpportunity._id as string
+    },
 
     // analytics helpers
     responseReceived: { type: Boolean, default: false },
     offerDate: { type: Date, default: null },
     stageDurations: { type: Map, of: Number, default: {} },
 
+    // UC-100 Salary & Compensation analytics (all optional)
+    salaryAnalysis: {
+        type: {
+            base: { type: Number, default: null },
+            bonus: { type: Number, default: null },
+            equity: { type: Number, default: null },
+            otherComp: { type: Number, default: null },
+            totalComp: { type: Number, default: null },
+
+            negotiation: {
+                attempted: { type: Boolean, default: false },
+                outcome: {
+                    type: String,
+                    enum: ["accepted-as-is", "improved-offer", "rejected-offer", "pending"],
+                    default: "pending"
+                },
+                initialOffer: { type: Number, default: null },
+                finalOffer: { type: Number, default: null },
+                improvedAmount: { type: Number, default: null }
+            },
+
+            market: {
+                role: { type: String, default: null },
+                level: { type: String, default: null },
+                benchmarkMedian: { type: Number, default: null },
+                benchmarkTop: { type: Number, default: null },
+                benchmarkRange: { type: [Number], default: [] },
+                location: { type: String, default: null },
+                industry: { type: String, default: null }
+            }
+        },
+        default: {}
+    },
+
+    // UC-083: Salary Negotiation Preparation
+    negotiationPrep: {
+        type: {
+            generatedAt: { type: Date },
+            lastUpdatedAt: { type: Date },
+
+            // Market comparison (snapshot for this negotiation)
+            marketData: {
+                yourOffer: { type: Number },
+                marketMin: { type: Number },
+                marketMedian: { type: Number },
+                marketMax: { type: Number },
+                percentile: { type: Number }, // Where your offer ranks (0-100)
+                dataSource: { type: String, default: 'Adzuna' },
+                fetchedAt: { type: Date }
+            },
+
+            // AI-generated talking points
+            talkingPoints: [{
+                category: {
+                    type: String,
+                    enum: ['experience', 'skills', 'market_value', 'total_comp', 'unique_value', 'other']
+                },
+                point: { type: String },
+                order: { type: Number }
+            }],
+
+            // Negotiation scripts for different scenarios
+            scripts: [{
+                scenario: {
+                    type: String,
+                    enum: ['initial_response', 'counter_offer', 'benefits_discussion', 'timeline_discussion', 'final_decision']
+                },
+                script: { type: String },
+                tips: [String]
+            }],
+
+            // Counter-offer calculation
+            counterOffer: {
+                targetSalary: { type: Number },
+                minimumAcceptable: { type: Number },
+                justification: { type: String },
+                confidenceLevel: {
+                    type: String,
+                    enum: ['low', 'medium', 'high'],
+                    default: 'medium'
+                }
+            },
+
+            // Negotiation strategy
+            strategy: {
+                timing: { type: String },
+                leverage: [String],
+                risks: [String],
+                alternatives: [String],
+                notes: { type: String }
+            },
+
+            // Track the outcome
+            outcome: {
+                attempted: { type: Boolean, default: false },
+                result: {
+                    type: String,
+                    enum: ['accepted_as_is', 'negotiated_higher', 'negotiated_benefits', 'declined_offer', 'pending'],
+                    default: 'pending'
+                },
+                finalSalary: { type: Number },
+                improvementAmount: { type: Number },
+                notes: { type: String }
+            }
+        },
+        default: null
+    },
+
+    salaryBonus: { type: Number, default: null },
+    salaryEquity: { type: Number, default: null },
+    benefitsValue: { type: Number, default: null },
+
+    offerStage: {
+        type: String,
+        enum: [
+            "Applied",
+            "Interviewing",
+            "Offer Received",
+            "Offer Accepted",
+            "Offer Declined"
+        ],
+        default: "Applied"
+    },
+
+    negotiationOutcome: {
+        type: String,
+        enum: [
+            "Not attempted",
+            "Improved",
+            "No change",
+            "Worse",
+            "Lost offer"
+        ],
+        default: "Not attempted"
+    },
+
+    offerDate: { type: Date, default: null },
 }, { timestamps: true });
 
 // Compound index for efficient status queries

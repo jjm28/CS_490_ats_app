@@ -75,26 +75,14 @@ export default function Overview() {
 
   return (
     <div className="p-6 space-y-8">
-
       {/* PAGE HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-(--brand-navy)">Job Search Performance</h1>
-          <p className="text-gray-600 mt-1">
-            Track your application trends, conversion rates, and performance insights.
-          </p>
-        </div>
 
-        {/* DATE RANGE FILTER */}
-        <div className="flex items-center gap-3 mt-4 md:mt-0">
-          <select className="border rounded-md px-3 py-2 text-gray-700">
-            <option>Last 7 days</option>
-            <option>Last 30 days</option>
-            <option>Last 90 days</option>
-            <option>This year</option>
-            <option>Custom range</option>
-          </select>
-        </div>
+      {/* Centered Title + Subtitle */}
+      <div className="w-full text-center mb-4">
+        <h1 className="text-3xl font-bold text-(--brand-navy)">Job Search Performance</h1>
+        <p className="text-gray-600 mt-1">
+          Track your application trends, conversion rates, and performance insights.
+        </p>
       </div>
 
       {/* TWO COLUMN GRID */}
@@ -162,17 +150,23 @@ export default function Overview() {
                 <div className="w-32 text-sm text-gray-600">Applied → Interview</div>
                 <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className={`h-full ${stats.conversion.applyToInterview > 30
+                    className={`h-full ${conversion.applyToInterview > 30
                       ? "bg-green-500"
-                      : stats.conversion.applyToInterview > 10
+                      : conversion.applyToInterview > 10
                         ? "bg-gray-500"
                         : "bg-red-500"
                       }`}
-                    style={{ width: `${stats.conversion.applyToInterview}%` }}
-                  ></div>
+                    style={{ width: `${conversion.applyToInterview}%` }}
+                  />
                 </div>
-                <div className={`w-12 text-right font-semibold ${conversionStyles(stats.conversion.applyToInterview, 30, 10)}`}>
-                  {stats.conversion.applyToInterview}%
+                <div
+                  className={`w-12 text-right font-semibold ${conversionStyles(
+                    conversion.applyToInterview,
+                    30,
+                    10
+                  )}`}
+                >
+                  {conversion.applyToInterview}%
                 </div>
               </div>
 
@@ -181,58 +175,25 @@ export default function Overview() {
                 <div className="w-32 text-sm text-gray-600">Applied → Offer</div>
                 <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className={`h-full ${stats.conversion.applyToOffer > 10
+                    className={`h-full ${conversion.applyToOffer > 10
                       ? "bg-green-500"
-                      : stats.conversion.applyToOffer > 3
+                      : conversion.applyToOffer > 3
                         ? "bg-gray-500"
                         : "bg-red-500"
                       }`}
-                    style={{ width: `${stats.conversion.applyToOffer}%` }}
-                  ></div>
+                    style={{ width: `${conversion.applyToOffer}%` }}
+                  />
                 </div>
-                <div className={`w-12 text-right font-semibold ${conversionStyles(stats.conversion.applyToOffer, 10, 3)}`}>
-                  {stats.conversion.applyToOffer}%
-                </div>
-              </div>
-
-              {/* Phone → Interview */}
-              <div className="flex items-center gap-4">
-                <div className="w-32 text-sm text-gray-600">Phone → Interview</div>
-                <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${stats.conversion.phoneToInterview > 50
-                      ? "bg-green-500"
-                      : stats.conversion.phoneToInterview > 30
-                        ? "bg-gray-500"
-                        : "bg-red-500"
-                      }`}
-                    style={{ width: `${stats.conversion.phoneToInterview}%` }}
-                  ></div>
-                </div>
-                <div className={`w-12 text-right font-semibold ${conversionStyles(stats.conversion.phoneToInterview, 50, 30)}`}>
-                  {stats.conversion.phoneToInterview}%
+                <div
+                  className={`w-12 text-right font-semibold ${conversionStyles(
+                    conversion.applyToOffer,
+                    10,
+                    3
+                  )}`}
+                >
+                  {conversion.applyToOffer}%
                 </div>
               </div>
-
-              {/* Interview → Offer */}
-              <div className="flex items-center gap-4">
-                <div className="w-32 text-sm text-gray-600">Interview → Offer</div>
-                <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${stats.conversion.interviewToOffer > 25
-                      ? "bg-green-500"
-                      : stats.conversion.interviewToOffer > 10
-                        ? "bg-gray-500"
-                        : "bg-red-500"
-                      }`}
-                    style={{ width: `${stats.conversion.interviewToOffer}%` }}
-                  ></div>
-                </div>
-                <div className={`w-12 text-right font-semibold ${conversionStyles(stats.conversion.interviewToOffer, 25, 10)}`}>
-                  {stats.conversion.interviewToOffer}%
-                </div>
-              </div>
-
             </div>
           </div>
 
@@ -331,28 +292,6 @@ export default function Overview() {
         {/* RIGHT COLUMN */}
         <div className="lg:col-span-1 space-y-6">
 
-          {/* INSIGHTS PANEL */}
-          <div className="p-5 bg-white shadow rounded-xl border space-y-3">
-            <h2 className="text-xl font-semibold text-(--brand-navy)">Insights</h2>
-            <ul className="space-y-2 text-gray-700">
-              <ul className="space-y-2 text-gray-700">
-
-                <li className="bg-gray-50 p-3 rounded-md border">
-                  • Most active day: {stats.successPatterns.mostActiveDay}
-                </li>
-
-                <li className="bg-gray-50 p-3 rounded-md border">
-                  • Interview summary: {stats.successPatterns.interviewRate}
-                </li>
-
-                <li className="bg-gray-50 p-3 rounded-md border">
-                  • Average response time: {stats.successPatterns.avgResponse}
-                </li>
-
-              </ul>
-            </ul>
-          </div>
-
           {/* GOAL TRACKING */}
           <div className="p-5 bg-white shadow rounded-xl border space-y-3">
             <h2 className="text-xl font-semibold text-(--brand-navy)">Goal Tracking</h2>
@@ -396,18 +335,8 @@ export default function Overview() {
           <div className="p-5 bg-white shadow rounded-xl border space-y-3">
             <GoalsEditor onUpdate={() => window.location.reload()} />
           </div>
-
-          {/* INDUSTRY BENCHMARKS */}
-          <div className="p-5 bg-white shadow rounded-xl border space-y-3">
-            <h2 className="text-xl font-semibold text-(--brand-navy)">Industry Benchmarks</h2>
-            <ul className="space-y-2 text-gray-700">
-              <li>• Avg Interview Rate: 12–18%</li>
-              <li>• Avg Offer Rate: 3–7%</li>
-              <li>• Avg Response Time: 6–9 days</li>
-            </ul>
-          </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

@@ -14,19 +14,16 @@ const questionResponseSchema = new mongoose.Schema({
 }, { _id: false }); // embed without extra _id
 
 const practiceSessionSchema = new mongoose.Schema({
-  userId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: "User", 
+   userId: { 
+    type: String, // Changed from ObjectId to String to support UUIDs
     required: true,
     index: true
   },
   jobId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: "Job", 
+    type: String, // Changed from ObjectId to String to support UUIDs
     required: true,
     index: true
   },
-  
   // Session metadata
   title: { 
     type: String, 

@@ -4,8 +4,14 @@ import { GenerateResumeBasedOn } from "../services/resume_ai.service.js";
 import {
   createResume, updateResume, getResume, deleteResume,
   createSharedResume, fetchSharedResume, addSharedResumeComment,
-  updateSharedResumeComment
+  updateSharedResumeComment,
+  updateresumeSharedsettings,
+  inviteReviewer,
+  addreviewerResumeSharedsettings,
+  removereviewerResumeSharedsettings,
+  getResumeFeedbackSummary
 } from "../services/resume.service.js";
+import Resume from "../models/resume.js";
 
 const router = express.Router();
 
@@ -134,28 +140,59 @@ router.delete("/:id", async (req, res) => {
 router.post("/:id/share", async (req, res) => {
   try {
     const userid = userIdFrom(req);
-    const { resumedata,visibility,  allowComments } = req.body || {};
+    
+    const { resumedata,visibility,  allowComments ,  reviewDeadline} = req.body || {};
     if (!userid || !resumedata) return res.status(400).json({ error: "Missing fields" });
     const out = await createSharedResume({ userid, resumeid: req.params.id, resumedata,visibility,  allowComments });
-    console.log("Ooutput",out)
+    
+    await updateresumeSharedsettings({resumeid: req.params.id, userid: userid ,allowComments,visibility,allowComments,reviewDeadline})
     res.status(201).json(out);
   } catch {
     res.status(500).json({ error: "Server error" });
   }
 });
+/**
+ * POST /api/supporters/invite?userId=...
+ * Body: { fullName, email, relationship?, presetKey? }
+ */
+router.post("/invite", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const { toemail, sharedurl,resumeId, role ,canComment,canResolve,reviewDeadline} = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+    if (!toemail || !sharedurl || !resumeId) {
+      return res
+        .status(400)
+        .json({ error: "toemail and toemail are required" });
+    }
+
+    const sent = await inviteReviewer({
+    ownerUserId: userId, email: toemail, url: sharedurl, role: role, reviewDeadline: reviewDeadline  });
+    await addreviewerResumeSharedsettings({resumeId,userId,toemail,role ,canComment,canResolve})
+    res.status(201).json(sent);
+  } catch (err) {
+    console.error("Error inviting supporter:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error inviting supporter" });
+  }
+});
 
 // SHARE fetch
-router.get("/shared/:userid/:sharedid", async (req, res) => {
-  try {
-  const { userid, sharedid } = req.params;
+router.get("/shared/:userid/:sharedid/:currentUseremail", async (req, res) => {
 
-    const out = await fetchSharedResume({  sharedid,viewerid: userid });
+  try {
+  const { userid, sharedid ,currentUseremail} = req.params;
+
+  const out = await fetchSharedResume({  sharedid,currentUseremail,viewerid: userid });
     if (!out) return res.status(404).json({ error: "Share link invalid or expired" });
     res.status(200).json(out);
   } catch (e) { res.status(500).json({ error: "Server error" }); }
 });
 
-export default router;
 
 
 router.post(
@@ -164,7 +201,7 @@ router.post(
   async (req, res) => {
     try {
       const viewerId = userIdFrom(req);
-      const { message } = req.body || {};
+      const { message,currentUseremail } = req.body || {};
       if (!viewerId || !message || !message.trim()) {
         return res.status(400).json({ error: "Missing viewer or message" });
       }
@@ -172,7 +209,7 @@ router.post(
       const updated = await addSharedResumeComment({
         sharedid: req.params.sharedid,
         viewerid: viewerId,
-        message: message.trim(),
+        message: message.trim(), currentUseremail: currentUseremail
       });
 
       if (!updated) {
@@ -224,3 +261,106 @@ router.patch(
     }
   }
 );
+
+
+router.patch("/:resumeid/workflow", async (req, res) => {
+  try {
+    const { status } = req.body; // status: WorkflowStatus
+    const { resumeid } = req.params;
+
+    if (!status) {
+      return res.status(400).json({ error: "Missing status" });
+    }
+
+    // only owner can update workflow for now
+    const resume = await Resume.findOne({
+      _id: resumeid,
+      owner: req.user._id,
+    });
+
+    if (!resume) {
+      return res.status(404).json({ error: "Not found" });
+    }
+resume.lastSaved = new Date();
+    resume.workflowStatus = status;
+
+    if (status === "approved") {
+      resume.approvedBy = req.user._id.toString();
+      resume.approvedByName = req.user.name || null;
+      resume.approvedAt = new Date();
+    } else {
+      // if reverting away from approved, clear approver info
+      resume.approvedBy = null;
+      resume.approvedByName = null;
+      resume.approvedAt = null;
+    }
+
+    await resume.save();
+
+    return res.json({
+      workflowStatus: resume.workflowStatus,
+      approvedByName: resume.approvedByName,
+      approvedAt: resume.approvedAt,
+    });
+  } catch (err) {
+    console.error("Error updating workflow status", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
+ * POST /api/supporters/invite?userId=...
+ * Body: { fullName, email, relationship?, presetKey? }
+ */ 
+router.post("/removeinvite", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const { email, resumeid } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+    if ( !resumeid) {
+      return res
+        .status(400)
+        .json({ error: "resumeid are required" });
+    }
+
+    
+    await removereviewerResumeSharedsettings({resumeid,userId,email})
+    res.status(201).json(true);
+  } catch (err) {
+    console.error("Error inviting supporter:", err);
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error inviting supporter" });
+  }
+});
+
+
+
+// GET /api/coverletter/:coverletterid/feedback-summary
+router.get("/:resumeid/feedback-summary", async (req, res) => {
+  try {
+    const { resumeid } = req.params;
+    const { userid } = req.query; // keeping consistent with your other coverletter routes
+
+    if (!userid || !resumeid) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const summary = await getResumeFeedbackSummary({
+      userid,
+      resumeid,
+    });
+
+    return res.status(200).json(summary);
+  } catch (err) {
+    console.error("Error generating feedback summary:", err);
+    return res
+      .status(err.statusCode || 500)
+      .json({ error: err.message || "Server error generating summary" });
+  }
+});
+
+export default router;

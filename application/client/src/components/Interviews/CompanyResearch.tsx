@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Briefcase, Loader2, ChevronDown, ArrowLeft } from 'lucide-react';
 import NewsColumn from './NewsSection';
-import '../../styles/CompanyResearch.css';
+import '../../styles/InterviewResearch.css';
+import { useInterviewPredictionSync } from '../../hooks/useInterviewPredictionSync';
 
 interface NewsArticle {
   title: string;
@@ -81,6 +82,7 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
   const [showRelevantOnly, setShowRelevantOnly] = useState(true);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+  const { triggerJobRecalculation } = useInterviewPredictionSync();
 
   // Fetch jobs with scheduled interviews
   useEffect(() => {
@@ -129,7 +131,6 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
       // First, check if we have cached research
       const cachedResponse = await fetch(`http://localhost:5050/api/company/saved-research/${jobId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
-        credentials: 'include'
       });
 
       if (cachedResponse.ok) {
@@ -146,7 +147,6 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({ companyName: job.company }),
       });
 
@@ -168,23 +168,27 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
 
   // Manual save function
   const handleSaveResearch = async () => {
+    
     if (!selectedJobId || !companyInfo || isSaved) return;
 
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/company/save-research', {
+      const response = await fetch('/api/company/research/save-research', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify({ jobId: selectedJobId, companyInfo })
       });
 
       if (response.ok) {
         setIsSaved(true);
+        const job = jobs.find(j => j._id === selectedJobId);
+        if (job) {
+          triggerJobRecalculation(job);
+        }
       } else {
         throw new Error('Failed to save');
       }
@@ -205,6 +209,7 @@ console.log("companyInfo:", companyInfo);
     <div className="company-research">
       <div className="company-research-container">
         {onBack && (
+          <div className="back-button-wrapper">  {/* NEW */}
           <button
             onClick={onBack}
             className="back-button"
@@ -225,6 +230,7 @@ console.log("companyInfo:", companyInfo);
             <ArrowLeft size={16} />
             Back to Overview
           </button>
+           </div>
         )}
         
         <div className="header-section">
@@ -321,49 +327,6 @@ console.log("companyInfo:", companyInfo);
                     </span>
                   ) : null}
                 </div>
-                {selectedJob && upcomingInterview && (
-                  <div className="interview-info-card">
-                    <div className="interview-detail">
-                      <span className="detail-label">Position:</span>
-                      <span className="detail-value">{selectedJob.jobTitle}</span>
-                    </div>
-                    <div className="interview-detail">
-                      <span className="detail-label">Company:</span>
-                      <span className="detail-value">{selectedJob.company}</span>
-                    </div>
-                    <div className="interview-detail">
-                      <span className="detail-label">Interview Date:</span>
-                      <span className="detail-value">
-                        {new Date(upcomingInterview.date).toLocaleString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-                    {upcomingInterview.type && (
-                      <div className="interview-detail">
-                        <span className="detail-label">Type:</span>
-                        <span className="detail-value">{upcomingInterview.type}</span>
-                      </div>
-                    )}
-                    {upcomingInterview.locationOrLink && (
-                      <div className="interview-detail">
-                        <span className="detail-label">Location/Link:</span>
-                        <span className="detail-value">{upcomingInterview.locationOrLink}</span>
-                      </div>
-                    )}
-                    {upcomingInterview.interviewer && (
-                      <div className="interview-detail">
-                        <span className="detail-label">Interviewer:</span>
-                        <span className="detail-value">{upcomingInterview.interviewer}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {loading && (
