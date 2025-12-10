@@ -4,6 +4,7 @@ import Profile from '../models/profile.js';
 import { verifyJWT } from '../middleware/auth.js';
 import { getDb } from "../db/connection.js";
 import { ObjectId } from "mongodb";
+import { getProfileStrengthByUserId } from '../services/profile.js';
 
 const router = Router();
 
@@ -52,90 +53,25 @@ function pickProfileFields(src = {}) {
   return out;
 }
 
-function calculateProfileCompleteness(profile) {
-  const weights = {
-    fullName: 10,
-    headline: 10,
-    industry: 10,
-    experienceLevel: 10,
-    location: 10,
-    skills: 20,
-    education: 10,
-    photoUrl:10,
-    projects: 10,
-  };
-
-  let score = 0;
-  let totalWeight = 0;
-
-  for (const [field, weight] of Object.entries(weights)) {
-    totalWeight += weight;
-    const value = profile[field];
-    if (Array.isArray(value) && value.length > 0) score += weight;
-    else if (typeof value === "string" && value.trim()) score += weight;
-    else if (value) score += weight;
-  }
-
-  const percent = Math.round((score / totalWeight) * 100);
-
-  let badge;
-  if (percent >= 90) badge = "🏆 Profile Expert";
-  else if (percent >= 70) badge = "💼 Career Ready";
-  else if (percent >= 50) badge = "🚀 Rising Star";
-  else badge = "✨ Getting Started";
-
-  return { score: percent, badge };
-}
-
-function getProfileSuggestions(profile) {
-  const suggestions = [];
-
-  if (!profile.photoUrl)
-    suggestions.push("Add a professional photo to make your profile stand out.");
-  if (!profile.skills?.length)
-    suggestions.push("Add skills relevant to your field.");
-  if (!profile.projects?.length)
-    suggestions.push("Showcase your experience by adding projects.");
-  if (!profile.education)
-    suggestions.push("Include your educational background.");
-
-  return suggestions;
-}
-// GET /api/profile/completeness/:userId
+/**
+ * GET /api/profile/completeness/:userId
+ * Calculate and return profile strength for a user
+ */
 router.get("/completeness/:userId", async (req, res) => {
   try {
-    const db = getDb();
     const { userId } = req.params;
-
-    // Get the base profile
-    const profile = await db.collection("profiles").findOne({ userId });
-    if (!profile) return res.status(404).json({ error: "Profile not found" });
-
-    // 🔹 Fetch counts from related collections
-    const skillsCount = await db.collection("skills").countDocuments({ userId });
-    const projectsCount = await db.collection("projects").countDocuments({ userId });
-    const educationCount = await db.collection("education").countDocuments({ userId });
-
-    // 🔹 Attach as pseudo-arrays for completeness calculation
-    profile.skills = Array(skillsCount).fill("x");
-    profile.projects = Array(projectsCount).fill("x");
-    profile.education = Array(educationCount).fill("x");
-
-    // 🔹 Calculate and build response
-    const completeness = calculateProfileCompleteness(profile);
-    const suggestions = getProfileSuggestions(profile);
-
-    const industryAverage = 80;
-    const comparison = completeness.score - industryAverage;
-
-    res.json({
-      ...completeness,
-      suggestions,
-      comparison,
-      industryAverage,
-    });
+    
+    // Use the service function to get profile strength
+    const result = await getProfileStrengthByUserId(userId);
+    
+    res.json(result);
   } catch (err) {
     console.error(err);
+    
+    if (err.message === "Profile not found") {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+    
     res.status(500).json({ error: "Failed to calculate profile completeness" });
   }
 });
