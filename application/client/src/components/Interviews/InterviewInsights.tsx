@@ -163,78 +163,55 @@ function InfoSection({ title, content, icon = "ℹ️" }: InfoSectionProps) {
     </div>
   );
 }
+   type InterviewInsightsDisplayProps = {
+     jobId: string;
+   };
 
-export default function InterviewInsightsSelector() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [selectedJobId, setSelectedJobId] = useState<string>("");
+  export default function InterviewInsightsDisplay({ jobId }: InterviewInsightsDisplayProps) {
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch all user jobs on mount
   useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        const token = localStorage.getItem("token")?.trim();
+     if (!jobId) return;
 
-        const res = await fetch("/api/jobs", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+     const fetchInsights = async () => {
+       setLoading(true);
+       setInsights(null);
 
-        const data = await res.json();
-        console.log("Jobs API Response:", data);
+       try {
+         const token = localStorage.getItem("token")?.trim();
+         if (!token) {
+           throw new Error("No token found");
+         }
 
-        if (Array.isArray(data)) setJobs(data);
-        else setJobs([]);
-      } catch (error) {
-        console.error("Error fetching jobs:", error);
-        setJobs([]);
-      }
-    };
+         const res = await fetch(`/api/interview-insights/${jobId}`, {
+           headers: {
+             Authorization: `Bearer ${token}`,
+           },
+         });
 
-    fetchJobs();
-  }, []);
+         if (!res.ok) {
+           const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+           setInsights({ error: errorData.error || "Failed to load insights" } as Insights);
+           setLoading(false);
+           return;
+         }
 
-  // Fetch insights when a job is selected
-  const fetchInsights = async (jobId: string) => {
-    setLoading(true);
-    setInsights(null);
+         const data = await res.json();
+         setInsights(data);
+         setLoading(false);
+       } catch (error) {
+         console.error("Error fetching insights:", error);
+         setInsights({ error: "Network error or server failed" } as Insights);
+         setLoading(false);
+       }
+     };
 
-    try {
-      const token = localStorage.getItem("token")?.trim();
-      if (!token) {
-        throw new Error("No token found");
-      }
+     fetchInsights();
+   }, [jobId]);
 
-      const res = await fetch(`/api/interview-insights/${jobId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
-        setInsights({ error: errorData.error || "Failed to load insights" } as Insights);
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-      setInsights(data);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching insights:", error);
-      setInsights({ error: "Network error or server failed" } as Insights);
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div 
-      className="min-h-screen p-8"
-      style={{ background: 'linear-gradient(to bottom right, #357266, #0E3B43, #357266)' }}
-    >
+ return (
+  <div className="p-8" style={{ backgroundColor: '#e8f3ef', minHeight: '100vh' }}>
       <div className="max-w-5xl mx-auto">
         {/* Title */}
         <h1 
@@ -248,36 +225,6 @@ export default function InterviewInsightsSelector() {
           🎯 Interview Insights
         </h1>
 
-        {/* Dropdown */}
-        <div className="bg-white rounded-3xl p-8 mb-8 shadow-2xl">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <label className="text-xl font-semibold" style={{ color: '#0E3B43' }}>
-              Select a Job:
-            </label>
-            <select
-              className="px-6 py-3 rounded-xl border-2 focus:outline-none cursor-pointer text-lg min-w-[300px] bg-white"
-              style={{ 
-                borderColor: '#6DA598',
-                color: '#0E3B43'
-              }}
-              value={selectedJobId}
-              onChange={(e) => {
-                const jobId = e.target.value;
-                setSelectedJobId(jobId);
-                if (jobId) fetchInsights(jobId);
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#357266'}
-              onBlur={(e) => e.target.style.borderColor = '#6DA598'}
-            >
-              <option value="">-- Select Job --</option>
-              {jobs.map((job) => (
-                <option key={job._id} value={job._id}>
-                  {job.jobTitle} – {job.company}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
 
         {/* Loading State */}
         {loading && (
