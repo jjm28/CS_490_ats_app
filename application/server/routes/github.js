@@ -8,7 +8,13 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import fetch from "node-fetch";
 import { Octokit } from "octokit";
-import { getUserRecord,updateUserRecord } from '../services/github.service.js';
+import { getUserRecord,updateUserRecord , getUserRepos,
+  syncReposForUser,  
+  getUserReposForManage,
+  getFeaturedRepos,
+  updateFeaturedRepos,
+  updateRepoSkills,   getActivitySnapshot,
+  syncActivityForUser,} from '../services/github.service.js';
 import { stat } from 'fs';
 
 
@@ -43,6 +49,7 @@ if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_REDIRECT_URI) {
 
 // ───────────────────────────────────────────────
 // Route: Check current GitHub link status
+//api/github/status
 // ───────────────────────────────────────────────
 router.get("/status", verifyJWT, async (req, res) => {
   const appUserId = getUserId(req)
@@ -154,47 +161,237 @@ router.get("/oauth/callback", async (req, res) => {
   res.redirect("/ProfileDashboard");
 });
 
+// ───────────────────────────────────────────────
+// Route: Sync & return repos for the authenticated user
+// ───────────────────────────────────────────────
+// Get repos from snapshot only (no GitHub API call)
 router.get("/repos", verifyJWT, async (req, res) => {
-  const appUserId = getUserId(req)
+  const appUserId = getUserId(req);
   if (!appUserId) {
     return res.status(401).json({ error: "Not logged in to app" });
   }
-  const record = await getUserRecord(appUserId);
-  console.log(record)
 
-  if (!record?.githubAccess?.githubAccessToken) {
-    return res.status(400).json({ error: "GitHub not connected" });
+  try {
+    // Just read from DB snapshot
+    const storedRepos = await getUserRepos(appUserId);
+
+    const payload = storedRepos.map((doc) => ({
+      id: doc.githubRepoId,
+      name: doc.name,
+      full_name: doc.fullName,
+      html_url: doc.htmlUrl,
+      description: doc.description ?? null,
+      language: doc.language ?? null,
+      stargazers_count: doc.stargazersCount ?? 0,
+      forks_count: doc.forksCount ?? 0,
+      updated_at: doc.updatedAt
+        ? doc.updatedAt.toISOString()
+        : new Date().toISOString(),
+    }));
+
+    return res.json(payload);
+  } catch (err) {
+    console.error("Error reading GitHub repos snapshot:", err);
+    return res.status(500).json({ error: "Failed to load GitHub repos" });
+  }
+});
+
+
+// Manually sync from GitHub → update snapshot → return fresh list
+router.post("/repos/sync", verifyJWT, async (req, res) => {
+  const appUserId = getUserId(req);
+  if (!appUserId) {
+    return res.status(401).json({ error: "Not logged in to app" });
   }
 
   try {
-    
-    const octokit = new Octokit({ auth: record?.githubAccess?.githubAccessToken });
+    const record = await getUserRecord(appUserId);
+    if (!record?.githubAccess?.githubAccessToken) {
+      return res.status(400).json({ error: "GitHub not connected" });
+    }
 
-    // Example: list all repos for the authenticated user
-    const repos = await octokit.paginate(
-      octokit.rest.repos.listForAuthenticatedUser,
-      {
-        per_page: 100,
-       visibility: "public", // visibility: "all", // or "public" if you only care about public repos
-        sort: "updated",
-      }
-    );
+    // 1) Sync repos snapshot
+    await syncReposForUser(appUserId);
 
-    // You can also map this to a simplified structure if you don't want to send everything
-    // const simplified = repos.map(r => ({
-    //   id: r.id,
-    //   name: r.name,
-    //   fullName: r.full_name,
-    //   url: r.html_url,
-    //   description: r.description,
-    //   language: r.language,
-    //   stargazersCount: r.stargazers_count,
-    // }));
+    // 2) Sync activity snapshot (ignore failures gracefully)
+    try {
+      await syncActivityForUser(appUserId);
+    } catch (err) {
+      console.error("Error syncing GitHub activity:", err);
+      // do not fail the whole request
+    }
 
-    res.json(repos);
+    // We don't need to send repos here; FE will re-fetch featured repos & activity
+    return res.json({ success: true });
   } catch (err) {
-    console.error("Error fetching repos:", err);
-    res.status(500).json({ error: "Failed to fetch GitHub repos" });
+    console.error("Error syncing GitHub repos:", err);
+
+    if (err.code === "NO_GITHUB_TOKEN") {
+      return res.status(400).json({ error: "GitHub not connected" });
+    }
+
+    return res.status(500).json({ error: "Failed to sync GitHub repos" });
+  }
+});
+
+
+// Get all repos for manage view (includes isFeatured + linkedSkillIds)
+router.get("/repos/manage", verifyJWT, async (req, res) => {
+  const appUserId = getUserId(req);
+  if (!appUserId) {
+    return res.status(401).json({ error: "Not logged in to app" });
+  }
+
+  try {
+    const repos = await getUserReposForManage(appUserId);
+
+    const payload = repos.map((doc) => ({
+      id: doc.githubRepoId,
+      name: doc.name,
+      full_name: doc.fullName,
+      html_url: doc.htmlUrl,
+      description: doc.description ?? null,
+      language: doc.language ?? null,
+      stargazers_count: doc.stargazersCount ?? 0,
+      forks_count: doc.forksCount ?? 0,
+      updated_at: doc.updatedAt
+        ? doc.updatedAt.toISOString()
+        : new Date().toISOString(),
+      isFeatured: !!doc.isFeatured,
+      linkedSkillIds: doc.linkedSkillIds || [],
+    }));
+
+    return res.json(payload);
+  } catch (err) {
+    console.error("Error loading manage repos:", err);
+    return res.status(500).json({ error: "Failed to load GitHub repos" });
+  }
+});
+
+// Get only featured repos for profile display
+router.get("/repos/featured", verifyJWT, async (req, res) => {
+  const appUserId = getUserId(req);
+  if (!appUserId) {
+    return res.status(401).json({ error: "Not logged in to app" });
+  }
+
+  try {
+    const repos = await getFeaturedRepos(appUserId);
+
+    const payload = repos.map((doc) => ({
+      id: doc.githubRepoId,
+      name: doc.name,
+      full_name: doc.fullName,
+      html_url: doc.htmlUrl,
+      description: doc.description ?? null,
+      language: doc.language ?? null,
+      stargazers_count: doc.stargazersCount ?? 0,
+      forks_count: doc.forksCount ?? 0,
+      updated_at: doc.updatedAt
+        ? doc.updatedAt.toISOString()
+        : new Date().toISOString(),
+      isFeatured: !!doc.isFeatured,
+      linkedSkillIds: doc.linkedSkillIds || [],
+    }));
+
+    return res.json(payload);
+  } catch (err) {
+    console.error("Error loading featured repos:", err);
+    return res.status(500).json({ error: "Failed to load featured repos" });
+  }
+});
+
+// Update which repos are featured
+router.post("/repos/featured", verifyJWT, async (req, res) => {
+  const appUserId = getUserId(req);
+  if (!appUserId) {
+    return res.status(401).json({ error: "Not logged in to app" });
+  }
+
+  try {
+    const { featuredRepoIds } = req.body || {};
+    const normalized = Array.isArray(featuredRepoIds)
+      ? featuredRepoIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n))
+      : [];
+
+    await updateFeaturedRepos(appUserId, normalized);
+
+    // return updated featured list
+    const repos = await getFeaturedRepos(appUserId);
+    const payload = repos.map((doc) => ({
+      id: doc.githubRepoId,
+      name: doc.name,
+      full_name: doc.fullName,
+      html_url: doc.htmlUrl,
+      description: doc.description ?? null,
+      language: doc.language ?? null,
+      stargazers_count: doc.stargazersCount ?? 0,
+      forks_count: doc.forksCount ?? 0,
+      updated_at: doc.updatedAt
+        ? doc.updatedAt.toISOString()
+        : new Date().toISOString(),
+      isFeatured: !!doc.isFeatured,
+      linkedSkillIds: doc.linkedSkillIds || [],
+    }));
+
+    return res.json(payload);
+  } catch (err) {
+    console.error("Error updating featured repos:", err);
+    return res.status(500).json({ error: "Failed to update featured repos" });
+  }
+});
+
+// Update linked skills for a repo
+router.post("/repos/:repoId/skills", verifyJWT, async (req, res) => {
+  const appUserId = getUserId(req);
+  if (!appUserId) {
+    return res.status(401).json({ error: "Not logged in to app" });
+  }
+
+  const repoId = Number(req.params.repoId);
+  if (Number.isNaN(repoId)) {
+    return res.status(400).json({ error: "Invalid repo id" });
+  }
+
+  try {
+    const { skillIds } = req.body || {};
+    const ids = Array.isArray(skillIds) ? skillIds.map(String) : [];
+
+    await updateRepoSkills(appUserId, repoId, ids);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error updating repo skills:", err);
+    return res.status(500).json({ error: "Failed to update repo skills" });
+  }
+});
+
+// ───────────────────────────────────────────────
+// Route: Get GitHub activity snapshot
+// ───────────────────────────────────────────────
+router.get("/activity", verifyJWT, async (req, res) => {
+  const appUserId = getUserId(req);
+  if (!appUserId) {
+    return res.status(401).json({ error: "Not logged in to app" });
+  }
+
+  try {
+    const snapshot = await getActivitySnapshot(appUserId);
+    if (!snapshot) {
+      return res.json({ hasData: false });
+    }
+
+    return res.json({
+      hasData: true,
+      totalCommitsLast90Days: snapshot.totalCommitsLast90Days,
+      featuredRepoCount: snapshot.featuredRepoCount,
+      activeWeeksLast12: snapshot.activeWeeksLast12,
+      weeklyBuckets: snapshot.weeklyBuckets,
+      lastActivitySyncedAt: snapshot.lastActivitySyncedAt,
+    });
+  } catch (err) {
+    console.error("Error loading GitHub activity:", err);
+    return res.status(500).json({ error: "Failed to load GitHub activity" });
   }
 });
 
