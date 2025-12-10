@@ -25,27 +25,74 @@ async function isTeamMember(db, teamId, requesterId) {
   return db.collection("teamMemberships").findOne(query);
 }
 
-export async function sendTeamMessage({ teamId, senderId, text }) {
+//SEND TEAM MESSAGES
+export async function sendTeamMessage({
+  teamId,
+  senderId,
+  text,
+  scope,
+  recipientIds,
+}) {
   const db = getDb();
 
+  const senderStr =
+    senderId && senderId.toString ? senderId.toString() : String(senderId);
+
   // ✅ Verify sender exists in users collection
-  const user = await db
-    .collection("users")
-    .findOne({ $or: [{ userId: senderId }, { _id: senderId }] });
-  if (!user) throw new Error(`User not found for senderId=${senderId}`);
+  const user = await db.collection("users").findOne({
+    $or: [{ userId: senderStr }, { _id: toObjectId(senderStr) }],
+  });
+  if (!user) throw new Error(`User not found for senderId=${senderStr}`);
 
   // ✅ Verify sender is a team member
-  const isMember = await isTeamMember(db, teamId, senderId);
+  const isMember = await isTeamMember(db, teamId, senderStr);
   if (!isMember) throw new Error("Team not found or access denied.");
 
   if (!text || !text.trim()) throw new Error("Message text is required.");
 
+  // 🔽 Normalize & validate recipients (must be active team members, not self)
+  const rawRecipients = Array.isArray(recipientIds) ? recipientIds : [];
+  const candidateIds = rawRecipients
+    .map((r) => (r && r.toString ? r.toString() : String(r)))
+    .filter(Boolean);
+
+  let cleanRecipients = [];
+  if (candidateIds.length) {
+    const teamObjId = toObjectId(teamId);
+    const membershipDocs = await db
+      .collection("teamMemberships")
+      .find({
+        teamId: { $in: [teamObjId, teamId].filter(Boolean) },
+        userId: { $in: candidateIds },
+        status: "active",
+      })
+      .toArray();
+
+    const validIds = new Set(
+      membershipDocs
+        .map((m) =>
+          m.userId && m.userId.toString ? m.userId.toString() : m.userId
+        )
+        .filter(Boolean)
+    );
+
+    cleanRecipients = candidateIds.filter(
+      (id) => id !== senderStr && validIds.has(id)
+    );
+  }
+
+  const finalScope =
+    cleanRecipients.length > 0 || scope === "direct" ? "direct" : "team";
+
   const now = new Date();
   const message = {
     teamId,
-    senderId,
+    senderId: senderStr,
     senderName: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+    senderEmail: user.email || null,
     text: text.trim(),
+    scope: finalScope, // "team" or "direct"
+    recipientIds: cleanRecipients, // [] for team messages
     createdAt: now,
     updatedAt: now,
   };
@@ -54,21 +101,46 @@ export async function sendTeamMessage({ teamId, senderId, text }) {
   return message;
 }
 
+
 /**
  * 💬 Get all messages for a given team
  */
 export async function getTeamMessages({ teamId, requesterId }) {
   const db = getDb();
 
+  const requesterStr =
+    requesterId && requesterId.toString
+      ? requesterId.toString()
+      : String(requesterId);
+
   // ✅ Verify requester is a team member
-  const isMember = await isTeamMember(db, teamId, requesterId);
+  const isMember = await isTeamMember(db, teamId, requesterStr);
   if (!isMember) throw new Error("Team not found or access denied.");
 
   const matchStage = {
     $match: {
-      $or: [
-        { teamId }, // string
-        { teamId: new ObjectId(teamId) }, // ObjectId
+      $and: [
+        {
+          $or: [
+            { teamId }, // string
+            { teamId: new ObjectId(teamId) }, // ObjectId
+          ],
+        },
+        {
+          // ✅ Visibility:
+          //   - All "team" (or legacy) messages
+          //   - "direct" messages where requester is sender OR recipient
+          $or: [
+            { scope: { $in: [null, "team"] } },
+            {
+              scope: "direct",
+              $or: [
+                { senderId: requesterStr },
+                { recipientIds: { $in: [requesterStr] } },
+              ],
+            },
+          ],
+        },
       ],
     },
   };
@@ -77,7 +149,10 @@ export async function getTeamMessages({ teamId, requesterId }) {
     .collection("teamMessages")
     .aggregate([
       matchStage,
-      { $sort: { createdAt: 1 } },
+      // 🔽 newest first
+      { $sort: { createdAt: -1 } },
+      // 🔢 cap to latest 50
+      { $limit: 50 },
       {
         $lookup: {
           from: "users",
@@ -99,13 +174,11 @@ export async function getTeamMessages({ teamId, requesterId }) {
         },
       },
       {
-        // ✅ Flatten sender safely
         $addFields: {
           sender: { $arrayElemAt: ["$sender", 0] },
         },
       },
       {
-        // ✅ Ensure everything is a string before concatenation
         $addFields: {
           senderEmail: { $ifNull: ["$sender.email", ""] },
           senderFirst: {
@@ -125,7 +198,6 @@ export async function getTeamMessages({ teamId, requesterId }) {
         },
       },
       {
-        // ✅ Safely concatenate strings only
         $addFields: {
           senderName: {
             $trim: {
@@ -141,11 +213,82 @@ export async function getTeamMessages({ teamId, requesterId }) {
           createdAt: 1,
           updatedAt: 1,
           senderEmail: 1,
+          senderId: 1, 
           senderName: 1,
+          scope: 1,
+          recipientIds: 1,
         },
       },
+      // 🔽 re-sort oldest → newest for UI
+      { $sort: { createdAt: 1 } },
     ])
     .toArray();
 
-  return msgs;
+  const members = await getTeamMembersForChat(db, teamId);
+
+  return {
+    messages: msgs,
+    members,
+    currentUserId: requesterStr,
+  };
+}
+
+async function getTeamMembersForChat(db, teamId) {
+  const teamObjId = toObjectId(teamId);
+
+  // All active memberships on this team
+  const memberships = await db
+    .collection("teamMemberships")
+    .find({
+      teamId: { $in: [teamObjId, teamId].filter(Boolean) },
+      status: "active",
+    })
+    .toArray();
+
+  if (!memberships.length) return [];
+
+  // Unique string userIds
+  const rawIds = memberships
+    .map((m) =>
+      m.userId && m.userId.toString ? m.userId.toString() : m.userId
+    )
+    .filter(Boolean);
+
+  const uniqIds = [...new Set(rawIds)];
+  const userObjIds = uniqIds.map((id) => toObjectId(id));
+
+  // Fetch user docs to build names/emails
+  const users = await db
+    .collection("users")
+    .find({
+      $or: [
+        { userId: { $in: uniqIds } },
+        { _id: { $in: userObjIds } },
+      ],
+    })
+    .toArray();
+
+  return memberships.map((m) => {
+    const idStr =
+      m.userId && m.userId.toString ? m.userId.toString() : m.userId;
+
+    const u =
+      users.find(
+        (u) =>
+          (u.userId && u.userId.toString() === idStr) ||
+          (u._id && u._id.toString() === idStr)
+      ) || {};
+
+    const name =
+      `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+      u.email ||
+      idStr;
+
+    return {
+      id: idStr,
+      name,
+      email: u.email || null,
+      roles: m.roles || [],
+    };
+  });
 }
