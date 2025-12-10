@@ -10,6 +10,7 @@ import {
   addTeamGoal,
   addTeamInsight,
   updateGoalMilestone,
+  markGoalComplete, 
 } from "../services/teamProgress.service.js";
 
 const router = express.Router();
@@ -117,6 +118,33 @@ router.post("/:teamId/goals", async (req, res) => {
   }
 });
 
+router.patch("/:teamId/goals/:goalId/complete", async (req, res) => {
+  try {
+    const { teamId, goalId } = req.params;
+    const { completed, comment } = req.body;
+    const requesterId = getUserId(req);
+    if (!requesterId) return res.status(401).json({ error: "Unauthorized" });
+
+    const updated = await markGoalComplete({
+      teamId,
+      goalId,
+      requesterId,
+      completed: Boolean(completed),
+      comment: comment || "",
+    });
+
+    return res.json(updated);
+  } catch (err) {
+    console.error(
+      "Error in PATCH /team-progress/goals/:goalId/complete:",
+      err
+    );
+    return res
+      .status(500)
+      .json({ error: err?.message || "Failed to update goal status" });
+  }
+});
+
 /**
  * =============================
  * PATCH /api/teams/:teamId/goals/:goalId/milestones/:index
@@ -174,11 +202,18 @@ router.get("/:teamId/insights", async (req, res) => {
 router.post("/:teamId/insights", async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { text } = req.body;
+    const { text, scope = "team", recipientIds = [] } = req.body || {};
     const authorId = getUserId(req);
     if (!authorId) return res.status(401).json({ error: "Unauthorized" });
 
-    const insight = await addTeamInsight({ teamId, authorId, text });
+    const insight = await addTeamInsight({
+      teamId,
+      authorId,
+      text,
+      scope,
+      recipientIds,
+    });
+
     return res.json(insight);
   } catch (err) {
     console.error("Error in POST /team-progress/insights:", err);

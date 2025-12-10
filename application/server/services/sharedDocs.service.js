@@ -1,3 +1,4 @@
+//services/sharedDocs.service.js
 import mongoose from "mongoose";
 import Resume from "../models/resume.js";
 import Coverletter from "../models/coverletters.js";
