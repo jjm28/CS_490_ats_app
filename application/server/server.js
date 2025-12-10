@@ -115,6 +115,7 @@ import successOverview from "./routes/success-overview.js";
 import successSnapshots from "./routes/success-snapshots.js";
 import customReportsRouter from "./routes/customReports.js";
 
+import githubRoutes from "./routes/github.js"
 //
 // ===============================
 // 🔧 SERVER CONFIG
@@ -280,7 +281,7 @@ app.use("/api/org",attachUserFromHeaders, organizationRoutes);
   app.use("/api/success", successOverview);
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);
-
+  app.use("/api/github",githubRoutes)
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
