@@ -1,11 +1,16 @@
 import API_BASE from "../utils/apiBase";
 
-const DEV_USER_ID = "064cfccd-55e0-4226-be75-ba9143952fc4";
-
 function baseHeaders() {
+    const token = localStorage.getItem("token");
+    
+    // Dev mode fallback: use x-dev-user-id if available
+    const devUserId = localStorage.getItem("x-dev-user-id") || 
+                      sessionStorage.getItem("x-dev-user-id");
+    
     return {
         "Content-Type": "application/json",
-        "x-dev-user-id": DEV_USER_ID,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(devUserId ? { "x-dev-user-id": devUserId } : {}),
     };
 }
 

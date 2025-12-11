@@ -3,6 +3,7 @@ import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { GetRelevantinfofromuser } from "./coverletter.service.js"; // <-- reuse your existing function
 
 const genAI = new GoogleGenerativeAI(
+  process.env.GOOGLE_API_KEY_FOR_FOLLOWUP || process.env.GOOGLE_API_KEY_FOR_WRITINGPRACTICE ||
   process.env.GOOGLE_API_KEY_FOR_RESUME || process.env.GOOGLE_API_KEY_FOR_COVERLETTER
 );
 

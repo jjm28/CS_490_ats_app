@@ -33,8 +33,19 @@ export async function updateJob({ userId, id, payload }) {
   return Jobs.findOneAndUpdate(
     { _id: id, userId },
     { $set: payload },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true } // Keep validation for normal updates
   ).lean();
+}
+
+// Dedicated function for updating application package (bypasses full validation)
+export async function updateApplicationPackage({ userId, id, packageData }) {
+  await Jobs.updateOne(
+    { _id: id, userId },
+    { $set: { applicationPackage: packageData } }
+  );
+  
+  // Return the updated job
+  return Jobs.findOne({ _id: id, userId }).lean();
 }
 
 export async function deleteJob({ userId, id }) {

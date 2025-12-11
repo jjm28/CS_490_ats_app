@@ -43,11 +43,6 @@ import jobRoutes from "./routes/jobs.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
 import salaryRoutes from "./routes/salary.js";
 
-
-import salaryRouter from "./routes/salary.js";
-
-//import salaryRoutes from "./routes/salary.js";
-
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 
 // 📊 INTERVIEW & COMPANY RESEARCH
@@ -65,6 +60,7 @@ import coverletter from "./routes/coverletter.js";
 import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";
 import resumeVersionsRouter from "./routes/resume-versions.js";
+import coverletterVersionsRouter from "./routes/coverletter-versions.js";
 
 // ⚙️ AUTOMATION
 import automationRoutes from "./routes/automation.js";
@@ -165,6 +161,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 try {
   await connectDB();
   await ensureSystemTemplates();
+  startAutomationRunner(); // 🚀 NOW IT STARTS!
 
   //
   // ===============================
@@ -200,6 +197,11 @@ try {
   // Salary CRUD — MUST COME AFTER
   app.use("/api/salary", salaryRoutes);
 
+    // 🚀 START SERVER
+  //team page routing
+  app.use("/api/teams",teamRoutes);
+  app.use("/api/teams",  teamProgressRouter);
+
   // 📊 INTERVIEW & COMPANY RESEARCH
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use("/api/interviews", interviewAnalyticsRoutes);
@@ -217,6 +219,7 @@ try {
   app.use("/api/resumes", attachDevUser, resumesRoute);
   app.use("/api/resume-templates", attachDevUser, templatesRoute);
   app.use("/api/resume-versions", resumeVersionsRouter);
+  app.use("/api/coverletter-versions", coverletterVersionsRouter);
 
   //networking 
   app.use("/api/networking", networkingRoutes);
@@ -277,10 +280,6 @@ app.use("/api/org",attachUserFromHeaders, organizationRoutes);
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 
-  //team page routing
-  app.use("/api/teams",teamRoutes);
-  app.use("/api/teams",  teamProgressRouter);
-  
   app.use("/api/success", successOverview);
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);

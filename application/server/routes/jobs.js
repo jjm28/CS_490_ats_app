@@ -16,6 +16,7 @@ import {
   getAllJobs,
   getJob,
   updateJob,
+  updateApplicationPackage,
   deleteJob,
   getJobsByStatus,
   updateJobStatus,
@@ -614,6 +615,38 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// ============================================
+// PATCH /:id/application-package
+// Dedicated route for updating application package (bypasses full validation)
+// ============================================
+router.patch("/:id/application-package", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { applicationPackage } = req.body;
+    if (!applicationPackage) {
+      return res.status(400).json({ error: "applicationPackage is required" });
+    }
+    
+    const updated = await updateApplicationPackage({
+      userId,
+      id: req.params.id,
+      packageData: applicationPackage
+    });
+    
+    if (!updated) return res.status(404).json({ error: "Job not found" });
+    res.json(updated);
+  } catch (err) {
+    console.error("Error updating application package:", err);
+    res.status(500).json({ error: err?.message || "Failed to update application package" });
+  }
+});
+
+// ============================================
+// PUT /:id
+// Main job update route (uses validation)
+// ============================================
 router.put("/:id", async (req, res) => {
   try {
     const userId = getUserId(req);
