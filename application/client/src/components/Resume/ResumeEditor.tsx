@@ -199,7 +199,18 @@ const ResumeEditor: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const [sections, setSections] = useState<SectionConfig[]>(DEFAULT_SECTIONS);
+  const draggableSections = useMemo(
+    () =>
+      sections.filter(
+        (s) => s.id !== "header" && s.id !== "contact" // adjust IDs if needed
+      ),
+    [sections]
+  );
   const [draggingId, setDraggingId] = useState<SectionId | null>(null);
+  const visibleSectionIds = useMemo(
+    () => draggableSections.filter((s) => s.enabled).map((s) => s.id),
+    [draggableSections]
+  );
 
   // Theme
   const initialThemeKey: ThemeKey =
@@ -480,10 +491,7 @@ const ResumeEditor: React.FC = () => {
     }
   }, [resumeId]);
 
-  const visibleSectionIds = useMemo(
-    () => sections.filter((s) => s.enabled).map((s) => s.id),
-    [sections]
-  );
+  
 
   const previewData: ResumeData = useMemo(() => {
     const clone: ResumeData = { ...data };
@@ -2168,7 +2176,7 @@ const ResumeEditor: React.FC = () => {
               preview and exports.
             </p>
             <div className="space-y-2">
-              {sections.map((s) => (
+              {draggableSections.map((s) => (
                 <div
                   key={s.id}
                   draggable
@@ -2298,7 +2306,7 @@ const ResumeEditor: React.FC = () => {
                     data={previewData}
                     onEdit={() => {}}
                     visibleSections={visibleSectionIds}
-                    sectionOrder={sections.map((s) => s.id)}
+                    sectionOrder={draggableSections.map((s) => s.id)}
                     theme={theme}
                   />
                 </div>
