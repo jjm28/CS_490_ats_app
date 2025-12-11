@@ -439,7 +439,7 @@ export async function GenerateCoverletterBasedON(userProfile, company, job, opts
     console.log("📌 EmploymentHistory length:", userProfile.EmploymentHistory?.length);
 
    const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash-lite",
     systemInstruction:
       "You are a professional cover-letter writing assistant. " +
       "Output must be valid JSON matching the provided schema. " +
