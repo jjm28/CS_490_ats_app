@@ -642,7 +642,7 @@ function App() {
             path="/analytics/custom-report"
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
-<Route path="/skill-certifications" element={<SkillCertifications />} />
+<Route path="/skill-certifications" element={<PrivateRoute><SkillCertifications /></PrivateRoute>} />
 
         </Routes>
       </div>
