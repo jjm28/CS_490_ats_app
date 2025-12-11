@@ -143,6 +143,7 @@ import MentorInvitePage from './components/Networking/MentorInvitePage';
 import MentorInvite from './components/Networking/MentorInvite';
 import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
+import SkillCertifications from './components/Certifications/SkillCertifications';
 
 function App() {
   const location = useLocation();
@@ -641,6 +642,7 @@ function App() {
             path="/analytics/custom-report"
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
+<Route path="/skill-certifications" element={<PrivateRoute><SkillCertifications /></PrivateRoute>} />
 
         </Routes>
       </div>

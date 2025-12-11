@@ -1,4 +1,5 @@
 import type { Certification } from "../components/Certifications/Certifications";
+import API_BASE from "../utils/apiBase";
 
 const API_URL = "http://localhost:5050/api/certifications";
 
@@ -47,3 +48,35 @@ export const deleteCertificationApi = async (id: string) => {
   if (!res.ok) throw new Error(`Failed to delete certification (${res.status})`);
   return res.json();
 };
+
+// api/certifications.ts
+
+export async function uploadCertificationBadge(
+  id: string,
+  file: File
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("badge", file);
+
+  const token =
+    localStorage.getItem("authToken") || localStorage.getItem("token");
+
+  const res = await fetch(`${API_BASE}/api/certifications/${id}/badge`, {
+    method: "POST",
+    body: formData,
+    headers: {
+      // DO NOT set Content-Type manually for FormData
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to upload badge image");
+  }
+
+  const data = await res.json();
+  // we stored relative in badgeImageUrl
+  return data.badgeImageUrl as string;
+}
