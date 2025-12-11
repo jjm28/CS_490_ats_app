@@ -117,6 +117,8 @@ import successSnapshots from "./routes/success-snapshots.js";
 import customReportsRouter from "./routes/customReports.js";
 
 import githubRoutes from "./routes/github.js"
+import certificationBadgeRouter from "./routes/certification-badge.js";
+
 //
 // ===============================
 // 🔧 SERVER CONFIG
@@ -187,7 +189,7 @@ try {
   app.use("/api/projects", projectsRoutes);
   app.use("/api/projects", projectMediaRoutes);
   app.use("/api/certifications", certificationRoutes);
-
+  app.use("/api/certifications", certificationBadgeRouter);
   // 💼 JOBS & SALARY
   app.use("/api/jobs", jobRoutes);
   app.use("/api/jobs", jobSalaryRoutes);
