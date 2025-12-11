@@ -13,7 +13,7 @@ const responseSchema = {
 
 export async function generateFollowUpContent(job, interview, type, userInfo = {}) {
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash-lite",
     systemInstruction:
       "You are an expert career coach helping a candidate write a professional interview follow-up email. \n" +
       "OUTPUT FORMAT: Return STRICT JSON only: { subject: string, body: string }. \n" +
