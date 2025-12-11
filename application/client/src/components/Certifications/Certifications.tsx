@@ -25,6 +25,13 @@ export interface Certification {
     verified?: boolean;
     renewalReminder?: string;
     category?: string;
+    type?: "formal" | "badge";
+  verificationUrl?: string;
+  badgeImageUrl?: string;
+  scoreLabel?: string;
+  descriptionRich?: string;
+  showInShowcase?: boolean;
+  showcaseCategory?: string;
 }
 
 export default function Certifications() {
@@ -32,6 +39,9 @@ export default function Certifications() {
     const [showForm, setShowForm] = useState(false);
     const [editingCert, setEditingCert] = useState<Certification | null>(null);
 
+    const formalCerts = certifications.filter(
+  (c) => !c.type || c.type === "formal"
+);
     const fetchCertifications = async () => {
         try {
             const data = await getCertifications();
@@ -126,7 +136,7 @@ export default function Certifications() {
 
             {!showForm && !editingCert && (
                 <div className="relative mx-6 my-8">
-                    {certifications.map((cert, idx) => (
+                    {formalCerts.map((cert, idx) => (
                         <Card key={cert._id || idx} className="max-w-lg">
                             <h3 className="text-lg font-semibold mb-1">{cert.name}</h3>
                             <p><strong>Organization:</strong> {cert.organization}</p>
