@@ -178,7 +178,6 @@ function App() {
 
       <div className="main-content">
         <Routes>
-          <Route path="/github-projects" element={<GitHubProjectsManagePage />} />
 
           <Route path="/" element={<HomePage />} />
           <Route path="/Registration" element={<Registration />} />
@@ -644,6 +643,8 @@ function App() {
             path="/analytics/custom-report"
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
+                    <Route path="/github-projects" element={<PrivateRoute><GitHubProjectsManagePage /></PrivateRoute>} />
+
         </Routes>
       </div>
     </>

@@ -51,33 +51,33 @@ if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_REDIRECT_URI) {
 // Route: Check current GitHub link status
 //api/github/status
 // ───────────────────────────────────────────────
+// routes/github.js
+
 router.get("/status", verifyJWT, async (req, res) => {
-  const appUserId = getUserId(req)
-  console.log (appUserId)
+  const appUserId = getUserId(req);
+  console.log(appUserId);
 
   try {
-    
-if (!appUserId) {
-    return res.status(401).json({ error: "Not logged in to app" });
+    if (!appUserId) {
+      return res.status(401).json({ error: "Not logged in to app" });
+    }
+
+    const record = await getUserRecord(appUserId);
+    if (!record?.githubAccess?.githubAccessToken) {
+      return res.json({ connected: false });
+    }
+
+    res.json({
+      connected: true,
+      githubLogin: record?.githubAccess?.githubLogin,
+      lastReposSyncedAt: record?.lastReposSyncedAt || null,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ error: "Server error" });
   }
-
-  const record = await getUserRecord(appUserId);
-  if (!record?.githubAccess?.githubAccessToken) {
-    return res.json({ connected: false });
-  }
-
-  res.json({
-    connected: true,
-    githubLogin: record?.githubAccess?.githubLogin,
-  });
-
-    } catch (err) {
-    console.log(err)
-    return res.status(500).json({ error: 'Server error' });
-  }
-
-
 });
+
 
 // ───────────────────────────────────────────────
 // Route: Start OAuth login with GitHub
@@ -259,6 +259,7 @@ router.get("/repos/manage", verifyJWT, async (req, res) => {
         : new Date().toISOString(),
       isFeatured: !!doc.isFeatured,
       linkedSkillIds: doc.linkedSkillIds || [],
+      isPrivate: doc.isPrivate
     }));
 
     return res.json(payload);

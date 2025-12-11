@@ -11,6 +11,7 @@ import { ensureSystemTemplates } from "./services/templates.service.js";
 import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from "./jobs/notificationcron.js";
 import { setupSalaryRefreshCron } from "./services/salaryRefreshCron.js";
+import { setupGitHubSyncCron } from "./services/githubSyncJob.js";
 
 // 🧩 Middleware
 import { attachDevUser } from './middleware/devUser.js';
@@ -235,6 +236,8 @@ try {
   // 🔔 NOTIFICATIONS
   setupNotificationCron();
   setupSalaryRefreshCron();
+  setupGitHubSyncCron();
+
   app.use("/api/notifications", notificationRoutes);
 
   // 👥 NETWORKING

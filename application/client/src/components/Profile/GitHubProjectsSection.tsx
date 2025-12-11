@@ -24,7 +24,19 @@ interface GitHubActivity {
 interface GitHubStatusResponse {
   connected: boolean;
   githubLogin?: string;
+  lastReposSyncedAt?: string | null;
 }
+function formatLastSynced(dateString?: string | null): string {
+  if (!dateString) return "Not yet synced";
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return "Not yet synced";
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 
 interface GitHubRepo {
   id: number;
@@ -352,6 +364,10 @@ const renderConnectedHeader = () => (
           </span>
         </p>
       )}
+      <p className="github-connected-text github-connected-subtext">
+        Auto-updated daily · Last synced{" "}
+        {formatLastSynced(githubStatus?.lastReposSyncedAt)}
+      </p>
     </div>
 
     <div className="github-actions">
@@ -371,6 +387,7 @@ const renderConnectedHeader = () => (
     </div>
   </div>
 );
+
 const renderActivitySection = () => {
   if (!githubStatus?.connected) return null;
 

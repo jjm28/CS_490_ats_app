@@ -10,6 +10,7 @@ import type { Skill } from "../Skills/Skills";
 const GITHUB_ENDPOINT_BASE = `${API_BASE}/api/github`;
 
 interface ManageRepo {
+  isPrivate?: boolean;
   id: number;
   name: string;
   full_name: string;
@@ -311,6 +312,7 @@ const GitHubProjectsManagePage: React.FC = () => {
 
         <div className="space-y-3">
           {repos.map((repo) => {
+            console.log(repo)
             const repoSkills = skills.filter((s) =>
               (repo.linkedSkillIds || []).map(String).includes(String(s._id))
             );
@@ -329,8 +331,14 @@ const GitHubProjectsManagePage: React.FC = () => {
                         rel="noreferrer"
                         className="font-semibold text-[#0E3B43] hover:text-[#357266]"
                       >
-                        {repo.name}
+                        {repo.name} 
                       </a>
+                      {repo.isPrivate && (
+  <span className="github-repo-badge github-repo-badge-private">
+    🔒 Private
+  </span>
+)}
+
                       {repo.isFeatured && (
                         <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800 ring-1 ring-emerald-200">
                           Featured

@@ -156,34 +156,85 @@ export async function getUserRepos(appUserId) {
 }
 
 // High-level sync: fetch from GitHub + upsert into DB
+
+// ...
+
 export async function syncReposForUser(appUserId) {
   const db = getDb();
+  const userstore = db.collection("usergithubrecord");
+  const reposCol = db.collection("usergithubrepos");
 
-  // Get token from usergithubrecord
-  const record = await getUserRecord(appUserId);
+  // 1) Get user record + token + login
+  const record = await userstore.findOne({ userid: appUserId });
   const accessToken = record?.githubAccess?.githubAccessToken;
+  const githubLogin = record?.githubAccess?.githubLogin;
 
-  if (!accessToken) {
-    const error = new Error("GitHub not connected for this user");
-    error.code = "NO_GITHUB_TOKEN";
-    throw error;
+  if (!accessToken || !githubLogin) {
+    const err = new Error("GitHub not connected for this user");
+    err.code = "NO_GITHUB_TOKEN";
+    throw err;
   }
 
   const octokit = new Octokit({ auth: accessToken });
 
-  // Only public repos for now (matches your current behavior)
-  const reposFromGitHub = await octokit.paginate(
+  // 2) Fetch ALL repos (public + private) so we can handle them explicitly
+  const repos = await octokit.paginate(
     octokit.rest.repos.listForAuthenticatedUser,
     {
       per_page: 100,
-      visibility: "public",
+      visibility: "public", // 👈 include private repos too  public, private
       sort: "updated",
     }
   );
 
-  await upsertUserRepos(appUserId, reposFromGitHub);
-  return reposFromGitHub;
+  const now = new Date();
+
+  // 3) Upsert snapshot docs into usergithubrepos
+  for (const r of repos) {
+    const doc = {
+      userId: appUserId,
+      githubRepoId: r.id,
+      name: r.name,
+      fullName: r.full_name,
+      htmlUrl: r.html_url,
+      description: r.description,
+      language: r.language,
+      stargazersCount: r.stargazers_count,
+      forksCount: r.forks_count,
+      repoUpdatedAt: r.updated_at ? new Date(r.updated_at) : null,
+      isPrivate: !!r.private,      // 👈 flag private vs public
+      // isFeatured & linkedSkillIds are preserved below
+      updatedAt: now,
+    };
+
+    await reposCol.updateOne(
+      { userId: appUserId, githubRepoId: r.id },
+      {
+        $set: doc,
+        $setOnInsert: {
+          createdAt: now,
+          isFeatured: false,
+          linkedSkillIds: [],
+        },
+      },
+      { upsert: true }
+    );
+  }
+
+  // 4) Mark when we last synced repos for this user
+  await userstore.updateOne(
+    { userid: appUserId },
+    {
+      $set: {
+        lastReposSyncedAt: now,
+        updatedAt: now,
+      },
+    }
+  );
+
+  return { count: repos.length, lastSyncedAt: now };
 }
+
 
 
 
