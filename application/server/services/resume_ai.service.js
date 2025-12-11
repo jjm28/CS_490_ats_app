@@ -166,7 +166,7 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
       "- Prefer specific, concrete outcomes over generic soft statements.\n" +
       "\n" +
       "LEVEL OF DETAIL:\n" +
-      "- For each relevant experience, generate 3–6 high-quality bullet points that align with the TARGET_JOB.\n" +
+      "- For each relevant experience, generate 3 high-quality bullet points that align with the TARGET_JOB.\n" +
       "- Focus on the most recent and most relevant roles; older or unrelated roles should be summarized more briefly.\n" +
       "- Use full, descriptive sentences in bullets, not fragments.\n" +
       "\n" +
@@ -216,7 +216,7 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
       generationConfig: {
         temperature,
         topP: 0.9,
-        maxOutputTokens: 1600,
+        maxOutputTokens: 1200,
         candidateCount,
         responseMimeType: "application/json",
         responseSchema,

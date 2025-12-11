@@ -514,6 +514,44 @@ export interface SendTeamMessagePayload {
   scope?: "team" | "direct";
   recipientIds?: string[];
 }
+
+export type TeamJobStatus = "applied" | "not_interested" | null;
+
+export interface TeamJobSuggestion {
+  _id: string;
+  teamId: string;
+  title: string;
+  company: string;
+  deadline: string; // ISO date from backend
+  description?: string;
+  location?: string | null;
+  link?: string | null;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  metrics?: {
+    appliedCount: number;
+    notInterestedCount: number;
+  };
+  myStatus?: TeamJobStatus;
+  appliedCandidates?: {
+    userId: string;
+    name?: string | null;
+    email?: string | null;
+    respondedAt?: string | null;
+  }[];
+}
+
+export type CreateTeamJobPayload = {
+  title: string;
+  company: string;
+  deadline: string; // e.g. "2025-12-31" 
+  description?: string;
+  location?: string;
+  link?: string;
+};
+
 //GET messages
 export async function getTeamMessages(
   teamId: string
@@ -771,4 +809,63 @@ export async function addTeamInsight(
 
   const data = (await res.json()) as TeamInsight;
   return data;
+}
+
+
+//Job suggestions
+export async function getTeamJobSuggestions(
+  teamId: string
+): Promise<TeamJobSuggestion[]> {
+  const body = await fetchWithAuth(
+    `/${encodeURIComponent(teamId)}/jobs`,
+    { method: "GET" }
+  );
+
+  const jobs = (body && (body as any).jobs) || [];
+  return jobs as TeamJobSuggestion[];
+}
+
+export async function createTeamJobSuggestionApi(
+  teamId: string,
+  payload: CreateTeamJobPayload
+): Promise<TeamJobSuggestion> {
+  const body = await fetchWithAuth(
+    `/${encodeURIComponent(teamId)}/jobs`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }
+  );
+
+  return (body as any).job as TeamJobSuggestion;
+}
+
+export async function setTeamJobStatusApi(
+  teamId: string,
+  jobId: string,
+  status: "applied" | "not_interested" | "clear"
+): Promise<{ jobId: string; myStatus: TeamJobStatus }> {
+  const body = await fetchWithAuth(
+    `/${encodeURIComponent(teamId)}/jobs/${encodeURIComponent(
+      jobId
+    )}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }
+  );
+
+  return body as { jobId: string; myStatus: TeamJobStatus };
+}
+
+export async function removeTeamJobSuggestionApi(
+  teamId: string,
+  jobId: string
+): Promise<void> {
+  await fetchWithAuth(
+    `/${encodeURIComponent(teamId)}/jobs/${encodeURIComponent(jobId)}`,
+    {
+      method: "DELETE",
+    }
+  );
 }

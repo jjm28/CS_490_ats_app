@@ -121,10 +121,10 @@ const TeamDashboard: React.FC<TeamDashboardProps> = ({
 
   const totalGoals = goals.length;
   const completedGoals = goals.filter((g) => g.status === "completed").length;
-  const inProgressGoals = goals.filter(
+  /*const inProgressGoals = goals.filter(
     (g) => g.status === "in-progress" || !g.status
   ).length;
-  const blockedGoals = goals.filter((g) => g.status === "blocked").length;
+  const blockedGoals = goals.filter((g) => g.status === "blocked").length;*/
 
   const recentTeam = useMemo(
     () =>
@@ -237,7 +237,7 @@ const TeamDashboard: React.FC<TeamDashboardProps> = ({
         ) : error ? (
           <p className="text-xs text-red-600">{error}</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-3 text-xs">
             <div className="border border-gray-100 rounded-md px-3 py-2 bg-gray-50">
               <p className="text-gray-500">Total Goals</p>
               <p className="text-lg font-semibold text-gray-900">
@@ -250,6 +250,7 @@ const TeamDashboard: React.FC<TeamDashboardProps> = ({
                 {completedGoals}
               </p>
             </div>
+            {/*
             <div className="border border-gray-100 rounded-md px-3 py-2 bg-blue-50">
               <p className="text-gray-500">In Progress</p>
               <p className="text-lg font-semibold text-gray-900">
@@ -261,7 +262,7 @@ const TeamDashboard: React.FC<TeamDashboardProps> = ({
               <p className="text-lg font-semibold text-gray-900">
                 {blockedGoals}
               </p>
-            </div>
+            </div>*/}
           </div>
         )}
       </Card>

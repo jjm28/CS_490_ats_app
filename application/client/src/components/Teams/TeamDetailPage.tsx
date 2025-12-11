@@ -19,6 +19,7 @@ import {
 import TeamDashboard from "./TeamDashboard";
 import TeamChat from "./TeamChat";
 import TeamProgressTracker from "./TeamProgressTracker";
+import TeamJobSuggestions from "./TeamJobSuggestions";
 
 const ROLE_OPTIONS = ["admin", "mentor", "candidate"] as const;
 
@@ -42,7 +43,7 @@ const TeamDetailPage: React.FC = () => {
 
   // ✅ Tab navigation state
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "messages" | "progress"
+    "dashboard" | "messages" | "progress" | "jobs"
   >("dashboard");
 
   useEffect(() => {
@@ -241,6 +242,16 @@ const TeamDetailPage: React.FC = () => {
         >
           Progress
         </button>
+        <button
+          className={`pb-2 ${
+            activeTab === "jobs"
+              ? "border-b-2 border-teal-600 text-teal-700"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("jobs")}
+        >
+          Job Suggestions
+        </button>
       </div>
 
       {/* ✅ Tab Content (role-aware via viewerRoles) */}
@@ -253,6 +264,12 @@ const TeamDetailPage: React.FC = () => {
           <TeamProgressTracker
             teamId={teamId!}
             members={members}
+            viewerRoles={myRoles}
+          />
+        )}
+        {activeTab === "jobs" && (
+          <TeamJobSuggestions
+            teamId={teamId!}
             viewerRoles={myRoles}
           />
         )}

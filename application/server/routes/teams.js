@@ -19,6 +19,10 @@ import {
   toggleResumeSharing,
   toggleCoverletterSharing,
   getMySharedDocs,
+  createTeamJobSuggestion,
+  listTeamJobSuggestions,
+  setTeamJobResponse,
+  deleteTeamJobSuggestion,
 } from "../services/teams.service.js";
 import {
   exportTeamResumeService,
@@ -715,6 +719,138 @@ router.post("/:teamId/messages", async (req, res) => {
     res
       .status(500)
       .json({ error: err.message || "Failed to send team message" });
+  }
+});
+
+
+//Getting the Team jobs
+router.get("/:teamId/jobs", async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { userId } = getAuthContext(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const jobs = await listTeamJobSuggestions({
+      teamId,
+      viewerId: userId,
+    });
+
+    res.json({ jobs });
+  } catch (err) {
+    console.error("Error in GET /:teamId/jobs:", err);
+    if (err.code === "FORBIDDEN") {
+      return res.status(403).json({ error: err.message });
+    }
+    if (err.code === "NOT_FOUND") {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: "Failed to load team job suggestions" });
+  }
+});
+
+// POST  create a new job suggestion (coaches only)
+router.post("/:teamId/jobs", async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { title, company, deadline, description, location, link } =
+      req.body || {};
+    const { userId } = getAuthContext(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!title || !title.trim() || !company || !company.trim() || !deadline) {
+      return res.status(400).json({
+        error: "title, company, and deadline are required",
+      });
+    }
+
+    const job = await createTeamJobSuggestion({
+      teamId,
+      creatorId: userId,
+      title,
+      company,
+      deadline,
+      description,
+      location,
+      link,
+    });
+
+    res.status(201).json({ job });
+  } catch (err) {
+    console.error("Error in POST /:teamId/jobs:", err);
+    if (err.code === "FORBIDDEN") {
+      return res.status(403).json({ error: err.message });
+    }
+    res.status(500).json({ error: "Failed to create team job suggestion" });
+  }
+});
+
+//Upadating Team infor on jobs
+router.patch("/:teamId/jobs/:jobId/status", async (req, res) => {
+  try {
+    const { teamId, jobId } = req.params;
+    const { status } = req.body || {};
+    const { userId } = getAuthContext(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!["applied", "not_interested", "clear"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const result = await setTeamJobResponse({
+      teamId,
+      jobId,
+      userId,
+      status,
+    });
+
+    res.json(result); // { jobId, myStatus }
+  } catch (err) {
+    console.error("Error in PATCH /:teamId/jobs/:jobId/status:", err);
+    if (err.code === "FORBIDDEN") {
+      return res.status(403).json({ error: err.message });
+    }
+    if (err.code === "NOT_FOUND") {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: "Failed to update job status" });
+  }
+});
+
+// DELETE  remove job suggestion (coaches only)
+router.delete("/:teamId/jobs/:jobId", async (req, res) => {
+  try {
+    const { teamId, jobId } = req.params;
+    const { userId } = getAuthContext(req);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    await deleteTeamJobSuggestion({
+      teamId,
+      jobId,
+      userId,
+    });
+
+    res.status(204).send();
+  } catch (err) {
+    console.error("Error in DELETE /:teamId/jobs/:jobId:", err);
+    if (err.code === "FORBIDDEN") {
+      return res.status(403).json({ error: err.message });
+    }
+    if (err.code === "NOT_FOUND") {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: "Failed to delete job suggestion" });
   }
 });
 

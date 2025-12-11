@@ -89,7 +89,7 @@ router.post("/generate-resumeai", async (req, res) => {
 
     const ai = await GenerateResumeBasedOn(userid, safeJob, {
       temperature: 0.6,
-      candidateCount: 3,
+      candidateCount: 3, //from 3 to 1
       maxBulletsPerRole: 5
     });
 
