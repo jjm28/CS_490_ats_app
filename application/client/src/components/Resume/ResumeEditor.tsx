@@ -852,85 +852,172 @@ const ResumeEditor: React.FC = () => {
      plus tracking multiple variants for the suggestions UI. */
 
   function applyAiCandidate(candidate: AiResumeCandidate) {
-    setData((d) => {
-      const next: ResumeData = { ...d };
-      const exp = [...(next.experience || [])] as any[];
+  setData((d) => {
+    const next: ResumeData = { ...d };
+    const exp = [...(next.experience || [])] as any[];
 
-      // Experience bullets → merge into experience
-      if (Array.isArray(candidate.experienceBullets)) {
-        candidate.experienceBullets.forEach((eb) => {
-          const rawIdx = Number(eb?.sourceExperienceIndex ?? -1);
-          const idx = rawIdx >= 0 ? rawIdx : exp.length;
+    // Experience bullets → merge into experience
+    if (Array.isArray(candidate.experienceBullets)) {
+      candidate.experienceBullets.forEach((eb) => {
+        const rawIdx = Number(eb?.sourceExperienceIndex ?? -1);
+        const idx = rawIdx >= 0 ? rawIdx : exp.length;
 
-          const startFromEb = eb.startDate || "";
-          const endFromEb = eb.endDate || "";
-          const locFromEb = eb.location || "";
+        const startFromEb = eb.startDate || "";
+        const endFromEb = eb.endDate || "";
+        const locFromEb = eb.location || "";
 
-          if (!exp[idx]) {
-            exp[idx] = {
-              company: eb.company || "",
-              jobTitle: eb.jobTitle || "",
-              startDate: startFromEb,
-              endDate: endFromEb,
-              location: locFromEb,
-              highlights: [],
-            };
-          }
-
-          const existingHighlights = Array.isArray(exp[idx].highlights)
-            ? [...exp[idx].highlights]
-            : [];
-
-          for (const b of eb.bullets || []) {
-            if (!existingHighlights.includes(b)) existingHighlights.push(b);
-          }
-
+        if (!exp[idx]) {
           exp[idx] = {
-            ...exp[idx],
-            company: exp[idx].company || eb.company || "",
-            jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
-            startDate: exp[idx].startDate || startFromEb,
-            endDate:
-              exp[idx].endDate !== null && exp[idx].endDate !== undefined
-                ? exp[idx].endDate
-                : endFromEb,
-            location: exp[idx].location || locFromEb,
-            highlights: existingHighlights,
+            company: eb.company || "",
+            jobTitle: eb.jobTitle || "",
+            startDate: startFromEb,
+            endDate: endFromEb,
+            location: locFromEb,
+            highlights: [],
           };
-        });
-      }
+        }
 
-      next.experience = exp;
+        const existingHighlights = Array.isArray(exp[idx].highlights)
+          ? [...exp[idx].highlights]
+          : [];
 
-      // Skills / ATS keywords → merge into skills array
-      const have = new Set(
-        (next.skills || [])
-          .map((s: any) => (typeof s === "string" ? s : s?.name))
+        for (const b of eb.bullets || []) {
+          if (!existingHighlights.includes(b)) existingHighlights.push(b);
+        }
+
+        exp[idx] = {
+          ...exp[idx],
+          company: exp[idx].company || eb.company || "",
+          jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
+          startDate: exp[idx].startDate || startFromEb,
+          endDate:
+            exp[idx].endDate !== null && exp[idx].endDate !== undefined
+              ? exp[idx].endDate
+              : endFromEb,
+          location: exp[idx].location || locFromEb,
+          highlights: existingHighlights,
+        };
+      });
+    }
+
+    next.experience = exp;
+
+    // Skills / ATS keywords → merge into skills array
+    const have = new Set(
+      (next.skills || [])
+        .map((s: any) => (typeof s === "string" ? s : s?.name))
+        .filter(Boolean)
+    );
+    const incoming = [
+      ...(candidate.skills || []),
+      ...(candidate.atsKeywords || []),
+    ];
+    const toAdd = incoming.filter(
+      (s: string) => s && !have.has(String(s))
+    );
+    next.skills = [
+      ...(next.skills || []),
+      ...toAdd.map((name: string) => ({ name })),
+    ];
+
+    // --- merge education suggestions into resume education ---
+    if (Array.isArray((candidate as any).education)) {
+      const incomingEdu = (candidate as any).education as Array<{
+        institution?: string;
+        degree?: string;
+        fieldOfStudy?: string;
+        graduationDate?: string;
+      }>;
+
+      const existingEdu = Array.isArray((next as any).education)
+        ? [...(next as any).education]
+        : [];
+
+      for (const e of incomingEdu) {
+        const key = [
+          (e.institution || "").trim(),
+          (e.degree || "").trim(),
+          (e.fieldOfStudy || "").trim(),
+        ]
           .filter(Boolean)
-      );
-      const incoming = [
-        ...(candidate.skills || []),
-        ...(candidate.atsKeywords || []),
-      ];
-      const toAdd = incoming.filter((s: string) => s && !have.has(String(s)));
-      next.skills = [
-        ...(next.skills || []),
-        ...toAdd.map((name: string) => ({ name })),
-      ];
+          .join(" | ");
 
-      // Summary suggestion – only if we don’t already have one
-      if (
-        (!next.summary || !String(next.summary).trim()) &&
-        Array.isArray(candidate.summarySuggestions) &&
-        candidate.summarySuggestions.length > 0
-      ) {
-        next.summary = candidate.summarySuggestions[0];
+        if (!key) continue;
+
+        const already = existingEdu.some((ex: any) => {
+          const exKey = [
+            (ex.institution || "").trim(),
+            (ex.degree || "").trim(),
+            (ex.fieldOfStudy || "").trim(),
+          ]
+            .filter(Boolean)
+            .join(" | ");
+          return exKey === key;
+        });
+
+        if (!already) {
+          existingEdu.push({
+            institution: e.institution || "",
+            degree: e.degree || "",
+            fieldOfStudy: e.fieldOfStudy || "",
+            graduationDate: e.graduationDate || "",
+          });
+        }
       }
 
-      return next;
-    });
-  }
+      (next as any).education = existingEdu;
+    }
 
+    // --- merge project suggestions into resume projects ---
+    if (Array.isArray((candidate as any).projects)) {
+      const incomingProjects = (candidate as any).projects as Array<{
+        name?: string;
+        technologies?: string;
+        outcomes?: string;
+        startDate?: string;
+        endDate?: string;
+        role?: string;
+      }>;
+
+      const existingProjects = Array.isArray((next as any).projects)
+        ? [...(next as any).projects]
+        : [];
+
+      for (const p of incomingProjects) {
+        const key = (p.name || "").trim();
+        if (!key) continue;
+
+        const already = existingProjects.some(
+          (ex: any) => (ex.name || "").trim() === key
+        );
+
+        if (!already) {
+          existingProjects.push({
+            name: p.name || "",
+            technologies: p.technologies || "",
+            outcomes: p.outcomes || "",
+            startDate: p.startDate || "",
+            endDate: p.endDate || "",
+            role: p.role || "",
+          });
+        }
+      }
+
+      (next as any).projects = existingProjects;
+    }
+
+    // Summary suggestion – only if we don’t already have one
+    if (
+      (!next.summary || !String(next.summary).trim()) &&
+      Array.isArray(candidate.summarySuggestions) &&
+      candidate.summarySuggestions.length > 0
+    ) {
+      next.summary = candidate.summarySuggestions[0];
+    }
+
+    return next;
+  });
+}
   async function runAiWithJob(jobOrDraft: Job | JobDraft) {
     try {
       setAiError(null);
