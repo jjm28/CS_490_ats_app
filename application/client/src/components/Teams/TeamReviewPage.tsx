@@ -76,9 +76,9 @@ const TeamReviewPage: React.FC = () => {
   });
   const [exportLoadingId, setExportLoadingId] = useState<string | null>(null);
 
-  const [comments, setComments] = useState([]);
-const [selectedSharedId, setSelectedSharedId] = useState<string | null>(null);
-const [selectedKind, setSelectedKind] = useState<"resume" | "coverletter">("resume");
+  const [comments, setComments] = useState<SharedDocComment[]>([]);
+  const [selectedSharedId, setSelectedSharedId] = useState<string | null>(null);
+  const [selectedKind, setSelectedKind] = useState<"resume" | "coverletter">("resume");
   // Load team + shared docs
   const load = async () => {
     if (!teamId) return;
@@ -107,9 +107,12 @@ const [selectedKind, setSelectedKind] = useState<"resume" | "coverletter">("resu
 
   const id = selectedSharedId; // now `id` is definitely a string here
 
-  async function loadComments(selectedId: string) {
-    const res = await getSharedDocComments(selectedId);
-    setComments(res.comments || []);
+  async function loadComments(selectedId: string | null) {
+  // don’t call API if we’re missing IDs
+  if (!teamId || !selectedId) return;
+
+  const res = await getSharedDocComments(selectedId, selectedKind);
+  setComments(res.comments || []);
   }
 
   loadComments(id);
@@ -121,6 +124,8 @@ const [selectedKind, setSelectedKind] = useState<"resume" | "coverletter">("resu
     setNewComments((prev) => ({ ...prev, [docKey]: text }));
   };
 
+  
+
   const handleAddComment = async (kind: DocKind, sharedId: string) => {
   const key = `${kind}:${sharedId}`;
   const text = (newComments[key] || "").trim();
@@ -129,14 +134,16 @@ const [selectedKind, setSelectedKind] = useState<"resume" | "coverletter">("resu
   try {
     setBusyDocId(sharedId);
 
-    // Send comment to backend (new route)
-    await addSharedDocComment(sharedId, text);
+    // ✅ Send comment with doc kind
+    const resp = await addSharedDocComment(sharedId, kind, text);
 
-    // Fetch latest comments from DB to ensure everyone sees updates
-    const updated = await getSharedDocComments(sharedId);
-    const freshComments = updated.comments || [];
+    // ✅ Use returned comments if present, otherwise fetch
+    const freshComments =
+      resp.comments ||
+      (await getSharedDocComments(sharedId, kind)).comments ||
+      [];
 
-    // Update local state
+    // ✅ Update local shared docs state so the UI shows new comments
     setShared((prev) =>
       prev.map((entry) => ({
         ...entry,
@@ -163,11 +170,9 @@ const [selectedKind, setSelectedKind] = useState<"resume" | "coverletter">("resu
       }))
     );
 
-    // Clear input field
     setNewComments((prev) => ({ ...prev, [key]: "" }));
-
     window.alert("✅ Your comment has been sent!");
-  } catch (err: any) {
+  } catch (err) {
     console.error("Error adding comment:", err);
     window.alert("❌ Failed to send comment. Please try again.");
   } finally {

@@ -16,15 +16,14 @@ router.post("/generate", async (req, res) => {
     const { filters, options } = req.body;
     const report = await generateCustomReport(userId, filters, options);
 
-    if (!report) {
-      return res.status(500).json({ error: "Failed to generate report" });
-    }
+    if (!report) return res.status(500).json({ error: "Failed to generate report" });
 
-    // ✅ If format is PDF or Excel, send as a binary file (no JSON)
+    // Handle binary formats safely
     if (options?.format === "pdf" || options?.format === "excel") {
       const filePath = path.resolve(`.${report.path}`);
       const fileName = path.basename(filePath);
 
+      // Explicit headers for download
       res.setHeader(
         "Content-Disposition",
         `attachment; filename="${fileName}"`
@@ -36,16 +35,21 @@ router.post("/generate", async (req, res) => {
           : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       );
 
-      return res.sendFile(filePath, (err) => {
+      // Disable compression
+      res.setHeader("Content-Encoding", "identity");
+
+      // Stream the file cleanly
+      return res.download(filePath, fileName, (err) => {
         if (err) {
-          console.error("Error sending file:", err);
-          res.status(500).end();
+          console.error("Download error:", err);
+          if (!res.headersSent)
+            res.status(500).json({ error: "File download failed" });
         }
       });
     }
 
-    // ✅ Otherwise return JSON normally
-    res.json(report);
+    // JSON fallback
+    return res.json(report);
   } catch (err) {
     console.error("[CustomReport] Error:", err);
     if (!res.headersSent)
