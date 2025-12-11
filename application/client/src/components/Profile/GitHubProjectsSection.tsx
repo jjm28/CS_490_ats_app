@@ -7,8 +7,8 @@ import API_BASE from "../../utils/apiBase";
 import "./ProfileDashboard.css"
 import { getSkills } from "../../api/skills";              // NEW
 import type { Skill } from "../Skills/Skills"; 
-import GitHubProjectsManagePage from "./GitHubProjectsManagePage";
 import { GitHubCalendar } from "react-github-calendar";
+import GitHubProjectsManageModal from "./GitHubProjectsManageModal";
 
 const GITHUB_ENDPOINT_BASE = `${API_BASE}/api/github`;
 
@@ -75,6 +75,7 @@ const [activity, setActivity] = useState<GitHubActivity | null>(null);
 const [activityLoading, setActivityLoading] = useState(false);
 const [activityError, setActivityError] = useState<string | null>(null);
 
+const [manageOpen, setManageOpen] = useState(false);
 
   // ───────────────────────────────────────────────
   // Fetch GitHub status
@@ -378,12 +379,13 @@ const renderConnectedHeader = () => (
       >
         {githubSyncing ? "Refreshing..." : "Refresh from GitHub"}
       </Button>
-      <Button
-        variant="ghost"
-        onClick={() => navigate("/github-projects")}
-      >
-        Manage
-      </Button>
+<Button
+  variant="ghost"
+  onClick={() => setManageOpen(true)}
+>
+  Manage
+</Button>
+
     </div>
   </div>
 );
@@ -522,7 +524,7 @@ const renderRepoList = () => {
 
 
   return (
-    <Card>
+    <>    <Card>
       <div className="github-card">
         <div className="github-card-header">
           <div>
@@ -553,6 +555,12 @@ const renderRepoList = () => {
             )}
       </div>
     </Card>
+  <GitHubProjectsManageModal
+    isOpen={manageOpen}
+    onClose={() => {setManageOpen(false); window.location.reload();} }
+  /> 
+    </>
+
   );
 };
 

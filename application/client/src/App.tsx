@@ -143,7 +143,6 @@ import MentorInvitePage from './components/Networking/MentorInvitePage';
 import MentorInvite from './components/Networking/MentorInvite';
 import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
-import GitHubProjectsManagePage from './components/Profile/GitHubProjectsManagePage';
 
 function App() {
   const location = useLocation();
@@ -643,7 +642,6 @@ function App() {
             path="/analytics/custom-report"
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
-                    <Route path="/github-projects" element={<PrivateRoute><GitHubProjectsManagePage /></PrivateRoute>} />
 
         </Routes>
       </div>
