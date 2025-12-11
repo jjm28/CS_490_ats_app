@@ -8,7 +8,7 @@ function Button({
   children,
   ...props
 }: {
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary"| "ghost";
   disabled?: boolean;
   className?: string;
   children: React.ReactNode;
@@ -18,6 +18,7 @@ function Button({
   const variants = {
     primary: "btn-primary",
     secondary: "btn-secondary",
+    ghost: "bg-transparent text-gray-700 hover:bg-gray-100",
   };
   const classes = `${base} ${variants[variant]} ${disabled ? "btn-disabled" : ""} ${className}`;
   return (

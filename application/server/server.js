@@ -11,6 +11,7 @@ import { ensureSystemTemplates } from "./services/templates.service.js";
 import { startAutomationRunner } from "./utils/automationRunner.js";
 import { setupNotificationCron } from "./jobs/notificationcron.js";
 import { setupSalaryRefreshCron } from "./services/salaryRefreshCron.js";
+import { setupGitHubSyncCron } from "./services/githubSyncJob.js";
 
 // 🧩 Middleware
 import { attachDevUser } from './middleware/devUser.js';
@@ -110,6 +111,7 @@ import successOverview from "./routes/success-overview.js";
 import successSnapshots from "./routes/success-snapshots.js";
 import customReportsRouter from "./routes/customReports.js";
 
+import githubRoutes from "./routes/github.js"
 //
 // ===============================
 // 🔧 SERVER CONFIG
@@ -235,6 +237,8 @@ try {
   // 🔔 NOTIFICATIONS
   setupNotificationCron();
   setupSalaryRefreshCron();
+  setupGitHubSyncCron();
+
   app.use("/api/notifications", notificationRoutes);
 
   // 👥 NETWORKING
@@ -277,7 +281,7 @@ app.use("/api/org",attachUserFromHeaders, organizationRoutes);
   app.use("/api/success", successOverview);
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);
-
+  app.use("/api/github",githubRoutes)
   // Health check
   app.get('/healthz', (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {

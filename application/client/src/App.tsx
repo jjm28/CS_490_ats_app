@@ -165,7 +165,6 @@ function App() {
       return;
     }
  
-    console.log("working")
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
@@ -177,6 +176,7 @@ function App() {
 
       <div className="main-content">
         <Routes>
+
           <Route path="/" element={<HomePage />} />
           <Route path="/Registration" element={<Registration />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
@@ -641,6 +641,7 @@ function App() {
             path="/analytics/custom-report"
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
+
         </Routes>
       </div>
     </>
