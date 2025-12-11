@@ -14,7 +14,11 @@ import {
   updateCoverletter,
   createdsharedcoverletter,
   Getfullcoverletter,
-  authHeaders,getCoverletterFeedbackSummary,updateCoverletterWorkflow
+  authHeaders,
+  getCoverletterFeedbackSummary,
+  updateCoverletterWorkflow,
+  fetchCoverletterVersions,
+  createCoverletterVersionNew,
 } from "../../api/coverletter";
 import type { GetCoverletterResponse,FeedbackSummaryResponse,WorkflowStatus } from "../../api/coverletter";
 import type { Job } from "./hooks/useJobs";
@@ -173,6 +177,12 @@ const [inviteCanResolve, setInviteCanResolve] = useState<boolean>(false);
   const [approvedByName, setApprovedByName] = useState<string | undefined>();
   const [approvedAt, setApprovedAt] = useState<string | undefined>();
   const [updatingWorkflow, setUpdatingWorkflow] = useState(false);
+
+  // Version management
+  const [showCreateVersionModal, setShowCreateVersionModal] = useState(false);
+  const [versionName, setVersionName] = useState("");
+  const [creatingVersion, setCreatingVersion] = useState(false);
+  const [versions, setVersions] = useState<Array<{ _id: string; name: string; createdAt: string }>>([]);
 
 
     const handleOpenFeedbackSummary = async () => {
@@ -731,6 +741,69 @@ setVariations(null);
       }
     }
   };
+
+  /* Version Management */
+  
+  const loadVersions = async () => {
+    if (!CoverletterID) return;
+    
+    try {
+      const userid = getUserId();
+      if (!userid) return;
+      
+      const versionData = await fetchCoverletterVersions({ userid, coverletterid: CoverletterID });
+      setVersions(versionData?.items || []);
+    } catch (err) {
+      console.error("Failed to load cover letter versions:", err);
+    }
+  };
+
+  const handleCreateVersion = async () => {
+    if (!CoverletterID || !versionName.trim()) {
+      alert("Please enter a version name");
+      return;
+    }
+    
+    try {
+      setCreatingVersion(true);
+      const userid = getUserId();
+      if (!userid) throw new Error("Missing user session");
+      
+      await createCoverletterVersionNew({
+        userid,
+        coverletterid: CoverletterID,
+        sourceVersionId: null, // Clone from base cover letter
+        name: versionName.trim(),
+        description: `Created on ${new Date().toLocaleDateString()}`,
+      });
+      
+      // Refresh versions list
+      await loadVersions();
+      
+      // Reset and close
+      setVersionName("");
+      setShowCreateVersionModal(false);
+      alert("Version created successfully!");
+    } catch (err) {
+      console.error("Failed to create version:", err);
+      alert("Failed to create version");
+    } finally {
+      setCreatingVersion(false);
+    }
+  };
+
+  function getUserId() {
+    const raw = localStorage.getItem("authUser");
+    const auth = raw ? JSON.parse(raw) : null;
+    return auth?.user?._id || auth?._id || localStorage.getItem("userid") || "";
+  }
+
+  // Load versions when cover letter loads
+  useEffect(() => {
+    if (CoverletterID) {
+      loadVersions();
+    }
+  }, [CoverletterID]);
 
   const handleShareConfirm = async () => {
     try {
@@ -1331,6 +1404,15 @@ function generatePdfFilename(filename: string) {
           )}
 
           <Button onClick={handleSave}>Save</Button>
+          
+          {CoverletterID && (
+            <Button
+              onClick={() => setShowCreateVersionModal(true)}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Create Version
+            </Button>
+          )}
 
 {/* Export Dropdown */}
 <div className="relative inline-block">
@@ -1708,6 +1790,70 @@ function generatePdfFilename(filename: string) {
           </div>
         )}
       </Modal>
+
+      {/* Create Version Modal */}
+      {showCreateVersionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Create Cover Letter Version</h3>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                Version Name
+              </label>
+              <input
+                type="text"
+                value={versionName}
+                onChange={(e) => setVersionName(e.target.value)}
+                placeholder={`Version ${new Date().toLocaleDateString()}`}
+                className="w-full border rounded px-3 py-2"
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This will create a snapshot of your current cover letter
+              </p>
+            </div>
+            
+            {versions.length > 0 && (
+              <div className="mb-4 p-3 bg-blue-50 rounded text-sm">
+                <p className="font-medium mb-1">Existing Versions:</p>
+                <ul className="text-xs text-gray-600 space-y-1">
+                  {versions.slice(0, 3).map((v) => (
+                    <li key={v._id}>
+                      • {v.name} ({new Date(v.createdAt).toLocaleDateString()})
+                    </li>
+                  ))}
+                  {versions.length > 3 && (
+                    <li className="text-gray-400">
+                      ... and {versions.length - 3} more
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowCreateVersionModal(false);
+                  setVersionName("");
+                }}
+                className="flex-1 px-4 py-2 border rounded hover:bg-gray-50"
+                disabled={creatingVersion}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateVersion}
+                disabled={creatingVersion || !versionName.trim()}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+              >
+                {creatingVersion ? "Creating..." : "Create Version"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -546,3 +546,63 @@ export async function getCoverletterFeedbackSummary(
 
   return data as FeedbackSummaryResponse;
 }
+
+// ===== COVER LETTER VERSION MANAGEMENT =====
+
+const COVERLETTER_VERSIONS_API = "http://localhost:5050/api/coverletter-versions";
+
+export interface CoverletterVersionLite {
+  _id: string;
+  name: string;
+  createdAt: string;
+  isDefault?: boolean;
+}
+
+export async function fetchCoverletterVersions({ userid, coverletterid }: { userid: string; coverletterid: string }) {
+  const res = await fetch(
+    `${COVERLETTER_VERSIONS_API}?userid=${userid}&coverletterid=${coverletterid}`,
+    { headers: authHeaders() }
+  );
+  if (!res.ok) throw new Error("Failed to fetch cover letter versions");
+  return await res.json() as { items: CoverletterVersionLite[]; defaultVersionId: string | null };
+}
+
+export async function createCoverletterVersionNew(args: {
+  userid: string;
+  coverletterid: string;
+  sourceVersionId?: string | null;
+  name: string;
+  description?: string;
+}) {
+  const res = await fetch(COVERLETTER_VERSIONS_API, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) throw new Error("Failed to create cover letter version");
+  return await res.json();
+}
+
+export async function updateCoverletterVersion({ userid, versionid, linkJobIds, unlinkJobIds }: {
+  userid: string;
+  versionid: string;
+  linkJobIds?: string[];
+  unlinkJobIds?: string[];
+}) {
+  const res = await fetch(`${COVERLETTER_VERSIONS_API}/${versionid}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ userid, linkJobIds, unlinkJobIds }),
+  });
+  if (!res.ok) throw new Error("Failed to update cover letter version");
+  return await res.json();
+}
+
+export async function listCoverletterVersionsLinkedToJob({ userid, jobId }: { userid: string; jobId: string }) {
+  const res = await fetch(
+    `${COVERLETTER_VERSIONS_API}/linked-to-job/${jobId}?userid=${userid}`,
+    { headers: authHeaders() }
+  );
+  if (!res.ok) throw new Error("Failed to fetch linked cover letter versions");
+  return await res.json() as { items: CoverletterVersionLite[] };
+}

@@ -60,6 +60,7 @@ import coverletter from "./routes/coverletter.js";
 import resumesRoute from "./routes/resume.js";
 import templatesRoute from "./routes/templates.js";
 import resumeVersionsRouter from "./routes/resume-versions.js";
+import coverletterVersionsRouter from "./routes/coverletter-versions.js";
 
 // ⚙️ AUTOMATION
 import automationRoutes from "./routes/automation.js";
@@ -218,6 +219,7 @@ try {
   app.use("/api/resumes", attachDevUser, resumesRoute);
   app.use("/api/resume-templates", attachDevUser, templatesRoute);
   app.use("/api/resume-versions", resumeVersionsRouter);
+  app.use("/api/coverletter-versions", coverletterVersionsRouter);
 
   //networking 
   app.use("/api/networking", networkingRoutes);
