@@ -158,6 +158,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 try {
   await connectDB();
   await ensureSystemTemplates();
+  startAutomationRunner(); // 🚀 NOW IT STARTS!
 
   //
   // ===============================

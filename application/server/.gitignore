@@ -32,5 +32,5 @@ server/server@1.0.0
 #package-lock.json
 
 # Coverage directory
-__tests__/
+# __tests__/
 coverage/

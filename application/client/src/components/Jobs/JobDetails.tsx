@@ -128,7 +128,13 @@ export default function JobDetails({
 
           setSelectedResumeId(job.applicationPackage.resumeId || null);
           setSelectedCoverLetterId(job.applicationPackage.coverLetterId || null);
-          setPackagePortfolioUrl(job.applicationPackage.portfolioUrl || "");
+          
+          // Handle both portfolioUrl (string) and portfolioUrls (array) formats
+          const portfolioValue = job.applicationPackage.portfolioUrl || 
+                                 (Array.isArray(job.applicationPackage.portfolioUrls) && job.applicationPackage.portfolioUrls.length > 0
+                                   ? job.applicationPackage.portfolioUrls[0]
+                                   : "");
+          setPackagePortfolioUrl(portfolioValue);
         } else {
           setResumeName(null);
           setCoverLetterName(null);
@@ -177,8 +183,9 @@ function authHeaders() {
         },
       };
 
-      const response = await fetch(`${JOBS_ENDPOINT}/${job._id}`, {
-        method: "PUT",
+      // Use dedicated PATCH endpoint for application packages
+      const response = await fetch(`${JOBS_ENDPOINT}/${job._id}/application-package`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -706,7 +713,13 @@ useEffect(() => {
                   if (job.applicationPackage) {
                     setSelectedResumeId(job.applicationPackage.resumeId || null);
                     setSelectedCoverLetterId(job.applicationPackage.coverLetterId || null);
-                    setPackagePortfolioUrl(job.applicationPackage.portfolioUrl || "");
+                    
+                    // Handle both portfolioUrl (string) and portfolioUrls (array) formats
+                    const portfolioValue = job.applicationPackage.portfolioUrl || 
+                                           (Array.isArray(job.applicationPackage.portfolioUrls) && job.applicationPackage.portfolioUrls.length > 0
+                                             ? job.applicationPackage.portfolioUrls[0]
+                                             : "");
+                    setPackagePortfolioUrl(portfolioValue);
                   } else {
                     setSelectedResumeId(null);
                     setSelectedCoverLetterId(null);
@@ -742,18 +755,26 @@ useEffect(() => {
                 <div className="flex justify-between">
                   <span className="font-medium">Portfolio URL</span>
                   <span className="truncate max-w-[60%] text-right">
-                    {job.applicationPackage?.portfolioUrl ? (
-                      <a
-                        href={job.applicationPackage.portfolioUrl}
-                        className="text-blue-600 hover:underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {job.applicationPackage.portfolioUrl}
-                      </a>
-                    ) : (
-                      "—"
-                    )}
+                    {(() => {
+                      // Handle both portfolioUrl (string) and portfolioUrls (array) formats
+                      const url = job.applicationPackage?.portfolioUrl || 
+                                  (Array.isArray(job.applicationPackage?.portfolioUrls) && job.applicationPackage.portfolioUrls.length > 0
+                                    ? job.applicationPackage.portfolioUrls[0]
+                                    : null);
+                      
+                      return url ? (
+                        <a
+                          href={url}
+                          className="text-blue-600 hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {url}
+                        </a>
+                      ) : (
+                        "—"
+                      );
+                    })()}
                   </span>
                 </div>
 
@@ -1681,4 +1702,3 @@ function ContactFields({
     </div>
   );
 }
-
