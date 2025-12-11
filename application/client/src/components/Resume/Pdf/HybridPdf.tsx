@@ -11,16 +11,16 @@ import type { ResumeDocProps } from "..";
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 30,
-    paddingBottom: 30,
-    paddingHorizontal: 40,
+    paddingTop: 36,
+    paddingBottom: 36,
+    paddingHorizontal: 48,
     fontFamily: "Helvetica",
     fontSize: 10,
     lineHeight: 1.35,
   },
   header: {
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#000000",
     paddingBottom: 8,
     marginBottom: 10,
   },
@@ -29,14 +29,14 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   summary: {
-    marginTop: 4,
-    color: "#6b7280",
+    marginTop: 12,
+    color: "#000000",
   },
   contactRow: {
     marginTop: 6,
     flexDirection: "row",
     flexWrap: "wrap",
-    color: "#6b7280",
+    color: "#000000",
     fontSize: 9,
   },
   contactItem: {
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     flex: 0.95,
     paddingRight: 10,
     borderRightWidth: 1,
-    borderRightColor: "#e5e7eb",
+    borderRightColor: "#000000",
   },
   colRight: {
     flex: 1.05,
@@ -64,17 +64,17 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     textTransform: "uppercase",
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#000000",
     paddingBottom: 2,
     marginBottom: 4,
   },
   smallMuted: {
     fontSize: 9,
-    color: "#6b7280",
+    color: "#000000",
   },
   skillChip: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#000000",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,

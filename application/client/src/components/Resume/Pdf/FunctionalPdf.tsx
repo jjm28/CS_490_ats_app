@@ -11,16 +11,16 @@ import type { ResumeDocProps } from "..";
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 30,
-    paddingBottom: 30,
-    paddingHorizontal: 40,
+    paddingTop: 36,
+    paddingBottom: 36,
+    paddingHorizontal: 48,
     fontFamily: "Helvetica",
     fontSize: 10,
     lineHeight: 1.35,
   },
   header: {
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: "#000000",
     paddingBottom: 8,
     marginBottom: 10,
   },
@@ -29,14 +29,14 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   summary: {
-    marginTop: 4,
-    color: "#475569",
+    marginTop: 12,
+    color: "#000000",
   },
   contactRow: {
     marginTop: 6,
     flexDirection: "row",
     flexWrap: "wrap",
-    color: "#475569",
+    color: "#000000",
     fontSize: 9,
   },
   contactItem: {
@@ -52,11 +52,11 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
     marginBottom: 4,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#000000",
   },
   skillBlock: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#000000",
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 4,
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   skillLevel: {
     fontSize: 9,
-    color: "#6b7280",
+    color: "#000000",
   },
   skillItemsRow: {
     flexDirection: "row",
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   skillChip: {
     fontSize: 9,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#000000",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   smallMuted: {
-    color: "#6b7280",
+    color: "#000000",
     fontSize: 9,
   },
   expItem: {
