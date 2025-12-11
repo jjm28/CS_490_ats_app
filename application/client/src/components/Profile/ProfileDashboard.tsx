@@ -18,6 +18,7 @@ import type { Project } from "../Projects/Projects";
 import type { Job } from "../../types/jobs.types";
 import DeadlinesDashboardWidget from "../Jobs/DeadlineDashboardWidget.tsx";
 import API_BASE from "../../utils/apiBase";
+import GitHubProjectsSection from "./GitHubProjectsSection";
 
 // ---- Routes ----
 const EDUCATION_ADD_ROUTE = "/education";
@@ -713,6 +714,9 @@ const ProfileDashboard: React.FC = () => {
                   )}
                 </div>
               )}
+
+                      <GitHubProjectsSection token={token} />
+
             </section>
           </div>
 
