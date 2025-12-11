@@ -216,6 +216,28 @@ async function requireAdmin({ db, userId, teamId }) {
   return membership;
 }
 
+async function requireCoach({ db, userId, teamId }) {
+  const memberships = db.collection(MEMBERSHIP_COLLECTION);
+  const teamObjectId =
+    teamId instanceof ObjectId ? teamId : new ObjectId(teamId);
+
+  const membership = await memberships.findOne({
+    teamId: teamObjectId,
+    userId: userId.toString(),
+    status: "active",
+    roles: { $in: ["admin", "mentor"] },
+  });
+
+  if (!membership) {
+    const err = new Error("Not authorized to manage jobs for this team");
+    err.code = "FORBIDDEN";
+    throw err;
+  }
+
+  return membership;
+}
+
+
 /**
  * Return a team + its members.
  */
@@ -1112,4 +1134,317 @@ export async function getTeamMenteeProgress({ teamId, menteeId }) {
     productivity,
     competitive,
   };
+}
+
+//Team Job Recommendations
+export async function createTeamJobSuggestion({
+  teamId,
+  creatorId,
+  title,
+  company,
+  deadline,
+  description,
+  location,
+  link,
+}) {
+  if (!teamId) throw new Error("teamId is required");
+  if (!creatorId) throw new Error("creatorId is required");
+  if (!title || !title.trim()) throw new Error("Job title is required");
+  if (!company || !company.trim()) throw new Error("Company name is required");
+  if (!deadline) throw new Error("Deadline is required");
+
+  const db = getDb();
+  const jobs = db.collection("teamJobs");
+  const teamObjectId =
+    teamId instanceof ObjectId ? teamId : new ObjectId(teamId);
+
+  // Ensure creator is a coach on this team
+  await requireCoach({ db, userId: creatorId, teamId: teamObjectId });
+
+  const now = new Date();
+  const deadlineDate = new Date(deadline);
+  if (isNaN(deadlineDate.getTime())) {
+    throw new Error("Invalid deadline date");
+  }
+
+  const doc = {
+    teamId: teamObjectId,
+    createdBy: creatorId.toString(),
+    title: title.trim(),
+    company: company.trim(),
+    deadline: deadlineDate,
+    description: (description || "").trim(),
+    location: location ? location.trim() : null,
+    link: link ? link.trim() : null,
+    status: "active", // active | removed
+    responses: [], // [{ userId, status: 'applied' | 'not_interested', updatedAt }]
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const result = await jobs.insertOne(doc);
+  return {
+    ...doc,
+    _id: result.insertedId,
+  };
+}
+
+//Listing Team Jobs
+export async function listTeamJobSuggestions({ teamId, viewerId }) {
+  if (!teamId) throw new Error("teamId is required");
+  if (!viewerId) throw new Error("viewerId is required");
+
+  const db = getDb();
+  const memberships = db.collection(MEMBERSHIP_COLLECTION);
+  const jobs = db.collection("teamJobs");
+  const teamObjectId =
+    teamId instanceof ObjectId ? teamId : new ObjectId(teamId);
+
+  // Ensure viewer is a member of this team
+  const viewerMembership = await memberships.findOne({
+    teamId: teamObjectId,
+    userId: viewerId.toString(),
+    status: "active",
+  });
+
+  if (!viewerMembership) {
+    const err = new Error("Team not found or access denied.");
+    err.code = "FORBIDDEN";
+    throw err;
+  }
+
+  const now = new Date();
+
+  // Only active jobs whose deadline has not passed
+  const docs = await jobs
+    .find({
+      teamId: teamObjectId,
+      status: "active",
+      deadline: { $gte: now },
+    })
+    .sort({ deadline: 1, createdAt: -1 })
+    .toArray();
+
+  if (!docs || docs.length === 0) {
+    return [];
+  }
+
+  const isCoach = (viewerMembership.roles || []).some((r) =>
+    ["admin", "mentor"].includes(r)
+  );
+
+  // Collect all userIds we need to hydrate (creator + responders)
+  const userIdSet = new Set();
+  for (const job of docs) {
+    if (job.createdBy) {
+      userIdSet.add(job.createdBy.toString());
+    }
+    const responses = Array.isArray(job.responses) ? job.responses : [];
+    for (const r of responses) {
+      if (r.userId) userIdSet.add(r.userId.toString());
+    }
+  }
+
+  let usersById = new Map();
+  if (userIdSet.size > 0) {
+    const ids = Array.from(userIdSet);
+    const users = await db
+      .collection("users")
+      .find(
+        { _id: { $in: ids } },
+        { projection: { _id: 1, email: 1, name: 1, firstName: 1, lastName: 1 } }
+      )
+      .toArray();
+
+    usersById = new Map(users.map((u) => [u._id.toString(), u]));
+  }
+
+  return docs.map((job) => {
+    const responses = Array.isArray(job.responses) ? job.responses : [];
+    const applied = responses.filter((r) => r.status === "applied");
+    const notInterested = responses.filter(
+      (r) => r.status === "not_interested"
+    );
+
+    const myResponse =
+      responses.find((r) => r.userId === viewerId.toString()) || null;
+
+    const appliedCandidates = isCoach
+      ? applied.map((r) => {
+          const u = usersById.get(r.userId.toString());
+          const name =
+            u?.name ||
+            [u?.firstName, u?.lastName].filter(Boolean).join(" ") ||
+            null;
+          return {
+            userId: r.userId.toString(),
+            name,
+            email: u?.email || null,
+            respondedAt: r.updatedAt || null,
+          };
+        })
+      : undefined;
+
+    const creatorUser = job.createdBy
+      ? usersById.get(job.createdBy.toString())
+      : null;
+
+    const creatorName =
+      creatorUser?.name ||
+      [creatorUser?.firstName, creatorUser?.lastName]
+        .filter(Boolean)
+        .join(" ") ||
+      null;
+
+    return {
+      _id: job._id.toString(),
+      teamId: job.teamId.toString(),
+      title: job.title,
+      company: job.company,
+      deadline: job.deadline,
+      description: job.description || "",
+      location: job.location || null,
+      link: job.link || null,
+      createdBy: job.createdBy?.toString() || null,
+      createdByName: creatorName,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      metrics: {
+        appliedCount: applied.length,
+        notInterestedCount: notInterested.length,
+      },
+      myStatus: myResponse ? myResponse.status : null,
+      appliedCandidates,
+    };
+  });
+}
+
+//Teams response to jobs
+export async function setTeamJobResponse({
+  teamId,
+  jobId,
+  userId,
+  status,
+}) {
+  if (!teamId) throw new Error("teamId is required");
+  if (!jobId) throw new Error("jobId is required");
+  if (!userId) throw new Error("userId is required");
+  if (!["applied", "not_interested", "clear"].includes(status)) {
+    throw new Error("Invalid status");
+  }
+
+  const db = getDb();
+  const memberships = db.collection(MEMBERSHIP_COLLECTION);
+  const jobs = db.collection("teamJobs");
+
+  const teamObjectId =
+    teamId instanceof ObjectId ? teamId : new ObjectId(teamId);
+  const jobObjectId =
+    jobId instanceof ObjectId ? jobId : new ObjectId(jobId);
+
+  // Ensure user is a member of this team
+  const membership = await memberships.findOne({
+    teamId: teamObjectId,
+    userId: userId.toString(),
+    status: "active",
+  });
+
+  if (!membership) {
+    const err = new Error("Team not found or access denied.");
+    err.code = "FORBIDDEN";
+    throw err;
+  }
+
+  const job = await jobs.findOne({
+    _id: jobObjectId,
+    teamId: teamObjectId,
+    status: "active",
+  });
+
+  if (!job) {
+    const err = new Error("Job not found");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  const now = new Date();
+  const responses = Array.isArray(job.responses)
+    ? [...job.responses]
+    : [];
+
+  const idx = responses.findIndex(
+    (r) => r.userId === userId.toString()
+  );
+
+  if (status === "clear") {
+    if (idx !== -1) {
+      responses.splice(idx, 1);
+    }
+  } else {
+    const entry = {
+      userId: userId.toString(),
+      status,
+      updatedAt: now,
+    };
+
+    if (idx === -1) {
+      responses.push(entry);
+    } else {
+      responses[idx] = entry;
+    }
+  }
+
+  await jobs.updateOne(
+    { _id: jobObjectId },
+    {
+      $set: {
+        responses,
+        updatedAt: now,
+      },
+    }
+  );
+
+  return {
+    jobId: jobObjectId.toString(),
+    myStatus: status === "clear" ? null : status,
+  };
+}
+
+//Deleting team jobs
+export async function deleteTeamJobSuggestion({
+  teamId,
+  jobId,
+  userId,
+}) {
+  if (!teamId) throw new Error("teamId is required");
+  if (!jobId) throw new Error("jobId is required");
+  if (!userId) throw new Error("userId is required");
+
+  const db = getDb();
+  const jobs = db.collection("teamJobs");
+  const teamObjectId =
+    teamId instanceof ObjectId ? teamId : new ObjectId(teamId);
+  const jobObjectId =
+    jobId instanceof ObjectId ? jobId : new ObjectId(jobId);
+
+  // Ensure caller is coach
+  await requireCoach({ db, userId, teamId: teamObjectId });
+
+  const result = await jobs.updateOne(
+    { _id: jobObjectId, teamId: teamObjectId },
+    {
+      $set: {
+        status: "removed",
+        updatedAt: new Date(),
+      },
+    }
+  );
+
+  if (!result.matchedCount) {
+    const err = new Error("Job not found");
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  return { ok: true };
 }
