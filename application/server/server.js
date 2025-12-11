@@ -181,6 +181,10 @@ try {
   app.use("/record", records);
   app.use("/api/skills", skills);
   app.use("/api/education", education);
+  // TEAM ROUTES
+  app.use("/api/teams",teamRoutes);
+  app.use("/api/teams",  teamProgressRouter);
+
 
   // 📂 PROJECTS & CERTIFICATIONS
   app.use("/api/projects", projectsRoutes);
@@ -198,11 +202,6 @@ try {
 
   // Salary CRUD — MUST COME AFTER
   app.use("/api/salary", salaryRoutes);
-
-    // 🚀 START SERVER
-  //team page routing
-  app.use("/api/teams",teamRoutes);
-  app.use("/api/teams",  teamProgressRouter);
 
   // 📊 INTERVIEW & COMPANY RESEARCH
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);

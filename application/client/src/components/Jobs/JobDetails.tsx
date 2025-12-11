@@ -13,6 +13,7 @@ import {
   type Contact,
 } from "../../types/jobs.types";
 import InterviewScheduler from "./InterviewScheduler";
+import InterviewInsightsDisplay from "../Interviews/InterviewInsights";
 import { listResumes } from "../../api/resumes";
 import { listCoverletters } from "../../api/coverletter";
 import CompanyResearchInline from "./CompanyResearchInline";
@@ -72,7 +73,7 @@ export default function JobDetails({
   const [analysisError, setAnalysisError] = useState("");
   const [resumeName, setResumeName] = useState<string | null>(null);
   const [coverLetterName, setCoverLetterName] = useState<string | null>(null);
-
+  const [showInterviewInsights, setShowInterviewInsights] = useState(false);
   // NEW: controls the company info popup
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
   // New state for adding application history
@@ -923,7 +924,22 @@ export default function JobDetails({
       setAnalyzing(false);
     }
   };
+  // Check if job is at interview stage or later
 
+
+  const canShowInterviewInsights = job && (
+
+
+    job.status === "interview" || 
+
+
+    job.status === "offer" || 
+
+
+    job.status === "phone_screen"
+
+
+  );
   if (loading) return <div className="p-6">Loading...</div>;
   if (!job) return <div className="p-6">Job not found</div>;
 
@@ -1022,7 +1038,28 @@ export default function JobDetails({
                 />
               </div>
             </section>
+            {/* Interview Insights Button */}
+            {canShowInterviewInsights && (
+                 <Button
 
+
+                variant="primary"
+
+
+                onClick={() => setShowInterviewInsights(true)}
+
+
+                className="w-full flex items-center justify-center gap-2"
+              >
+
+                <span>🎯</span>
+
+
+                <span>View Interview Insights</span>
+
+
+              </Button>
+                 )}
             {(job.status === "offer" || job.status === "interview") && (
               <Button
                 type="button"
@@ -1246,7 +1283,70 @@ export default function JobDetails({
                 )}
               </div>
             </section>
+             {/* Interview Insights Modal */}
 
+
+      {showInterviewInsights && (
+
+
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+
+
+          <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+
+
+            <div className="flex justify-between items-center border-b p-4 bg-white sticky top-0 z-10">
+
+
+              <h3 className="font-semibold text-lg">
+
+
+                Interview Insights - {job.jobTitle} at {job.company}
+
+
+              </h3>
+
+
+              <button
+
+
+                type="button"
+
+
+                onClick={() => setShowInterviewInsights(false)}
+
+
+                className="text-gray-500 hover:text-gray-800"
+
+
+              >
+
+
+                ✕
+
+
+              </button>
+
+
+            </div>
+
+
+            <div>
+
+
+              <InterviewInsightsDisplay jobId={job._id} />
+
+
+            </div>
+
+
+          </Card>
+
+
+        </div>
+
+
+      )}
             {/* Application History */}
             <section>
               <div className="flex justify-between items-center mb-3">
