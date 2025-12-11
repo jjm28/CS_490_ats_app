@@ -139,7 +139,7 @@ const [manageOpen, setManageOpen] = useState(false);
     }
 
     const body = await res.json();
-    console.log("GITHUB ACTIVITY RESPONSE", body); 
+    // console.log("GITHUB ACTIVITY RESPONSE", body); 
     setActivity(body);
   } catch (err: any) {
     console.error(err);

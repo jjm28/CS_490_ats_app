@@ -165,7 +165,6 @@ function App() {
       return;
     }
  
-    console.log("working")
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
