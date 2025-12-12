@@ -144,6 +144,7 @@ import MentorInvite from './components/Networking/MentorInvite';
 import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
 import SkillCertifications from './components/Certifications/SkillCertifications';
+import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
 
 function App() {
   const location = useLocation();
@@ -643,7 +644,7 @@ function App() {
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
 <Route path="/skill-certifications" element={<PrivateRoute><SkillCertifications /></PrivateRoute>} />
-
+<Route path="/commuter-planner" element={<PrivateRoute><CommuterPlannerPage /></PrivateRoute>} />
         </Routes>
       </div>
     </>
