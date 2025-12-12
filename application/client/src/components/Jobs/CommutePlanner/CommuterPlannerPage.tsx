@@ -141,7 +141,7 @@ return (
         {/* MAP */}
     <Card className="h-[480px] lg:h-[600px] overflow-hidden flex flex-col">
   {/* LEGEND (fixed height) */}
-  <div className="shrink-0 p-2 border-b bg-gray-50">
+  <div className="shrink-0 p-2 ">
     <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
       <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white border">
         <span>🏠</span>
