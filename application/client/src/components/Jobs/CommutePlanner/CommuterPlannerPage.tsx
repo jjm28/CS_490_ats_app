@@ -140,6 +140,32 @@ return (
 
         {/* MAP */}
         <Card className="h-[480px] lg:h-[600px] overflow-hidden">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-600">
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-50 border">
+      <span>🏠</span>
+      <span>Home</span>
+    </span>
+
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-50 border">
+      <span>💼</span>
+      <span>Job</span>
+    </span>
+
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-50 border">
+      <span>⭐</span>
+      <span>Selected job</span>
+    </span>
+
+    <span className="inline-flex items-center gap-2 px-2 py-1 rounded bg-gray-50 border">
+      <span className="inline-block w-6 border-t-2 border-dashed border-blue-500" />
+      <span>Commute route</span>
+    </span>
+
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-50 border">
+      <span className="font-medium">X km • Y min</span>
+      <span>Route stats</span>
+    </span>
+  </div>
           <CommuterPlannerMap
             home={home}
             jobs={jobs}
