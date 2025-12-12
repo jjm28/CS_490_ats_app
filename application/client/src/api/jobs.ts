@@ -56,7 +56,6 @@ export async function fetchCommuterPlannerData(
 
   const tokenRaw = localStorage.getItem("authUser");
   const token = tokenRaw ? JSON.parse(tokenRaw).token : null;
-console.log(`${API_BASE}/api/jobs/map?${params.toString()}`,token)
   const res = await fetch(
     `${API_BASE}/api/jobs/map?${params.toString()}`,
     {   method: "GET",

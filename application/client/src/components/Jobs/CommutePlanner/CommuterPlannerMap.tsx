@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
-import XYZ from "ol/source/XYZ";
+import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
 import VectorLayer from "ol/layer/Vector";
 import Feature from "ol/Feature";
@@ -15,7 +15,6 @@ import type {
   CommuterPlannerHome,
   CommuterPlannerJob,
 } from "../../../api/jobs";
-import { OSM } from "ol/source";
 
 interface Props {
   home: CommuterPlannerHome | null;
@@ -45,21 +44,21 @@ export default function CommuterPlannerMap({
       source: vectorSource,
     });
 
-const map = new Map({
-  target: mapRef.current,
-  layers: [
-    new TileLayer({
-      source: new OSM(), // instead of raw XYZ
-    }),
-    vectorLayer,
-  ],
-  view: new View({
-    center: fromLonLat([-74, 40]),
-    zoom: 3,
-    minZoom: 2,
-    maxZoom: 19,
-  }),
-});
+    const map = new Map({
+      target: mapRef.current,
+      layers: [
+        new TileLayer({
+          source: new OSM(), // built-in OSM source
+        }),
+        vectorLayer,
+      ],
+      view: new View({
+        center: fromLonLat([-74, 40]), // fallback center
+        zoom: 3,
+        minZoom: 2,
+        maxZoom: 19, // prevent z=28 / invalid tiles
+      }),
+    });
 
     map.on("singleclick", (evt) => {
       map.forEachFeatureAtPixel(evt.pixel, (feature) => {
@@ -74,7 +73,7 @@ const map = new Map({
     mapInstanceRef.current = map;
   }, [onJobFocus]);
 
-  // Update features when home/jobs change
+  // Update features when home/jobs/focus change
   useEffect(() => {
     const map = mapInstanceRef.current;
     const vectorSource = vectorSourceRef.current;
@@ -94,7 +93,7 @@ const map = new Map({
         new Style({
           image: new CircleStyle({
             radius: 7,
-            fill: new Fill({ color: "rgba(37,99,235,0.8)" }), // blue-ish
+            fill: new Fill({ color: "rgba(37,99,235,0.9)" }),
             stroke: new Stroke({ color: "white", width: 2 }),
           }),
         })
@@ -119,8 +118,8 @@ const map = new Map({
             radius: isFocused ? 8 : 6,
             fill: new Fill({
               color: isFocused
-                ? "rgba(220,38,38,0.8)" // red for focused
-                : "rgba(16,185,129,0.8)", // teal for others
+                ? "rgba(220,38,38,0.9)" // focused = red-ish
+                : "rgba(16,185,129,0.9)", // normal = teal-ish
             }),
             stroke: new Stroke({ color: "white", width: 1.5 }),
           }),
@@ -132,10 +131,9 @@ const map = new Map({
 
     vectorSource.addFeatures(features);
 
-    // Fit view to features
     if (features.length > 0) {
       const extent = vectorSource.getExtent();
-      map.getView().fit(extent, { padding: [40, 40, 40, 40] });
+      map.getView().fit(extent, { padding: [40, 40, 40, 40], maxZoom: 16 });
     }
   }, [home, jobs, focusedJobId]);
 

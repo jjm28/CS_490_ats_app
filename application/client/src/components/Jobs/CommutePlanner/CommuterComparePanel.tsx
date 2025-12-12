@@ -1,14 +1,63 @@
 // components/Jobs/CommuterComparePanel.tsx
 import React from "react";
 import Card from "../../StyledComponents/Card";
-import type { CommuterPlannerJob } from "../../../api/jobs";
+import type { CommuterPlannerJob, CommuterPlannerHome } from "../../../api/jobs";
 
 interface Props {
+  home: CommuterPlannerHome | null;
   jobs: CommuterPlannerJob[];
   compareJobIds: string[];
 }
 
+function formatTimeZoneWithHomeDiff(
+  home: CommuterPlannerHome | null,
+  jobTz: string | null
+): string {
+  if (!jobTz) return "Unknown time zone";
+  const homeTz = home?.timeZone || null;
+  console.log(home)
+  if (!homeTz || homeTz === jobTz) {
+    return `${jobTz} (same as home)`;
+  }
+
+  try {
+    const now = new Date();
+    const homeHour = Number(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: homeTz,
+        hour12: false,
+        hour: "2-digit",
+      }).format(now)
+    );
+    const jobHour = Number(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: jobTz,
+        hour12: false,
+        hour: "2-digit",
+      }).format(now)
+    );
+
+    if (Number.isNaN(homeHour) || Number.isNaN(jobHour)) {
+      return jobTz;
+    }
+
+    let diff = jobHour - homeHour;
+    // normalize diff into -12..+12 rough range
+    if (diff > 12) diff -= 24;
+    if (diff < -12) diff += 24;
+
+    if (diff === 0) return `${jobTz} (same as home)`;
+    const sign = diff > 0 ? "+" : "-";
+    const abs = Math.abs(diff);
+
+    return `${jobTz} (${sign}${abs}h vs home)`;
+  } catch {
+    return jobTz;
+  }
+}
+
 export default function CommuterComparePanel({
+  home,
   jobs,
   compareJobIds,
 }: Props) {
@@ -51,7 +100,8 @@ export default function CommuterComparePanel({
             )}
             {job.timeZone && (
               <div className="text-[11px] text-gray-500">
-                Time zone: {job.timeZone}
+                Time zone:{" "}
+                {formatTimeZoneWithHomeDiff(home, job.timeZone)}
               </div>
             )}
           </div>

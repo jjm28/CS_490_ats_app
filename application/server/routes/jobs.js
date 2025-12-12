@@ -297,7 +297,7 @@ console.log("----------============")
     const profile = await ensureHomeGeoForUser(userId);
     const home = profile?.homeGeo
       ? {
-          location: profile.homeLocation || null,
+          location: `${ profile.location.city},${profile.location.state}`|| null,
           geo: {
             lat: profile.homeGeo.lat,
             lng: profile.homeGeo.lng,
@@ -305,7 +305,7 @@ console.log("----------============")
           timeZone: profile.homeTimeZone || null,
         }
       : null;
-
+ 
     // 2. Load jobs
     const query = { userId };
 

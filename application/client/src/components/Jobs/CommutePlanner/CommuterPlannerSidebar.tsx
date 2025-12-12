@@ -165,10 +165,12 @@ export default function CommuterPlannerSidebar({
       <Card className="max-h-[260px] lg:max-h-[340px] overflow-y-auto">
         <h2 className="text-sm font-semibold mb-2">Jobs</h2>
         {jobs.length === 0 && (
-          <div className="text-xs text-gray-600">
-            No jobs match your current filters.
-          </div>
+        <div className="text-xs text-gray-600">
+            No jobs match your current filters. Try clearing work mode filters
+            or increasing the max distance / commute time.
+        </div>
         )}
+
         <div className="flex flex-col gap-2">
           {jobs.map((job) => {
             const isFocused = job.id === focusedJobId;
