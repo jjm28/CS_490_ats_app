@@ -13,12 +13,9 @@ function formatTimeZoneWithHomeDiff(
   home: CommuterPlannerHome | null,
   jobTz: string | null
 ): string {
-  if (!jobTz) return "Unknown time zone";
-  const homeTz = home?.timeZone || null;
-  console.log(home)
-  if (!homeTz || homeTz === jobTz) {
-    return `${jobTz} (same as home)`;
-  }
+  if (!jobTz) return "Unknown";
+  const homeTz = home?.timeZone;
+  if (!homeTz || homeTz === jobTz) return `${jobTz} (same as home)`;
 
   try {
     const now = new Date();
@@ -37,20 +34,12 @@ function formatTimeZoneWithHomeDiff(
       }).format(now)
     );
 
-    if (Number.isNaN(homeHour) || Number.isNaN(jobHour)) {
-      return jobTz;
-    }
-
     let diff = jobHour - homeHour;
-    // normalize diff into -12..+12 rough range
     if (diff > 12) diff -= 24;
     if (diff < -12) diff += 24;
 
-    if (diff === 0) return `${jobTz} (same as home)`;
-    const sign = diff > 0 ? "+" : "-";
-    const abs = Math.abs(diff);
-
-    return `${jobTz} (${sign}${abs}h vs home)`;
+    const sign = diff > 0 ? "+" : "";
+    return `${jobTz} (${sign}${diff}h)`;
   } catch {
     return jobTz;
   }
@@ -61,51 +50,91 @@ export default function CommuterComparePanel({
   jobs,
   compareJobIds,
 }: Props) {
-  const selected = jobs.filter((j) => compareJobIds.includes(j.id));
+  const selected = jobs.filter(
+    (j) => compareJobIds.includes(j.id) && j.commute
+  );
 
-  if (selected.length === 0) return null;
+  if (selected.length < 2) return null;
+
+  // Determine optimal commute
+  const best = [...selected].sort((a, b) => {
+    if (a.commute!.durationMinutes !== b.commute!.durationMinutes) {
+      return a.commute!.durationMinutes - b.commute!.durationMinutes;
+    }
+    return a.commute!.distanceKm - b.commute!.distanceKm;
+  })[0];
 
   return (
     <Card>
-      <h2 className="text-sm font-semibold mb-2">Compare offers</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {selected.map((job) => (
-          <div
-            key={job.id}
-            className="border rounded p-2 text-xs bg-gray-50"
-          >
-            <div className="font-semibold text-[11px] mb-0.5">
-              {job.title}
+      <h2 className="text-sm font-semibold mb-1">Commute comparison</h2>
+      <p className="text-xs text-gray-600 mb-4">
+        Comparing selected jobs by commute time and distance
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {selected.map((job) => {
+          const isBest = job.id === best.id;
+
+          return (
+            <div
+              key={job.id}
+              className={`rounded-lg border p-3 text-xs ${
+                isBest
+                  ? "border-green-300 bg-green-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="flex items-start justify-between mb-1">
+                <div className="font-semibold text-[12px]">
+                  {job.title}
+                </div>
+                {isBest && (
+                  <span className="text-[10px] font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded">
+                    Best commute
+                  </span>
+                )}
+              </div>
+
+              <div className="text-[11px] text-gray-600 mb-2">
+                {job.company}
+              </div>
+
+              {job.location && (
+                <div className="text-[11px] text-gray-500 mb-2">
+                  {job.location.city ||
+                    job.location.normalized ||
+                    job.location.raw}
+                </div>
+              )}
+
+              <div className="flex gap-3 mb-2">
+                <div>
+                  <div className="text-[10px] text-gray-500">Distance</div>
+                  <div className="font-medium">
+                    {job.commute!.distanceKm.toFixed(1)} km
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500">Time</div>
+                  <div className="font-medium">
+                    {job.commute!.durationMinutes} min
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-gray-600 mb-1">
+                Work mode: {job.workMode ?? "—"}
+              </div>
+
+              {job.timeZone && (
+                <div className="text-[11px] text-gray-500">
+                  Time zone:{" "}
+                  {formatTimeZoneWithHomeDiff(home, job.timeZone)}
+                </div>
+              )}
             </div>
-            <div className="text-[11px] text-gray-600 mb-1">
-              {job.company}
-            </div>
-            {job.location && (
-              <div className="text-[11px] text-gray-500 mb-1">
-                {job.location.city ||
-                  job.location.normalized ||
-                  job.location.raw}
-              </div>
-            )}
-            {job.workMode && (
-              <div className="text-[11px] text-gray-700 mb-1">
-                Work mode: {job.workMode}
-              </div>
-            )}
-            {job.commute && (
-              <div className="text-[11px] text-gray-700 mb-1">
-                Commute: {job.commute.distanceKm.toFixed(1)} km •{" "}
-                {job.commute.durationMinutes} min
-              </div>
-            )}
-            {job.timeZone && (
-              <div className="text-[11px] text-gray-500">
-                Time zone:{" "}
-                {formatTimeZoneWithHomeDiff(home, job.timeZone)}
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );

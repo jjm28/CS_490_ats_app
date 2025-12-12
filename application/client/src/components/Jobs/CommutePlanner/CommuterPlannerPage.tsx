@@ -135,6 +135,7 @@ return (
 
     {/* ---------- MAIN LAYOUT ---------- */}
     {!loading && !error && (
+          <>
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4">
 
         {/* MAP */}
@@ -161,14 +162,19 @@ return (
             onToggleCompare={handleToggleCompare}
           />
 
-          <CommuterComparePanel
-            home={home}
-            jobs={jobs}
-            compareJobIds={compareJobIds}
-          />
+
         </div>
 
-        {/* ---------- OSM / NOMINATIM ATTRIBUTION ---------- */}
+
+      </div>   
+          <div className="mt-6">
+      <CommuterComparePanel
+        home={home}
+        jobs={jobs}
+        compareJobIds={compareJobIds}
+      />
+    </div>
+           {/* ---------- OSM / NOMINATIM ATTRIBUTION ---------- */}
         <div className="mt-4 text-[10px] text-gray-500">
           Map data © OpenStreetMap contributors. Search powered by{" "}
           <a
@@ -180,7 +186,7 @@ return (
             Nominatim
           </a>.
         </div>
-      </div>
+      </>
     )}
   </div>
 );
