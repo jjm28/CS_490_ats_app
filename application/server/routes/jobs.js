@@ -884,6 +884,8 @@ router.put("/:id", async (req, res) => {
             date: new Date(),
           });
         }
+        if (jobDoc.workMode) { jobDoc.workMode = r.value.workMode}
+        else {jobDoc.workMode = "onsite" }
         await jobDoc.save();
       }
     }

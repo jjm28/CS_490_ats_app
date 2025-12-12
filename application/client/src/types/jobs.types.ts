@@ -204,6 +204,14 @@ export const STATUS_DISPLAY: Record<JobStatus, string> = {
   offer: "Offer",
   rejected: "Rejected",
 };
+const ALL_WORK_MODES: WorkMode[] = ["remote", "hybrid", "onsite"];
+
+export const WorkMode_DISPLAY: Record<WorkMode, string> = {
+  remote: "Remote",
+  hybrid: "Hybrid",
+  onsite: "Onsite",
+
+};
 
 // Reverse mapping - for converting display text to status value
 export const STATUS_VALUE: Record<string, JobStatus> = {
@@ -213,6 +221,13 @@ export const STATUS_VALUE: Record<string, JobStatus> = {
   "Interview": "interview",
   "Offer": "offer",
   "Rejected": "rejected",
+};
+
+export const WorkMode_VALUE: Record<string, WorkMode> = {
+  "Remote": "remote",
+  "Hybrid": "hybrid",
+  "Phone Onsite": "onsite",
+
 };
 
 // Status order for pipeline view
