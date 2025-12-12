@@ -45,6 +45,15 @@ import { scrapeJobFromUrl } from '../services/jobscraper.service.js';
 import { calculateJobMatch } from "../__tests__/services/matchAnalysis.service.js";
 import { getSkillsByUser } from "./skills.js";
 import { incrementApplicationGoalsForUser } from "../services/jobSearchSharing.service.js";
+import Profile from "../models/profile.js";
+import { geocodeLocation } from "../services/geocoding.service.js";
+import {
+  computeCommute,
+  getTimeZoneForCoords,
+} from "../services/commute.service.js";
+import { ensureHomeGeoForUser } from "../services/homeLocation.service.js";
+
+
 const router = Router();
 
 const VALID_STATUSES = ["interested", "applied", "phone_screen", "interview", "offer", "rejected"];
@@ -261,6 +270,162 @@ router.get("/", async (req, res) => {
   }
 });
 
+
+router.get("/map", async (req, res) => {
+      
+console.log("----------============")
+  try{
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const userId = req.user._id;
+
+    const {
+      jobId,
+      workMode,
+      maxDistanceKm,
+      maxDurationMinutes,
+    } = req.query;
+
+    const workModeFilter =
+      workMode && typeof workMode === "string"
+        ? workMode.split(",").filter(Boolean)
+        : null;
+
+    // 1. Ensure home geo
+    const profile = await ensureHomeGeoForUser(userId);
+    const home = profile?.homeGeo
+      ? {
+          location: profile.homeLocation || null,
+          geo: {
+            lat: profile.homeGeo.lat,
+            lng: profile.homeGeo.lng,
+          },
+          timeZone: profile.homeTimeZone || null,
+        }
+      : null;
+
+    // 2. Load jobs
+    const query = { userId };
+
+    if (jobId) {
+      query._id = jobId;
+    } else if (workModeFilter) {
+      query.workMode = { $in: workModeFilter };
+    }
+
+    let jobs = await Jobs.find(query).exec();
+
+    // 3. Enrich jobs with geo, timeZone, commute
+    for (const job of jobs) {
+      // Skip remote-only jobs if you decide they don't need geocoding,
+      // but for now we still geocode their base location for context.
+      if ((!job.geo || !job.geo.lat || !job.geo.lng || job.location != job.geo.userquery) && job.location) {
+        const geo = await geocodeLocation(job.location);
+        if (geo) {
+          job.geo = {
+            lat: geo.lat,
+            lng: geo.lng,
+            provider: "nominatim",
+            geocodedAt: new Date(),
+            normalizedAddress: geo.normalizedAddress,
+            countryCode: geo.countryCode,
+            city: geo.city,
+            state: geo.state,
+            postalCode: geo.postalCode,
+            userquery: job.location
+          };
+        }
+      }
+
+      if (job.geo && !job.timeZone) {
+        job.timeZone = getTimeZoneForCoords(job.geo.lat, job.geo.lng);
+      }
+
+      if (
+        home &&
+        home.geo &&
+        job.geo &&
+        (!job.commute ||
+          job.commute.homeLocationSnapshot !== home.location)
+      ) {
+        job.commute = computeCommute(
+          home.geo,
+          job.geo,
+          home.location || ""
+        );
+      }
+
+      await job.save();
+    }
+
+    // 4. Apply commute filters in memory (after enrichment)
+    let filteredJobs = jobs;
+
+    const maxDist = maxDistanceKm ? parseFloat(maxDistanceKm) : null;
+    const maxDur = maxDurationMinutes
+      ? parseFloat(maxDurationMinutes)
+      : null;
+
+    if (maxDist != null || maxDur != null) {
+      filteredJobs = filteredJobs.filter((job) => {
+        if (!job.commute) return false;
+        if (maxDist != null && job.commute.distanceKm > maxDist) {
+          return false;
+        }
+        if (
+          maxDur != null &&
+          job.commute.durationMinutes > maxDur
+        ) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // If jobId is set, we ignore commute filters and always return that job.
+    if (jobId) {
+      filteredJobs = jobs;
+    }
+
+    const responseJobs = filteredJobs
+      .filter((job) => job.geo && job.geo.lat && job.geo.lng)
+      .map((job) => ({
+        id: job._id.toString(),
+        title: job.title,
+        company: job.company,
+        workMode: job.workMode,
+        location: {
+          raw: job.location,
+          normalized: job.geo?.normalizedAddress,
+          city: job.geo?.city,
+          state: job.geo?.state,
+          countryCode: job.geo?.countryCode,
+          postalCode: job.geo?.postalCode,
+        },
+        geo: {
+          lat: job.geo?.lat,
+          lng: job.geo?.lng,
+        },
+        commute: job.commute
+          ? {
+              distanceKm: job.commute.distanceKm,
+              durationMinutes: job.commute.durationMinutes,
+            }
+          : null,
+        timeZone: job.timeZone || null,
+      }));
+
+    return res.json({
+      home,
+      jobs: responseJobs,
+    });
+  } catch (err) {
+    console.error("Error in GET /api/jobs/map", err);
+    return res.status(500).json({ error: "Failed to load commuter data" });
+  }
+});
 // ✅ Get archived jobs
 router.get("/archived", async (req, res) => {
   try {

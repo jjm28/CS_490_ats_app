@@ -10,6 +10,18 @@ export interface Contact {
   linkedIn?: string;
   notes?: string;
 }
+export interface JobGeo {
+  lat: number;
+  lng: number;
+}
+
+export interface JobCommute {
+  distanceKm: number;
+  durationMinutes: number;
+}
+
+export type WorkMode = "remote" | "hybrid" | "onsite";
+
 
 // Main Job interface with updated contact fields
 export interface Job {
@@ -139,6 +151,14 @@ export interface Job {
   // Offer tracking (from schema)
   offerStage?: "Applied" | "Interviewing" | "Offer Received" | "Offer Accepted" | "Offer Declined";
   negotiationOutcome?: "Not attempted" | "Improved" | "No change" | "Worse" | "Lost offer";
+
+   
+
+  // GeoCodeing uc115
+   workMode?: WorkMode;
+  geo?: JobGeo;
+  commute?: JobCommute;
+  timeZone?: string;
 }
 
 // Job status enum

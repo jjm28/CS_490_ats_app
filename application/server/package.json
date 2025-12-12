@@ -44,6 +44,7 @@
     "sharp": "^0.34.4",
     "sparse-bitfield": "^3.0.3",
     "turndown": "^7.2.2",
+    "tz-lookup": "^6.1.25",
     "uuid": "^13.0.0",
     "web-push": "^3.6.7",
     "zod": "^4.1.12"

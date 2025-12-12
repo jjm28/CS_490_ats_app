@@ -1069,6 +1069,13 @@ export default function JobDetails({
                 Share this win with supporters
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/commuter-planner?jobId=${job._id}`)}
+            >
+              Plan commute
+            </Button>
             <MilestoneShareModal
               userId={currentuserId}
               open={shareOpen}
