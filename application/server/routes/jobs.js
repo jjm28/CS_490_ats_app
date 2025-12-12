@@ -321,8 +321,10 @@ console.log("----------============")
     for (const job of jobs) {
       // Skip remote-only jobs if you decide they don't need geocoding,
       // but for now we still geocode their base location for context.
+      let updatedlocation 
       if ((!job.geo || !job.geo.lat || !job.geo.lng || job.location != job.geo.userquery) && job.location) {
         const geo = await geocodeLocation(job.location);
+         updatedlocation = (job.location != job.geo.userquery) || false
         if (geo) {
           job.geo = {
             lat: geo.lat,
@@ -339,7 +341,7 @@ console.log("----------============")
         }
       }
 
-      if (job.geo && !job.timeZone) {
+      if (job.geo && (!job.timeZone || updatedlocation==true)) {
         job.timeZone = getTimeZoneForCoords(job.geo.lat, job.geo.lng);
       }
 
@@ -348,7 +350,7 @@ console.log("----------============")
         home.geo &&
         job.geo &&
         (!job.commute ||
-          job.commute.homeLocationSnapshot !== home.location)
+          job.commute.homeLocationSnapshot !== home.location || updatedlocation== true)
       ) {
         job.commute = computeCommute(
           home.geo,
@@ -393,7 +395,7 @@ console.log("----------============")
       .filter((job) => job.geo && job.geo.lat && job.geo.lng)
       .map((job) => ({
         id: job._id.toString(),
-        title: job.title,
+        title: job.jobTitle,
         company: job.company,
         workMode: job.workMode,
         location: {

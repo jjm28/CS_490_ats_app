@@ -69,9 +69,10 @@ export default function CommuterPlannerPage() {
     [jobs, focusedJobId]
   );
 
-  const handleFocusJob = (id: string) => {
-    setFocusedJobId(id);
-  };
+const handleFocusJob = (id: string) => {
+  setFocusedJobId((current) => (current === id ? null : id));
+};
+
 
   const handleToggleCompare = (id: string) => {
     setCompareJobIds((prev) =>

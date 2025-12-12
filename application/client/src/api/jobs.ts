@@ -70,8 +70,9 @@ export async function fetchCommuterPlannerData(
   if (!res.ok) {
     throw new Error("Failed to load commuter planner data");
   }
-
-  return res.json();
+  const data = await res.json()
+console.log(data)
+  return data
 }
 
 
