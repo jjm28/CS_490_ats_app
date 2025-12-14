@@ -1,6 +1,7 @@
 // src/api/peerGroups.ts
 import type { Job } from "../types/jobs.types";
-const API_BASE  =  "http://localhost:5050/api/peer-groups";
+import API_BASE from "../utils/apiBase";
+const API_URL  =  `${API_BASE}/api/peer-groups`;
 const authHeaders = (): HeadersInit => {
   const token = localStorage.getItem("token");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -48,14 +49,14 @@ export async function listPeerGroups(params?: {
 }) {
 
   const qs = params ? new URLSearchParams(params as any).toString() : "";
-  const res = await  fetch(`${API_BASE}${qs ? `?${qs}` : ""}`,{    headers: authHeaders() ,  });
+  const res = await  fetch(`${API_URL}${qs ? `?${qs}` : ""}`,{    headers: authHeaders() ,  });
 
   if (!res.ok) throw new Error("Failed to fetch peer groups");
   return (await res.json()) as PeerGroup[];
 }
 
 export async function listMyPeerGroups(userId: string) {
-  const res = await fetch(`${API_BASE}/my?userId=${userId}`,  {    headers: authHeaders() ,  });
+  const res = await fetch(`${API_URL}/my?userId=${userId}`,  {    headers: authHeaders() ,  });
   if (!res.ok) throw new Error("Failed to fetch my peer groups");
   return (await res.json()) as {
     groups: PeerGroup[];
@@ -66,7 +67,7 @@ export async function listMyPeerGroups(userId: string) {
 }
 
 export async function joinPeerGroup(groupId: string, userId: string) {
-  const res = await fetch(`${API_BASE}/join?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}/join?groupId=${groupId}&userId=${userId}`, {
     method: "POST",
      headers: authHeaders()
   });
@@ -75,7 +76,7 @@ export async function joinPeerGroup(groupId: string, userId: string) {
 }
 
 export async function leavePeerGroup(groupId: string, userId: string) {
-  const res = await fetch(`${API_BASE}/leave?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}/leave?groupId=${groupId}&userId=${userId}`, {
     method: "POST",
      headers: authHeaders()
   });
@@ -91,7 +92,7 @@ export async function createPeerGroup(payload: {
   role?: string | null;
   tags?: string[];
 }) {
-  const res = await fetch(`${API_BASE}/`, {
+  const res = await fetch(`${API_URL}/`, {
     method: "POST",
      headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -111,7 +112,7 @@ export async function updatePeerGroup(
     tags?: string[];
   }
 ) {
-  const res = await fetch(`${API_BASE}?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}?groupId=${groupId}&userId=${userId}`, {
     method: "PATCH",
     headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -121,7 +122,7 @@ export async function updatePeerGroup(
 }
 
 export async function deletePeerGroup(groupId: string, userId: string) {
-  const res = await fetch(`${API_BASE}?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}?groupId=${groupId}&userId=${userId}`, {
     method: "DELETE",
      headers: authHeaders(),
   });
@@ -142,7 +143,7 @@ export async function updateMembershipPrivacy(
   }
 ) {
   const res = await fetch(
-    `${API_BASE}/membership/privacy?groupId=${groupId}&userId=${userId}`,
+    `${API_URL}/membership/privacy?groupId=${groupId}&userId=${userId}`,
     {
       method: "PATCH",
       credentials: "include",
@@ -178,7 +179,7 @@ export interface GroupPost {
 
 export async function fetchGroupPosts(groupId: string, limit = 30) {
   const res = await fetch(
-    `${API_BASE}/posts?limit=${limit}&groupId=${groupId}`,
+    `${API_URL}/posts?limit=${limit}&groupId=${groupId}`,
     {
       headers: authHeaders(),
     }
@@ -193,7 +194,7 @@ export async function createGroupPost(
   userId: string,
   payload: { content: string; type?: "insight" | "question" | "strategy" | "other" }
 ) {
-  const res = await fetch(`${API_BASE}/posts?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}/posts?groupId=${groupId}&userId=${userId}`, {
     method: "POST",
      headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -204,7 +205,7 @@ export async function createGroupPost(
 
 
 export async function getPeerGroup(groupId: string) {
-  const res = await fetch(`${API_BASE}/single?groupId=${groupId}`, {
+  const res = await fetch(`${API_URL}/single?groupId=${groupId}`, {
      headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch peer group");
@@ -247,7 +248,7 @@ export interface GroupChallengeParticipation {
 
 export async function fetchGroupChallenges(groupId: string, userId: string) {
   
-  const res = await fetch(`${API_BASE}/challenges?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}/challenges?groupId=${groupId}&userId=${userId}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch group challenges");
@@ -273,7 +274,7 @@ export async function createGroupChallenge(
   }
 ) {
 
-  const res = await fetch(`${API_BASE}/challenges?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}/challenges?groupId=${groupId}&userId=${userId}`, {
     method: "POST",
     credentials: "include",
      headers: authHeaders(),
@@ -285,7 +286,7 @@ export async function createGroupChallenge(
 
 export async function joinGroupChallenge(challengeId: string, userId: string) {
   const res = await fetch(
-    `${API_BASE}/challenges/join?challengeId=${challengeId}&userId=${userId}`,
+    `${API_URL}/challenges/join?challengeId=${challengeId}&userId=${userId}`,
     {
       method: "POST",
        headers: authHeaders(),
@@ -301,7 +302,7 @@ export async function updateGroupChallengeProgress(
   payload: { delta: number; note?: string }
 ) {
   const res = await fetch(
-    `${API_BASE}/challenges/progress?challengeId=${challengeId}&userId=${userId}`,
+    `${API_URL}/challenges/progress?challengeId=${challengeId}&userId=${userId}`,
     {
       method: "POST",
       headers: authHeaders(),
@@ -314,7 +315,7 @@ export async function updateGroupChallengeProgress(
 
 export async function leaveGroupChallenge(challengeId: string, userId: string) {
   const res = await fetch(
-    `${API_BASE}/challenges/participation?challengeId=${challengeId}&userId=${userId}`,
+    `${API_URL}/challenges/participation?challengeId=${challengeId}&userId=${userId}`,
     {
       method: "DELETE",
         headers: authHeaders(),
@@ -337,7 +338,7 @@ export interface ChallengeLeaderboardEntry {
 
 export async function fetchChallengeLeaderboard(challengeId: string,userId: string) {
   const res = await fetch(
-    `${API_BASE}/challenges/leaderboard?challengeId=${challengeId}&userId=${userId}`,
+    `${API_URL}/challenges/leaderboard?challengeId=${challengeId}&userId=${userId}`,
     {
          headers: authHeaders(),
     }
@@ -356,7 +357,7 @@ export async function updatePostHighlight(
   highlightType: "success" | "learning" | null
 ) {
   const res = await fetch(
-    `${API_BASE}/posts/highlight?groupId=${groupId}&userId=${userId}&postId=${postId}`,
+    `${API_URL}/posts/highlight?groupId=${groupId}&userId=${userId}&postId=${postId}`,
     {
       method: "PATCH",
        headers: authHeaders(),
@@ -421,7 +422,7 @@ export interface OpportunityInterestEntry {
 
 
 export async function fetchGroupOpportunities(groupId: string, userId: string) {
-  const res = await fetch(`${API_BASE}/opportunities?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}/opportunities?groupId=${groupId}&userId=${userId}`, {
         headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch opportunities");
@@ -450,7 +451,7 @@ export async function createPeerOpportunity(
     expiresAt?: string | null;
   }
 ) {
-  const res = await fetch(`${API_BASE}/opportunities?groupId=${groupId}&userId=${userId}`, {
+  const res = await fetch(`${API_URL}/opportunities?groupId=${groupId}&userId=${userId}`, {
     method: "POST",
       headers: authHeaders(),
     body: JSON.stringify(payload),
@@ -465,7 +466,7 @@ export async function expressInterestInOpportunity(
   payload: { note?: string; status?: "interested" | "withdrawn" }
 ) {
   const res = await fetch(
-    `${API_BASE}/opportunities/interest?opportunityId=${opportunityId}&userId=${userId}`,
+    `${API_URL}/opportunities/interest?opportunityId=${opportunityId}&userId=${userId}`,
     {
       method: "POST",
   headers: authHeaders(),
@@ -478,7 +479,7 @@ export async function expressInterestInOpportunity(
 
 export async function fetchOpportunityInterests(opportunityId: string, userId: string) {
   const res = await fetch(
-    `${API_BASE}/opportunities/interests?opportunityId=${opportunityId}&userId=${userId}`,
+    `${API_URL}/opportunities/interests?opportunityId=${opportunityId}&userId=${userId}`,
     {
         headers: authHeaders(),
     }
@@ -526,14 +527,14 @@ export interface PeerGroupEventRsvp {
 
 
 // API base import should already exist in this file
-// import API_BASE from "../utils/apiBase";
+// import API_URL from "../utils/apiBase";
 
 export async function fetchGroupEvents(params: {
   groupId: string;
   userId: string;
 }) {
   const { groupId, userId } = params;
-  const url = new URL(`${API_BASE}/events`);
+  const url = new URL(`${API_URL}/events`);
   url.searchParams.set("groupId", groupId);
   url.searchParams.set("userId", userId);
 
@@ -569,7 +570,7 @@ export async function createGroupEvent(params: {
   };
 }) {
   const { groupId, userId, payload } = params;
-  const url = new URL(`${API_BASE}/events`);
+  const url = new URL(`${API_URL}/events`);
   url.searchParams.set("groupId", groupId);
   url.searchParams.set("userId", userId);
 
@@ -589,7 +590,7 @@ export async function rsvpToGroupEvent(params: {
   status: "going" | "interested" | "not_going";
 }) {
   const { eventId, userId, status } = params;
-  const url = new URL(`${API_BASE}/events/rsvp`);
+  const url = new URL(`${API_URL}/events/rsvp`);
   url.searchParams.set("eventId", eventId);
   url.searchParams.set("userId", userId);
 
@@ -628,7 +629,7 @@ export async function fetchNetworkingImpact(params: {
   userId: string;
 }) {
   const { groupId, userId } = params;
-  const url = new URL(`${API_BASE}/networking-impact`);
+  const url = new URL(`${API_URL}/networking-impact`);
   url.searchParams.set("groupId", groupId);
   url.searchParams.set("userId", userId);
 
@@ -650,7 +651,7 @@ export async function createJobFromPeerOpportunity(params: {
 }) {
   const { userId, groupId, opportunityId } = params;
 
-  const url = new URL(`${API_BASE}/from-peer-opportunity`);
+  const url = new URL(`${API_URL}/from-peer-opportunity`);
   url.searchParams.set("userId", userId);
   url.searchParams.set("groupId", groupId);
   url.searchParams.set("opportunityId", opportunityId);

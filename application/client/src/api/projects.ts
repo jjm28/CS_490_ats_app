@@ -1,6 +1,7 @@
 import type { Project } from "../components/Projects/Projects";
+import API_BASE from "../utils/apiBase";
 
-const API_URL = "http://localhost:5050/api/projects";
+const API_URL = `${API_BASE}/api/projects`;
 
 const authHeaders = (): HeadersInit => {
   const token = localStorage.getItem("token");

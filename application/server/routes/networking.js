@@ -412,7 +412,7 @@ router.get("/google/oauth/callback", async (req, res) => {
 
     // Redirect to frontend importer page
     return res.redirect(
-      `http://localhost:5173/networking/import?token=${accessToken}`
+      `${process.env.CORS_ORIGIN || 'http://localhost:5173'}/networking/import?token=${accessToken}`
     );
 
   } catch (err) {

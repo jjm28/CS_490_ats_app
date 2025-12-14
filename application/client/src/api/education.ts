@@ -1,6 +1,7 @@
 import type { Education } from "../components/Education/Education";
+import API_BASE from "../utils/apiBase";
 
-const API_URL = "http://localhost:5050/api/education";
+const API_URL = `${API_BASE}/api/education`;
 
 // Always return a record (never a union) so TypeScript is happy
 function authHeader(): Record<string, string> {

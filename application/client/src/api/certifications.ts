@@ -1,7 +1,7 @@
 import type { Certification } from "../components/Certifications/Certifications";
 import API_BASE from "../utils/apiBase";
 
-const API_URL = "http://localhost:5050/api/certifications";
+const API_URL = `${API_BASE}/api/certifications`;
 
 // Helper to include Authorization header if token exists
 const authHeaders = (): HeadersInit => {
