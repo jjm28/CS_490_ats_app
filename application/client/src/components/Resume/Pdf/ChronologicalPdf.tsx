@@ -1,43 +1,37 @@
 // src/components/Resume/Pdf/ChronologicalPdf.tsx
 import React from "react";
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-} from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { ResumeDocProps } from "..";
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 30,
-    paddingBottom: 30,
-    paddingHorizontal: 40,
+    paddingTop: 36,
+    paddingBottom: 36,
+    paddingHorizontal: 48,
     fontSize: 10,
     fontFamily: "Helvetica",
     lineHeight: 1.35,
   },
   header: {
     borderBottomWidth: 1,
-    borderBottomColor: "#d1d5db",
-    paddingBottom: 8,
-    marginBottom: 10,
+    borderBottomColor: "#000000",
+    paddingBottom: 12,
+    marginBottom: 16,
   },
   name: {
     fontSize: 18,
     fontWeight: 700,
   },
   summary: {
-    marginTop: 4,
-    color: "#4b5563",
+    marginTop: 12,
+    color: "#000000",
     fontSize: 10,
   },
   contactRow: {
     marginTop: 6,
     flexDirection: "row",
     flexWrap: "wrap",
-    color: "#4b5563",
+    color: "#000000",
     fontSize: 9,
   },
   contactItem: {
@@ -51,7 +45,7 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     textTransform: "uppercase",
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#000000",
     paddingBottom: 2,
     marginBottom: 4,
   },
@@ -69,12 +63,12 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   expCompany: {
-    color: "#4b5563",
+    color: "#000000",
     marginTop: 2,
     fontSize: 9,
   },
   expMeta: {
-    color: "#4b5563",
+    color: "#000000",
     fontSize: 9,
   },
   bulletList: {
@@ -91,13 +85,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eduItem: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   eduSchool: {
     fontWeight: 700,
   },
   smallMuted: {
-    color: "#4b5563",
+    color: "#000000",
     fontSize: 9,
   },
   skillsWrap: {
@@ -106,7 +100,7 @@ const styles = StyleSheet.create({
   },
   skillChip: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#000000",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -117,7 +111,7 @@ const styles = StyleSheet.create({
 });
 
 const ChronologicalPdf: React.FC<ResumeDocProps> = ({ data }) => {
-  const contact: any = (data as any).contact || {};
+  const contact = (data as any).contact || {};
   const experience = Array.isArray((data as any).experience)
     ? (data as any).experience
     : [];
@@ -132,13 +126,19 @@ const ChronologicalPdf: React.FC<ResumeDocProps> = ({ data }) => {
     : [];
 
   const flatSkills: string[] = skills.flatMap((group: any) =>
-    Array.isArray(group.items) ? group.items : group.name ? [group.name] : []
+    Array.isArray(group.items)
+      ? group.items
+      : group.name
+      ? [group.name]
+      : typeof group === "string"
+      ? [group]
+      : []
   );
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* HEADER */}
+        {/* ===== HEADER ===== */}
         <View style={styles.header}>
           <Text style={styles.name}>{data.name || "Your Name"}</Text>
           {data.summary && <Text style={styles.summary}>{data.summary}</Text>}
@@ -159,7 +159,7 @@ const ChronologicalPdf: React.FC<ResumeDocProps> = ({ data }) => {
           </View>
         </View>
 
-        {/* EXPERIENCE */}
+        {/* ===== EXPERIENCE ===== */}
         {experience.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>Experience</Text>
@@ -169,7 +169,7 @@ const ChronologicalPdf: React.FC<ResumeDocProps> = ({ data }) => {
                   <View style={styles.expHeaderRow}>
                     <View>
                       <Text style={styles.expTitle}>
-                        {exp.title || exp.position || "Role"}
+                        {exp.jobTitle || exp.title || exp.position || "Role"}
                       </Text>
                       {(exp.company || exp.employer) && (
                         <Text style={styles.expCompany}>
@@ -191,15 +191,18 @@ const ChronologicalPdf: React.FC<ResumeDocProps> = ({ data }) => {
                     )}
                   </View>
 
-                  {Array.isArray(exp.highlights) &&
-                    exp.highlights.length > 0 && (
+                  {/* Display experience bullets */}
+                  {Array.isArray(exp.highlights || exp.bullets) &&
+                    (exp.highlights || exp.bullets).length > 0 && (
                       <View style={styles.bulletList}>
-                        {exp.highlights.slice(0, 4).map((h: string, i: number) => (
-                          <View key={i} style={styles.bulletItem}>
-                            <Text style={styles.bulletDot}>•</Text>
-                            <Text style={styles.bulletText}>{h}</Text>
-                          </View>
-                        ))}
+                        {(exp.highlights || exp.bullets).map(
+                          (h: string, i: number) => (
+                            <View key={i} style={styles.bulletItem}>
+                              <Text style={styles.bulletDot}>•</Text>
+                              <Text style={styles.bulletText}>{h}</Text>
+                            </View>
+                          )
+                        )}
                       </View>
                     )}
                 </View>
@@ -208,31 +211,33 @@ const ChronologicalPdf: React.FC<ResumeDocProps> = ({ data }) => {
           </View>
         )}
 
-        {/* EDUCATION */}
+        {/* ===== EDUCATION ===== */}
         {education.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>Education</Text>
             <View style={styles.sectionContent}>
               {education.map((ed: any, idx: number) => (
                 <View key={idx} style={styles.eduItem}>
+                  {/* Institution + Graduation Date */}
                   <View style={styles.expHeaderRow}>
                     <Text style={styles.eduSchool}>
-                      {ed.school || ed.institution || "School Name"}
+                      {ed.institution || "Institution"}
                     </Text>
-                    {(ed.startDate || ed.endDate) && (
+                    {ed.graduationDate && (
                       <Text style={styles.smallMuted}>
-                        {(ed.startDate || "") +
-                          " – " +
-                          (ed.endDate || "Present")}
+                        Graduation: {ed.graduationDate}
                       </Text>
                     )}
                   </View>
-                  {ed.degree && (
+
+                  {/* Degree + Field of Study */}
+                  {(ed.degree || ed.fieldOfStudy) && (
                     <Text style={styles.smallMuted}>
-                      {ed.degree}
-                      {ed.field ? ` · ${ed.field}` : ""}
+                      {[ed.degree, ed.fieldOfStudy].filter(Boolean).join(" · ")}
                     </Text>
                   )}
+
+                  {/* Optional GPA */}
                   {ed.gpa && (
                     <Text style={styles.smallMuted}>GPA: {ed.gpa}</Text>
                   )}
@@ -242,21 +247,8 @@ const ChronologicalPdf: React.FC<ResumeDocProps> = ({ data }) => {
           </View>
         )}
 
-        {/* SKILLS */}
-        {flatSkills.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionHeader}>Skills</Text>
-            <View style={styles.skillsWrap}>
-              {flatSkills.map((skill, idx) => (
-                <Text key={`${skill}-${idx}`} style={styles.skillChip}>
-                  {skill}
-                </Text>
-              ))}
-            </View>
-          </View>
-        )}
 
-        {/* PROJECTS */}
+        {/* ===== PROJECTS ===== */}
         {projects.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>Projects</Text>
@@ -271,10 +263,40 @@ const ChronologicalPdf: React.FC<ResumeDocProps> = ({ data }) => {
                       <Text style={styles.smallMuted}>{proj.link}</Text>
                     )}
                   </View>
+                  {proj.technologies && (
+                    <Text style={styles.smallMuted}>
+                      Technologies: {Array.isArray(proj.technologies)
+                        ? proj.technologies.join(", ")
+                        : proj.technologies}
+                    </Text>
+                  )}
+
+                  {/* Outcomes / Impact */}
+                  {proj.outcomes || proj.impact ? (
+                    <Text style={styles.smallMuted}>
+                      Outcomes: {proj.outcomes || proj.impact}
+                    </Text>
+                  ) : null}
+
+                  {/* Summary / Description */}
                   {proj.summary && (
                     <Text style={styles.smallMuted}>{proj.summary}</Text>
                   )}
                 </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ===== SKILLS ===== */}
+        {flatSkills.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>Skills</Text>
+            <View style={styles.skillsWrap}>
+              {flatSkills.map((skill, idx) => (
+                <Text key={`${skill}-${idx}`} style={styles.skillChip}>
+                  {skill}
+                </Text>
               ))}
             </View>
           </View>
