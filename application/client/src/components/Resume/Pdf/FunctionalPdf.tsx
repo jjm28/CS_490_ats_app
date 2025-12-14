@@ -11,16 +11,16 @@ import type { ResumeDocProps } from "..";
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 30,
-    paddingBottom: 30,
-    paddingHorizontal: 40,
+    paddingTop: 36,
+    paddingBottom: 36,
+    paddingHorizontal: 48,
     fontFamily: "Helvetica",
     fontSize: 10,
     lineHeight: 1.35,
   },
   header: {
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: "#000000",
     paddingBottom: 8,
     marginBottom: 10,
   },
@@ -29,14 +29,14 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   summary: {
-    marginTop: 4,
-    color: "#475569",
+    marginTop: 12,
+    color: "#000000",
   },
   contactRow: {
     marginTop: 6,
     flexDirection: "row",
     flexWrap: "wrap",
-    color: "#475569",
+    color: "#000000",
     fontSize: 9,
   },
   contactItem: {
@@ -52,11 +52,11 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
     marginBottom: 4,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#000000",
   },
   skillBlock: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#000000",
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 4,
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   skillLevel: {
     fontSize: 9,
-    color: "#6b7280",
+    color: "#000000",
   },
   skillItemsRow: {
     flexDirection: "row",
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   skillChip: {
     fontSize: 9,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#000000",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   smallMuted: {
-    color: "#6b7280",
+    color: "#000000",
     fontSize: 9,
   },
   expItem: {
@@ -135,6 +135,17 @@ const FunctionalPdf: React.FC<ResumeDocProps> = ({ data }) => {
     ? (data as any).education
     : [];
 
+  // ✅ Same skill flattening logic as Chronological / Hybrid
+  const flatSkills: string[] = skills.flatMap((group: any) =>
+    Array.isArray(group.items)
+      ? group.items
+      : group.name
+      ? [group.name]
+      : typeof group === "string"
+      ? [group]
+      : []
+  );
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -160,30 +171,16 @@ const FunctionalPdf: React.FC<ResumeDocProps> = ({ data }) => {
         </View>
 
         {/* SKILLS – core of functional resume */}
-        {skills.length > 0 && (
+        {flatSkills.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>Skills Overview</Text>
-            {skills.map((group: any, idx: number) => (
-              <View key={idx} style={styles.skillBlock}>
-                <View style={styles.skillHeaderRow}>
-                  <Text style={styles.skillTitle}>
-                    {group.category || group.name || "Skill Group"}
-                  </Text>
-                  {group.level && (
-                    <Text style={styles.skillLevel}>{group.level}</Text>
-                  )}
-                </View>
-                {Array.isArray(group.items) && group.items.length > 0 && (
-                  <View style={styles.skillItemsRow}>
-                    {group.items.map((s: string, i: number) => (
-                      <Text key={i} style={styles.skillChip}>
-                        {s}
-                      </Text>
-                    ))}
-                  </View>
-                )}
-              </View>
-            ))}
+            <View style={styles.skillItemsRow}>
+              {flatSkills.map((s, idx) => (
+                <Text key={`${s}-${idx}`} style={styles.skillChip}>
+                  {s}
+                </Text>
+              ))}
+            </View>
           </View>
         )}
 
@@ -191,29 +188,34 @@ const FunctionalPdf: React.FC<ResumeDocProps> = ({ data }) => {
         {experience.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>Experience Highlights</Text>
-            {experience.map((exp: any, idx: number) => (
-              <View key={idx} style={styles.expItem}>
-                <View style={styles.expHeaderRow}>
-                  <Text style={styles.expTitle}>
-                    {exp.title || exp.position || "Role"}
-                  </Text>
-                  {(exp.company || exp.employer) && (
+            {experience.map((exp: any, idx: number) => {
+              const bullets = exp.highlights || exp.bullets;
+              return (
+                <View key={idx} style={styles.expItem}>
+                  <View style={styles.expHeaderRow}>
+                    <Text style={styles.expTitle}>
+                      {exp.jobTitle || exp.title || exp.position || "Role"}
+                    </Text>
+                    {(exp.company || exp.employer) && (
+                      <Text style={styles.smallMuted}>
+                        {exp.company || exp.employer}
+                      </Text>
+                    )}
+                  </View>
+                  {(exp.startDate || exp.endDate) && (
                     <Text style={styles.smallMuted}>
-                      {exp.company || exp.employer}
+                      {(exp.startDate || "") +
+                        " – " +
+                        (exp.endDate || "Present")}
                     </Text>
                   )}
-                </View>
-                {(exp.startDate || exp.endDate) && (
-                  <Text style={styles.smallMuted}>
-                    {(exp.startDate || "") +
-                      " – " +
-                      (exp.endDate || "Present")}
-                  </Text>
-                )}
-                {Array.isArray(exp.highlights) &&
-                  exp.highlights.length > 0 && (
+                  {exp.location && (
+                    <Text style={styles.smallMuted}>{exp.location}</Text>
+                  )}
+
+                  {Array.isArray(bullets) && bullets.length > 0 && (
                     <View style={styles.bulletList}>
-                      {exp.highlights.slice(0, 4).map((h: string, i: number) => (
+                      {bullets.slice(0, 4).map((h: string, i: number) => (
                         <View key={i} style={styles.bulletItem}>
                           <Text style={styles.bulletDot}>•</Text>
                           <Text style={styles.bulletText}>{h}</Text>
@@ -221,8 +223,9 @@ const FunctionalPdf: React.FC<ResumeDocProps> = ({ data }) => {
                       ))}
                     </View>
                   )}
-              </View>
-            ))}
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -240,6 +243,21 @@ const FunctionalPdf: React.FC<ResumeDocProps> = ({ data }) => {
                     <Text style={styles.smallMuted}>{proj.link}</Text>
                   )}
                 </View>
+
+                {proj.technologies && (
+                  <Text style={styles.smallMuted}>
+                    Technologies: {Array.isArray(proj.technologies)
+                      ? proj.technologies.join(", ")
+                      : proj.technologies}
+                  </Text>
+                )}
+
+                {proj.outcomes || proj.impact ? (
+                  <Text style={styles.smallMuted}>
+                    Outcomes: {proj.outcomes || proj.impact}
+                  </Text>
+                ) : null}
+
                 {proj.summary && (
                   <Text style={styles.smallMuted}>{proj.summary}</Text>
                 )}
@@ -256,21 +274,25 @@ const FunctionalPdf: React.FC<ResumeDocProps> = ({ data }) => {
               <View key={idx} style={styles.eduItem}>
                 <View style={styles.expHeaderRow}>
                   <Text style={{ fontWeight: 700 }}>
-                    {ed.school || ed.institution || "School Name"}
+                    {ed.institution || ed.school || "Institution"}
                   </Text>
-                  {(ed.startDate || ed.endDate) && (
+                  {ed.graduationDate && (
                     <Text style={styles.smallMuted}>
-                      {(ed.startDate || "") +
-                        " – " +
-                        (ed.endDate || "Present")}
+                      Graduation: {ed.graduationDate}
                     </Text>
                   )}
                 </View>
-                {ed.degree && (
+
+                {(ed.degree || ed.fieldOfStudy || ed.field) && (
                   <Text style={styles.smallMuted}>
-                    {ed.degree}
-                    {ed.field ? ` · ${ed.field}` : ""}
+                    {[ed.degree, ed.fieldOfStudy || ed.field]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </Text>
+                )}
+
+                {ed.gpa && (
+                  <Text style={styles.smallMuted}>GPA: {ed.gpa}</Text>
                 )}
               </View>
             ))}
