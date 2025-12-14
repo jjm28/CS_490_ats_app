@@ -91,9 +91,9 @@ export default function Login() {
     return null;
   };
 
-  const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
-  const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
-  const li = () => (window.location.href = "http://localhost:5050/api/auth/linkedin/login");
+  const go = () => (window.location.href = `${API_BASE}/api/auth/google/login`);
+  const mi = () => (window.location.href = `${API_BASE}/api/auth/microsoft/login`);
+  const li = () => (window.location.href = `${API_BASE}/api/auth/linkedin/login`);
 
   // If you want looser login rules, replace with: `return value ? null : "Enter your password.";`
   const validatePwdForLogin = (value: string): string | null => {
