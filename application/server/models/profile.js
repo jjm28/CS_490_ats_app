@@ -3,7 +3,15 @@ import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
 
-
+const HomeGeoSchema = new mongoose.Schema(
+  {
+    lat: Number,
+    lng: Number,
+    geocodedAt: Date,
+    userquery: String
+  },
+  { _id: false }
+);
 const ProfileSchema = new Schema(
   {
     userId: { type: String, required: true, unique: true, index: true },
@@ -46,6 +54,9 @@ const ProfileSchema = new Schema(
     // optional
     profileType: { type: String, default: 'default' },
     photoUrl: { type: String, default: '' },
+
+    homeGeo: HomeGeoSchema,
+    homeTimeZone: String,
   },
   { timestamps: true }
 );

@@ -122,81 +122,43 @@ function Navbar() {
               Dashboard
             </NavLink>
 
+            {/* Admin Navigation - Consolidated */}
             {(role === "org_admin" || role === "super_admin") && (
-              <NavLink
-                to="/enterprise/cohorts"
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-2 text-lg font-medium ${
-                    isActive
-                      ? "bg-(--brand-sage) text-(--brand-navy)"
-                      : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                  }`
-                }
-              >
-                Cohorts
-              </NavLink>
-            )}
-            {(role === "advisor" ) && (
-              <NavLink
-                to="/advisor/clients"
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-2 text-lg font-medium ${
-                    isActive
-                      ? "bg-(--brand-sage) text-(--brand-navy)"
-                      : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                  }`
-                }
-              >
-                My Client
-              </NavLink>
-            )}
-
-
-            {(role === "org_admin" || role === "super_admin") && (
-              <NavLink
-                to="/enterprise/users"
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-2 text-lg font-medium ${
-                    isActive
-                      ? "bg-(--brand-sage) text-(--brand-navy)"
-                      : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                  }`
-                }
-              >
-                User Management
-              </NavLink>
+              <Popover className="relative">
+                <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
+                  Admin
+                  <ChevronDown size={16} />
+                </PopoverButton>
+                <PopoverPanel className="absolute left-0 mt-2 w-56 rounded-md bg-white shadow-lg z-50">
+                  <NavLink
+                    to="/enterprise/cohorts"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Cohorts
+                  </NavLink>
+                  <NavLink
+                    to="/enterprise/users"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    User Management
+                  </NavLink>
+                  <NavLink
+                    to="/enterprise/onboarding"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Bulk Onboarding
+                  </NavLink>
+                  <NavLink
+                    to="/enterprise/analytics"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Analytics
+                  </NavLink>
+                </PopoverPanel>
+              </Popover>
             )}
 
-            {(role === "org_admin" || role === "super_admin") && (
-              <NavLink
-                to="/enterprise/onboarding"
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-2 text-lg font-medium ${
-                    isActive
-                      ? "bg-(--brand-sage) text-(--brand-navy)"
-                      : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                  }`
-                }
-              >
-                Bulk Onboarding
-              </NavLink>
-            )}
-
-            {(role === "org_admin" || role === "super_admin") && (
-              <NavLink
-                to="/enterprise/analytics"
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-2 text-lg font-medium ${
-                    isActive
-                      ? "bg-(--brand-sage) text-(--brand-navy)"
-                      : "text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy)"
-                  }`
-                }
-              >
-                Analytics
-              </NavLink>
-            )}
-
+            {/* Advisor Navigation */}
             {(role === "advisor" || role === "super_admin") && (
               <NavLink
                 to="/advisor/clients"
@@ -212,10 +174,11 @@ function Navbar() {
               </NavLink>
             )}
 
+            {/* Job Seeker Navigation - Consolidated Background */}
             {(role === "job_seeker" || role === "super_admin") && (
               <Popover className="relative">
                 <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
-                  Qualifications
+                  Background
                   <ChevronDown size={16} />
                 </PopoverButton>
                 <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
@@ -237,17 +200,7 @@ function Navbar() {
                   >
                     Certifications
                   </NavLink>
-                </PopoverPanel>
-              </Popover>
-            )}
-
-            {(role === "job_seeker" || role === "super_admin") && (
-              <Popover className="relative">
-                <PopoverButton className="text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md px-3 py-2 text-lg font-medium inline-flex items-center gap-1">
-                  Experience
-                  <ChevronDown size={16} />
-                </PopoverButton>
-                <PopoverPanel className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg z-50">
+                  <div className="border-t border-gray-200 my-1"></div>
                   <NavLink
                     to="/Projects"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
@@ -330,6 +283,12 @@ function Navbar() {
                   >
                     Networking Hub
                   </NavLink>
+                    <NavLink
+                    to="/commuter-planner"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Commuter Planner
+                  </NavLink>
                 </PopoverPanel>
               </Popover>
             )}
@@ -371,11 +330,11 @@ function Navbar() {
                   >
                     Advisors & Coaches
                   </NavLink>
-                                    <NavLink
+                  <NavLink
                     to="/teams"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                   >
-                   Teams
+                    Teams
                   </NavLink>
                 </PopoverPanel>
               </Popover>
@@ -502,81 +461,279 @@ function Navbar() {
                   <Disclosure.Button className="p-2 text-(--brand-sage) hover:bg-(--brand-sage) hover:text-(--brand-navy) rounded-md focus:outline-none">
                     {!open ? <Menu size={24} /> : <X size={24} />}
                   </Disclosure.Button>
-                  <Disclosure.Panel className="absolute top-16 right-0 w-48 bg-gray-800 rounded-md shadow-lg py-2 z-50">
+                  <Disclosure.Panel className="absolute top-16 right-0 w-64 bg-gray-800 rounded-md shadow-lg py-2 z-50 max-h-[80vh] overflow-y-auto">
                     <NavLink
                       to="/ProfileDashboard"
                       className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
                       Dashboard
                     </NavLink>
+
+                    {/* Admin/Org Navigation */}
+                    {(role === "org_admin" || role === "super_admin") && (
+                      <>
+                        <div className="border-t border-gray-700 my-2"></div>
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+                          Admin
+                        </div>
+                        <NavLink
+                          to="/enterprise/cohorts"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Cohorts
+                        </NavLink>
+                        <NavLink
+                          to="/enterprise/users"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          User Management
+                        </NavLink>
+                        <NavLink
+                          to="/enterprise/onboarding"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Bulk Onboarding
+                        </NavLink>
+                        <NavLink
+                          to="/enterprise/analytics"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Analytics
+                        </NavLink>
+                      </>
+                    )}
+
+                    {/* Advisor Navigation */}
+                    {(role === "advisor" || role === "super_admin") && (
+                      <>
+                        <div className="border-t border-gray-700 my-2"></div>
+                        <NavLink
+                          to="/advisor/clients"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Clients
+                        </NavLink>
+                      </>
+                    )}
+
+                    {/* Job Seeker Navigation */}
+                    {(role === "job_seeker" || role === "super_admin") && (
+                      <>
+                        <div className="border-t border-gray-700 my-2"></div>
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+                          Background
+                        </div>
+                        <NavLink
+                          to="/Skills"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Skills
+                        </NavLink>
+                        <NavLink
+                          to="/Education"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Education
+                        </NavLink>
+                        <NavLink
+                          to="/Certifications"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Certifications
+                        </NavLink>
+                        <NavLink
+                          to="/Projects"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Projects
+                        </NavLink>
+                        <NavLink
+                          to="/EmploymentPage"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Employment
+                        </NavLink>
+
+                        <div className="border-t border-gray-700 my-2"></div>
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+                          Documents
+                        </div>
+                        <NavLink
+                          to="/resumes/new"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Resume Templates
+                        </NavLink>
+                        <NavLink
+                          to="/resumes"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          My Resumes
+                        </NavLink>
+                        <NavLink
+                          to="/coverletter"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Cover Letters
+                        </NavLink>
+
+                        <div className="border-t border-gray-700 my-2"></div>
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+                          Job Search
+                        </div>
+                        <NavLink
+                          to="/Jobs"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Browse Jobs
+                        </NavLink>
+                        <NavLink
+                          to="/Applications"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          My Applications
+                        </NavLink>
+                        <NavLink
+                          to="/company-research"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Company Search
+                        </NavLink>
+                        <NavLink
+                          to="/Interview-Prep"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Interview Prep
+                        </NavLink>
+                        <NavLink
+                          to="/networking"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Networking Hub
+                        </NavLink>
+
+                        <div className="border-t border-gray-700 my-2"></div>
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+                          Support
+                        </div>
+                        <NavLink
+                          to="/manage-references"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          References
+                        </NavLink>
+                        <NavLink
+                          to="/peer-groups"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Peer Support Groups
+                        </NavLink>
+                        <NavLink
+                          to="/support"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Family Support
+                        </NavLink>
+                        <NavLink
+                          to="/job-search/sharing"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Sharing & Accountability
+                        </NavLink>
+                        <NavLink
+                          to="/advisors"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Advisors & Coaches
+                        </NavLink>
+                        <NavLink
+                          to="/teams"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Teams
+                        </NavLink>
+
+                        <div className="border-t border-gray-700 my-2"></div>
+                        <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">
+                          Analytics
+                        </div>
+                        <NavLink
+                          to="/analytics/overview"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Overview Dashboard
+                        </NavLink>
+                        <NavLink
+                          to="/analytics/application-success"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Application Success
+                        </NavLink>
+                        <NavLink
+                          to="/analytics/interview-insights"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Interview Insights
+                        </NavLink>
+                        <NavLink
+                          to="/analytics/networking-roi"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Networking ROI
+                        </NavLink>
+                        <NavLink
+                          to="/analytics/salary-market"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Salary & Market
+                        </NavLink>
+                        <NavLink
+                          to="/analytics/goal-tracking"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Goal Tracking
+                        </NavLink>
+                        <NavLink
+                          to="/analytics/productivity"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Productivity
+                        </NavLink>
+                        <NavLink
+                          to="/Jobs/CompetitiveAnalysis"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Competitive Analysis
+                        </NavLink>
+                        <NavLink
+                          to="/analytics/market-trends"
+                          className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          Market Trends
+                        </NavLink>
+                      </>
+                    )}
+
+                    {/* User Profile Links */}
+                    <div className="border-t border-gray-700 my-2"></div>
                     <NavLink
                       to="/ProfilePage"
                       className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
                       My Profile
                     </NavLink>
-                    <div className="border-t border-gray-700 my-2"></div>
                     <NavLink
-                      to="/Skills"
+                      to="/Notifications"
                       className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
-                      Skills
+                      Notification Settings
                     </NavLink>
-                    <NavLink
-                      to="/Education"
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      Education
-                    </NavLink>
-                    <NavLink
-                      to="/Certifications"
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      Certifications
-                    </NavLink>
-                    <div className="border-t border-gray-700 my-2"></div>
-                    <NavLink
-                      to="/Projects"
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      Projects
-                    </NavLink>
-                    <NavLink
-                      to="/EmploymentPage"
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      Employment
-                    </NavLink>
-                    <div className="border-t border-gray-700 my-2"></div>
-                    <NavLink
-                      to="/resumes"
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      Resumes
-                    </NavLink>
-                    <NavLink
-                      to="/coverletter"
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      Cover Letters
-                    </NavLink>
-                    <div className="border-t border-gray-700 my-2"></div>
-                    <NavLink
-                      to="/Jobs"
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      Browse Jobs
-                    </NavLink>
-                    <NavLink
-                      to="/Applications"
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      My Applications
-                    </NavLink>
+
+                    {/* Logout */}
                     <div className="border-t border-gray-700 my-2"></div>
                     <button
                       onClick={logout}
-                      className="block w-full text-center px-4 py-2 text-red-600 font-semibold hover:bg-gray-700"
+                      className="block w-full text-left px-4 py-2 text-red-400 font-semibold hover:bg-gray-700"
                     >
                       Log Out
                     </button>

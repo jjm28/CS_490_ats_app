@@ -18,6 +18,7 @@ import type { Project } from "../Projects/Projects";
 import type { Job } from "../../types/jobs.types";
 import DeadlinesDashboardWidget from "../Jobs/DeadlineDashboardWidget.tsx";
 import API_BASE from "../../utils/apiBase";
+import GitHubProjectsSection from "./GitHubProjectsSection";
 
 // ---- Routes ----
 const EDUCATION_ADD_ROUTE = "/education";
@@ -160,6 +161,20 @@ const ProfileDashboard: React.FC = () => {
       localStorage.getItem("authToken") || localStorage.getItem("token") || "",
     []
   );
+const formalCerts = useMemo(
+  () => certs.filter((c) => !c.type || c.type === "formal"),
+  [certs]
+);
+
+const badgeCerts = useMemo(
+  () =>
+    certs.filter(
+      (c) =>
+        c.type === "badge" &&
+        (c.showInShowcase === undefined || c.showInShowcase)
+    ),
+  [certs]
+);
 
   // Fetch profiles
   useEffect(() => {
@@ -338,13 +353,13 @@ const ProfileDashboard: React.FC = () => {
       certifications: certs.length,
       employment: employment.length,
       projects: projects.length,
-      activeCerts: certs.filter((c) => {
+      activeCerts: formalCerts.filter((c) => {
         if (c.doesNotExpire) return true;
         if (!c.expirationDate) return false;
         return new Date(c.expirationDate) > new Date();
       }).length,
     }),
-    [educationList, skills, certs, employment, projects]
+    [educationList, skills, certs, employment, projects, formalCerts]
   );
 
   return (
@@ -713,7 +728,121 @@ const ProfileDashboard: React.FC = () => {
                   )}
                 </div>
               )}
+
+                      <GitHubProjectsSection token={token} />
+
             </section>
+            {/* Skills & Certifications Showcase (UC-115) */}
+<section>
+  <div className="mb-4 flex items-center justify-between">
+    <h2 className="text-xl font-bold text-[#0E3B43]">
+      🏅 Skills & Certifications Showcase
+    </h2>
+    <Button
+      size="sm"
+      onClick={() => navigate("/skill-certifications")}
+      aria-label="Manage skill badges"
+    >
+      Manage
+    </Button>
+  </div>
+
+  {badgeCerts.length === 0 && (
+    <Card>
+      <p className="text-stone-600 text-center py-4">
+        Add skill badges and assessments from platforms like HackerRank,
+        LeetCode, and Coursera to showcase your technical abilities.
+      </p>
+    </Card>
+  )}
+
+  {badgeCerts.length > 0 && (
+    <Card>
+      <div className="space-y-4">
+        {/* Group by showcaseCategory */}
+        {Array.from(
+          new Map(
+            badgeCerts.map((c) => [
+              c.showcaseCategory || "Other",
+              (c.showcaseCategory || "Other"),
+            ])
+          ).keys()
+        ).map((cat) => {
+          const catItems = badgeCerts.filter(
+            (c) => (c.showcaseCategory || "Other") === cat
+          );
+          return (
+            <div key={cat}>
+              <h3 className="text-sm font-semibold text-stone-700 mb-2">
+                {cat}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {catItems.map((cert) => (
+                  <div
+                    key={cert._id}
+                    className="flex gap-3 items-start border border-stone-100 rounded-lg p-3"
+                  >
+                    {cert.badgeImageUrl ? (
+                          <img
+                            src={
+                              cert.badgeImageUrl.startsWith("http")
+                                ? cert.badgeImageUrl
+                                : `${API_BASE || ""}${cert.badgeImageUrl}`
+                            }
+                            alt={cert.name}
+                            className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                          />
+
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#357266] to-[#6DA598] flex items-center justify-center text-white text-sm flex-shrink-0">
+                        🏅
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-sm font-semibold text-[#0E3B43] truncate">
+                          {cert.name}
+                        </h4>
+                      </div>
+                      <p className="text-xs text-stone-600">
+                        {cert.organization}
+                        {cert.dateEarned && (
+                          <> • {formatMonYear(cert.dateEarned)}</>
+                        )}
+                      </p>
+                      {cert.scoreLabel && (
+                        <p className="text-xs text-[#357266] font-medium mt-1">
+                          {cert.scoreLabel}
+                        </p>
+                      )}
+                      {cert.verificationUrl && (
+                        <a
+                          href={cert.verificationUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-[#357266] hover:text-[#6DA598] hover:underline mt-1 inline-flex items-center gap-1"
+                        >
+                          Verify
+                          <span aria-hidden>↗</span>
+                        </a>
+                      )}
+                      {cert.descriptionRich && (
+                        <p className="text-xs text-stone-700 mt-2 line-clamp-3">
+                          {cert.descriptionRich}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  )}
+</section>
+
           </div>
 
           {/* Right Column - Sidebar (1/3 width) */}
@@ -813,80 +942,81 @@ const ProfileDashboard: React.FC = () => {
               )}
             </section>
 
-            {/* Certifications Preview */}
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[#0E3B43]">
-                  🏆 Certifications
-                </h3>
-                <Button
-                  size="sm"
-                  onClick={() => navigate(CERTIFICATIONS_ROUTE)}
-                  aria-label="Manage certifications"
-                >
-                  Manage
-                </Button>
+{/* Certifications Preview */}
+<section>
+  <div className="mb-4 flex items-center justify-between">
+    <h3 className="text-lg font-semibold text-[#0E3B43]">
+      🏆 Certifications
+    </h3>
+    <Button
+      size="sm"
+      onClick={() => navigate(CERTIFICATIONS_ROUTE)}
+      aria-label="Manage certifications"
+    >
+      Manage
+    </Button>
+  </div>
+
+  {certsLoading && (
+    <Card>
+      <p className="text-stone-600">Loading…</p>
+    </Card>
+  )}
+  {certsErr && (
+    <Card>
+      <p className="text-sm text-red-700">{certsErr}</p>
+    </Card>
+  )}
+
+  {!certsLoading && !certsErr && formalCerts.length === 0 && (
+    <Card>
+      <p className="text-stone-600 text-center py-4">
+        No certifications yet
+      </p>
+    </Card>
+  )}
+
+  {!certsLoading && !certsErr && formalCerts.length > 0 && (
+    <Card>
+      <div className="space-y-3">
+        {formalCerts.slice(0, 3).map((cert) => {
+          const isExpired = cert.expirationDate
+            ? new Date(cert.expirationDate) <= new Date()
+            : false;
+          return (
+            <div key={cert._id} className="flex items-start gap-2">
+              <div className="text-lg">
+                {cert.verified ? "✅" : "📜"}
               </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-medium text-[#0E3B43] truncate">
+                  {cert.name}
+                </h4>
+                <p className="text-xs text-stone-600">
+                  {cert.organization}
+                </p>
+                {isExpired && (
+                  <span className="text-xs text-red-700 font-medium">
+                    ⚠️ Expired
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {formalCerts.length > 3 && (
+        <button
+          onClick={() => navigate(CERTIFICATIONS_ROUTE)}
+          className="mt-3 w-full text-center text-sm text-[#357266] hover:text-[#6DA598] font-medium"
+        >
+          View all {formalCerts.length} →
+        </button>
+      )}
+    </Card>
+  )}
+</section>
 
-              {certsLoading && (
-                <Card>
-                  <p className="text-stone-600">Loading…</p>
-                </Card>
-              )}
-              {certsErr && (
-                <Card>
-                  <p className="text-sm text-red-700">{certsErr}</p>
-                </Card>
-              )}
-
-              {!certsLoading && !certsErr && certs.length === 0 && (
-                <Card>
-                  <p className="text-stone-600 text-center py-4">
-                    No certifications yet
-                  </p>
-                </Card>
-              )}
-
-              {!certsLoading && !certsErr && certs.length > 0 && (
-                <Card>
-                  <div className="space-y-3">
-                    {certs.slice(0, 3).map((cert) => {
-                      const isExpired = cert.expirationDate
-                        ? new Date(cert.expirationDate) <= new Date()
-                        : false;
-                      return (
-                        <div key={cert._id} className="flex items-start gap-2">
-                          <div className="text-lg">
-                            {cert.verified ? "✅" : "📜"}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-medium text-[#0E3B43] truncate">
-                              {cert.name}
-                            </h4>
-                            <p className="text-xs text-stone-600">
-                              {cert.organization}
-                            </p>
-                            {isExpired && (
-                              <span className="text-xs text-red-700 font-medium">
-                                ⚠️ Expired
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {certs.length > 3 && (
-                    <button
-                      onClick={() => navigate(CERTIFICATIONS_ROUTE)}
-                      className="mt-3 w-full text-center text-sm text-[#357266] hover:text-[#6DA598] font-medium"
-                    >
-                      View all {certs.length} →
-                    </button>
-                  )}
-                </Card>
-              )}
-            </section>
           </div>
         </div>
       </div>

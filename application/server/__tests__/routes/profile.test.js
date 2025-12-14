@@ -12,6 +12,18 @@ const mockProfileFindById = jest.fn();
 const mockProfileUpdateOne = jest.fn();
 const mockVerifyJWT = jest.fn((req, res, next) => next());
 
+// Mock database connection
+const mockCountDocuments = jest.fn();
+const mockDbFindOne = jest.fn();
+const mockDbCollection = jest.fn(() => ({
+  findOne: mockDbFindOne,
+  countDocuments: mockCountDocuments,
+}));
+
+const mockGetDb = jest.fn(() => ({
+  collection: mockDbCollection,
+}));
+
 // Mock Profile model
 const mockProfile = {
   create: mockProfileCreate,
@@ -23,6 +35,10 @@ const mockProfile = {
 };
 
 // Mock dependencies
+jest.unstable_mockModule("../../db/connection.js", () => ({
+  getDb: mockGetDb,
+}));
+
 jest.unstable_mockModule("../../models/profile.js", () => ({
   default: mockProfile,
 }));

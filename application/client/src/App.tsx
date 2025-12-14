@@ -143,6 +143,8 @@ import MentorInvitePage from './components/Networking/MentorInvitePage';
 import MentorInvite from './components/Networking/MentorInvite';
 import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
+import SkillCertifications from './components/Certifications/SkillCertifications';
+import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
 
 function App() {
   const location = useLocation();
@@ -165,7 +167,6 @@ function App() {
       return;
     }
  
-    console.log("working")
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
@@ -177,6 +178,7 @@ function App() {
 
       <div className="main-content">
         <Routes>
+
           <Route path="/" element={<HomePage />} />
           <Route path="/Registration" element={<Registration />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
@@ -615,7 +617,7 @@ function App() {
            />
 
            <Route 
-           path="/teams/sharing" 
+           path="/teams/:teamId/share" 
            element={<PrivateRoute><CandidateSharingPage /></PrivateRoute>} 
            />
            <Route 
@@ -641,6 +643,8 @@ function App() {
             path="/analytics/custom-report"
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
+<Route path="/skill-certifications" element={<PrivateRoute><SkillCertifications /></PrivateRoute>} />
+<Route path="/commuter-planner" element={<PrivateRoute><CommuterPlannerPage /></PrivateRoute>} />
         </Routes>
       </div>
     </>

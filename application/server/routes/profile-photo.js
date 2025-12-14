@@ -48,7 +48,7 @@ function getDirForProfile(profileId) {
 }
 
 function buildRelativeUrl(profileId, ext) {
-  return `/uploads/profiles/${profileId}/avatar.${ext}`;
+  return `uploads/profiles/${profileId}/avatar.${ext}`;
 }
 
 function deleteAllAvatarVariants(dir) {

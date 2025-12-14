@@ -54,6 +54,13 @@ router.post("/", async (req, res) => {
       verified,
       renewalReminder,
       category,
+           type,
+      verificationUrl,
+      badgeImageUrl,
+      scoreLabel,
+      descriptionRich,
+      showInShowcase,
+      showcaseCategory,
     } = req.body;
 
     if (!name || !organization || !dateEarned) {
@@ -73,6 +80,14 @@ router.post("/", async (req, res) => {
       renewalReminder,
       category,
       userId,
+       type: type || "formal",
+      verificationUrl,
+      badgeImageUrl,
+      scoreLabel,
+      descriptionRich,
+      showInShowcase:
+        typeof showInShowcase === "boolean" ? showInShowcase : true,
+      showcaseCategory,
     };
 
     const result = await db.collection("certifications").insertOne(newCert);
@@ -91,6 +106,7 @@ router.put("/:id", async (req, res) => {
     const id = req.params.id;
     const updatedCert = req.body;
     const db = getDb();
+console.log(updatedCert)
 
     const result = await db
       .collection("certifications")

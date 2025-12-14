@@ -62,6 +62,7 @@ export function initAutomationEngine() {
   console.log("[automation] Engine started");
 
   cron.schedule("* * * * *", async () => {
+    console.log("[automation] ⏰ Cron tick at", new Date().toISOString());
     const now = new Date();
 
     const rules = await AutomationRule.find({
@@ -73,7 +74,10 @@ export function initAutomationEngine() {
       ]
     });
 
+    console.log(`[automation] Found ${rules.length} rule(s) due to run`);
+
     for (const rule of rules) {
+      console.log(`[automation] Executing rule ${rule._id} (${rule.type})`);
       await executeRule(rule);
     }
   });

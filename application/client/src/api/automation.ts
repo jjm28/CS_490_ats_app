@@ -1,14 +1,17 @@
 import axios from "axios";
 import API_BASE from "../utils/apiBase";
 
-const DEV_USER_ID = "064cfccd-55e0-4226-be75-ba9143952fc4";
-
 function authHeaders() {
   const token = localStorage.getItem("token");
+  
+  // Dev mode fallback: use x-dev-user-id if available
+  const devUserId = localStorage.getItem("x-dev-user-id") || 
+                    sessionStorage.getItem("x-dev-user-id");
+  
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    "x-dev-user-id": DEV_USER_ID, // dev mode override
+    ...(devUserId ? { "x-dev-user-id": devUserId } : {}),
   };
 }
 

@@ -62,6 +62,32 @@ const StatusHistorySchema = new Schema({
     }
 }, { _id: false });
 
+const CommuteSchema = new mongoose.Schema(
+  {
+    distanceKm: Number,
+    durationMinutes: Number,
+    calculatedAt: Date,
+    homeLocationSnapshot: String,
+  },
+  { _id: false }
+);
+
+const GeoSchema = new mongoose.Schema(
+  {
+    lat: Number,
+    lng: Number,
+    provider: { type: String, default: "nominatim" },
+    geocodedAt: Date,
+    normalizedAddress: String,
+    countryCode: String,
+    city: String,
+    state: String,
+    postalCode: String,
+    userquery: String
+  },
+  { _id: false }
+);
+
 const JobSchema = new Schema({
     userId: { type: String, ref: 'User', required: true, index: true },
     // Basic job info
@@ -463,6 +489,49 @@ const JobSchema = new Schema({
     },
 
     offerDate: { type: Date, default: null },
+
+    // Automation rules
+    // 📋 Checklist items for this job (UC-069)
+    checklist: [{
+        label: String,
+        completed: { type: Boolean, default: false },
+        createdAt: { type: Date, default: Date.now },
+        completedAt: { type: Date, default: null },
+        source: { type: String, default: 'manual' },
+    }],
+
+    // 📞 Follow-up tasks for this job (UC-069)
+    followUpTasks: [{
+        note: String,
+        createdAt: { type: Date, default: Date.now },
+        completed: { type: Boolean, default: false },
+        completedAt: { type: Date, default: null },
+        type: { type: String, default: 'manual' },
+        interval: { type: String, default: 'none' },
+    }],
+
+    // 💬 Template responses for this job (UC-069)
+    templateResponses: [{
+        templateName: String,
+        message: String,
+        createdAt: { type: Date, default: Date.now },
+    }],
+
+    workMode: {
+      type: String,
+      enum: ["remote", "hybrid", "onsite"],
+      default: "onsite",
+    },
+
+
+    // NEW: geocoded location
+    geo: GeoSchema,
+
+    // NEW: commute snapshot, relative to user's home at time of calculation
+    commute: CommuteSchema,
+
+    // NEW: job time zone (IANA)
+    timeZone: String,
 }, { timestamps: true });
 
 // Compound index for efficient status queries

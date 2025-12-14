@@ -23,7 +23,7 @@ function getDirForProject(projectId) {
 }
 
 function buildRelativeUrl(projectId, filename) {
-  return `/uploads/projects/${projectId}/${filename}`;
+  return `uploads/projects/${projectId}/${filename}`;
 }
 
 const upload = multer({

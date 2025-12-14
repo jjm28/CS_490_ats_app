@@ -160,7 +160,7 @@ export default function ChronologicalPreview(props: Props) {
                       <div className="flex items-baseline justify-between gap-2">
                         <div>
                           <div className="font-semibold">
-                            {exp.title || exp.position || "Job Title"}
+                            {exp.jobTitle || exp.position || "Job Title"}
                           </div>
                           {(exp.company || exp.employer) && (
                             <div

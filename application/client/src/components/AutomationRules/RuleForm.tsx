@@ -74,12 +74,11 @@ const RuleForm: React.FC = () => {
         return;
       }
     } else {
-      // For rules that don't expose a schedule field, set it to "now"
-      // so the backend/engine can immediately run them once.
+      // For immediate rules (application_package, template_response, checklist),
+      // set schedule to 1 minute in the past to ensure immediate execution
       if (!effectiveSchedule) {
-        effectiveSchedule = new Date()
-          .toISOString()
-          .slice(0, 16); // YYYY-MM-DDTHH:mm
+        const oneMinuteAgo = new Date(Date.now() - 60000);
+        effectiveSchedule = oneMinuteAgo.toISOString();
       }
     }
 

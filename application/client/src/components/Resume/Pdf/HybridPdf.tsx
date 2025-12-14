@@ -11,16 +11,16 @@ import type { ResumeDocProps } from "..";
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 30,
-    paddingBottom: 30,
-    paddingHorizontal: 40,
+    paddingTop: 36,
+    paddingBottom: 36,
+    paddingHorizontal: 48,
     fontFamily: "Helvetica",
     fontSize: 10,
     lineHeight: 1.35,
   },
   header: {
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#000000",
     paddingBottom: 8,
     marginBottom: 10,
   },
@@ -29,14 +29,14 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   summary: {
-    marginTop: 4,
-    color: "#6b7280",
+    marginTop: 12,
+    color: "#000000",
   },
   contactRow: {
     marginTop: 6,
     flexDirection: "row",
     flexWrap: "wrap",
-    color: "#6b7280",
+    color: "#000000",
     fontSize: 9,
   },
   contactItem: {
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     flex: 0.95,
     paddingRight: 10,
     borderRightWidth: 1,
-    borderRightColor: "#e5e7eb",
+    borderRightColor: "#000000",
   },
   colRight: {
     flex: 1.05,
@@ -64,17 +64,17 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     textTransform: "uppercase",
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#000000",
     paddingBottom: 2,
     marginBottom: 4,
   },
   smallMuted: {
     fontSize: 9,
-    color: "#6b7280",
+    color: "#000000",
   },
   skillChip: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#000000",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -130,7 +130,13 @@ const HybridPdf: React.FC<ResumeDocProps> = ({ data }) => {
     : [];
 
   const flatSkills: string[] = skills.flatMap((group: any) =>
-    Array.isArray(group.items) ? group.items : group.name ? [group.name] : []
+    Array.isArray(group.items)
+      ? group.items
+      : group.name
+      ? [group.name]
+      : typeof group === "string"
+      ? [group]
+      : []
   );
 
   return (
@@ -181,21 +187,25 @@ const HybridPdf: React.FC<ResumeDocProps> = ({ data }) => {
                   <View key={idx} style={styles.eduItem}>
                     <View style={styles.expHeaderRow}>
                       <Text style={{ fontWeight: 700 }}>
-                        {ed.school || ed.institution || "School Name"}
+                        {ed.institution || ed.school || "Institution"}
                       </Text>
-                      {(ed.startDate || ed.endDate) && (
+                      {ed.graduationDate && (
                         <Text style={styles.smallMuted}>
-                          {(ed.startDate || "") +
-                            " – " +
-                            (ed.endDate || "Present")}
+                          Graduation: {ed.graduationDate}
                         </Text>
                       )}
                     </View>
-                    {ed.degree && (
+
+                    {(ed.degree || ed.fieldOfStudy || ed.field) && (
                       <Text style={styles.smallMuted}>
-                        {ed.degree}
-                        {ed.field ? ` · ${ed.field}` : ""}
+                        {[ed.degree, ed.fieldOfStudy || ed.field]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </Text>
+                    )}
+
+                    {ed.gpa && (
+                      <Text style={styles.smallMuted}>GPA: {ed.gpa}</Text>
                     )}
                   </View>
                 ))}
@@ -208,50 +218,55 @@ const HybridPdf: React.FC<ResumeDocProps> = ({ data }) => {
             {experience.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionHeader}>Experience</Text>
-                {experience.map((exp: any, idx: number) => (
-                  <View key={idx} style={styles.expItem}>
-                    <View style={styles.expHeaderRow}>
-                      <View>
-                        <Text style={styles.expTitle}>
-                          {exp.title || exp.position || "Role"}
-                        </Text>
-                        {(exp.company || exp.employer) && (
-                          <Text style={styles.smallMuted}>
-                            {exp.company || exp.employer}
-                          </Text>
-                        )}
-                      </View>
-                      {(exp.startDate || exp.endDate || exp.location) && (
+                {experience.map((exp: any, idx: number) => {
+                  const bullets = exp.highlights || exp.bullets;
+                  return (
+                    <View key={idx} style={styles.expItem}>
+                      <View style={styles.expHeaderRow}>
                         <View>
-                          <Text style={styles.smallMuted}>
-                            {(exp.startDate || "") +
-                              " – " +
-                              (exp.endDate || "Present")}
+                          <Text style={styles.expTitle}>
+                            {exp.jobTitle ||
+                              exp.title ||
+                              exp.position ||
+                              "Role"}
                           </Text>
-                          {exp.location && (
+                          {(exp.company || exp.employer) && (
                             <Text style={styles.smallMuted}>
-                              {exp.location}
+                              {exp.company || exp.employer}
                             </Text>
                           )}
                         </View>
-                      )}
-                    </View>
+                        {(exp.startDate || exp.endDate || exp.location) && (
+                          <View>
+                            {(exp.startDate || exp.endDate) && (
+                              <Text style={styles.smallMuted}>
+                                {(exp.startDate || "") +
+                                  " – " +
+                                  (exp.endDate || "Present")}
+                              </Text>
+                            )}
+                            {exp.location && (
+                              <Text style={styles.smallMuted}>
+                                {exp.location}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </View>
 
-                    {Array.isArray(exp.highlights) &&
-                      exp.highlights.length > 0 && (
+                      {Array.isArray(bullets) && bullets.length > 0 && (
                         <View style={styles.bulletList}>
-                          {exp.highlights
-                            .slice(0, 4)
-                            .map((h: string, i: number) => (
-                              <View key={i} style={styles.bulletItem}>
-                                <Text style={styles.bulletDot}>•</Text>
-                                <Text style={styles.bulletText}>{h}</Text>
-                              </View>
-                            ))}
+                          {bullets.slice(0, 4).map((h: string, i: number) => (
+                            <View key={i} style={styles.bulletItem}>
+                              <Text style={styles.bulletDot}>•</Text>
+                              <Text style={styles.bulletText}>{h}</Text>
+                            </View>
+                          ))}
                         </View>
                       )}
-                  </View>
-                ))}
+                    </View>
+                  );
+                })}
               </View>
             )}
 
@@ -268,6 +283,21 @@ const HybridPdf: React.FC<ResumeDocProps> = ({ data }) => {
                         <Text style={styles.smallMuted}>{proj.link}</Text>
                       )}
                     </View>
+
+                    {proj.technologies && (
+                      <Text style={styles.smallMuted}>
+                        Technologies: {Array.isArray(proj.technologies)
+                          ? proj.technologies.join(", ")
+                          : proj.technologies}
+                      </Text>
+                    )}
+
+                    {proj.outcomes || proj.impact ? (
+                      <Text style={styles.smallMuted}>
+                        Outcomes: {proj.outcomes || proj.impact}
+                      </Text>
+                    ) : null}
+
                     {proj.summary && (
                       <Text style={styles.smallMuted}>{proj.summary}</Text>
                     )}

@@ -122,14 +122,45 @@ router.get("/:jobId", async (req, res) => {
       }
 
       let parsedInsights;
-      try {
-        parsedInsights = JSON.parse(cleaned);
-        console.log("✅ Successfully parsed JSON");
-      } catch (parseErr) {
-        console.error("❌ Failed to parse JSON:", parseErr);
-        throw new Error("Failed to parse AI response");
-      }
-
+try {
+  parsedInsights = JSON.parse(cleaned);
+  console.log("✅ Successfully parsed JSON");
+  
+  // ✅ CLEAN MARKDOWN FORMATTING FROM ALL TEXT FIELDS
+  const cleanMarkdown = (text) => {
+      if (typeof text !== 'string') return text;
+      return text.replace(/\*\*/g, '').replace(/\*/g, '');
+    };
+    
+    // Clean all string fields
+    if (parsedInsights.interviewFormat) {
+      parsedInsights.interviewFormat = cleanMarkdown(parsedInsights.interviewFormat);
+    }
+    if (parsedInsights.timeline) {
+      parsedInsights.timeline = cleanMarkdown(parsedInsights.timeline);
+    }
+    if (parsedInsights.interviewerInfo) {
+      parsedInsights.interviewerInfo = cleanMarkdown(parsedInsights.interviewerInfo);
+    }
+    
+    // Clean arrays
+    if (Array.isArray(parsedInsights.processStages)) {
+      parsedInsights.processStages = parsedInsights.processStages.map(cleanMarkdown);
+    }
+    if (Array.isArray(parsedInsights.commonQuestions)) {
+      parsedInsights.commonQuestions = parsedInsights.commonQuestions.map(cleanMarkdown);
+    }
+    if (Array.isArray(parsedInsights.preparationTips)) {
+      parsedInsights.preparationTips = parsedInsights.preparationTips.map(cleanMarkdown);
+    }
+    if (Array.isArray(parsedInsights.successTips)) {
+      parsedInsights.successTips = parsedInsights.successTips.map(cleanMarkdown);
+    }
+    
+  } catch (parseErr) {
+    console.error("❌ Failed to parse JSON:", parseErr);
+    throw new Error("Failed to parse AI response");
+  }
       // Validate and set defaults
       const requiredKeys = [
         "processStages", "commonQuestions", "interviewFormat",
