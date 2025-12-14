@@ -1,7 +1,13 @@
 node_modules/
 dist/
 *.env
+.env.*
+.env.development
+.env.staging
+.env.production
 /application/server/node_modules
 /application/client/node_modules
 application/server/uploads/
 !application/server/uploads/.gitkeep
+logs/
+*.log

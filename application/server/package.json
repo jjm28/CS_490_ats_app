@@ -4,8 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --env=node --coverage",
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "cross-env NODE_ENV=development node --watch server.js",
+    "start": "cross-env NODE_ENV=production node server.js",
+    "start:staging": "cross-env NODE_ENV=staging node server.js"
   },
   "keywords": [],
   "author": "",
@@ -47,6 +48,7 @@
     "tz-lookup": "^6.1.25",
     "uuid": "^13.0.0",
     "web-push": "^3.6.7",
+    "winston": "^3.19.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {

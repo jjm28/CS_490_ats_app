@@ -1,4 +1,5 @@
-import "dotenv/config";
+import "./config/env.js";
+import logger from "./config/logger.js";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -14,7 +15,7 @@ import { setupSalaryRefreshCron } from "./services/salaryRefreshCron.js";
 import { setupGitHubSyncCron } from "./services/githubSyncJob.js";
 
 // 🧩 Middleware
-import { attachDevUser } from './middleware/devUser.js';
+import { attachDevUser } from "./middleware/devUser.js";
 import { attachUserFromHeaders } from "./middleware/auth.js";
 //
 // ===============================
@@ -48,11 +49,11 @@ import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 // 📊 INTERVIEW & COMPANY RESEARCH
 import interviewRoutes from "./routes/interview-insights.js";
 import interviewAnalyticsRoutes from "./routes/interviews.js";
-import companyResearch from './routes/company-research.js';
+import companyResearch from "./routes/company-research.js";
 import interviewQuestions from "./routes/interview-questions.js";
 import coachingInsights from "./routes/coachinginsights.js";
 import practiceSessions from "./routes/practicesession.js";
-import writingPracticeRoutes from './routes/writingPractice.js';
+import writingPracticeRoutes from "./routes/writingPractice.js";
 import interviewPredictionRoutes from "./routes/interview-success-prediction.js";
 
 // 📄 RESUME + COVER LETTERS
@@ -75,8 +76,8 @@ import supportersRoutes from "./routes/supporters.js";
 import networkingRoutes from "./routes/networking.js";
 import outreachRoutes from "./routes/outreach.js";
 import advisorRoutes from "./routes/advisor.routes.js";
-import linkedinRoutes from './routes/linkedin.js';
- import informationalRoutes from "./routes/informational.js";
+import linkedinRoutes from "./routes/linkedin.js";
+import informationalRoutes from "./routes/informational.js";
 
 // 🎯 GOALS & PRODUCTIVITY
 import goalsRoutes from "./routes/goals.js";
@@ -93,9 +94,8 @@ import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 //import outreachRoutes from "./routes/outreach.js";
 import cohortRoutes from "./routes/cohort.routes.js";
 import enterpriseRoutes from "./routes/enterprise.routes.js";
-import jobseekersRoutes from "./routes/jobseekers.route.js"
+import jobseekersRoutes from "./routes/jobseekers.route.js";
 import organizationRoutes from "./routes/organization.routes.js";
-
 
 import teamProgressRouter from "./routes/teamProgress.js";
 
@@ -112,7 +112,7 @@ import successOverview from "./routes/success-overview.js";
 import successSnapshots from "./routes/success-snapshots.js";
 import customReportsRouter from "./routes/customReports.js";
 
-import githubRoutes from "./routes/github.js"
+import githubRoutes from "./routes/github.js";
 import certificationBadgeRouter from "./routes/certification-badge.js";
 
 //
@@ -131,9 +131,10 @@ app.use("/exports", express.static(path.join(__dirname, "exports")));
 
 app.set("baseUrl", BASE);
 
-app.use(cors({
-  origin: CORS_ORIGIN,
-  credentials: true,
+app.use(
+  cors({
+    origin: CORS_ORIGIN,
+    credentials: true,
     allowedHeaders: [
       "Content-Type",
       "Authorization",
@@ -141,7 +142,9 @@ app.use(cors({
       "x-dev-user-id",
       "x-user-role",
       "x-org-id",
-    ],}));
+    ],
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -149,21 +152,32 @@ app.use(cookieParser());
 // 📸 STATIC UPLOADS
 // ===============================
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
-  etag: false,
-  lastModified: false,
-  cacheControl: false,
-  setHeaders: (res) => res.set("Cache-Control", "no-store"),
-}));
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"), {
+    etag: false,
+    lastModified: false,
+    cacheControl: false,
+    setHeaders: (res) => res.set("Cache-Control", "no-store"),
+  })
+);
 
 //
 // ===============================
 // 🚀 START AFTER DB CONNECTS
 // ===============================
 try {
+  logger.info("🔌 Connecting to database...");
   await connectDB();
+  logger.info("✅ Database connected successfully");
+
+  logger.info("📋 Ensuring system templates...");
   await ensureSystemTemplates();
-  startAutomationRunner(); // 🚀 NOW IT STARTS!
+  logger.info("✅ System templates ready");
+
+  logger.info("🤖 Starting automation runner...");
+  startAutomationRunner();
+  logger.info("✅ Automation runner started");
 
   //
   // ===============================
@@ -182,9 +196,8 @@ try {
   app.use("/api/skills", skills);
   app.use("/api/education", education);
   // TEAM ROUTES
-  app.use("/api/teams",teamRoutes);
-  app.use("/api/teams",  teamProgressRouter);
-
+  app.use("/api/teams", teamRoutes);
+  app.use("/api/teams", teamProgressRouter);
 
   // 📂 PROJECTS & CERTIFICATIONS
   app.use("/api/projects", projectsRoutes);
@@ -199,20 +212,19 @@ try {
   app.use("/api/salary/analytics", salaryAnalyticsRoutes);
   // 🚀 START SERVER
 
-
   // Salary CRUD — MUST COME AFTER
   app.use("/api/salary", salaryRoutes);
 
   // 📊 INTERVIEW & COMPANY RESEARCH
   app.use("/api/interview-insights", attachDevUser, interviewRoutes);
   app.use("/api/interviews", interviewAnalyticsRoutes);
-  app.use("/api/company/research", attachDevUser, companyResearch); //interview research 
+  app.use("/api/company/research", attachDevUser, companyResearch); //interview research
   app.use(companyResearch); // stand alone research for ANY company
   app.use("/api/interview-questions", interviewQuestions);
   app.use("/api/coaching-insights", coachingInsights);
   app.use("/api/practice-sessions", practiceSessions);
-  app.use('/api/writing-practice', writingPracticeRoutes);
-  app.use('/api/interview', interviewAnalyticsRoutes);
+  app.use("/api/writing-practice", writingPracticeRoutes);
+  app.use("/api/interview", interviewAnalyticsRoutes);
   app.use("/api/interview-predictions", interviewPredictionRoutes);
 
   // 📄 RESUMES + TEMPLATES
@@ -222,7 +234,7 @@ try {
   app.use("/api/resume-versions", resumeVersionsRouter);
   app.use("/api/coverletter-versions", coverletterVersionsRouter);
 
-  //networking 
+  //networking
   app.use("/api/networking", networkingRoutes);
   app.use("/api/networking", networkingDiscovery);
   app.use("/api/networking/outreach", outreachRoutes);
@@ -232,15 +244,17 @@ try {
   //app.use("/api/referrals/sources", referralSources);
 
   //linkedin
-  app.use('/api/linkedin', linkedinRoutes);
+  app.use("/api/linkedin", linkedinRoutes);
 
   // ⚙️ AUTOMATION
   app.use("/api/automation", automationRoutes);
 
   // 🔔 NOTIFICATIONS
+  logger.info('⏰ Setting up notification cron jobs...');
   setupNotificationCron();
   setupSalaryRefreshCron();
   setupGitHubSyncCron();
+  logger.info('✅ Cron jobs configured');
 
   app.use("/api/notifications", notificationRoutes);
 
@@ -251,8 +265,6 @@ try {
   app.use("/api/informational", informationalRoutes);
   app.use("/api/mentors", mentorRoutes);
 
-
-
   // 🎯 GOALS & PRODUCTIVITY
   app.use("/api/goals", attachDevUser, goalsRoutes);
   app.use("/api/smart-goals", attachDevUser, smartGoalsRoutes);
@@ -261,16 +273,20 @@ try {
   // 📈 ANALYTICS
   app.use("/api/success-analysis", successAnalysisRouter);
   app.use("/api/success-patterns", successPatternsRouter);
-  app.use("/api/competitive-analysis", attachDevUser, competitiveAnalysisRouter);
+  app.use(
+    "/api/competitive-analysis",
+    attachDevUser,
+    competitiveAnalysisRouter
+  );
 
   // 🤝 JOB SEARCH SHARING
   app.use("/api/job-search", jobSearchSharingRoutes);
   app.use("/api/advisors", advisorRoutes);
-  
-    app.use("/api/public",attachUserFromHeaders, jobseekersRoutes);
+
+  app.use("/api/public", attachUserFromHeaders, jobseekersRoutes);
   app.use("/api/enterprise", attachUserFromHeaders, cohortRoutes);
-  app.use("/api/enterprise",attachUserFromHeaders, enterpriseRoutes);
-app.use("/api/org",attachUserFromHeaders, organizationRoutes);
+  app.use("/api/enterprise", attachUserFromHeaders, enterpriseRoutes);
+  app.use("/api/org", attachUserFromHeaders, organizationRoutes);
 
   // 📈 MARKET INTELLIGENCE (UC-102)
   app.use("/api/market", attachDevUser, marketRoutes);
@@ -284,15 +300,14 @@ app.use("/api/org",attachUserFromHeaders, organizationRoutes);
   app.use("/api/success", successOverview);
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);
-  app.use("/api/github",githubRoutes)
+  app.use("/api/github", githubRoutes);
   // Health check
-  app.get('/healthz', (_req, res) => res.sendStatus(204));
+  app.get("/healthz", (_req, res) => res.sendStatus(204));
   app.listen(PORT, () => {
-    console.log(`Server running on ${BASE}`);
-    console.log(`Server connected to ${DB}`);
+    logger.info(`Server running on ${BASE}`);
+    logger.info(`Server connected to ${DB}`);
   });
-
 } catch (err) {
-  console.error("Failed to start server:", err);
+  logger.error("Failed to start server:", err);
   process.exit(1);
 }
