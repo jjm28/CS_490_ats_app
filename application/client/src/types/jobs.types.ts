@@ -10,6 +10,18 @@ export interface Contact {
   linkedIn?: string;
   notes?: string;
 }
+export interface JobGeo {
+  lat: number;
+  lng: number;
+}
+
+export interface JobCommute {
+  distanceKm: number;
+  durationMinutes: number;
+}
+
+export type WorkMode = "remote" | "hybrid" | "onsite";
+
 
 // Main Job interface with updated contact fields
 export interface Job {
@@ -139,6 +151,14 @@ export interface Job {
   // Offer tracking (from schema)
   offerStage?: "Applied" | "Interviewing" | "Offer Received" | "Offer Accepted" | "Offer Declined";
   negotiationOutcome?: "Not attempted" | "Improved" | "No change" | "Worse" | "Lost offer";
+
+   
+
+  // GeoCodeing uc115
+   workMode?: WorkMode;
+  geo?: JobGeo;
+  commute?: JobCommute;
+  timeZone?: string;
 }
 
 // Job status enum
@@ -184,6 +204,14 @@ export const STATUS_DISPLAY: Record<JobStatus, string> = {
   offer: "Offer",
   rejected: "Rejected",
 };
+const ALL_WORK_MODES: WorkMode[] = ["remote", "hybrid", "onsite"];
+
+export const WorkMode_DISPLAY: Record<WorkMode, string> = {
+  remote: "Remote",
+  hybrid: "Hybrid",
+  onsite: "Onsite",
+
+};
 
 // Reverse mapping - for converting display text to status value
 export const STATUS_VALUE: Record<string, JobStatus> = {
@@ -193,6 +221,13 @@ export const STATUS_VALUE: Record<string, JobStatus> = {
   "Interview": "interview",
   "Offer": "offer",
   "Rejected": "rejected",
+};
+
+export const WorkMode_VALUE: Record<string, WorkMode> = {
+  "Remote": "remote",
+  "Hybrid": "hybrid",
+  "Phone Onsite": "onsite",
+
 };
 
 // Status order for pipeline view
