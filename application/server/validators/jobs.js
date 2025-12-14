@@ -255,7 +255,21 @@ export async function validateJobUpdate(input) {
     return { ok: false, status: 422, error: { code: 'VALIDATION_FAILED', fields: errors } };
   }
 
-  const value = { ...input };
+    // ✅ FIX: Strip out match-related fields before returning
+  const {
+    matchScore,
+    matchBreakdown,
+    skillGaps,
+    matchedSkills,
+    suggestions,
+    matchTimestamp,
+    matchHistory,
+    skillsMatched,  // ← Also from the GET route enhancement
+    skillsMissing,  // ← Also from the GET route enhancement
+    ...safeInput
+  } = input;
+
+  const value = { ...safeInput };
   if (input.applicationDeadline) value.applicationDeadline = new Date(input.applicationDeadline);
 
   return { ok: true, value };
