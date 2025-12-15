@@ -90,7 +90,7 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
     const fetchJobs = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/jobs', {
+        const response = await fetch(`${API_BASE}/api/jobs`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -175,7 +175,7 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/company/research/save-research', {
+      const response = await fetch(`${API_BASE}/api/company/research/save-research`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

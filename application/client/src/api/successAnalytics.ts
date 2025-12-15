@@ -1,9 +1,10 @@
 // src/api/successAnalytics.ts
 
+import API_BASE from "../utils/apiBase";
+
 // Match the same base URL logic as src/api/resumes.ts
 const API =
-  (import.meta as any).env?.VITE_API_URL ||
-  `${(import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5050"}/api`;
+  `${API_BASE}/api`;
 
 // Build headers similar to getAuthHeaders() in resumes.ts
 function buildBaseHeaders(): Record<string, string> {

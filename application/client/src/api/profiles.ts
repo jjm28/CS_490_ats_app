@@ -1,11 +1,6 @@
 // src/api/profiles.ts
 import { v4 as uuidv4 } from "uuid";
-
-// support either env name
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_BASE ||
-  "http://localhost:5050";
+import API_BASE from "../utils/apiBase";
 
 function getDevUserId(): string {
   // Keep one per browser (matches your dev middleware behavior)
