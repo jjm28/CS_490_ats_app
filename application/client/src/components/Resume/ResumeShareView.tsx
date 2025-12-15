@@ -8,7 +8,7 @@ import {
 } from "../../components/Resume";
 import { fetchSharedResume, type GetSharedResumeResponse, type ResumeData, type TemplateKey } from "../../api/resumes";
 import API_BASE from "../../utils/apiBase";
-const API_URL = "http://localhost:5050/api/resumes";
+const API_URL = `${API_BASE}/api/resumes`;
 
 const API =
   (import.meta as any).env?.VITE_API_URL ||

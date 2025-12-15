@@ -342,7 +342,7 @@ router.post("/generate-coverletterai", async (req, res) => {
     let CompanyInfo;
     try {
       const resCompany = await axios.post(
-        "http://localhost:5050/api/company/research",
+        `${process.env.SERVER_BASE_URL || 'http://localhost:5173'}/api/company/research`,
         { companyName: Jobdata.company }
       );
       CompanyInfo = resCompany.data;

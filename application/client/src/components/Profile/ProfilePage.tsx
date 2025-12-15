@@ -113,7 +113,7 @@ function ProfilePage() {
     if (!password) return;
 
     try {
-      const response = await fetch("http://localhost:5050/api/auth/delete", {
+      const response = await fetch(`${API_BASE}/api/auth/delete`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

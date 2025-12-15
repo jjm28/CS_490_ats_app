@@ -67,7 +67,8 @@ import {
 import type { WorkflowStatus } from "../../api/coverletter";
 import type { ReviewerMeta } from "../Coverletter/MiniReviewProgress";
 import MiniReviewProgress from "../Coverletter/MiniReviewProgress";
-const API_URL = "http://localhost:5050/api/resumes";
+import API_BASE from "../../utils/apiBase";
+const API_URL = `${API_BASE}/api/resumes`;
 
 // ---- simple modal ----
 function Modal({

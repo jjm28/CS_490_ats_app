@@ -11,7 +11,7 @@ import { fetchSharedCoverletter } from "../../api/coverletter";
 import type { CoverletterFeedbackComment, GetSharedCoverletterResponse, SharingMeta } from "../../api/coverletter";
 import API_BASE from "../../utils/apiBase";
 import { authHeaders } from "../../api/coverletter";
-const API_URL = "http://localhost:5050/api/coverletter";
+const API_URL = `${API_BASE}/api/coverletter`;
 
 // ----------------------
 // Types your API returns

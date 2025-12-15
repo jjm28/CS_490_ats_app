@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Send, TrendingUp, RefreshCw, Briefcase } from 'lucide-react';
 import '../../styles/InterviewStyles/ResponseCoach.css';
+import API_BASE from '../../utils/apiBase';
 
 interface Job {
   _id: string;
@@ -98,7 +99,7 @@ export default function InterviewCoach({ onBack }: ResponseCoachProps) {
         return;
       }
 
-      const res = await fetch(`http://localhost:5050/api/jobs`, {
+      const res = await fetch(`${API_BASE}/api/jobs`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -124,7 +125,7 @@ export default function InterviewCoach({ onBack }: ResponseCoachProps) {
         return;
       }
 
-      const res = await fetch(`http://localhost:5050/api/interview-questions/${jobId}`, {
+      const res = await fetch(`${API_BASE}/api/interview-questions/${jobId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -188,7 +189,7 @@ export default function InterviewCoach({ onBack }: ResponseCoachProps) {
         return;
       }
 
-      const res = await fetch(`http://localhost:5050/api/coaching-insights/analyze`, {
+      const res = await fetch(`${API_BASE}/api/coaching-insights/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
