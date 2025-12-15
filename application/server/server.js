@@ -10,7 +10,7 @@ import { fileURLToPath } from "url";
 import { connectDB } from "./db/connection.js";
 import { ensureSystemTemplates } from "./services/templates.service.js";
 import { startAutomationRunner } from "./utils/automationRunner.js";
-import { setupNotificationCron } from "./jobs/notificationcron.js";
+import { setupNotificationCron, setupApplicationSchedulerCron } from "./jobs/notificationcron.js";
 import { setupSalaryRefreshCron } from "./services/salaryRefreshCron.js";
 import { setupGitHubSyncCron } from "./services/githubSyncJob.js";
 
@@ -114,6 +114,10 @@ import customReportsRouter from "./routes/customReports.js";
 
 import githubRoutes from "./routes/github.js";
 import certificationBadgeRouter from "./routes/certification-badge.js";
+
+import applicationSchedulerRoutes from "./routes/applicationScheduler.js";
+
+
 
 //
 // ===============================
@@ -252,6 +256,7 @@ try {
   // 🔔 NOTIFICATIONS
   logger.info('⏰ Setting up notification cron jobs...');
   setupNotificationCron();
+  setupApplicationSchedulerCron(); //added for application notifications
   setupSalaryRefreshCron();
   setupGitHubSyncCron();
   logger.info('✅ Cron jobs configured');
@@ -301,6 +306,8 @@ try {
       endpoints: "/api/*"
     });
   });
+  // APPLICATION NOTIFICATION SERVICE
+  app.use("/api/application-scheduler", attachDevUser, applicationSchedulerRoutes);
 
   // Health check
   // ❤️ Health Check
