@@ -1,4 +1,5 @@
 import type { ResumeFeedbackComment } from "../components/Resume/ResumeShareView";
+import API_BASE from "../utils/apiBase";
 import type { ReviewerPermission, SharingMeta, WorkflowStatus } from "./coverletter";
 
 // Minimal client wrapper for your existing resume routes.
@@ -46,8 +47,7 @@ export type ResumeSummary = {
 };
 
 const API =
-  (import.meta as any).env?.VITE_API_URL ||
-  `${(import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5050"}/api`;
+  `${API_BASE}/api`;
 
 export default function getAuthHeaders() {
   const raw = localStorage.getItem("authUser");

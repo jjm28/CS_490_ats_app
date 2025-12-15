@@ -1,9 +1,10 @@
 // src/api/customReports.ts
 
+import API_BASE from "../utils/apiBase";
+
 // Match the same base URL logic as src/api/successAnalytics.ts / resumes.ts
 const API =
-  import.meta.env?.VITE_API_URL ||
-  `${import.meta.env?.VITE_API_BASE_URL || "http://localhost:5050"}/api`;
+  `${API_BASE}/api`;
 
 function buildAuthHeaders(): Record<string, string> {
   const raw = localStorage.getItem("authUser");

@@ -1,9 +1,10 @@
 // src/api/productivity.ts
 
+import API_BASE from "../utils/apiBase";
+
 // Match how other APIs build the base URL
 const API =
-  (import.meta as any).env?.VITE_API_URL ||
-  `${(import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5050"}/api`;
+  `${API_BASE}/api`;
 
 function getProductivityHeaders() {
   // Start with the same pattern as getAuthHeaders in resumes.ts
