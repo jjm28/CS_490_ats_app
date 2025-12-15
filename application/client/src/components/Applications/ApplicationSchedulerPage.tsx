@@ -1,3 +1,5 @@
+// src/components/Applications/ApplicationSchedulerPage.tsx
+
 import React, { useEffect, useMemo, useState } from "react";
 import {
   type ApplicationSchedule,
@@ -81,10 +83,7 @@ function tzParts(date: Date, timeZone: string) {
   };
 }
 
-function zonedToUtcDate(
-  args: { year: number; month: number; day: number; hour: number; minute: number },
-  timeZone: string
-) {
+function zonedToUtcDate(args: { year: number; month: number; day: number; hour: number; minute: number }, timeZone: string) {
   let guess = new Date(Date.UTC(args.year, args.month - 1, args.day, args.hour, args.minute, 0));
   for (let i = 0; i < 2; i++) {
     const p = tzParts(guess, timeZone);
@@ -129,10 +128,7 @@ function isoToZonedFields(iso: string, timeZone: string) {
   };
 }
 
-function fieldsToIso(
-  fields: { date: string; hour: string; minute: string; ampm: "AM" | "PM" },
-  timeZone: string
-) {
+function fieldsToIso(fields: { date: string; hour: string; minute: string; ampm: "AM" | "PM" }, timeZone: string) {
   const [y, m, d] = fields.date.split("-").map((x) => Number(x));
   if (!y || !m || !d) return null;
 
@@ -171,10 +167,14 @@ export default function ApplicationSchedulerPage() {
 
   const jobMap = useMemo(() => {
     const m = new Map<string, JobLite>();
+
+    // Use both collections so the table can resolve jobId -> label
+    // even when listJobsLite() isn't returning what you expect.
     for (const j of jobsAll) m.set(j._id, j);
     for (const j of jobsEligible) m.set(j._id, j);
+
     return m;
-  }, [jobsAll, jobsEligible]);
+    }, [jobsAll, jobsEligible]);
 
   const scheduledJobIds = useMemo(() => {
     const ids = new Set<string>();
@@ -185,6 +185,7 @@ export default function ApplicationSchedulerPage() {
   }, [schedules]);
 
   const eligibleJobsFiltered = useMemo(() => {
+    // Avoid duplicates: if a job is already scheduled, remove it from the selectable list.
     return jobsEligible.filter((j) => !scheduledJobIds.has(j._id));
   }, [jobsEligible, scheduledJobIds]);
 
@@ -218,44 +219,48 @@ export default function ApplicationSchedulerPage() {
         getDefaultNotificationEmail(),
       ]);
 
-      const scheduleJobIdsSet = new Set((sc.items || []).map((s) => s.jobId));
-      const missingJobIds = Array.from(scheduleJobIdsSet).filter(
+      const scheduleJobIds = new Set((sc.items || []).map((s) => s.jobId));
+        const missingJobIds = Array.from(scheduleJobIds).filter(
         (id) => !jsAll.some((j) => j._id === id)
-      );
-
-      if (missingJobIds.length > 0) {
-        const fetchedJobs = await Promise.all(
-          missingJobIds.map(async (id) => {
-            try {
-              const token = localStorage.getItem("token");
-              const devUserId =
-                localStorage.getItem("x-dev-user-id") ||
-                sessionStorage.getItem("x-dev-user-id");
-
-              const headers: Record<string, string> = {
-                "Content-Type": "application/json",
-              };
-              if (token) headers.Authorization = `Bearer ${token}`;
-              if (devUserId) headers["x-dev-user-id"] = devUserId;
-
-              const res = await fetch(`http://localhost:5050/api/jobs/${id}`, {
-                method: "GET",
-                credentials: "include",
-                headers,
-              });
-
-              if (!res.ok) return null;
-              return await res.json();
-            } catch {
-              return null;
-            }
-          })
         );
-        jsAll.push(...fetchedJobs.filter(Boolean));
-      }
+
+        // If there are missing jobs, fetch them individually
+        if (missingJobIds.length > 0) {
+        const fetchedJobs = await Promise.all(
+            missingJobIds.map(async (id) => {
+                try {
+                const token = localStorage.getItem("token");
+                const devUserId =
+                    localStorage.getItem("x-dev-user-id") ||
+                    sessionStorage.getItem("x-dev-user-id");
+
+                const headers: Record<string, string> = {
+                    "Content-Type": "application/json",
+                };
+                if (token) headers.Authorization = `Bearer ${token}`;
+                if (devUserId) headers["x-dev-user-id"] = devUserId;
+
+                const res = await fetch(`http://localhost:5050/api/jobs/${id}`, {
+                    method: "GET",
+                    credentials: "include",
+                    headers,
+                });
+
+                if (!res.ok) return null;
+                return await res.json();
+                } catch {
+                return null;
+                }
+            })
+            );
+                    jsAll.push(...fetchedJobs.filter(Boolean));
+        }
 
       setBestPractices(bp);
 
+      // ✅ Keep a stable job cache for table labels:
+      // listEligibleJobsLite() will REMOVE the job once it becomes scheduled,
+      // so we merge jsAll + elig (and jsAll may be empty depending on /jobs?lite=1 response).
       const mergedJobs = [...(jsAll || []), ...(elig || [])].filter((j, idx, arr) => {
         const id = j?._id;
         return !!id && arr.findIndex((x) => x?._id === id) === idx;
@@ -278,25 +283,27 @@ export default function ApplicationSchedulerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Poll scheduled items to keep status in sync (e.g., cron submitted/expired)
   useEffect(() => {
     const t = setInterval(async () => {
       try {
-        const r = await listSchedules();
+        const r = await listSchedules(); // ✅ fetch ALL statuses
         setSchedules(r.items || []);
       } catch {
-        // ignore
+        // ignore (non-blocking)
       }
     }, 15000);
 
     return () => clearInterval(t);
   }, []);
 
-  async function onCreateSchedule(payload: any) {
+   async function onCreateSchedule(payload: any) {
     setMutating(true);
     setError(null);
     try {
       const created = await createSchedule(payload);
 
+      // ✅ Cache the selected job so the table can still label it after eligible list refresh removes it
       const createdJobId = payload?.jobId;
       const cachedJob =
         (created as any)?.job ||
@@ -310,6 +317,7 @@ export default function ApplicationSchedulerPage() {
         });
       }
 
+      // optimistic add + then refresh eligible list
       setSchedules((prev) => [created, ...prev]);
 
       const [elig, st] = await Promise.all([
@@ -346,6 +354,7 @@ export default function ApplicationSchedulerPage() {
       const updated = await submitNow(scheduleId, { note: "manual submit-now (UI)" });
       setSchedules((prev) => prev.map((p) => (p._id === scheduleId ? updated : p)));
 
+      // job status may change -> refresh all jobs + eligible + stats
       const [jsAll, elig, st] = await Promise.all([
         listJobsLite(),
         listEligibleJobsLite(),
@@ -358,6 +367,7 @@ export default function ApplicationSchedulerPage() {
       });
 
       setJobsAll(mergedJobs);
+      setJobsAll(jsAll);
       setJobsEligible(elig);
       setStats(st);
     } catch (e: any) {
@@ -543,11 +553,12 @@ export default function ApplicationSchedulerPage() {
           Your submission timing & response patterns
         </div>
         <SubmissionTimeStatsPanel stats={stats} />
+        
       </div>
-
-      {/* Calendar */}
       <div className="rounded-md border bg-white p-4">
-        <div className="text-sm font-semibold text-gray-900 mb-3">Calendar</div>
+        <div className="text-sm font-semibold text-gray-900 mb-3">
+          Calendar
+        </div>
         <ScheduleCalendar schedules={schedules} jobMap={jobMap} />
       </div>
     </div>
@@ -602,8 +613,7 @@ function ScheduleRow(props: {
       <td className="px-3 py-2">
         {!editing ? (
           <div className="text-gray-900">
-            {formatInTimeZone(displayTimeIso, tz)}{" "}
-            <span className="text-xs text-gray-600">({tz})</span>
+            {formatInTimeZone(s.scheduledAt, tz)} <span className="text-xs text-gray-600">({tz})</span>
           </div>
         ) : (
           <div className="space-y-2">
@@ -614,6 +624,7 @@ function ScheduleRow(props: {
                 const next = e.target.value;
                 setEditTz(next);
 
+                // Re-derive display fields in the new TZ from the same ISO time
                 const f = isoToZonedFields(s.scheduledAt, next);
                 if (f) setFields(f);
               }}
@@ -706,6 +717,7 @@ function ScheduleRow(props: {
             <>
               {formatInTimeZone(s.deadlineAt, tz)}{" "}
               <span className="text-xs text-gray-600">({tz})</span>
+              {formatInTimeZone(s.deadlineAt, tz)} <span className="text-xs text-gray-600">({tz})</span>
             </>
           ) : (
             "—"
