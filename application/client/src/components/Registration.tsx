@@ -11,6 +11,7 @@ import { setAuth } from "../utils/auth";
 import logo from "../assets/img/logos/ontrac-trans-1.png";
 import Button from "./StyledComponents/Button";
 import "../styles/StyledComponents/FormInput.css";
+import API_BASE from "../utils/apiBase";
 
 type RoleOptionKey =
   | "job_seeker"
@@ -60,9 +61,9 @@ function Registration() {
     }
     return null;
   };
-  const go = () => (window.location.href = "http://localhost:5050/api/auth/google/login");
-  const mi = () => (window.location.href = "http://localhost:5050/api/auth/microsoft/login");
-  const li = () => (window.location.href = "http://localhost:5050/api/auth/linkedin/login");
+  const go = () => (window.location.href = `${API_BASE}/api/auth/google/login`);
+  const mi = () => (window.location.href = `${API_BASE}/api/auth/microsoft/login`);
+  const li = () => (window.location.href = `${API_BASE}/api/auth/linkedin/login`);
 
   const onBlurEmail = () => {
     setErrEmail(validateEmail(email));

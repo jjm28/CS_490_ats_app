@@ -293,6 +293,15 @@ try {
 
   app.use("/api/referrals", referralRoutes);
 
+  // Root route - confirms API is running
+  app.get("/", (_req, res) => {
+    res.json({ 
+      message: "OnTrac API is running", 
+      version: "1.0.0",
+      endpoints: "/api/*"
+    });
+  });
+
   // Health check
   // ❤️ Health Check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
