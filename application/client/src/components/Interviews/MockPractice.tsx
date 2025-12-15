@@ -6,6 +6,7 @@ import TechnicalPrep from "./TechnicalPrep";
 
 import '../../styles/InterviewStyles/MockPractice.css';
 import { useInterviewPredictionSync } from '../../hooks/useInterviewPredictionSync';
+import API_BASE from '../../utils/apiBase';
 
 type InterviewStep =
   | 'type-select'
@@ -74,7 +75,7 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    fetch('/api/jobs', {
+    fetch(`${API_BASE}/api/jobs`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -89,7 +90,7 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
   ): Promise<string[]> => {
     const token = localStorage.getItem('token');
     
-    const response = await fetch('/api/interview-insights/generate-questions', {
+    const response = await fetch(`${API_BASE}/api/interview-insights/generate-questions`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -251,7 +252,7 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
     }
 
     try {
-      const response = await fetch('/api/practice-sessions/save', {
+      const response = await fetch(`${API_BASE}/api/practice-sessions/save`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -285,7 +286,8 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
     } catch (err) {
       console.error('Error saving session:', err);
       setIsSaving(false);
-      alert(`Failed to save session: ${err.message}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Failed to save session: ${errorMessage}`);
       return false;
     }
   };
@@ -500,7 +502,14 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
       </div>
     );
   }
-  if (step === 'technical-prep') { return ( <TechnicalPrep onBack={() => setStep('job-select')} jobTitle={role} company={company} jobId={selectedJobId} /> ); }
+  if (step === 'technical-prep') { return ( 
+  <TechnicalPrep 
+  onBack={() => setStep('job-select')} 
+  jobTitle={role} 
+  company={company} 
+  jobId={selectedJobId} 
+  jobDescription={''}
+  /> ); }
   if (step === 'summary') {
     return (
       <div className="mock-interview-container">
@@ -525,7 +534,7 @@ const MockPractice: React.FC<MockPracticeProps> = ({ onBack }) => {
               <div key={idx} className="result-item">
                 <div className="result-header">
                   <span className="result-question">Q{idx + 1}: {result.question}</span>
-                  <span className={`result-score ${result.score >= 70 ? 'good' : result.score >= 50 ? 'okay' : 'poor'}`}>
+                  <span className={`result-score ${result.score ? (result.score >= 70 ? 'good' : result.score >= 50 ? 'okay' : 'poor') : 'no score'}`}>
                     {result.score}/100
                   </span>
                 </div>

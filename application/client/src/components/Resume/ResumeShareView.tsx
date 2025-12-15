@@ -11,8 +11,7 @@ import API_BASE from "../../utils/apiBase";
 const API_URL = `${API_BASE}/api/resumes`;
 
 const API =
-  (import.meta as any).env?.VITE_API_URL ||
-  `${(import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5050"}/api`;
+  `${API_BASE}/api`;
 
 function getAuthHeaders() {
   const raw = localStorage.getItem("authUser");

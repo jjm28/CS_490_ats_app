@@ -4,6 +4,7 @@ import {
   startProductivitySession,
   endProductivitySession,
 } from "../../api/productivity";
+import API_BASE from "../../utils/apiBase";
 
 type JobOpportunity = {
   _id: string;
@@ -90,7 +91,7 @@ export default function SalaryResearchPage() {
           return;
         }
 
-        const jobRes = await fetch("/api/jobs", {
+        const jobRes = await fetch(`${API_BASE}/api/jobs`, {
           headers: { Authorization: `Bearer ${token}` },
           signal: abortController.signal,
         });
@@ -107,7 +108,7 @@ export default function SalaryResearchPage() {
           fetchedJobs.add(job._id);
           
           try {
-            const salaryRes = await fetch(`/api/salary/${job._id}`, {
+            const salaryRes = await fetch(`${API_BASE}/api/salary/${job._id}`, {
               headers: { Authorization: `Bearer ${token}` },
               signal: abortController.signal,
             });

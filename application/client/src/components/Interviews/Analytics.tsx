@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import '../../styles/InterviewStyles/Analytics.css';
+import API_BASE from "../../utils/apiBase";
 
 // ========================
 // TYPES
@@ -75,7 +76,7 @@ export default function InterviewAnalyticsDashboard() {
         // ============================
         // 1️⃣ FETCH COACHING INSIGHTS
         // ============================
-        const coachingRes = await fetch("/api/coaching-insights");
+        const coachingRes = await fetch(`${API_BASE}/api/coaching-insights`);
         const coachingData: CoachingInsight[] = await coachingRes.json();
 
         const coachingItems: AnalyticsItem[] = coachingData.map((c) => ({
@@ -104,7 +105,7 @@ export default function InterviewAnalyticsDashboard() {
         // 2️⃣ FETCH PRACTICE SESSIONS
         // ============================
         const practiceRes = await fetch(
-          "/api/practice-sessions/sessions"
+          `${API_BASE}/api/practice-sessions/sessions`
         );
         const practiceData: PracticeSession[] = await practiceRes.json();
 
@@ -138,7 +139,7 @@ export default function InterviewAnalyticsDashboard() {
         // ============================
         // 3️⃣ FETCH JOBS
         // ============================
-        const jobsRes = await fetch("/api/jobs");
+        const jobsRes = await fetch(`${API_BASE}/api/jobs`);
         const jobs: Job[] = await jobsRes.json();
 
         // ============================
@@ -147,7 +148,7 @@ export default function InterviewAnalyticsDashboard() {
         const allScheduled: AnalyticsItem[] = [];
 
         for (const job of jobs) {
-          const interviewRes = await fetch(`/api/jobs/${job._id}/interview`);
+          const interviewRes = await fetch(`${API_BASE}/api/jobs/${job._id}/interview`);
           const scheduled: ScheduledInterview[] = await interviewRes.json();
 
           scheduled.forEach((s) =>

@@ -1,6 +1,5 @@
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5050";
-
+import API_BASE from "../utils/apiBase";
 
 function getAuthToken(): string {
   return (

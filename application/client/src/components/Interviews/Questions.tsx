@@ -1,6 +1,7 @@
 // src/pages/Questions.tsx
 import { useEffect, useState } from "react";
 import "../../styles/Questions.css";
+import API_BASE from "../../utils/apiBase";
 
 type Job = {
   _id: string;
@@ -166,7 +167,7 @@ export default function InterviewQuestionsOnly({ onBack }: QuestionsProps) {
     const fetchJobs = async () => {
       try {
         const token = localStorage.getItem("token")?.trim();
-        const res = await fetch("/api/jobs", {
+        const res = await fetch(`${API_BASE}/api/jobs`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -193,7 +194,7 @@ export default function InterviewQuestionsOnly({ onBack }: QuestionsProps) {
         const token = localStorage.getItem("token")?.trim();
         if (!token) throw new Error("No auth token");
 
-        const res = await fetch(`/api/interview-questions/${selectedJobId}`, {
+        const res = await fetch(`${API_BASE}/api/interview-questions/${selectedJobId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

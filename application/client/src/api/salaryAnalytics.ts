@@ -1,8 +1,10 @@
 // client/src/api/salaryAnalytics.ts
 
+import API_BASE from "../utils/apiBase";
+
 export async function getSalaryAnalytics() {
   try {
-    const res = await fetch("/api/salary/analytics", {
+    const res = await fetch(`${API_BASE}/api/salary/analytics`, {
       headers: {
         "Content-Type": "application/json",
         "x-dev-user-id": localStorage.getItem("userId") || localStorage.getItem("devUserId") || "test-user",

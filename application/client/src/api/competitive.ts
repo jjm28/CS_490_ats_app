@@ -1,5 +1,7 @@
 // src/api/competitive.ts
 
+import API_BASE from "../utils/apiBase";
+
 export type TimeSummary = {
   hoursPerWeek: number;
   totalMinutes: number;
@@ -112,7 +114,7 @@ export async function getCompetitiveAnalysis(
   }
 
   const queryString = query.toString();
-  const url = `/api/competitive-analysis${queryString ? `?${queryString}` : ""}`;
+  const url = `${API_BASE}/api/competitive-analysis${queryString ? `?${queryString}` : ""}`;
 
   const res = await fetch(url, {
     method: "GET",
