@@ -153,25 +153,6 @@ Sentry.init({
   environment: import.meta.env.MODE || 'production',
 });
 
-// Add this ONCE in App.tsx, right after Sentry.init
-useEffect(() => {
-  const handleError = (event: ErrorEvent) => {
-    Sentry.captureException(event.error);
-  };
-  
-  const handleRejection = (event: PromiseRejectionEvent) => {
-    Sentry.captureException(event.reason);
-  };
-  
-  window.addEventListener('error', handleError);
-  window.addEventListener('unhandledrejection', handleRejection);
-  
-  return () => {
-    window.removeEventListener('error', handleError);
-    window.removeEventListener('unhandledrejection', handleRejection);
-  };
-}, []);
-
 // Lazy loaded components
 // Resume
 const ResumeEditor = lazy(() => import('./components/Resume/ResumeEditor'));
@@ -225,6 +206,32 @@ function App() {
     }
   };
   const userId = getAuthUserId();
+
+    // Global error handler for uncaught errors
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Uncaught error:', event.error);
+      if (import.meta.env.PROD) {
+        Sentry.captureException(event.error);
+      }
+    };
+    
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled rejection:', event.reason);
+      if (import.meta.env.PROD) {
+        Sentry.captureException(event.reason);
+      }
+    };
+    
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+  
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -235,6 +242,7 @@ function App() {
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
+
   return (
     <>
       {showNavbar && <Nav />}
