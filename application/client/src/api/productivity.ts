@@ -1,9 +1,11 @@
 // src/api/productivity.ts
 
+import API_BASE from "../utils/apiBase";
+import { handleError } from "../utils/errorHandler";
+
 // Match how other APIs build the base URL
 const API =
-  (import.meta as any).env?.VITE_API_URL ||
-  `${(import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5050"}/api`;
+  `${API_BASE}/api`;
 
 function getProductivityHeaders() {
   // Start with the same pattern as getAuthHeaders in resumes.ts
@@ -103,6 +105,7 @@ export async function startProductivitySession(opts: {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    handleError(res, text);
     throw new Error(
       `Failed to start productivity session (${res.status}). ${text}`
     );
@@ -129,6 +132,7 @@ export async function endProductivitySession(opts: {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    handleError(res, text);
     throw new Error(
       `Failed to end productivity session (${res.status}). ${text}`
     );
@@ -156,6 +160,7 @@ export async function getProductivityOverview(opts?: {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    handleError(res, text);
     throw new Error(
       `Failed to load productivity overview (${res.status}). ${text}`
     );

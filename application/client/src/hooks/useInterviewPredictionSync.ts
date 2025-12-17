@@ -1,6 +1,7 @@
 // src/hooks/useInterviewPredictionSync.ts
 import { useCallback } from 'react';
 import { recalculatePrediction } from '../api/interviewPredictions';
+import { handleError } from '../utils/errorHandler';
 
 /**
  * Hook to trigger interview prediction recalculation
@@ -17,6 +18,7 @@ export function useInterviewPredictionSync() {
       await recalculatePrediction(interviewId, jobId);
       console.log('✅ Prediction recalculated successfully');
     } catch (error) {
+      handleError(error, 'Failed to recalculate interview prediction');
       console.error('❌ Failed to recalculate prediction:', error);
       // Don't throw - this is a background operation
     }
@@ -59,6 +61,7 @@ export async function triggerPredictionRecalculation(jobId: string, interviewId:
     await recalculatePrediction(interviewId, jobId);
     console.log('✅ Prediction recalculated successfully');
   } catch (error) {
+    handleError(error);
     console.error('❌ Failed to recalculate prediction:', error);
   }
 }

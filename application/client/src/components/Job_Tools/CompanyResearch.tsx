@@ -9,6 +9,7 @@ import {
   startProductivitySession,
   endProductivitySession,
 } from "../../api/productivity";
+import API_BASE from '../../utils/apiBase.ts';
 
 interface NewsArticle {
   title: string;
@@ -106,7 +107,7 @@ function CompanyResearch() {
     
 
     try {
-      const response = await fetch('http://localhost:5050/api/company/research', {
+      const response = await fetch(`${API_BASE}/api/company/research`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API_BASE from "../../utils/apiBase";
 
 
 type Interaction = {
@@ -20,7 +21,7 @@ export default function AllInteractionsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("http://localhost:5050/api/networking/interactions", {
+        const res = await fetch(`${API_BASE}/api/networking/interactions`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 

@@ -1,5 +1,7 @@
+import API_BASE from "../utils/apiBase";
+
 // Constants
-const API_URL = "http://localhost:5050/api/auth/";
+const API_URL = `${API_BASE}/api/auth/`;
 
 // Interfaces
 export interface Register {

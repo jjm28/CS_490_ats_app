@@ -27,7 +27,8 @@ import type {
 } from "../../api/coverletter";
 import type { Job } from "./hooks/useJobs";
 import type { AIcoverletterPromptResponse } from "../../api/coverletter";
-const API_URL = "http://localhost:5050/api/coverletter";
+import API_BASE from "../../utils/apiBase";
+const API_URL = `${API_BASE}/api/coverletter`;
 import MiniReviewProgress from "./MiniReviewProgress";
 import {
   startProductivitySession,
@@ -813,7 +814,7 @@ export default function CoverletterEditor() {
 
       // FIXED: Use the correct API endpoint
       const res = await fetch(
-        `http://localhost:5050/api/coverletter-versions/${versionId}?userid=${userid}`,
+        `${API_BASE}/api/coverletter-versions/${versionId}?userid=${userid}`,
         {
           headers: {
             "Content-Type": "application/json",

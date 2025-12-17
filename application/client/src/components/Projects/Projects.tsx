@@ -476,6 +476,7 @@ export default function Projects({ onUpdate }: ProjectsProps) {
                     src={proj.mediaUrl}
                     alt={proj.name}
                     className="w-full h-36 object-cover rounded-md"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="w-full h-36 bg-gray-100 rounded-md flex items-center justify-center text-xs text-gray-500">

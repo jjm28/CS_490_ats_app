@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { computeReadability } from "../../utils/readabilityUtils";
+import API_BASE from "../../utils/apiBase";
 
 type Props = {
   value: string[] | string;
@@ -152,7 +153,7 @@ function extractParagraphs() {
       const auth = JSON.parse(localStorage.getItem("authUser") || "{}");
       const token = auth?.token;
 
-      const res = await fetch("http://localhost:5050/api/coverletter/rewrite", {
+      const res = await fetch(`${API_BASE}/api/coverletter/rewrite`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

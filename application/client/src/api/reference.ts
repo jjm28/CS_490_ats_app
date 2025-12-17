@@ -1,4 +1,5 @@
-const API_URL="http://localhost:5050/api/reference/";
+import API_BASE from "../utils/apiBase";
+const API_URL=`${API_BASE}/api/reference/`;
 type AvailabilityStatus = "available" | "limited" | "unavailable" | "other" | "";
 interface RelationshipEntry {
   action: string;

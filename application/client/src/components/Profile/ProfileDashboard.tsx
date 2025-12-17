@@ -414,6 +414,7 @@ const badgeCerts = useMemo(
                         }
                         alt={`${latest.fullName} profile`}
                         className="h-24 w-24 rounded-full object-cover ring-4 ring-white shadow-lg shrink-0"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="h-24 w-24 rounded-full bg-gradient-to-br from-[#357266] to-[#6DA598] ring-4 ring-white shadow-lg flex items-center justify-center text-2xl font-bold text-white shrink-0">
@@ -791,6 +792,7 @@ const badgeCerts = useMemo(
                             }
                             alt={cert.name}
                             className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                            loading="lazy"
                           />
 
                     ) : (

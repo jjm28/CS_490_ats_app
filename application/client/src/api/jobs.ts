@@ -1,6 +1,84 @@
 import API_BASE from "../utils/apiBase";
 import { apiFetch } from "../utils/apiFetch";
 
+// api/jobs.ts
+import type { Job, WorkMode } from "../types/jobs.types";
+
+export interface CommuterPlannerJob {
+  id: string;
+  title: string;
+  company: string;
+  workMode?: WorkMode;
+  location: {
+    raw?: string;
+    normalized?: string;
+    city?: string;
+    state?: string;
+    countryCode?: string;
+    postalCode?: string;
+  };
+  geo: { lat: number; lng: number };
+  commute: { distanceKm: number; durationMinutes: number } | null;
+  timeZone: string | null;
+}
+
+export interface CommuterPlannerHome {
+  location: string | null;
+  geo: { lat: number; lng: number } | null;
+  timeZone: string | null;
+}
+
+export interface CommuterPlannerResponse {
+  home: CommuterPlannerHome | null;
+  jobs: CommuterPlannerJob[];
+}
+
+interface CommuterPlannerFilters {
+  workMode?: WorkMode[];
+  maxDistanceKm?: number;
+  maxDurationMinutes?: number;
+}
+
+export async function fetchCommuterPlannerData(
+  filters: CommuterPlannerFilters,
+  jobId?: string
+): Promise<CommuterPlannerResponse> {
+  const params = new URLSearchParams();
+
+  if (jobId) params.set("jobId", jobId);
+  if (filters.workMode && filters.workMode.length > 0) {
+    params.set("workMode", filters.workMode.join(","));
+  }
+  if (filters.maxDistanceKm != null) {
+    params.set("maxDistanceKm", String(filters.maxDistanceKm));
+  }
+  if (filters.maxDurationMinutes != null) {
+    params.set("maxDurationMinutes", String(filters.maxDurationMinutes));
+  }
+
+  const tokenRaw = localStorage.getItem("authUser");
+  const token = tokenRaw ? JSON.parse(tokenRaw).token : null;
+  const res = await fetch(
+    `${API_BASE}/api/jobs/map?${params.toString()}`,
+    {   method: "GET",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to load commuter planner data");
+  }
+  const data = await res.json()
+console.log(data)
+  return data
+}
+
+
+
 // ==============================
 // 📊 JOB STATS
 // ==============================

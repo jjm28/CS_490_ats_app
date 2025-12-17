@@ -1,10 +1,10 @@
+import * as Sentry from '@sentry/react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import Nav from './components/Nav';
 import HomePage from './components/Homepage';
 import Registration from './components/Registration';
-import Dashboard from './components/Dashboard';
+// import Dashboard from './components/Dashboard';
 import Skills from './components/Skills/Skills';
 import LoginPage from './components/Login_Logout/Login';
 import ProfileDashboard from './components/Profile/ProfileDashboard';
@@ -15,30 +15,30 @@ import Education from './components/Education/Education';
 import AuthCallback from './components/AuthCallback';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-import JobStatsDashboard from "./components/Jobs/JobStatsDashboard";
+// import JobStatsDashboard from "./components/Jobs/JobStatsDashboard";
 import ArchivedJobs from "./components/Jobs/ArchivedJobs";
 
 import EmploymentPage from "./components/Employment/EmploymentPage";
 import EmploymentForm from "./components/Employment/EmploymentForm";
 
-import NewCoverletter from './components/Coverletter/NewCoverletter';
-import CoverletterEditor from './components/Coverletter/CoverletterEditor';
-import Coverletter from './components/Coverletter/Coverletters';
-import ShareView from './components/Coverletter/ShareView';
+// import NewCoverletter from './components/Coverletter/NewCoverletter';
+// import CoverletterEditor from './components/Coverletter/CoverletterEditor';
+// import Coverletter from './components/Coverletter/Coverletters';
+// import ShareView from './components/Coverletter/ShareView';
 
 import PrivateRoute from './components/PrivateRoute';
 import Certifications from './components/Certifications/Certifications';
 import Projects from "./components/Projects/Projects";
 
 import JobsEntry from './components/Jobs/JobsEntry';
-import NewResume from './components/Resume/NewResume';
-import ResumeEditor from './components/Resume/ResumeEditor';
-import Resumes from './components/Resume/Resumes';
-import ResumeShareView from './components/Resume/ResumeShareView';
-import DeadlineCalendar from './components/Jobs/DeadlineCalendar';
-import ApplicationsPage from './components/Applications/ApplicationsPage';
+// import NewResume from './components/Resume/NewResume';
+// import ResumeEditor from './components/Resume/ResumeEditor';
+// import Resumes from './components/Resume/Resumes';
+// import ResumeShareView from './components/Resume/ResumeShareView';
+// import DeadlineCalendar from './components/Jobs/DeadlineCalendar';
+// import ApplicationsPage from './components/Applications/ApplicationsPage';
 import JobDetailsPage from './components/Jobs/JobDetailsPage';
-import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
+// import ApplicationAnalytics from "./components/Applications/ApplicationAnalytics";
 import NotificationSettings from './components/Settings/NotificationSettings';
 
 import './App.css';
@@ -47,7 +47,7 @@ import AutomationRules from "./components/AutomationRules/AutomationRules";
 import RuleForm from "./components/AutomationRules/RuleForm";
 
 import InterviewHome from './components/Interviews/Interview';
-import InterviewInsightsPage from './components/Interviews/InterviewInsights';
+// import InterviewInsightsPage from './components/Interviews/InterviewInsights';
 
 import SalaryResearch from './components/Job_Tools/SalaryResearchPage';
 
@@ -58,7 +58,7 @@ import PeerGroupsPage from './components/Community/PeerGroup/PeerGroupsPage';
 import PeerGroupDiscussionPage from './components/Community/PeerGroup/PeerGroupDiscussionPage';
 import ApplicationSuccess from './components/Analytics/ApplicationSuccess';
 import GoalTracking from './components/Analytics/GoalTracking';
-import InterviewAnalyticsInsights from './components/Analytics/Interview/InterviewInsights';
+// import InterviewAnalyticsInsights from './components/Analytics/Interview/InterviewInsights';
 import MarketTrends from './components/Analytics/MarketTrends';
 import NetworkingROI from './components/Analytics/NetworkingROI';
 import Overview from './components/Analytics/Overview';
@@ -89,7 +89,7 @@ import AllInteractionsPage from './components/Networking/AllInteractionsPage';
 import ImportGoogle from "./components/Networking/ImportGoogle";
 
 import { Toaster } from "react-hot-toast";
-import ReferralDashboard from './components/Referral/ReferralDashboard';
+// import ReferralDashboard from './components/Referral/ReferralDashboard';
 import ReferralTimeline from './components/Referral/ReferralTimeline';
 import ReferralRequestPage from "./components/Referral/ReferralRequestPage";
 import ReferralInsights from './components/Referral/ReferralInsights';
@@ -125,7 +125,7 @@ import CampaignTemplates from "./components/Networking/LinkedIn/CampaignTemplate
 import TeamsPage from "./components/Teams/TeamsPage";
 import TeamDetailPage from "./components/Teams/TeamDetailPage";
 import CreateTeamPage from "./components/Teams/CreateTeamPage";
-import TeamReviewPage from "./components/Teams/TeamReviewPage";
+// import TeamReviewPage from "./components/Teams/TeamReviewPage";
 import CandidateSharingPage from "./components/Teams/CandidateSharingPage";
 import TeamFeedbackPage from "./components/Teams/TeamFeedbackPage";
 import TeamCommentsPage from "./components/Teams/TeamCommentsPage";
@@ -135,7 +135,7 @@ import CustomReportPage from "./components/Analytics/CustomReportPage";
 import NetworkingEventsPage from './components/Networking/NetworkingEventsPage';
 import DiscoverEvents from './components/Networking/DiscoverEvents';
 import EventDetailsPage from './components/Networking/EventDetails';
-import NetworkingAnalyticsPage from './components/Networking/NetworkingAnalyticsPage';
+// import NetworkingAnalyticsPage from './components/Networking/NetworkingAnalyticsPage';
 import InformationalInterviews from './components/Networking/InformationalInterviews';
 import NewInformationalInterview from './components/Networking/NewInformationalInterview';
 import InformationalInterviewDetails from './components/Networking/InformationalInterviewDetails';
@@ -144,6 +144,52 @@ import MentorInvite from './components/Networking/MentorInvite';
 import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
 import SkillCertifications from './components/Certifications/SkillCertifications';
+import { handleError } from './utils/errorHandler';
+// import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
+
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  enabled: !!import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.MODE || 'production',
+});
+
+// Lazy loaded components
+// Resume
+const ResumeEditor = lazy(() => import('./components/Resume/ResumeEditor'));
+const NewResume = lazy(() => import('./components/Resume/NewResume'));
+const Resumes = lazy(() => import('./components/Resume/Resumes'));
+const ResumeShareView = lazy(() => import('./components/Resume/ResumeShareView'));
+
+// Coverletter
+const NewCoverletter = lazy(() => import('./components/Coverletter/NewCoverletter'));
+const CoverletterEditor = lazy(() => import('./components/Coverletter/CoverletterEditor'));
+const Coverletter = lazy(() => import('./components/Coverletter/Coverletters'));
+const ShareView = lazy(() => import('./components/Coverletter/ShareView'));
+
+// Teams
+const TeamReviewPage = lazy(() => import('./components/Teams/TeamReviewPage'));
+
+// Analytics/Charts
+const ApplicationAnalytics = lazy(() => import('./components/Applications/ApplicationAnalytics'));
+const JobStatsDashboard = lazy(() => import('./components/Jobs/JobStatsDashboard'));
+const InterviewAnalyticsInsights = lazy(() => import('./components/Analytics/Interview/InterviewInsights'));
+const NetworkingAnalyticsPage = lazy(() => import('./components/Networking/NetworkingAnalyticsPage'));
+
+// Commuter Planner
+const CommuterPlannerPage = lazy(() => import('./components/Jobs/CommutePlanner/CommuterPlannerPage'));
+
+// Jobs
+// const JobDetailsPage = lazy(() => import('./components/Jobs/JobDetailsPage'));
+const DeadlineCalendar = lazy(() => import('./components/Jobs/DeadlineCalendar'));
+const ApplicationsPage = lazy(() => import('./components/Applications/ApplicationsPage'));
+
+// Interviews
+const InterviewInsightsPage = lazy(() => import('./components/Interviews/InterviewInsights'));
+
+// Secondary Dashboards
+const Dashboard = lazy(() => import('./components/Dashboard'));
+// const NetworkingDashboard = lazy(() => import('./components/Networking/NetworkingDashboard'));
+const ReferralDashboard = lazy(() => import('./components/Referral/ReferralDashboard'));
 
 function App() {
   const location = useLocation();
@@ -155,10 +201,37 @@ function App() {
       return authUser ? JSON.parse(authUser).user?._id : null;
     } catch (error) {
       console.error("Error parsing authUser:", error);
+      handleError(error);
       return null;
     }
   };
   const userId = getAuthUserId();
+
+    // Global error handler for uncaught errors
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Uncaught error:', event.error);
+      if (import.meta.env.PROD) {
+        Sentry.captureException(event.error);
+      }
+    };
+    
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled rejection:', event.reason);
+      if (import.meta.env.PROD) {
+        Sentry.captureException(event.reason);
+      }
+    };
+    
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+  
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -169,6 +242,7 @@ function App() {
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
+
   return (
     <>
       {showNavbar && <Nav />}
@@ -181,7 +255,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/Registration" element={<Registration />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/Dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} /> {/* Protected Routes */}
+          <Route path="/Dashboard" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><Dashboard /></Suspense></PrivateRoute>} />
           <Route path="/Projects" element={<PrivateRoute><Projects /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Skills" element={<PrivateRoute><Skills /></PrivateRoute>} />{/* Protected Routes */}
           <Route path="/Login" element={<LoginPage />} />
@@ -201,26 +275,28 @@ function App() {
           <Route path="/company-research" element={<PrivateRoute><CompanyResearch /></PrivateRoute>} />
           <Route path="/Jobs" element={<PrivateRoute><JobsEntry /></PrivateRoute>} />
           <Route path="/Jobs/Pipeline" element={<PrivateRoute><Navigate to="/Applications" replace /></PrivateRoute>} />
-          <Route path="/Jobs/Calendar" element={<PrivateRoute><DeadlineCalendar /></PrivateRoute>} />
-          <Route path="/coverletter" element={<PrivateRoute><Coverletter /></PrivateRoute>} />
-          <Route path="/newcoverletter" element={<PrivateRoute><NewCoverletter /></PrivateRoute>} />
-          <Route path="/coverletter/editor/:id?" element={<PrivateRoute><CoverletterEditor /></PrivateRoute>} />
-          <Route path="/coverletter/share/:shareid?" element={<PrivateRoute><ShareView /></PrivateRoute>} />
-          <Route path="/resumes" element={<PrivateRoute><Resumes /></PrivateRoute>} />
-          <Route path="/resumes/new" element={<PrivateRoute><NewResume /></PrivateRoute>} />
-          <Route path="/resumes/editor" element={<PrivateRoute><ResumeEditor /></PrivateRoute>} />
-          <Route path="/resumes/share" element={<PrivateRoute><ResumeShareView /></PrivateRoute>} />
-          <Route path="/Jobs/Stats" element={<PrivateRoute><JobStatsDashboard /></PrivateRoute>} />
-          <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
-          <Route path="/networking/import" element={<ImportGoogle />} />
-          <Route
-            path="/networking"
+          <Route path="/Jobs/Calendar" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><DeadlineCalendar /></Suspense></PrivateRoute>} />
+          <Route path="/coverletter" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><Coverletter /></Suspense></PrivateRoute>} />
+          <Route path="/newcoverletter" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><NewCoverletter /></Suspense></PrivateRoute>} />
+          <Route path="/coverletter/editor/:id?" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><CoverletterEditor /></Suspense></PrivateRoute>} />
+          <Route path="/coverletter/share/:shareid?" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><ShareView /></Suspense></PrivateRoute>} />
+          <Route path="/resumes" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><Resumes /></Suspense></PrivateRoute>} />
+          <Route path="/resumes/new" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><NewResume /></Suspense></PrivateRoute>} />
+          <Route path="/resumes/share" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><ResumeShareView /></Suspense></PrivateRoute>} />
+          <Route 
+            path="/resumes/editor" 
             element={
               <PrivateRoute>
-                <NetworkingDashboard />
+                <Suspense fallback={<div>Loading...</div>}>
+                  <ResumeEditor />
+                </Suspense>
               </PrivateRoute>
-            }
+            } 
           />
+          <Route path="/Jobs/Stats" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><JobStatsDashboard /></Suspense></PrivateRoute>} />
+          <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
+          <Route path="/networking/import" element={<ImportGoogle />} />
+          <Route path="/networking" element={<PrivateRoute><NetworkingDashboard /></PrivateRoute>} />
 
           <Route
             path="/networking/contacts"
@@ -309,11 +385,10 @@ function App() {
             element={<InformationalInterviewDetails />}
           />
 
-
           <Route path="/networking/events" element={<NetworkingEventsPage />} />
           <Route path="/networking/discover" element={<DiscoverEvents />} />
           <Route path="/networking/events/:eventId" element={<EventDetailsPage />} />
-          <Route path="/networking/analytics" element={<NetworkingAnalyticsPage />} />
+          <Route path="/networking/analytics" element={<Suspense fallback={<div>Loading...</div>}><NetworkingAnalyticsPage /></Suspense>} />
           <Route path="/networking/mentors/invite" element={<MentorInvitePage />} />
           <Route path="/networking/mentors/invite" element={<MentorInvite />} />
           <Route path="/networking/mentors" element={<MentorDashboard />} />
@@ -338,25 +413,22 @@ function App() {
             }
           />
 
-          <Route path="/referrals" element={<ReferralDashboard />} />
+          <Route path="/referrals" element={<Suspense fallback={<div>Loading...</div>}><ReferralDashboard /></Suspense>} />
           <Route path="/referrals/timeline/:id" element={<ReferralTimeline />} />
           <Route path="/networking/linkedin" element={<PrivateRoute><LinkedInTools /></PrivateRoute>} />
-<Route path="/networking/linkedin/messages" element={<PrivateRoute><MessageTemplates /></PrivateRoute>} />
-<Route path="/networking/linkedin/connections" element={<PrivateRoute><ConnectionTemplates /></PrivateRoute>} />
-<Route path="/networking/linkedin/optimize" element={<PrivateRoute><ProfileOptimization /></PrivateRoute>} />
-<Route path="/networking/linkedin/content" element={<PrivateRoute><ContentStrategyPage /></PrivateRoute>} />
-<Route path="/networking/linkedin/campaigns" element={<PrivateRoute><CampaignTemplates /></PrivateRoute>} />
+          <Route path="/networking/linkedin/messages" element={<PrivateRoute><MessageTemplates /></PrivateRoute>} />
+          <Route path="/networking/linkedin/connections" element={<PrivateRoute><ConnectionTemplates /></PrivateRoute>} />
+          <Route path="/networking/linkedin/optimize" element={<PrivateRoute><ProfileOptimization /></PrivateRoute>} />
+          <Route path="/networking/linkedin/content" element={<PrivateRoute><ContentStrategyPage /></PrivateRoute>} />
+          <Route path="/networking/linkedin/campaigns" element={<PrivateRoute><CampaignTemplates /></PrivateRoute>} />
 
           <Route
             path="/Applications"
-            element={<PrivateRoute><ApplicationsPage /></PrivateRoute>}
+            element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><ApplicationsPage /></Suspense></PrivateRoute>}
           />
           <Route path="/Jobs/:id" element={<PrivateRoute><JobDetailsPage /></PrivateRoute>} />
           <Route path="/SalaryResearch" element={<PrivateRoute><SalaryResearch /></PrivateRoute>} />
-          <Route
-            path="/Applications/Analytics"
-            element={<PrivateRoute><ApplicationAnalytics /></PrivateRoute>}
-          />
+          <Route path="/Applications/Analytics" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><ApplicationAnalytics /></Suspense></PrivateRoute>} />
           <Route
             path="/automation"
             element={<PrivateRoute><AutomationRules /></PrivateRoute>}
@@ -375,11 +447,11 @@ function App() {
           <Route path="/Notifications" element={<PrivateRoute><NotificationSettings /></PrivateRoute>} />
           <Route
             path="/interview-insights"
-            element={<InterviewInsightsPage />}
+            element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><InterviewInsightsPage jobId={''} /></Suspense></PrivateRoute>}
           />
           <Route
             path="/Interview-Prep"
-            element={<InterviewHome />}
+            element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><InterviewHome /></Suspense></PrivateRoute>}
           />
           <Route path="/manage-references" element={<PrivateRoute><ManageReferences /></PrivateRoute>} />
           <Route path="/references/portfolio" element={<PrivateRoute><ReferencePortfolio /></PrivateRoute>} />
@@ -394,10 +466,7 @@ function App() {
             path="/analytics/application-success"
             element={<PrivateRoute><ApplicationSuccess /></PrivateRoute>}
           />
-          <Route
-            path="/analytics/interview-insights"
-            element={<PrivateRoute><InterviewAnalyticsInsights /></PrivateRoute>}
-          />
+          <Route path="/analytics/interview-insights" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><InterviewAnalyticsInsights /></Suspense></PrivateRoute>} />
 
           <Route
             path="/analytics/networking-roi"
@@ -610,11 +679,10 @@ function App() {
            path="/teams/new" 
            element={<PrivateRoute><CreateTeamPage /></PrivateRoute>} 
            />
-           <Route 
-           path="/teams/:teamId/review" 
-           element={<PrivateRoute><TeamReviewPage /></PrivateRoute>} 
-           />
-
+          <Route 
+            path="/teams/:teamId/review" 
+            element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><TeamReviewPage /></Suspense></PrivateRoute>} 
+          />
            <Route 
            path="/teams/:teamId/share" 
            element={<PrivateRoute><CandidateSharingPage /></PrivateRoute>} 
@@ -642,9 +710,8 @@ function App() {
             path="/analytics/custom-report"
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
-<Route path="/skill-certifications" element={<PrivateRoute><SkillCertifications /></PrivateRoute>} />
-
-        </Routes>
+          <Route path="/skill-certifications" element={<PrivateRoute><SkillCertifications /></PrivateRoute>} />
+          <Route path="/commuter-planner" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><CommuterPlannerPage /></Suspense></PrivateRoute>} />        </Routes>
       </div>
     </>
   );

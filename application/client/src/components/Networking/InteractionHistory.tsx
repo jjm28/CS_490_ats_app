@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import API_BASE from "../../utils/apiBase";
 
 interface Interaction {
   interactionId: string;
@@ -28,12 +29,12 @@ export default function InteractionHistory() {
   async function loadInteractions() {
     try {
       const resContact = await fetch(
-        `http://localhost:5050/api/networking/contacts/${contactId}`,
+        `${API_BASE}/api/networking/contacts/${contactId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       const resInteractions = await fetch(
-        `http://localhost:5050/api/networking/contacts/${contactId}/interactions`,
+        `${API_BASE}/api/networking/contacts/${contactId}/interactions`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -70,7 +71,7 @@ export default function InteractionHistory() {
 
     try {
       const res = await fetch(
-        `http://localhost:5050/api/networking/interactions/${contactId}/${interactionId}`,
+        `${API_BASE}/api/networking/interactions/${contactId}/${interactionId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },

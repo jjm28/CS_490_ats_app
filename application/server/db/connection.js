@@ -32,7 +32,10 @@ export async function connectDB() {
 
   try {
     await mongoose.connect(URI, {
-      
+      maxPoolSize: 10, // Maximum number of connections in the pool
+      minPoolSize: 2,  // Minimum number of connections to maintain
+      serverSelectionTimeoutMS: 5000, // Timeout for server selection
+      socketTimeoutMS: 45000, // Socket timeout
     });
     console.log(`[mongo] Mongoose connected: ${redactUriDb(URI)}`);
     return mongoose.connection;

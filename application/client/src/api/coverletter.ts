@@ -1,10 +1,9 @@
 import type { Template } from "../components/Coverletter/Coverletterstore";
 import type { Job } from "../components/Coverletter/hooks/useJobs";
+import API_BASE from "../utils/apiBase";
 
 // Constants
-const API_URL = "http://localhost:5050/api/coverletter/";
-
-
+const API_URL = `${API_BASE}/api/coverletter/`;
 
 export const authHeaders = (): HeadersInit => {
   const token = localStorage.getItem("token");
@@ -549,7 +548,7 @@ export async function getCoverletterFeedbackSummary(
 
 // ===== COVER LETTER VERSION MANAGEMENT =====
 
-const COVERLETTER_VERSIONS_API = "http://localhost:5050/api/coverletter-versions";
+const COVERLETTER_VERSIONS_API = `${API_BASE}/api/coverletter-versions`;
 
 export interface CoverletterVersionLite {
   _id: string;

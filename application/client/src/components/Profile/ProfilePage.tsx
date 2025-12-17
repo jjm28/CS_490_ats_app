@@ -113,7 +113,7 @@ function ProfilePage() {
     if (!password) return;
 
     try {
-      const response = await fetch("http://localhost:5050/api/auth/delete", {
+      const response = await fetch(`${API_BASE}/api/auth/delete`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -238,6 +238,7 @@ function ProfilePage() {
                           src={resolvePhoto(p)}
                           alt={p.fullName}
                           className="h-24 w-24 rounded-full object-cover border-4 border-gray-100 shadow-sm flex-shrink-0"
+                          loading="lazy"
                         />
 
                         {/* Profile Info */}

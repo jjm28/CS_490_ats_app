@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import API_BASE from "../../utils/apiBase";
 
 type Job = {
   _id: string;
@@ -184,7 +185,7 @@ function InfoSection({ title, content, icon = "ℹ️" }: InfoSectionProps) {
            throw new Error("No token found");
          }
 
-         const res = await fetch(`/api/interview-insights/${jobId}`, {
+         const res = await fetch(`${API_BASE}/api/interview-insights/${jobId}`, {
            headers: {
              Authorization: `Bearer ${token}`,
            },

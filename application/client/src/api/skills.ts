@@ -1,6 +1,7 @@
 import type { Skill } from "../components/Skills/Skills";
+import API_BASE from "../utils/apiBase";
 
-const API_URL = "http://localhost:5050/api/skills";
+const API_URL = `${API_BASE}/api/skills`;
 
 function authHeader(): Record<string, string> {
   const token = localStorage.getItem("authToken");

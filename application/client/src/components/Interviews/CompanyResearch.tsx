@@ -3,6 +3,7 @@ import { Calendar, Briefcase, Loader2, ChevronDown, ArrowLeft } from 'lucide-rea
 import NewsColumn from './NewsSection';
 import '../../styles/InterviewResearch.css';
 import { useInterviewPredictionSync } from '../../hooks/useInterviewPredictionSync';
+import API_BASE from '../../utils/apiBase';
 
 interface NewsArticle {
   title: string;
@@ -89,7 +90,7 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
     const fetchJobs = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/jobs', {
+        const response = await fetch(`${API_BASE}/api/jobs`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -129,7 +130,7 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
       const token = localStorage.getItem('token');
       
       // First, check if we have cached research
-      const cachedResponse = await fetch(`http://localhost:5050/api/company/saved-research/${jobId}`, {
+      const cachedResponse = await fetch(`${API_BASE}/api/company/saved-research/${jobId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -142,7 +143,7 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
       }
 
       // If no cache, fetch fresh data
-      const response = await fetch('http://localhost:5050/api/company/research', {
+      const response = await fetch(`${API_BASE}/api/company/research`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,7 +175,7 @@ function CompanyResearch({ onBack }: InterviewPrepResearchProps) {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/company/research/save-research', {
+      const response = await fetch(`${API_BASE}/api/company/research/save-research`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

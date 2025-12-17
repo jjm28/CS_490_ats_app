@@ -1,5 +1,8 @@
 // src/api/competitive.ts
 
+import API_BASE from "../utils/apiBase";
+import { handleError } from "../utils/errorHandler";
+
 export type TimeSummary = {
   hoursPerWeek: number;
   totalMinutes: number;
@@ -112,7 +115,7 @@ export async function getCompetitiveAnalysis(
   }
 
   const queryString = query.toString();
-  const url = `/api/competitive-analysis${queryString ? `?${queryString}` : ""}`;
+  const url = `${API_BASE}/api/competitive-analysis${queryString ? `?${queryString}` : ""}`;
 
   const res = await fetch(url, {
     method: "GET",
@@ -121,6 +124,7 @@ export async function getCompetitiveAnalysis(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    handleError(res, text);
     throw new Error(
       `Failed to fetch competitive analysis (${res.status}). ${text || ""}`
     );

@@ -11,6 +11,8 @@ import {
   STATUS_VALUE,
   type JobStatus,
   type Contact,
+  WorkMode_DISPLAY,
+  WorkMode_VALUE,
 } from "../../types/jobs.types";
 import InterviewScheduler from "./InterviewScheduler";
 import InterviewInsightsDisplay from "../Interviews/InterviewInsights";
@@ -721,6 +723,7 @@ export default function JobDetails({
         industry: formData.industry,
         type: formData.type,
         jobPostingUrl: formData.jobPostingUrl,
+        workMode: formData.workMode
       };
 
       // Helper to ensure contact fields are objects
@@ -1036,6 +1039,17 @@ export default function JobDetails({
                   }
                   error={formErrors.status}
                 />
+                <Field
+                  label="Employment type"
+                  value={formData.workMode ? WorkMode_DISPLAY[formData.workMode] : ""}
+                  isEditing={isEditing}
+                  type="select"
+                  options={ ["Remote", "Hybrid", "Onsite"]}
+                  onChange={(val) =>
+                    setFormData({ ...formData, workMode: WorkMode_VALUE[val] })
+                  }
+                  error={formErrors.workMode}
+                />
               </div>
             </section>
             {/* Interview Insights Button */}
@@ -1068,6 +1082,15 @@ export default function JobDetails({
               >
                 Share this win with supporters
               </Button>
+            )}
+               {(job.location || job.location != "") && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate(`/commuter-planner?jobId=${job._id}`)}
+            >
+              Plan commute
+            </Button>
             )}
             <MilestoneShareModal
               userId={currentuserId}

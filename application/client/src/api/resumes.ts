@@ -1,4 +1,5 @@
 import type { ResumeFeedbackComment } from "../components/Resume/ResumeShareView";
+import API_BASE from "../utils/apiBase";
 import type { ReviewerPermission, SharingMeta, WorkflowStatus } from "./coverletter";
 
 // Minimal client wrapper for your existing resume routes.
@@ -46,8 +47,7 @@ export type ResumeSummary = {
 };
 
 const API =
-  (import.meta as any).env?.VITE_API_URL ||
-  `${(import.meta as any).env?.VITE_API_BASE_URL || "http://localhost:5050"}/api`;
+  `${API_BASE}/api`;
 
 export default function getAuthHeaders() {
   const raw = localStorage.getItem("authUser");
@@ -680,7 +680,7 @@ export async function updateResumeWorkflow(
   params: UpdateWorkflowRequest
 ): Promise<UpdateWorkflowResponse> {
   const { resumeid, status } = params;
-const API_URL = "http://localhost:5050/api/resumes/";
+  const API_URL = `${API}/resumes/`;
   const res = await fetch(`${API_URL}${resumeid}/workflow`, {
     method: "PATCH",
     headers: getAuthHeaders(),
@@ -735,7 +735,7 @@ export async function getResumeFeedbackSummary(
   params: GetFeedbackSummaryRequest
 ): Promise<FeedbackSummaryResponse> {
   const { userid, resumeid } = params;
-const API_URL = "http://localhost:5050/api/resumes/";
+  const API_URL = `${API}/resumes/`;
 
   const url = `${API_URL}${resumeid}/feedback-summary?userid=${encodeURIComponent(
     userid

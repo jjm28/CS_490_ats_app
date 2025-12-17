@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import '../../styles/InterviewStyles/TechnicalPrep.css';
+import API_BASE from "../../utils/apiBase";
 
 interface Challenge {
   id: number;
@@ -65,7 +66,7 @@ export default function TechnicalPrep({
     const token = localStorage.getItem('token');
     
     try {
-      const response = await fetch('http://localhost:5050/api/interview-insights/generate-questions', {
+      const response = await fetch(`${API_BASE}/api/interview-insights/generate-questions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -146,7 +147,7 @@ export default function TechnicalPrep({
     const token = localStorage.getItem('token');
     
     try {
-      const response = await fetch('http://localhost:5050/api/practice-sessions/generate-coding-challenges', {
+      const response = await fetch(`${API_BASE}/api/practice-sessions/generate-coding-challenges`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -264,7 +265,7 @@ export default function TechnicalPrep({
 
     try {
       const token = localStorage.getItem('token');
-      const endpoint = 'http://localhost:5050/api/practice-sessions/save';
+      const endpoint = `${API_BASE}/api/practice-sessions/save`;
 
       const questions = techType === 'situational' ? situationalQuestions : codingChallenges;
       const validResponses = allResponses.filter(r => r.trim());

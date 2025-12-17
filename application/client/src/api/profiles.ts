@@ -1,11 +1,7 @@
 // src/api/profiles.ts
 import { v4 as uuidv4 } from "uuid";
-
-// support either env name
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_BASE ||
-  "http://localhost:5050";
+import API_BASE from "../utils/apiBase";
+import { handleError } from "../utils/errorHandler";
 
 function getDevUserId(): string {
   // Keep one per browser (matches your dev middleware behavior)
@@ -80,6 +76,7 @@ export async function createProfile(body: Profile): Promise<Profile> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = data?.error || data?.message || res.statusText;
+    handleError(res, msg);
     throw new Error(`Create failed: ${msg}`);
   }
   return data;
@@ -95,6 +92,7 @@ export async function updateProfile(id: string, body: Partial<Profile>): Promise
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = data?.error || data?.message || res.statusText;
+    handleError(res, msg);
     throw new Error(`Update failed: ${msg}`);
   }
   return data;

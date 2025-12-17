@@ -418,7 +418,7 @@ router.post("/forgot-password", async (req, res) => {
 
     console.log("Update result:", result);
 
-    console.log(`Reset link: http://localhost:5173/reset-password?token=${token}`);
+    console.log(`Reset link: ${process.env.CORS_ORIGIN || 'http://localhost:5173'}/reset-password?token=${token}`);
     return res.status(200).json({ message: "Reset link sent (check console for testing)." });
 
   } catch (err) {
