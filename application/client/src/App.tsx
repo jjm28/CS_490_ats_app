@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import Nav from './components/Nav';
@@ -144,6 +145,12 @@ import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
 import SkillCertifications from './components/Certifications/SkillCertifications';
 // import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
+
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  enabled: !!import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.MODE || 'production',
+});
 
 // Lazy loaded components
 // Resume

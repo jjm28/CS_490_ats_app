@@ -238,6 +238,7 @@ function ProfilePage() {
                           src={resolvePhoto(p)}
                           alt={p.fullName}
                           className="h-24 w-24 rounded-full object-cover border-4 border-gray-100 shadow-sm flex-shrink-0"
+                          loading="lazy"
                         />
 
                         {/* Profile Info */}

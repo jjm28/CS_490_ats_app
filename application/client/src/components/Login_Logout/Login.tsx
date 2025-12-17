@@ -347,6 +347,7 @@ const handleRoleSelect = async (role: RoleOptionKey) => {
                   src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg"
                   alt="Google"
                   className="h-6 w-6"
+                  loading="lazy"
                 />
               </button>
               <button
@@ -358,10 +359,16 @@ const handleRoleSelect = async (role: RoleOptionKey) => {
                   src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg"
                   alt="Microsoft"
                   className="h-6 w-6"
+                  loading="lazy"
                 />
               </button>
               <button type="button" onClick={li} className="p-2 rounded-md shadow hover:shadow-lg border border-gray-300">
-                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg" alt="LinkedIn" className="h-6 w-6" />
+                <img 
+                  src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg" 
+                  alt="LinkedIn" 
+                  className="h-6 w-6" 
+                  loading="lazy"
+                />
               </button>
             </div>
           </div>
