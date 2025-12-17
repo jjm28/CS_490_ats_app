@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import React, { useEffect, useMemo, useState } from "react";
 import "../../App.css";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -414,6 +415,7 @@ const badgeCerts = useMemo(
                         }
                         alt={`${latest.fullName} profile`}
                         className="h-24 w-24 rounded-full object-cover ring-4 ring-white shadow-lg shrink-0"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="h-24 w-24 rounded-full bg-gradient-to-br from-[#357266] to-[#6DA598] ring-4 ring-white shadow-lg flex items-center justify-center text-2xl font-bold text-white shrink-0">
@@ -508,6 +510,15 @@ const badgeCerts = useMemo(
                   aria-label="Manage employment"
                 >
                   Manage
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    console.log("Triggering test Sentry error");
+                    Sentry.captureException(new Error("Test Sentry Error from Button"));
+                  }}
+                >
+                  Test Sentry Error
                 </Button>
               </div>
 
@@ -791,6 +802,7 @@ const badgeCerts = useMemo(
                             }
                             alt={cert.name}
                             className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                            loading="lazy"
                           />
 
                     ) : (
