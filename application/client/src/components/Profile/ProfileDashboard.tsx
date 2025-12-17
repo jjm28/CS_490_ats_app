@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/react";
 import React, { useEffect, useMemo, useState } from "react";
 import "../../App.css";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -510,15 +509,6 @@ const badgeCerts = useMemo(
                   aria-label="Manage employment"
                 >
                   Manage
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    console.log("Triggering test Sentry error");
-                    Sentry.captureException(new Error("Test Sentry Error from Button"));
-                  }}
-                >
-                  Test Sentry Error
                 </Button>
               </div>
 
