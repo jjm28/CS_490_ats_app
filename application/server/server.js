@@ -1,6 +1,7 @@
 import "./config/env.js";
 import logger from "./config/logger.js";
 import express from "express";
+import * as Sentry from "@sentry/node";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
@@ -312,6 +313,14 @@ try {
   app.use("/api/github", githubRoutes);
   // Health check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
+
+  // Sentry test route
+  app.get("/debug-sentry", function mainHandler(req, res) {
+    throw new Error("Sentry test error!");
+  });
+
+  Sentry.setupExpressErrorHandler(app);
+
   app.listen(PORT, () => {
     logger.info(`Server running on ${BASE}`);
     logger.info(`Server connected to ${DB}`);
