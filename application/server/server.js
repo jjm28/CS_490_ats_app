@@ -42,7 +42,6 @@ import certificationRoutes from "./routes/certifications.js";
 import jobRoutes from "./routes/jobs.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
 import salaryRoutes from "./routes/salary.js";
-
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 
 // 📊 INTERVIEW & COMPANY RESEARCH
@@ -102,6 +101,8 @@ import teamProgressRouter from "./routes/teamProgress.js";
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
 //import referralSources from "./routes/referralSources.js";
+//import referralRoutes from "./routes/referrals.js";
+
 import networkingDiscovery from "./routes/networkingDiscovery.js";
 import mentorRoutes from "./routes/mentor.routes.js";
 import teamRoutes from "./routes/teams.js";
@@ -114,6 +115,12 @@ import customReportsRouter from "./routes/customReports.js";
 
 import githubRoutes from "./routes/github.js"
 import certificationBadgeRouter from "./routes/certification-badge.js";
+import csrfProtection from "./middleware/csrf.js";
+import { sanitizeInput } from "./middleware/sanitize.js";
+import helmet from "helmet";
+import metricsRouter from "./routes/metrics.js";
+
+
 
 //
 // ===============================
@@ -127,6 +134,11 @@ const DB = process.env.DB_NAME || "appdb";
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+app.use(express.json());
+app.use(cookieParser()); // ⬅️ MUST come BEFORE csurf
+
+
 app.use("/exports", express.static(path.join(__dirname, "exports")));
 
 app.set("baseUrl", BASE);
@@ -141,9 +153,52 @@ app.use(cors({
       "x-dev-user-id",
       "x-user-role",
       "x-org-id",
+      "x-csrf-token",
     ],}));
-app.use(express.json());
-app.use(cookieParser());
+
+    app.get("/api/csrf-token", csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        connectSrc: [
+          "'self'",
+          process.env.FRONTEND_ORIGIN || "http://localhost:5173"
+        ],
+        imgSrc: ["'self'", "data:", "https:"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+    },
+    frameguard: { action: "deny" },
+    noSniff: true,
+  })
+);
+
+
+app.use(sanitizeInput);
+app.use("/api/metrics", metricsRouter);
+// Health check endpoint (for load testing & monitoring)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+
 
 // ===============================
 // 📸 STATIC UPLOADS
@@ -176,6 +231,16 @@ try {
   app.use("/api/profile", attachDevUser, profileRouter);
   app.use("/api/profile", attachDevUser, profilePhoto);
   app.use("/api/employment", attachDevUser, employmentRouter);
+
+//   //Protection
+//   app.use(csrfProtection);
+
+// // Expose CSRF token to frontend
+// app.get("/api/csrf-token", (req, res) => {
+//   res.json({ csrfToken: req.csrfToken() });
+// });
+
+
 
   // 📌 RECORDS / SKILLS
   app.use("/record", records);
@@ -296,3 +361,4 @@ app.use("/api/org",attachUserFromHeaders, organizationRoutes);
   console.error("Failed to start server:", err);
   process.exit(1);
 }
+
