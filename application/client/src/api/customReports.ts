@@ -1,6 +1,7 @@
 // src/api/customReports.ts
 
 import API_BASE from "../utils/apiBase";
+import { handleError } from "../utils/errorHandler";
 
 // Match the same base URL logic as src/api/successAnalytics.ts / resumes.ts
 const API =
@@ -96,6 +97,7 @@ async function apiPost<T = any>(path: string, body: any): Promise<T> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    handleError(res, text);
     throw new Error(
       `Request to ${path} failed (${res.status}). ${
         text || "No error body returned from server."

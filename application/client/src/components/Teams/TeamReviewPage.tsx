@@ -20,6 +20,7 @@ import {
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { resumePdfRegistry } from "../Resume";
 import { pdfRegistry as coverletterPdfRegistry } from "../Coverletter";
+import { handleError } from "../../utils/errorHandler";
 
 type DocKind = "resume" | "coverletter";
 
@@ -91,6 +92,7 @@ const TeamReviewPage: React.FC = () => {
       setTeam(teamData.team);
       setShared(sharedDocs);
     } catch (err: any) {
+      handleError(err);
       console.error("Error loading team review:", err);
       setError(err?.message || "Failed to load shared documents.");
     } finally {
@@ -173,6 +175,7 @@ const TeamReviewPage: React.FC = () => {
     setNewComments((prev) => ({ ...prev, [key]: "" }));
     window.alert("✅ Your comment has been sent!");
   } catch (err) {
+    handleError(err);
     console.error("Error adding comment:", err);
     window.alert("❌ Failed to send comment. Please try again.");
   } finally {
@@ -236,6 +239,7 @@ const TeamReviewPage: React.FC = () => {
         }))
       );
     } catch (err) {
+      handleError(err);
       console.error("Error resolving comment:", err);
       setError("Failed to resolve comment.");
     } finally {
@@ -256,6 +260,7 @@ const TeamReviewPage: React.FC = () => {
         resumes: { ...prev.resumes, [resumeId]: resume },
       }));
     } catch (err) {
+      handleError(err);
       console.error("Error fetching resume export data:", err);
       setError("Failed to prepare resume for export.");
     } finally {
@@ -276,6 +281,7 @@ const TeamReviewPage: React.FC = () => {
         },
       }));
     } catch (err) {
+      handleError(err);
       console.error("Error fetching cover letter export data:", err);
       setError("Failed to prepare cover letter for export.");
     } finally {

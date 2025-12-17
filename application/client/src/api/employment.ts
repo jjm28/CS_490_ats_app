@@ -1,5 +1,6 @@
 
 import API_BASE from "../utils/apiBase";
+import { handleError } from "../utils/errorHandler";
 
 function getAuthToken(): string {
   return (
@@ -50,6 +51,7 @@ async function j<T>(res: Response): Promise<T> {
       const data = await res.json();
       msg = (data as any)?.error || (data as any)?.message || msg;
     } catch {}
+    handleError(res, msg);
     throw new Error(msg);
   }
   return (await res.json()) as T;
@@ -122,6 +124,7 @@ export async function deleteEmployment(id: string): Promise<true> {
       const j = await res.json();
       msg = (j as any)?.error || msg;
     } catch {}
+    handleError(res, msg);
     throw new Error(msg);
   }
   return true;

@@ -144,6 +144,7 @@ import MentorInvite from './components/Networking/MentorInvite';
 import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
 import SkillCertifications from './components/Certifications/SkillCertifications';
+import { handleError } from './utils/errorHandler';
 // import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
 
 Sentry.init({
@@ -151,6 +152,25 @@ Sentry.init({
   enabled: !!import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE || 'production',
 });
+
+// Add this ONCE in App.tsx, right after Sentry.init
+useEffect(() => {
+  const handleError = (event: ErrorEvent) => {
+    Sentry.captureException(event.error);
+  };
+  
+  const handleRejection = (event: PromiseRejectionEvent) => {
+    Sentry.captureException(event.reason);
+  };
+  
+  window.addEventListener('error', handleError);
+  window.addEventListener('unhandledrejection', handleRejection);
+  
+  return () => {
+    window.removeEventListener('error', handleError);
+    window.removeEventListener('unhandledrejection', handleRejection);
+  };
+}, []);
 
 // Lazy loaded components
 // Resume
@@ -200,6 +220,7 @@ function App() {
       return authUser ? JSON.parse(authUser).user?._id : null;
     } catch (error) {
       console.error("Error parsing authUser:", error);
+      handleError(error);
       return null;
     }
   };

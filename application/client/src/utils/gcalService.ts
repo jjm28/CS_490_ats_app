@@ -1,3 +1,6 @@
+import { Hand } from "lucide-react";
+import { handleError } from "./errorHandler";
+
 declare global {
   interface Window {
     gapi: any;
@@ -51,11 +54,13 @@ export async function initGapi(): Promise<void> {
           console.log("✅ GAPI client initialized");
           resolve();
         } catch (err) {
+          handleError(err);
           console.error("❌ GAPI client init failed:", err);
           reject(err);
         }
       });
     } catch (err) {
+      handleError(err);
       console.error("❌ Error loading GAPI:", err);
       reject(err);
     }
@@ -156,6 +161,7 @@ export async function createCalendarEvent(interview: {
       htmlLink: response.result.htmlLink,
     };
   } catch (err) {
+    handleError(err);
     console.error("❌ Failed to create calendar event:", err);
   }
 
@@ -189,6 +195,7 @@ export async function checkCalendarConflicts(
       return false;
     }
   } catch (err) {
+    handleError(err);
     console.error("❌ Failed to check calendar conflicts:", err);
     return false;
   }
@@ -226,6 +233,7 @@ export async function updateCalendarEvent(eventId: string, interview: {
     console.log("✅ Event updated:", res.result.htmlLink);
     return res.result;
   } catch (err) {
+    handleError(err);
     console.error("❌ Failed to update event:", err);
   }
 }
@@ -243,6 +251,7 @@ export async function deleteCalendarEvent(eventId: string) {
     });
     console.log(`🗑️ Deleted calendar event: ${eventId}`);
   } catch (err) {
+    handleError(err);
     console.error("❌ Failed to delete event:", err);
   }
 }
