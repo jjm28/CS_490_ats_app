@@ -1,7 +1,9 @@
 // routes/market.js
 import { Router } from "express";
+import mongoose from "mongoose";
 import Jobs from "../models/jobs.js";
 import { extractSkillsAI } from "../utils/extractSkillsAI.js";
+import { extractEducationAI } from "../utils/extractEducationAI.js";
 import { verifyJWT } from "../middleware/auth.js";
 
 const router = Router();
@@ -75,6 +77,101 @@ router.get("/skills", async (req, res) => {
     res.status(500).json({ error: "Failed to process skills" });
   }
 });
+
+/* ============================================================
+   GET /market/job/:jobId/skills
+   Extract skills for a single job (UC-123)
+============================================================ */
+router.get("/job/:jobId/skills", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { jobId } = req.params;
+
+    if (!userId || !jobId) return res.json([]);
+
+    const job = await Jobs.findOne({ _id: jobId, userId }).lean();
+    if (!job || !job.description) return res.json([]);
+
+    let skills = job.skillsExtracted || [];
+
+    // If not parsed yet → extract and save
+    if (!job.skillsParsed || skills.length === 0) {
+      skills = await extractSkillsAI(job.description || "");
+
+      await Jobs.updateOne(
+        { _id: job._id },
+        { skillsExtracted: skills, skillsParsed: true }
+      );
+    }
+
+    // Return in SAME FORMAT as industry skills
+    const counts = {};
+    for (const skill of skills) {
+      const lower = skill.toLowerCase();
+      counts[lower] = (counts[lower] || 0) + 1;
+    }
+
+    const result = Object.entries(counts).map(([skill, count]) => ({
+      skill,
+      count,
+    }));
+
+    res.json(result);
+
+  } catch (err) {
+    console.error("Error extracting job skills:", err);
+    res.status(500).json({ error: "Failed to extract job skills" });
+  }
+});
+
+router.get("/job/:jobId/education", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { jobId } = req.params;
+
+    if (!userId || !jobId) {
+      return res.json({ level: null, fields: [] });
+    }
+
+    const job = await Jobs.findOne({ _id: jobId, userId }).lean();
+
+    if (!job || !job.description) {
+      return res.json({ level: null, fields: [] });
+    }
+
+    let education = job.educationExtracted;
+
+    if (
+      !education ||
+      !education.level ||
+      !Array.isArray(education.fields) ||
+      education.fields.length === 0
+    ) {
+      education = await extractEducationAI(job.description);
+
+      // ❗ ONLY cache if extraction actually succeeded
+      if (education?.level) {
+        await Jobs.updateOne(
+          { _id: job._id },
+          { educationExtracted: education }
+        );
+      }
+    }
+
+    // ✅ ALWAYS return valid JSON
+    return res.json({
+      level: education?.level ?? null,
+      fields: Array.isArray(education?.fields) ? education.fields : [],
+    });
+
+  } catch (err) {
+    console.error("Education extraction error:", err);
+
+    // ✅ NEVER return nothing
+    return res.json({ level: null, fields: [] });
+  }
+});
+
 
 /* ============================================================
    GET /market/companies?industry=X
@@ -207,6 +304,29 @@ router.get("/job-count", async (req, res) => {
     res.json({ count: total });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch job count" });
+  }
+});
+
+/* ============================================================
+   GET /market/user/education
+   Return user's education for analytics (DEV SAFE)
+============================================================ */
+router.get("/user/education", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.json([]);
+
+    // education collection already exists (used by /api/education)
+    const education = await mongoose
+      .connection
+      .collection("education")
+      .find({ userId })
+      .toArray();
+
+    return res.json(education);
+  } catch (err) {
+    console.error("Error fetching user education:", err);
+    return res.json([]);
   }
 });
 

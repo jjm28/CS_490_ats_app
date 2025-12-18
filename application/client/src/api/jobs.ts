@@ -58,7 +58,8 @@ export async function fetchCommuterPlannerData(
   const token = tokenRaw ? JSON.parse(tokenRaw).token : null;
   const res = await fetch(
     `${API_BASE}/api/jobs/map?${params.toString()}`,
-    {   method: "GET",
+    {
+      method: "GET",
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
@@ -71,23 +72,28 @@ export async function fetchCommuterPlannerData(
     throw new Error("Failed to load commuter planner data");
   }
   const data = await res.json()
-console.log(data)
+  console.log(data)
   return data
 }
 
 
 function baseHeaders() {
-    const token = localStorage.getItem("token");
-    
-    // Dev mode fallback: use x-dev-user-id if available
-    const devUserId = localStorage.getItem("x-dev-user-id") || 
-                      sessionStorage.getItem("x-dev-user-id");
-    
-    return {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(devUserId ? { "x-dev-user-id": devUserId } : {}),
-    };
+  let devUserId: string | null = null;
+
+  // Pull userId from authUser (this is what your app actually stores)
+  const authRaw = localStorage.getItem("authUser");
+  if (authRaw) {
+    try {
+      devUserId = JSON.parse(authRaw)?.user?._id ?? null;
+    } catch (e) {
+      console.error("Failed to parse authUser", e);
+    }
+  }
+
+  return {
+    "Content-Type": "application/json",
+    ...(devUserId ? { "x-dev-user-id": devUserId } : {}),
+  };
 }
 
 export const getJobStats = async () => {
@@ -99,38 +105,38 @@ export const getJobStats = async () => {
 };
 
 export async function getArchivedJobs() {
-    const res = await fetch(`${API_BASE}/api/jobs/archived`, {
-        headers: baseHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to fetch archived jobs");
-    return res.json();
+  const res = await fetch(`${API_BASE}/api/jobs/archived`, {
+    headers: baseHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch archived jobs");
+  return res.json();
 }
 
 export async function toggleArchiveJob(id: string, archive: boolean, reason?: string) {
-    const res = await fetch(`${API_BASE}/api/jobs/${id}/archive`, {
-        method: "PATCH",
-        headers: baseHeaders(),
-        body: JSON.stringify({ archive, reason }),
-    });
-    if (!res.ok) throw new Error("Failed to update archive status");
-    return res.json();
+  const res = await fetch(`${API_BASE}/api/jobs/${id}/archive`, {
+    method: "PATCH",
+    headers: baseHeaders(),
+    body: JSON.stringify({ archive, reason }),
+  });
+  if (!res.ok) throw new Error("Failed to update archive status");
+  return res.json();
 }
 
 export async function deleteJob(id: string) {
-    const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
-        method: "DELETE",
-        headers: baseHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to delete job");
-    return res.json();
+  const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
+    method: "DELETE",
+    headers: baseHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to delete job");
+  return res.json();
 }
 
 export async function getAllJobs() {
-    const res = await fetch(`${API_BASE}/api/jobs`, {
-        headers: baseHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to fetch jobs");
-    return res.json();
+  const res = await fetch(`${API_BASE}/api/jobs`, {
+    headers: baseHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch jobs");
+  return res.json();
 }
 
 export async function getSuccessAnalysis() {
@@ -150,13 +156,13 @@ export async function getSuccessPatterns() {
 }
 
 export async function getJobById(id: string) {
-    const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
-        headers: baseHeaders(),
-    });
+  const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
+    headers: baseHeaders(),
+  });
 
-    if (!res.ok) {
-        throw new Error("Failed to fetch job");
-    }
+  if (!res.ok) {
+    throw new Error("Failed to fetch job");
+  }
 
-    return res.json();
+  return res.json();
 }

@@ -1,0 +1,338 @@
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { getJobById } from "../../api/jobs";
+import { getUserEducationForMatch } from "../../api/market";
+import {
+    getUserSkillsWithLevels,
+    getSkillsForJob,
+    getEducationForJob,
+} from "../../api/market";
+
+/* ================================
+   TYPES
+================================ */
+type UserSkill = {
+    name: string;
+    proficiency: "Beginner" | "Intermediate" | "Advanced" | "Expert";
+};
+
+type UserEducation = {
+    _id: string;
+    fieldOfStudy: string;
+    educationLevel:
+    | "High School"
+    | "Associate"
+    | "Bachelor's"
+    | "Master's"
+    | "PhD";
+};
+
+type JobEducationRequirement = {
+    level: string | null;
+    fields: string[];
+};
+
+/* ================================
+   RANKING MAPS
+================================ */
+const SKILL_RANK: Record<string, number> = {
+    expert: 4,
+    advanced: 3,
+    intermediate: 2,
+    beginner: 1,
+};
+
+const EDUCATION_RANK: Record<string, number> = {
+    "high school": 1,
+    associate: 2,
+    bachelor: 3,
+    master: 4,
+    phd: 5,
+};
+
+function normalizeEducationLevel(level: string) {
+    return level
+        .toLowerCase()
+        .replace(/’|'/g, "")
+        .replace(/s$/, "")
+        .trim();
+}
+
+export default function JobMatchDetail() {
+    const { jobId } = useParams();
+
+    const [job, setJob] = useState<any>(null);
+    const [userSkills, setUserSkills] = useState<UserSkill[]>([]);
+    const [userEducation, setUserEducation] = useState<UserEducation[]>([]);
+    const [jobEducation, setJobEducation] =
+        useState<JobEducationRequirement | null>(null);
+
+    const [loading, setLoading] = useState(true);
+
+    /* ================================
+       LOAD DATA
+    ================================ */
+    useEffect(() => {
+        async function load() {
+            if (!jobId) return;
+
+            const jobData = await getJobById(jobId);
+            const userSkillsData = await getUserSkillsWithLevels();
+            const jobSkillStats = await getSkillsForJob(jobId);
+            const jobEducationData = await getEducationForJob(jobId);
+            const userEducationData = await getUserEducationForMatch();
+
+            const extractedJobSkills = Array.isArray(jobSkillStats)
+                ? jobSkillStats.map((s: any) => s.skill.toLowerCase())
+                : [];
+
+            setJob({
+                ...jobData,
+                extractedSkills: extractedJobSkills,
+            });
+
+            setUserSkills(Array.isArray(userSkillsData) ? userSkillsData : []);
+            setUserEducation(
+                Array.isArray(userEducationData) ? userEducationData : []
+            );
+            setJobEducation(jobEducationData);
+
+            setLoading(false);
+        }
+
+        load();
+    }, [jobId]);
+
+    if (loading) return <div className="p-8 text-center">Loading job match…</div>;
+    if (!job) return <div className="p-8 text-center">Job not found.</div>;
+
+    /* ================================
+       SKILLS MATCHING
+    ================================ */
+    const jobSkills: string[] = job.extractedSkills || [];
+
+    const matchedSkillObjects = userSkills.filter((us) =>
+        jobSkills.includes(us.name.toLowerCase())
+    );
+
+    const matchedSkills = matchedSkillObjects.map((s) => s.name.toLowerCase());
+
+    const missingSkills = jobSkills.filter(
+        (skill) => !matchedSkills.includes(skill)
+    );
+
+    const skillMatchScore =
+        jobSkills.length === 0
+            ? 0
+            : Math.round((matchedSkills.length / jobSkills.length) * 100);
+
+    const strongestSkills = [...matchedSkillObjects]
+        .sort((a, b) => {
+            const rankA = SKILL_RANK[a.proficiency.toLowerCase()] ?? 0;
+            const rankB = SKILL_RANK[b.proficiency.toLowerCase()] ?? 0;
+            return rankB - rankA;
+        })
+        .slice(0, 5);
+
+    /* ================================
+       EDUCATION MATCHING
+    ================================ */
+    let matchedEducation: UserEducation[] = [];
+
+    if (jobEducation?.level && jobEducation.fields?.length > 0) {
+        const jobLevelRank =
+            EDUCATION_RANK[normalizeEducationLevel(jobEducation.level)] ?? 0;
+
+        matchedEducation = userEducation.filter((edu) => {
+            const userLevelRank =
+                EDUCATION_RANK[normalizeEducationLevel(edu.educationLevel)] ?? 0;
+
+            const levelMatch = userLevelRank >= jobLevelRank;
+
+            const fieldMatch = jobEducation.fields.some((field) => {
+                const userField = edu.fieldOfStudy.toLowerCase();
+                return userField.includes(field) || field.includes(userField);
+            });
+
+            return levelMatch && fieldMatch;
+        });
+    }
+
+    /* ================================
+       APPLICATION RECOMMENDATIONS
+    ================================ */
+    const emphasizeSkills = strongestSkills.slice(0, 3);
+
+    const gapRecommendations =
+        missingSkills.length === 0
+            ? [
+                "You meet all listed skill requirements. Focus on impact, measurable results, and ownership in your application.",
+            ]
+            : missingSkills.length <= 3
+                ? [
+                    `Consider strengthening skills such as ${missingSkills
+                        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                        .join(", ")} through targeted projects or coursework.`,
+                ]
+                : [
+                    `Prioritize learning the most critical skills (e.g., ${missingSkills
+                        .slice(0, 3)
+                        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                        .join(", ")}), focusing on one at a time.`,
+                    "Emphasize transferable experience and related tools to offset remaining gaps.",
+                ];
+
+    /* ================================
+       UI
+    ================================ */
+    return (
+        <div className="p-8 max-w-4xl mx-auto space-y-8">
+            {/* HEADER */}
+            <div>
+                <h1 className="text-3xl font-bold">{job.title}</h1>
+                <p className="text-gray-600">
+                    {job.company} • {job.industry}
+                </p>
+            </div>
+
+            {/* SKILLS MATCH SCORE */}
+            <div className="bg-white p-6 rounded-xl shadow border">
+                <h2 className="text-xl font-bold mb-2">Skills Match</h2>
+                <div className="text-4xl font-extrabold text-blue-600">
+                    {skillMatchScore}%
+                </div>
+                <p className="text-gray-600 mt-1">
+                    Based on your skills vs job requirements
+                </p>
+            </div>
+
+            {/* MATCHING SKILLS */}
+            <div className="bg-white p-6 rounded-xl shadow border">
+                <h3 className="text-lg font-bold mb-3">Matching Skills</h3>
+                <div className="flex flex-wrap gap-2">
+                    {matchedSkills.map((s) => (
+                        <span
+                            key={s}
+                            className="px-3 py-1 bg-green-100 text-green-800 rounded-full capitalize"
+                        >
+                            {s}
+                        </span>
+                    ))}
+                </div>
+            </div>
+
+            {/* MISSING SKILLS */}
+            <div className="bg-white p-6 rounded-xl shadow border">
+                <h3 className="text-lg font-bold mb-3">Missing Skills</h3>
+                <div className="flex flex-wrap gap-2">
+                    {missingSkills.map((s) => (
+                        <span
+                            key={s}
+                            className="px-3 py-1 bg-red-100 text-red-800 rounded-full capitalize"
+                        >
+                            {s}
+                        </span>
+                    ))}
+                </div>
+            </div>
+
+            {/* STRONGEST SKILLS */}
+            <div className="bg-white p-6 rounded-xl shadow border">
+                <h3 className="text-lg font-bold mb-3">
+                    Strongest Skill Qualifications for the Role
+                </h3>
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                    {strongestSkills.map((s) => (
+                        <span
+                            key={s.name}
+                            className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full capitalize"
+                        >
+                            {s.name} • {s.proficiency}
+                        </span>
+                    ))}
+                </div>
+
+                {strongestSkills.length > 0 && (
+                    <p className="text-gray-700">
+                        These skills represent your strongest technical qualifications that align
+                        with the requirements for the <strong>{job.title}</strong> role.
+                    </p>
+                )}
+            </div>
+
+            {/* STRONGEST EDUCATION */}
+            <div className="bg-white p-6 rounded-xl shadow border">
+                <h3 className="text-lg font-bold mb-3">
+                    Strongest Educational Qualifications for the Role
+                </h3>
+
+                {matchedEducation.length === 0 ? (
+                    <p className="text-gray-500">
+                        No matching education found. Add education to your profile to improve
+                        your match.
+                    </p>
+                ) : (
+                    <>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {matchedEducation.map((e) => (
+                                <span
+                                    key={e._id}
+                                    className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full"
+                                >
+                                    {e.educationLevel} in {e.fieldOfStudy}
+                                </span>
+                            ))}
+                        </div>
+
+                        <p className="text-gray-700">
+                            Your educational background aligns well with the requirements for
+                            the <strong>{job.title}</strong> role at{" "}
+                            <strong>{job.company}</strong>.
+                        </p>
+                    </>
+                )}
+            </div>
+
+            {/* APPLICATION RECOMMENDATIONS */}
+            <div className="bg-white p-6 rounded-xl shadow border">
+                <h3 className="text-lg font-bold mb-4">
+                    Application Recommendations
+                </h3>
+
+                <div className="mb-4">
+                    <h4 className="font-semibold mb-2">
+                        Emphasize in Your Application
+                    </h4>
+
+                    {emphasizeSkills.length === 0 ? (
+                        <p className="text-gray-500">
+                            No directly matching skills found to emphasize for this role.
+                        </p>
+                    ) : (
+                        <ul className="list-disc list-inside text-gray-700 space-y-1">
+                            {emphasizeSkills.map((s) => (
+                                <li key={s.name}>
+                                    {s.name} ({s.proficiency}) — highlight projects where you
+                                    delivered measurable impact using this skill
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+
+                <div>
+                    <h4 className="font-semibold mb-2">
+                        How to Address Missing Requirements
+                    </h4>
+
+                    <ul className="list-disc list-inside text-gray-700 space-y-1">
+                        {gapRecommendations.map((rec, idx) => (
+                            <li key={idx}>{rec}</li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getIndustries,
   getSkillsForIndustry,
@@ -20,6 +21,7 @@ interface CompanyStat {
 }
 
 export default function MarketTrends() {
+  const navigate = useNavigate();
   const [industries, setIndustries] = useState<string[]>([]);
   const [selected, setSelected] = useState("");
   const [skillData, setSkillData] = useState<SkillStat[]>([]);
@@ -96,8 +98,16 @@ export default function MarketTrends() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-4xl font-extrabold text-center mb-8">Market Trends</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-4xl font-extrabold">Market Trends</h1>
 
+        <button
+          onClick={() => navigate("/analytics/job-match")}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
+        >
+          Job Match Analysis
+        </button>
+      </div>
       {/* 🚨 No jobs in entire system */}
       {jobCount === 0 && (
         <>
@@ -123,7 +133,7 @@ export default function MarketTrends() {
         </div>
       )}
       {jobCount === 0 && null /* Prevents further rendering */}
-      
+
       {/* SELECT DROPDOWN */}
       {jobCount > 0 && (
         <div className="flex justify-center mb-10">
@@ -167,7 +177,7 @@ export default function MarketTrends() {
       {/* MAIN CONTENT */}
       {skillData.length > 0 && industryHasDescriptions && (
         <div className="space-y-10">
-          
+
           {/* TOP SKILLS */}
           <div className="bg-white shadow-xl rounded-2xl p-8 border">
             <h2 className="text-2xl font-bold mb-4">

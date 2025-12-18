@@ -72,3 +72,70 @@ export async function getJobCount() {
   });
   return res.json();
 }
+
+export async function getSkillsForJob(jobId: string) {
+  const res = await fetch(`${API_BASE}/api/market/job/${jobId}/skills`, {
+    headers: baseHeaders(), // ✅ THIS WAS MISSING
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch job skills");
+  }
+
+  return res.json();
+}
+
+export async function getUserSkillsWithLevels() {
+  const res = await fetch(`${API_BASE}/api/skills`, {
+    headers: baseHeaders(),
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+
+  return data.map((s: any) => ({
+    name: s.name.toLowerCase(),
+    proficiency: s.proficiency, // ✅ CORRECT FIELD
+  }));
+}
+
+export async function getEducationForJob(jobId: string) {
+  const res = await fetch(
+    `${API_BASE}/api/market/job/${jobId}/education`,
+    { headers: baseHeaders() }
+  );
+
+  if (!res.ok) {
+    return { level: null, fields: [] };
+  }
+
+  const text = await res.text();
+  if (!text) {
+    return { level: null, fields: [] };
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { level: null, fields: [] };
+  }
+}
+
+export async function getUserEducation() {
+  const res = await fetch(`${API_BASE}/api/education`, {
+    headers: baseHeaders(),
+  });
+
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getUserEducationForMatch() {
+  const res = await fetch(`${API_BASE}/api/market/user/education`, {
+    headers: baseHeaders(),
+  });
+
+  if (!res.ok) return [];
+  return res.json();
+}

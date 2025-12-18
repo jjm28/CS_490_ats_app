@@ -5,20 +5,31 @@ import {
   type JobCardProps as BaseJobCardProps,
   formatSalary,
 } from "../../types/jobs.types";
+import type { Job } from "../../types/jobs.types";
 import { useNavigate, useLocation } from "react-router-dom";
 
 interface ExtendedJobCardProps extends BaseJobCardProps {
   selectedJobs: string[];
   toggleJobSelection: (jobId: string, selected: boolean) => void;
+  updateJobLocal: (id: string, patch: Partial<Job>) => void;
 }
 
 const JobCard: React.FC<ExtendedJobCardProps> = ({
   job,
   selectedJobs,
   toggleJobSelection,
+  updateJobLocal,
 }) => {
+  const qualityScore = job.applicationQualityScore ?? null;
+  const isGateEnabled = job.enforceQualityGate ?? false;
+  const isBelowThreshold =
+    isGateEnabled && qualityScore !== null && qualityScore < 70;
+
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: job._id });
+    useSortable({
+      id: job._id,
+      disabled: isBelowThreshold,
+    });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -44,9 +55,10 @@ const JobCard: React.FC<ExtendedJobCardProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white p-3 rounded shadow hover:shadow-md transition-all cursor-pointer border ${
-        isSelected ? "border-blue-500" : "border-transparent"
-      }`}
+      className={`bg-white p-3 rounded shadow transition-all border
+  ${isBelowThreshold ? "opacity-60 cursor-not-allowed" : "hover:shadow-md cursor-pointer"}
+  ${isSelected ? "border-blue-500" : "border-transparent"}
+`}
       onClick={(e) => {
         const target = e.target as HTMLElement;
 
@@ -85,6 +97,50 @@ const JobCard: React.FC<ExtendedJobCardProps> = ({
       <div className="text-xs text-gray-500 mt-1">
         🕒 {getDaysInStage()} {getDaysInStage() === 1 ? "day" : "days"} in stage
       </div>
+      {qualityScore !== null && (
+        <div className="mt-2 text-xs flex items-center justify-between gap-2">
+          <span
+            className={`font-medium ${qualityScore >= 70 ? "text-green-600" : "text-red-600"
+              }`}
+          >
+            Quality: {qualityScore}/100
+          </span>
+
+          <label
+            className="flex items-center gap-1 text-gray-500"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={isGateEnabled}
+              onChange={async (e) => {
+                e.stopPropagation();
+                const checked = e.target.checked;
+
+                // ✅ Update UI immediately
+                updateJobLocal(job._id, { enforceQualityGate: checked });
+
+                const token =
+                  localStorage.getItem("authToken") ||
+                  localStorage.getItem("token");
+
+                await fetch(
+                  `${process.env.REACT_APP_API_BASE}/api/jobs/${job._id}/quality-gate`,
+                  {
+                    method: "PATCH",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ enforceQualityGate: checked }),
+                  }
+                );
+              }}
+            />
+            Enforce gate (dev)
+          </label>
+        </div>
+      )}
     </div>
   );
 };

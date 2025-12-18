@@ -63,29 +63,29 @@ const StatusHistorySchema = new Schema({
 }, { _id: false });
 
 const CommuteSchema = new mongoose.Schema(
-  {
-    distanceKm: Number,
-    durationMinutes: Number,
-    calculatedAt: Date,
-    homeLocationSnapshot: String,
-  },
-  { _id: false }
+    {
+        distanceKm: Number,
+        durationMinutes: Number,
+        calculatedAt: Date,
+        homeLocationSnapshot: String,
+    },
+    { _id: false }
 );
 
 const GeoSchema = new mongoose.Schema(
-  {
-    lat: Number,
-    lng: Number,
-    provider: { type: String, default: "nominatim" },
-    geocodedAt: Date,
-    normalizedAddress: String,
-    countryCode: String,
-    city: String,
-    state: String,
-    postalCode: String,
-    userquery: String
-  },
-  { _id: false }
+    {
+        lat: Number,
+        lng: Number,
+        provider: { type: String, default: "nominatim" },
+        geocodedAt: Date,
+        normalizedAddress: String,
+        countryCode: String,
+        city: String,
+        state: String,
+        postalCode: String,
+        userquery: String
+    },
+    { _id: false }
 );
 
 const JobSchema = new Schema({
@@ -192,11 +192,36 @@ const JobSchema = new Schema({
     // Application history tracking
     applicationHistory: [ApplicationHistorySchema],
 
+    // ================================
+    // UC-122: Application Package Quality
+    // ================================
+
+    applicationQualityScore: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: null,
+    },
+
+    enforceQualityGate: {
+        type: Boolean,
+        default: false, // DEV TOGGLE
+    },
+
     // 🚀 Application package generated for this job (UC-069)
     applicationPackage: {
         type: {
-            resumeId: String,
-            coverLetterId: String,
+            // Resume
+            resumeId: { type: String },
+            resumeVersionId: { type: String },
+            resumeVersionLabel: { type: String },
+
+            // Cover Letter
+            coverLetterId: { type: String },
+            coverLetterVersionId: { type: String },
+            coverLetterVersionLabel: { type: String },
+
+            // Existing fields
             portfolioUrls: [String],
             generatedAt: Date,
             generatedByRuleId: String,
@@ -518,9 +543,9 @@ const JobSchema = new Schema({
     }],
 
     workMode: {
-      type: String,
-      enum: ["remote", "hybrid", "onsite"],
-      default: "onsite",
+        type: String,
+        enum: ["remote", "hybrid", "onsite"],
+        default: "onsite",
     },
 
 
