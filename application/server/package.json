@@ -57,11 +57,11 @@
     "web-push": "^3.6.7",
     "winston": "^3.19.0",
     "xss": "^1.0.15",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "cross-env": "^10.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
-    "cross-env": "^10.1.0",
     "jest": "^30.2.0",
     "mongodb-memory-server": "^10.2.3",
     "supertest": "^7.1.4"
