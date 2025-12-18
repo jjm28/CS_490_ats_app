@@ -1,4 +1,6 @@
 import API_BASE from "../utils/apiBase";
+import { apiFetch } from "../utils/apiFetch";
+
 // api/jobs.ts
 import type { Job, WorkMode } from "../types/jobs.types";
 
@@ -76,87 +78,95 @@ console.log(data)
 }
 
 
-function baseHeaders() {
-    const token = localStorage.getItem("token");
-    
-    // Dev mode fallback: use x-dev-user-id if available
-    const devUserId = localStorage.getItem("x-dev-user-id") || 
-                      sessionStorage.getItem("x-dev-user-id");
-    
-    return {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(devUserId ? { "x-dev-user-id": devUserId } : {}),
-    };
-}
 
+// ==============================
+// 📊 JOB STATS
+// ==============================
 export const getJobStats = async () => {
-  const res = await fetch(`${API_BASE}/api/jobs/stats`, {
-    headers: baseHeaders(),
-  });
+  const res = await apiFetch(`${API_BASE}/api/jobs/stats`);
   if (!res.ok) throw new Error("Failed to fetch job statistics");
   return res.json();
 };
 
+// ==============================
+// 📦 ARCHIVED JOBS
+// ==============================
 export async function getArchivedJobs() {
-    const res = await fetch(`${API_BASE}/api/jobs/archived`, {
-        headers: baseHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to fetch archived jobs");
-    return res.json();
+  const res = await apiFetch(`${API_BASE}/api/jobs/archived`);
+  if (!res.ok) throw new Error("Failed to fetch archived jobs");
+  return res.json();
 }
 
-export async function toggleArchiveJob(id: string, archive: boolean, reason?: string) {
-    const res = await fetch(`${API_BASE}/api/jobs/${id}/archive`, {
-        method: "PATCH",
-        headers: baseHeaders(),
-        body: JSON.stringify({ archive, reason }),
-    });
-    if (!res.ok) throw new Error("Failed to update archive status");
-    return res.json();
-}
-
-export async function deleteJob(id: string) {
-    const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
-        method: "DELETE",
-        headers: baseHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to delete job");
-    return res.json();
-}
-
-export async function getAllJobs() {
-    const res = await fetch(`${API_BASE}/api/jobs`, {
-        headers: baseHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to fetch jobs");
-    return res.json();
-}
-
-export async function getSuccessAnalysis() {
-  const res = await fetch(`${API_BASE}/api/success-analysis`, {
-    headers: baseHeaders(),
+// ==============================
+// 🗄️ ARCHIVE / UNARCHIVE
+// ==============================
+export async function toggleArchiveJob(
+  id: string,
+  archive: boolean,
+  reason?: string
+) {
+  const res = await apiFetch(`${API_BASE}/api/jobs/${id}/archive`, {
+    method: "PATCH",
+    body: JSON.stringify({ archive, reason }),
   });
+  if (!res.ok) throw new Error("Failed to update archive status");
+  return res.json();
+}
+
+// ==============================
+// ❌ DELETE JOB
+// ==============================
+export async function deleteJob(id: string) {
+  const res = await apiFetch(`${API_BASE}/api/jobs/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete job");
+  return res.json();
+}
+
+// ==============================
+// 📋 GET ALL JOBS
+// ==============================
+export async function getAllJobs() {
+  const res = await apiFetch(`${API_BASE}/api/jobs`);
+  if (!res.ok) throw new Error("Failed to fetch jobs");
+  return res.json();
+}
+
+// ==============================
+// 📈 SUCCESS ANALYTICS
+// ==============================
+export async function getSuccessAnalysis() {
+  const res = await apiFetch(`${API_BASE}/api/success-analysis`);
   if (!res.ok) throw new Error("Failed to fetch success analysis");
   return res.json();
 }
 
 export async function getSuccessPatterns() {
-  const res = await fetch(`${API_BASE}/api/success-analysis/patterns`, {
-    headers: baseHeaders(),
-  });
+  const res = await apiFetch(
+    `${API_BASE}/api/success-analysis/patterns`
+  );
   if (!res.ok) throw new Error("Failed to fetch success patterns");
   return res.json();
 }
 
+// ==============================
+// 🔍 SINGLE JOB
+// ==============================
 export async function getJobById(id: string) {
-    const res = await fetch(`${API_BASE}/api/jobs/${id}`, {
-        headers: baseHeaders(),
-    });
+  const res = await apiFetch(`${API_BASE}/api/jobs/${id}`);
+  if (!res.ok) throw new Error("Failed to fetch job");
+  return res.json();
+}
 
-    if (!res.ok) {
-        throw new Error("Failed to fetch job");
-    }
+export async function getJobsPaginated(page = 1, limit = 10) {
+  const res = await apiFetch(
+    `${API_BASE}/api/jobs?page=${page}&limit=${limit}`
+  );
 
-    return res.json();
+  if (!res.ok) {
+    throw new Error("Failed to fetch jobs");
+  }
+
+  return res.json(); // { data, page, totalPages }
 }

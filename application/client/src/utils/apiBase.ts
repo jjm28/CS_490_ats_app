@@ -3,6 +3,7 @@ const API_BASE =
   import.meta.env.VITE_API_URL ||
   'http://localhost:5050';
 
+
 export default API_BASE;
 
 // Export common endpoints for convenience
@@ -54,3 +55,4 @@ if (import.meta.env.DEV) {
   console.log('  Environment:', import.meta.env.MODE);
   console.log('  API Base URL:', API_BASE);
 }
+
