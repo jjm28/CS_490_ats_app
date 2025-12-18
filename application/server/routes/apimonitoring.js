@@ -159,7 +159,7 @@ function getApiLimit(apiName) {
     'newsapi': 1000,
     'adzuna': 5000,
     'careeronestop': 10000,
-    'google-search': 100
+    'google-search': 10000
   };
   return limits[apiName] || 1000;
 }
