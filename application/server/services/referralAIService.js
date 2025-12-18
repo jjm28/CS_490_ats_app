@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import dotenv from "dotenv";
+import { logApiCall } from "../middleware/apiLogger.js"; // ← ADD THIS
 
 dotenv.config();
 
@@ -39,17 +40,28 @@ function safeJsonParse(str, fallback = []) {
 }
 
 /* ======================================================
-   INTERNAL HELPER — Faster, consistent OpenAI call
+   INTERNAL HELPER — Faster, consistent OpenAI call WITH LOGGING
 ====================================================== */
 async function ask(prompt) {
-  const res = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.3,
-    max_tokens: 300,
-    messages: [{ role: "user", content: prompt }],
-  });
+  const startTime = Date.now(); // ← ADD THIS
+  
+  try {
+    const res = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.3,
+      max_tokens: 300,
+      messages: [{ role: "user", content: prompt }],
+    });
 
-  return res.choices?.[0]?.message?.content?.trim() || "";
+    // ← ADD THIS - Log successful call
+    await logApiCall('openai', '/chat/completions', 200, Date.now() - startTime);
+
+    return res.choices?.[0]?.message?.content?.trim() || "";
+  } catch (error) {
+    // ← ADD THIS - Log failed call
+    await logApiCall('openai', '/chat/completions', error.status || 500, Date.now() - startTime, error.message);
+    throw error;
+  }
 }
 
 /* ======================================================

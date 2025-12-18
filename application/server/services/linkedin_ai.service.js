@@ -48,7 +48,7 @@ export async function generateLinkedInMessage(context) {
 - Respects their time with a specific, reasonable ask
 - Closes warmly with next steps
 - Uses [Name] placeholder for personalization`;
-
+  const startTime = Date.now();
   try {
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: promptContext }] }],
@@ -58,10 +58,11 @@ export async function generateLinkedInMessage(context) {
         temperature: 0.7,
       },
     });
-
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
     const responseText = result.response.text();
     return JSON.parse(responseText);
   } catch (err) {
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
     console.error("AI LinkedIn message generation failed:", err);
     throw new Error("Failed to generate LinkedIn message");
   }
@@ -111,6 +112,7 @@ export async function generateConnectionRequest(context) {
 - Uses [Name] placeholder
 
 Also provide 3-4 practical tips for this scenario.`;
+    const startTime = Date.now(); // ← ADD
 
   try {
     const result = await model.generateContent({
@@ -120,11 +122,13 @@ Also provide 3-4 practical tips for this scenario.`;
         responseSchema: connectionSchema,
         temperature: 0.7,
       },
+      
     });
-
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
     const responseText = result.response.text();
     return JSON.parse(responseText);
   } catch (err) {
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
     console.error("AI connection request generation failed:", err);
     throw new Error("Failed to generate connection request");
   }
@@ -180,7 +184,7 @@ Provide 5-8 specific suggestions to improve this LinkedIn profile for:
 ${userProfile.targetRole ? `- Positioning for ${userProfile.targetRole} roles` : ""}
 
 Focus on practical, achievable improvements.`;
-
+  const startTime = Date.now();
   try {
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: promptContext }] }],
@@ -190,10 +194,11 @@ Focus on practical, achievable improvements.`;
         temperature: 0.7,
       },
     });
-
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
     const responseText = result.response.text();
     return JSON.parse(responseText);
   } catch (err) {
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message); 
     console.error("AI profile optimization failed:", err);
     throw new Error("Failed to generate profile optimization");
   }

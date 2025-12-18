@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { logApiCall } from "../middleware/apiLogger.js"; // ← ADD THIS
 
 // ✅ Follow your existing API key hierarchy
 const genAI = new GoogleGenerativeAI(
@@ -40,6 +41,8 @@ const checklistSchema = {
  * @returns {Promise<Array>} Array of checklist items
  */
 export async function generateChecklistWithAI(job, interview) {
+  const startTime = Date.now(); // ← ADD THIS
+  
   const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash",
     systemInstruction:
@@ -127,6 +130,9 @@ Return as JSON with this structure:
       },
     });
 
+    // ← ADD THIS - Log successful call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
     const responseText = result.response.text();
     const parsed = JSON.parse(responseText);
     
@@ -139,6 +145,8 @@ Return as JSON with this structure:
     return parsed.items;
 
   } catch (err) {
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     console.error("❌ AI checklist generation failed:", err);
     throw err; // Let the caller handle fallback
   }

@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { logApiCall } from "../middleware/apiLogger.js"; // ← ADD THIS
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_FOLLOWUP || process.env.GOOGLE_API_KEY);
 
@@ -12,6 +13,8 @@ const responseSchema = {
 };
 
 export async function generateFollowUpContent(job, interview, type, userInfo = {}) {
+  const startTime = Date.now(); // ← ADD THIS
+  
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash-lite",
     systemInstruction:
@@ -128,9 +131,15 @@ Key points:
       },
     });
 
+    // ← ADD THIS - Log successful call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
     const responseText = result.response.text();
     return JSON.parse(responseText);
   } catch (err) {
+    // ← ADD THIS - Log failed call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     console.error("AI Follow-up generation failed:", err);
     throw new Error("Failed to generate email content");
   }
