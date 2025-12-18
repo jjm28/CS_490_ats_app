@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getJobById } from "../../api/jobs";
 import { getUserEducationForMatch } from "../../api/market";
 import {
@@ -7,6 +7,7 @@ import {
     getSkillsForJob,
     getEducationForJob,
 } from "../../api/market";
+import { jobMatchDetailCache } from "../../utils/jobMatchCache";
 
 /* ================================
    TYPES
@@ -60,6 +61,7 @@ function normalizeEducationLevel(level: string) {
 
 export default function JobMatchDetail() {
     const { jobId } = useParams();
+    const navigate = useNavigate();
 
     const [job, setJob] = useState<any>(null);
     const [userSkills, setUserSkills] = useState<UserSkill[]>([]);
@@ -76,26 +78,52 @@ export default function JobMatchDetail() {
         async function load() {
             if (!jobId) return;
 
+            setLoading(true);
+
             const jobData = await getJobById(jobId);
             const userSkillsData = await getUserSkillsWithLevels();
-            const jobSkillStats = await getSkillsForJob(jobId);
-            const jobEducationData = await getEducationForJob(jobId);
             const userEducationData = await getUserEducationForMatch();
 
-            const extractedJobSkills = Array.isArray(jobSkillStats)
+            // ⚡ FAST PATH — cache exists
+            if (jobMatchDetailCache.has(jobId)) {
+                const cached = jobMatchDetailCache.get(jobId)!;
+
+                setJob({
+                    ...jobData,
+                    extractedSkills: cached.extractedSkills,
+                });
+
+                setJobEducation(cached.jobEducation);
+                setUserSkills(userSkillsData || []);
+                setUserEducation(userEducationData || []);
+
+                setLoading(false);
+                return;
+            }
+
+            // ⏳ SLOW PATH — first-ever visit
+            const [jobSkillStats, jobEducationData] = await Promise.all([
+                getSkillsForJob(jobId),
+                getEducationForJob(jobId),
+            ]);
+
+            const extractedSkills = Array.isArray(jobSkillStats)
                 ? jobSkillStats.map((s: any) => s.skill.toLowerCase())
                 : [];
 
-            setJob({
-                ...jobData,
-                extractedSkills: extractedJobSkills,
+            jobMatchDetailCache.set(jobId, {
+                extractedSkills,
+                jobEducation: jobEducationData,
             });
 
-            setUserSkills(Array.isArray(userSkillsData) ? userSkillsData : []);
-            setUserEducation(
-                Array.isArray(userEducationData) ? userEducationData : []
-            );
+            setJob({
+                ...jobData,
+                extractedSkills,
+            });
+
             setJobEducation(jobEducationData);
+            setUserSkills(userSkillsData || []);
+            setUserEducation(userEducationData || []);
 
             setLoading(false);
         }
@@ -187,6 +215,13 @@ export default function JobMatchDetail() {
     ================================ */
     return (
         <div className="p-8 max-w-4xl mx-auto space-y-8">
+            {/* BACK BUTTON */}
+            <button
+                onClick={() => navigate(-1)}
+                className="text-sm text-gray-500 hover:text-gray-800"
+            >
+                ← Back
+            </button>
             {/* HEADER */}
             <div>
                 <h1 className="text-3xl font-bold">{job.title}</h1>
@@ -291,7 +326,8 @@ export default function JobMatchDetail() {
                             <strong>{job.company}</strong>.
                         </p>
                     </>
-                )}
+                )
+                }
             </div>
 
             {/* APPLICATION RECOMMENDATIONS */}
@@ -300,6 +336,11 @@ export default function JobMatchDetail() {
                     Application Recommendations
                 </h3>
 
+                <ul className="list-disc list-inside text-gray-700 space-y-1">
+                    {gapRecommendations.map((rec, idx) => (
+                        <li key={idx}>{rec}</li>
+                    ))}
+                </ul>
                 <div className="mb-4">
                     <h4 className="font-semibold mb-2">
                         Emphasize in Your Application
