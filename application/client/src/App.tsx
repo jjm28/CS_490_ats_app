@@ -146,6 +146,7 @@ import MentorDetails from './components/Networking/MentorDetails';
 import SkillCertifications from './components/Certifications/SkillCertifications';
 import { handleError } from './utils/errorHandler';
 // import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
+import OfferComparisonTool from "./components/Jobs/OfferComparisonTool";
 
 import ApplicationOptimizationDashboard from "./components/Analytics/ApplicationOptimizationDashboard";
 import MaterialUsageDetail from "./components/Analytics/MaterialUsageDetail";
@@ -761,6 +762,7 @@ function App() {
             path="/Applications/Scheduler"
             element={<PrivateRoute><ApplicationSchedulerPage /></PrivateRoute>}
           />
+          <Route path="/jobs/offers/compare" element={<PrivateRoute><OfferComparisonTool /></PrivateRoute>} />
         </Routes>
       </div>
     </>
