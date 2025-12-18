@@ -4,6 +4,11 @@ import { getAllJobs } from "../../api/jobs";
 import { getUserSkillsWithLevels } from "../../api/market";
 import { getUserEducationForMatch } from "../../api/market";
 import { getSkillsForJob, getEducationForJob } from "../../api/market";
+import {
+    jobMatchStatsCache,
+    isJobMatchListLoaded,
+    setJobMatchListLoaded,
+} from "../../utils/jobMatchCache";
 
 export default function JobMatchList() {
     const [jobs, setJobs] = useState<any[]>([]);
@@ -12,6 +17,24 @@ export default function JobMatchList() {
 
     useEffect(() => {
         async function load() {
+            // ⚡ FAST PATH — cache already built
+            if (isJobMatchListLoaded()) {
+                const cachedJobs = await getAllJobs();
+
+                setJobs(
+                    cachedJobs.map((job: any) => ({
+                        ...job,
+                        ...jobMatchStatsCache.get(job._id),
+                    }))
+                );
+
+                setLoading(false);
+                return;
+            }
+
+            // ⏳ FIRST LOAD — build cache
+            setLoading(true);
+
             const jobsData = await getAllJobs();
             const userSkills = await getUserSkillsWithLevels();
             const userEducation = await getUserEducationForMatch();
@@ -24,7 +47,6 @@ export default function JobMatchList() {
 
             const rankedJobs = await Promise.all(
                 jobsData.map(async (job) => {
-                    // --- SKILLS ---
                     const jobSkillStats = await getSkillsForJob(job._id);
                     const jobSkills = Array.isArray(jobSkillStats)
                         ? jobSkillStats.map((s: any) => s.skill.toLowerCase())
@@ -39,23 +61,28 @@ export default function JobMatchList() {
                             ? 0
                             : Math.round((matchedSkills.length / jobSkills.length) * 100);
 
-                    // --- EDUCATION (binary) ---
                     const jobEducation = await getEducationForJob(job._id);
 
                     const educationMatch =
                         jobEducation?.level &&
-                        userEducation.some((edu: any) => {
-                            const userLevel = edu.educationLevel.toLowerCase();
-                            const jobLevel = jobEducation.level.toLowerCase();
-                            return userLevel.includes(jobLevel);
-                        });
+                        userEducation.some((edu: any) =>
+                            edu.educationLevel
+                                .toLowerCase()
+                                .includes(jobEducation.level.toLowerCase())
+                        );
 
                     const educationScore = educationMatch ? 100 : 0;
 
-                    // --- OVERALL SCORE (50 / 50) ---
                     const overallMatchScore = Math.round(
                         skillMatchScore * 0.5 + educationScore * 0.5
                     );
+
+                    // ✅ CACHE
+                    jobMatchStatsCache.set(job._id, {
+                        skillMatchScore,
+                        educationScore,
+                        overallMatchScore,
+                    });
 
                     return {
                         ...job,
@@ -66,13 +93,13 @@ export default function JobMatchList() {
                 })
             );
 
-            // SORT by overall score
-            rankedJobs.sort(
-                (a, b) => b.overallMatchScore - a.overallMatchScore
-            );
+            rankedJobs.sort((a, b) => b.overallMatchScore - a.overallMatchScore);
 
             setJobs(rankedJobs);
             setLoading(false);
+
+            // ✅ MARK CACHE READY
+            setJobMatchListLoaded(true);
         }
 
         load();
@@ -84,6 +111,12 @@ export default function JobMatchList() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto">
+            <button
+                onClick={() => navigate(-1)}
+                className="text-sm text-gray-500 hover:text-gray-800 mb-4"
+            >
+                ← Back
+            </button>
             <h1 className="text-3xl font-bold mb-6">Job Match Analysis</h1>
 
             {jobs.length === 0 ? (
@@ -98,14 +131,11 @@ export default function JobMatchList() {
                             onClick={() => navigate(`/analytics/job-match/${job._id}`)}
                             className="p-5 bg-white rounded-lg shadow border cursor-pointer hover:bg-gray-50 flex items-center justify-between"
                         >
-                            {/* LEFT SIDE: RANK + JOB INFO */}
                             <div className="flex items-center gap-4">
-                                {/* RANK */}
                                 <div className="text-3xl font-extrabold text-gray-400 w-10 text-center">
                                     #{index + 1}
                                 </div>
 
-                                {/* JOB INFO */}
                                 <div>
                                     <div className="text-2xl font-extrabold text-gray-900">
                                         {job.title}
@@ -116,7 +146,6 @@ export default function JobMatchList() {
                                 </div>
                             </div>
 
-                            {/* RIGHT SIDE: SCORE */}
                             <div className="text-right">
                                 <div className="text-2xl font-extrabold text-blue-600">
                                     {job.overallMatchScore}%
