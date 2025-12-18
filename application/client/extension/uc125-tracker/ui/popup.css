@@ -1,0 +1,100 @@
+:root {
+  --ontrac-ink: #0e3f41;   /* dark green */
+  --ontrac-mint: #a7beb4;  /* light green */
+  --ontrac-mint-2: #b7cbc2;
+  --ontrac-border: rgba(14, 63, 65, 0.25);
+  --ontrac-card: rgba(255, 255, 255, 0.55);
+  --ontrac-danger: #b91c1c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  width: 360px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: var(--ontrac-mint);
+  color: var(--ontrac-ink);
+}
+
+.card {
+  margin: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--ontrac-border);
+  background: var(--ontrac-card);
+}
+
+.h1 {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  margin: 0 0 8px 0;
+}
+
+.small {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.hr {
+  height: 1px;
+  background: rgba(14, 63, 65, 0.18);
+  margin: 10px 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(14, 63, 65, 0.35);
+  outline: none;
+  background: rgba(255, 255, 255, 0.8);
+  color: #111827;
+  font-weight: 700;
+}
+
+.btn {
+  border: 1px solid var(--ontrac-border);
+  background: var(--ontrac-mint-2);
+  color: var(--ontrac-ink);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--ontrac-ink);
+  color: var(--ontrac-mint);
+  border-color: rgba(14, 63, 65, 0.45);
+}
+
+.btn.danger {
+  color: var(--ontrac-danger);
+  border-color: rgba(185, 28, 28, 0.35);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid rgba(14, 63, 65, 0.35);
+  background: rgba(16, 185, 129, 0.20);
+}
+.error {
+  color: var(--ontrac-danger);
+  font-weight: 900;
+  font-size: 12px;
+  margin-top: 8px;
+}

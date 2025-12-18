@@ -266,6 +266,12 @@ function Navbar() {
                     My Applications
                   </NavLink>
                   <NavLink
+                    to="/Applications/Scheduler"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Application Scheduler
+                  </NavLink>
+                  <NavLink
                     to="/company-research"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                   >
@@ -595,6 +601,12 @@ function Navbar() {
                           className="block px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white"
                         >
                           My Applications
+                        </NavLink>
+                        <NavLink
+                          to="/Applications/Scheduler"
+                          className="block px-4 py-2 text-gray-700 hover:bg-gray-100 pl-8 text-sm"
+                        >
+                          Application Scheduler
                         </NavLink>
                         <NavLink
                           to="/company-research"

@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Ontrac Tracker Options</title>
+    <style>
+      :root{
+        --bg:#eaf7ef;
+        --card:#f2fbf6;
+        --ink:#0b3b35;
+        --muted:#2c5a53;
+        --border:#a7dcc2;
+        --btn:#0f6b56;
+        --btnInk:#ffffff;
+      }
+      body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--ink); }
+      .wrap{ max-width:900px; margin:0 auto; padding:18px; }
+      .header{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
+      .title{ font-size:18px; font-weight:900; }
+      .pill{ border:1px solid var(--border); background:var(--card); padding:4px 10px; border-radius:999px; font-size:12px; color:var(--muted); }
+      .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px; }
+      .card{ background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; }
+      .label{ font-size:12px; color:var(--muted); margin-top:8px; }
+      input{ width:100%; border:1px solid var(--border); border-radius:10px; padding:10px; background:#fff; color:var(--ink); }
+      button{ border:1px solid var(--border); background:#fff; color:var(--ink); padding:10px 12px; border-radius:10px; cursor:pointer; }
+      button.primary{ background:var(--btn); color:var(--btnInk); border-color: var(--btn); }
+      .row{ display:flex; gap:10px; margin-top:10px; align-items:center; }
+      .small{ font-size:12px; color:var(--muted); line-height:1.35; }
+      .msg{ font-size:12px; margin-top:8px; }
+      .ok{ color:#0f6b56; }
+      .bad{ color:#7a1c1c; }
+      @media (max-width: 800px){ .grid{ grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="header">
+        <div>
+          <div class="title">ontrac — UC-125 Tracker Options</div>
+          <div class="small">Connection state: <span id="connState"></span></div>
+        </div>
+        <div class="pill">Backend + Pairing</div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div style="font-weight:800;">Pair extension</div>
+          <div class="small" style="margin-top:6px;">
+            Generate a code in the Ontrac app, then paste it here. If your backend requires pairingId, paste the full “pairingId|code”.
+          </div>
+
+          <div class="label">Pairing code / pairing string</div>
+          <input id="pairInput" placeholder="737176 or pairingId|737176" />
+
+          <div class="row">
+            <button class="primary" id="pairBtn">Connect</button>
+            <button id="disconnectBtn">Disconnect</button>
+          </div>
+
+          <div id="pairMsg" class="msg"></div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:800;">Backend connection</div>
+
+          <div class="label">API Base URL</div>
+          <input id="apiBase" placeholder="http://localhost:5050" />
+
+          <div class="label">App Base URL</div>
+          <input id="appBase" placeholder="http://localhost:5173" />
+
+          <div class="label">Dev User Id (local testing only)</div>
+          <input id="devUserId" placeholder="656565..." />
+
+          <div class="label">Auth Token (advanced)</div>
+          <input id="authToken" placeholder="Bearer token (optional)" />
+
+          <div class="row">
+            <button class="primary" id="saveBtn">Save</button>
+            <div id="msg" class="msg ok"></div>
+          </div>
+
+          <div class="small" style="margin-top:8px;">
+            Production users should pair (token stored automatically). Dev User Id is only for local testing.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../options.js"></script>
+  </body>
+</html>
