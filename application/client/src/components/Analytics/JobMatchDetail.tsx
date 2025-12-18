@@ -3,9 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getJobById } from "../../api/jobs";
 import { getUserEducationForMatch } from "../../api/market";
 import {
-  getUserSkillsWithLevels,
-  getSkillsForJob,
-  getEducationForJob,
+    getUserSkillsWithLevels,
+    getSkillsForJob,
+    getEducationForJob,
 } from "../../api/market";
 import { jobMatchDetailCache } from "../../utils/jobMatchCache";
 
@@ -217,11 +217,11 @@ export default function JobMatchDetail() {
         <div className="p-8 max-w-4xl mx-auto space-y-8">
             {/* BACK BUTTON */}
             <button
-  onClick={() => navigate(-1)}
-  className="text-sm text-gray-500 hover:text-gray-800"
->
-  ← Back
-</button>
+                onClick={() => navigate(-1)}
+                className="text-sm text-gray-500 hover:text-gray-800"
+            >
+                ← Back
+            </button>
             {/* HEADER */}
             <div>
                 <h1 className="text-3xl font-bold">{job.title}</h1>
@@ -287,6 +287,13 @@ export default function JobMatchDetail() {
                         </span>
                     ))}
                 </div>
+
+                {strongestSkills.length > 0 && (
+                    <p className="text-gray-700">
+                        These skills represent your strongest technical qualifications that align
+                        with the requirements for the <strong>{job.title}</strong> role.
+                    </p>
+                )}
             </div>
 
             {/* STRONGEST EDUCATION */}
@@ -301,17 +308,26 @@ export default function JobMatchDetail() {
                         your match.
                     </p>
                 ) : (
-                    <div className="flex flex-wrap gap-2">
-                        {matchedEducation.map((e) => (
-                            <span
-                                key={e._id}
-                                className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full"
-                            >
-                                {e.educationLevel} in {e.fieldOfStudy}
-                            </span>
-                        ))}
-                    </div>
-                )}
+                    <>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {matchedEducation.map((e) => (
+                                <span
+                                    key={e._id}
+                                    className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full"
+                                >
+                                    {e.educationLevel} in {e.fieldOfStudy}
+                                </span>
+                            ))}
+                        </div>
+
+                        <p className="text-gray-700">
+                            Your educational background aligns well with the requirements for
+                            the <strong>{job.title}</strong> role at{" "}
+                            <strong>{job.company}</strong>.
+                        </p>
+                    </>
+                )
+                }
             </div>
 
             {/* APPLICATION RECOMMENDATIONS */}
@@ -325,6 +341,38 @@ export default function JobMatchDetail() {
                         <li key={idx}>{rec}</li>
                     ))}
                 </ul>
+                <div className="mb-4">
+                    <h4 className="font-semibold mb-2">
+                        Emphasize in Your Application
+                    </h4>
+
+                    {emphasizeSkills.length === 0 ? (
+                        <p className="text-gray-500">
+                            No directly matching skills found to emphasize for this role.
+                        </p>
+                    ) : (
+                        <ul className="list-disc list-inside text-gray-700 space-y-1">
+                            {emphasizeSkills.map((s) => (
+                                <li key={s.name}>
+                                    {s.name} ({s.proficiency}) — highlight projects where you
+                                    delivered measurable impact using this skill
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+
+                <div>
+                    <h4 className="font-semibold mb-2">
+                        How to Address Missing Requirements
+                    </h4>
+
+                    <ul className="list-disc list-inside text-gray-700 space-y-1">
+                        {gapRecommendations.map((rec, idx) => (
+                            <li key={idx}>{rec}</li>
+                        ))}
+                    </ul>
+                </div>
             </div>
         </div>
     );
