@@ -2,7 +2,6 @@
 import { google } from "googleapis";
 import path from "path";
 import fs from "fs";
-
 const calendar = google.calendar("v3");
 
 // ---- Configuration ----

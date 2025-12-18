@@ -6,6 +6,7 @@ import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import Coverletter from '../models/coverletters.js';
 import profile from '../models/profile.js';
 import { sendDocumentAccessEmail, sendSupporterInviteEmail } from './emailService.js';
+import { logApiCall } from "../middleware/apiLogger.js";
 const cache = new Map();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
 
@@ -639,7 +640,7 @@ if (cache.has(cacheKey)) {
   console.log("🗃️ Using cached cover letter for", cacheKey);
   return cache.get(cacheKey);
 }
-
+  const startTime = Date.now();
   try {
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -652,7 +653,7 @@ if (cache.has(cacheKey)) {
         responseSchema,
       },
     });
-
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
     const candidates = result.response?.candidates || [];
     if (candidates.length === 0) throw new Error("Model returned no candidates.");
     const parsedCandidates = [];
@@ -809,6 +810,8 @@ console.log("⭐ paragraphs before injection:", parsed.paragraphs);
     return finalResult;
 
   } catch (err) {
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+
     console.error("❌ Gemini generation failed:", err.message);
 
     // --- fallback for 429 Too Many Requests ---
@@ -853,12 +856,14 @@ TEXT:
 "${text}"
   `;
 
+  const startTime = Date.now();
+  let result;
   try {
-    const result = await model.generateContent(prompt);
-    return result?.response?.text()?.trim() || text;
+    result = await model.generateContent(prompt);
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
   } catch (err) {
-    console.error("rewriteParagraph error:", err.message);
-    return text; // fallback
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    throw err;
   }
 }
 
@@ -869,25 +874,17 @@ TEXT:
 // -------------------------------------------------------
 export async function analyzeWriting(paragraphs) {
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-  const prompt = `
-Provide **5 bullet-point suggestions** to improve the writing quality
-of this cover letter. Focus ONLY on:
-
-- clarity
-- readability
-- sentence structure
-- flow / transitions
-- tone consistency
-
-DO NOT rewrite the letter — only provide suggestions.
-
-TEXT:
-${paragraphs.join("\n\n")}
-  `;
-
+  const prompt = `...`;
   try {
-    const result = await model.generateContent(prompt);
+    const startTime = Date.now();
+    let result;
+    try {
+      result = await model.generateContent(prompt);
+      await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+    } catch (err) {
+      await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+      throw err;
+    }
     const raw = result?.response?.text() || "";
     return raw.replace(/\*/g, "").split("\n").filter(Boolean);
   } catch (err) {
