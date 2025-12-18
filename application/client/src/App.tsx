@@ -190,6 +190,8 @@ const InterviewInsightsPage = lazy(() => import('./components/Interviews/Intervi
 const Dashboard = lazy(() => import('./components/Dashboard'));
 // const NetworkingDashboard = lazy(() => import('./components/Networking/NetworkingDashboard'));
 const ReferralDashboard = lazy(() => import('./components/Referral/ReferralDashboard'));
+//import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
+import ApplicationSchedulerPage from "./components/Applications/ApplicationSchedulerPage";
 
 function App() {
   const location = useLocation();
@@ -711,7 +713,14 @@ function App() {
             element={<PrivateRoute><CustomReportPage /></PrivateRoute>}
           />
           <Route path="/skill-certifications" element={<PrivateRoute><SkillCertifications /></PrivateRoute>} />
-          <Route path="/commuter-planner" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><CommuterPlannerPage /></Suspense></PrivateRoute>} />        </Routes>
+          <Route path="/commuter-planner" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><CommuterPlannerPage /></Suspense></PrivateRoute>} />        
+          
+
+          <Route
+            path="/Applications/Scheduler"
+            element={<PrivateRoute><ApplicationSchedulerPage /></PrivateRoute>}
+          />
+        </Routes>
       </div>
     </>
   );
