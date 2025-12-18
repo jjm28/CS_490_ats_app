@@ -51,7 +51,7 @@ import { handleValidationErrors } from "../middleware/validate.js";
 import { sanitizeQuery } from "../utils/sanitizeQuery.js";
 import redis from "../lib/redis.js";
 import { jobs } from "googleapis/build/src/apis/jobs/index.js";
-import  csrfProtection  from "../middleware/csrf.js"
+import csrfProtection from "../middleware/csrf.js"
 
 import Profile from "../models/profile.js";
 import { geocodeLocation } from "../services/geocoding.service.js";
@@ -90,14 +90,14 @@ function getDevId(req) {
   return dev ? dev.toString() : null;
 }
 
-router.post(
+/*router.post(
   "/",
   verifyJWT,        // user must be logged in
   csrfProtection,   // CSRF enforced
   async (req, res) => {
     res.json({ success: true });
   }
-);
+);*/
 
 router.get("/", async (req, res) => {
   try {
@@ -153,6 +153,29 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ============================================
+// 🤖 AI JOB PICKER — FLAT JOB LIST (NO PAGINATION)
+// ============================================
+router.get("/all", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const jobs = await Jobs.find({
+      userId,
+      archived: { $ne: true }
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(jobs); // 🔥 IMPORTANT: plain array
+  } catch (err) {
+    console.error("Get all jobs for AI failed:", err);
+    res.status(500).json({ error: "Failed to fetch jobs" });
+  }
+});
 
 // ============================================
 // USER PREFERENCES ROUTES

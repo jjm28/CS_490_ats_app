@@ -44,9 +44,21 @@ const JobsPipeline: React.FC = () => {
         },
       });
       if (!res.ok) throw new Error("Failed to fetch jobs");
-      const data: Job[] = await res.json();
-      setJobs(data);
-      const analysisPromises = data.map(async (job) => {
+      const json = await res.json();
+
+      // Handle both legacy and paginated responses safely
+      const jobsArray: Job[] = Array.isArray(json)
+        ? json
+        : Array.isArray(json?.data)
+          ? json.data
+          : [];
+
+      setJobs(jobsArray);
+
+      const analysisPromises = jobsArray.map(async (job) => {
+        console.log("Jobs API response:", json);
+        console.log("Using jobsArray:", jobsArray);
+
         if (job._id && (job.matchScore === undefined || job.matchScore === null)) {
           try {
             await fetch(`${API_BASE}/api/jobs/${job._id}/analyze-match`, {
@@ -71,10 +83,10 @@ const JobsPipeline: React.FC = () => {
   };
 
   function updateJobLocal(id: string, patch: Partial<Job>) {
-  setJobs((prev) =>
-    prev.map((j) => (j._id === id ? { ...j, ...patch } : j))
-  );
-}
+    setJobs((prev) =>
+      prev.map((j) => (j._id === id ? { ...j, ...patch } : j))
+    );
+  }
 
   function passesQualityGate(job: Job): boolean {
     if (!job.enforceQualityGate) return true;

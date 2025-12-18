@@ -129,7 +129,18 @@ export async function deleteJob(id: string) {
 export async function getAllJobs() {
   const res = await apiFetch(`${API_BASE}/api/jobs`);
   if (!res.ok) throw new Error("Failed to fetch jobs");
-  return res.json();
+
+  const json = await res.json();
+
+  // 🔧 BACKWARD COMPATIBILITY FIX
+  return Array.isArray(json) ? json : json.data ?? [];
+}
+
+// 🤖 AI-specific job fetch (flat list)
+export async function getAllJobsForAI() {
+  const res = await apiFetch(`${API_BASE}/api/jobs/all`);
+  if (!res.ok) throw new Error("Failed to fetch jobs for AI");
+  return res.json(); // Job[]
 }
 
 export async function getJobsPaginated(page = 1, limit = 10) {
