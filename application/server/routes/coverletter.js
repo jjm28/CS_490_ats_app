@@ -9,13 +9,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import Coverletter from '../models/coverletters.js';
 import { getCoverletterFeedbackSummary,  recordCoverletterApplicationSnapshot,
   getCoverletterReviewImpactMetrics, } from '../services/coverletter.service.js';
-//const genAI_rewrite = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
-
+import { logApiCall } from '../middleware/apiLogger.js'; // ← ADD THIS
 
 const router = express.Router();
 
 router.use(verifyJWT);
-
 
 // GET /api/coverletter/review-impact/metrics
 router.get("/review-impact/metrics", async (req, res) => {
@@ -39,7 +37,6 @@ router.get("/review-impact/metrics", async (req, res) => {
 });
 
 // POST /api/coverletter/review-impact/snapshot
-// Body: { coverletterid, jobId, jobTitle?, companyName?, outcome? }
 router.post("/review-impact/snapshot", async (req, res) => {
   try {
     const { coverletterid, jobId, jobTitle, companyName, outcome } = req.body;
@@ -50,7 +47,6 @@ router.post("/review-impact/snapshot", async (req, res) => {
         .json({ error: "coverletterid and jobId are required" });
     }
 
-    // using authenticated user from JWT (same as your other protected routes)
     const userid = req.user?._id;
     if (!userid) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -78,7 +74,7 @@ router.post("/review-impact/snapshot", async (req, res) => {
 router.get("/:coverletterid/feedback-summary", async (req, res) => {
   try {
     const { coverletterid } = req.params;
-    const { userid } = req.query; // keeping consistent with your other coverletter routes
+    const { userid } = req.query;
 
     if (!userid || !coverletterid) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -97,7 +93,6 @@ router.get("/:coverletterid/feedback-summary", async (req, res) => {
       .json({ error: err.message || "Server error generating summary" });
   }
 });
-
 
 // GET /api/coverletter/
 router.get("/", async (req, res) => {
@@ -119,17 +114,13 @@ router.get("/", async (req, res) => {
 // GET /api/coverletter/mostpop
 router.get("/mostpop", async (req, res) => {
   try {
-
-
     const templateKey = await findmostpopular()
-
     res.status(200).json(templateKey);
   } catch (err) {
     console.log(err)
     return res.status(500).json({ error: 'Server error' });
   }
 });
-
 
 // POST /api/coverletter/save
 router.post('/save', async (req, res) => {
@@ -139,8 +130,6 @@ router.post('/save', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     const coverletter = await createCoverletter({ userid, filename, lastSaved,templateKey}, coverletterdata);
-
-  
     return res.status(201).json(coverletter);
   } catch (err) {
     console.log(err)
@@ -151,14 +140,13 @@ router.post('/save', async (req, res) => {
 // PATCH /api/coverletter/:coverletterid/workflow
 router.patch("/:coverletterid/workflow", async (req, res) => {
   try {
-    const { status } = req.body; // status: WorkflowStatus
+    const { status } = req.body;
     const { coverletterid } = req.params;
 
     if (!status) {
       return res.status(400).json({ error: "Missing status" });
     }
 
-    // only owner can update workflow for now
     const coverletter = await Coverletter.findOne({
       _id: coverletterid,
       owner: req.user._id,
@@ -167,7 +155,8 @@ router.patch("/:coverletterid/workflow", async (req, res) => {
     if (!coverletter) {
       return res.status(404).json({ error: "Not found" });
     }
-coverletter.lastSaved = new Date();
+
+    coverletter.lastSaved = new Date();
     coverletter.workflowStatus = status;
 
     if (status === "approved") {
@@ -175,7 +164,6 @@ coverletter.lastSaved = new Date();
       coverletter.approvedByName = req.user.name || null;
       coverletter.approvedAt = new Date();
     } else {
-      // if reverting away from approved, clear approver info
       coverletter.approvedBy = null;
       coverletter.approvedByName = null;
       coverletter.approvedAt = null;
@@ -194,8 +182,6 @@ coverletter.lastSaved = new Date();
   }
 });
 
-
-
 // PUT /api/coverletter/update
 router.put('/update', async (req, res) => {
   try {
@@ -205,7 +191,6 @@ router.put('/update', async (req, res) => {
     }
     const coverletter = await updateCoverletter({ coverletterid,userid, filename, lastSaved}, coverletterdata);
     if (coverletter.message)  return res.status(404).json({ message: "CoverLetter not found" });
-  
     return res.status(201).json(coverletter);
   } catch (err) {
     console.log(err)
@@ -213,8 +198,7 @@ router.put('/update', async (req, res) => {
   }
 });
 
-
-  // POST /api/coverletter/share
+// POST /api/coverletter/share
 router.post('/share', async (req, res) => {
   try {
     const { coverletterid, userid,coverletterdata,visibility,allowComments, reviewDeadline} = req.body || {};
@@ -223,15 +207,14 @@ router.post('/share', async (req, res) => {
     }
     await updateCoverletterSharedsettings({coverletterid,userid,visibility,allowComments,reviewDeadline})
     const coverletter = await createSharedLink({ userid,coverletterid,coverletterdata});
-
-  
     return res.status(201).json(coverletter);
   } catch (err) {
     console.log(err)
     return res.status(500).json({ error: 'Server error' });
   }
 });
-  // GET /api/coverletter/share
+
+// GET /api/coverletter/share
 router.get('/share', async (req, res) => {
   try {
     const { sharedid, currentUseremail } = req.query 
@@ -242,88 +225,76 @@ router.get('/share', async (req, res) => {
     
     if (sharedcoverletter == null){
       return res.status(404).json({ error: "Share link invalid or expired" });
-
     }
-  
     return res.status(201).json(sharedcoverletter);
   } catch (err) {
     console.log(err)
     return res.status(500).json({ error: "Share link invalid or expired" });
   }
 });
-router.post(
-  "/shared/:sharedid/comments",
-  
-  async (req, res) => {
-    try {
-      const viewerId = req.query.userId
-      const { message,currentUseremail } = req.body || {};
-      if (!viewerId || !message || !message.trim()) {
-        return res.status(400).json({ error: "Missing viewer or message" });
-      }
-      const updated = await addSharedCoverletterComment({
-        sharedid: req.params.sharedid,
-        viewerid: viewerId,
-        message: message.trim(), currentUseremail: currentUseremail
-      });
 
-      if (!updated) {
-        return res
-          .status(404)
-          .json({ error: "Share link invalid or expired" });
-      }
-
-      // You can return either {comments:[...]} or {comment: {...}}.
-      res.status(201).json(updated);
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: "Server error" });
-    }
-  }
-);
-
-router.patch(
-  "/shared/:sharedid/comments/:commentId",
-  verifyJWT,
-  async (req, res) => {
-    try {
-      const viewerId = req.query.userId
-      const { resolved } = req.body || {};
-      if (typeof resolved !== "boolean") {
-        return res.status(400).json({ error: "Missing resolved flag" });
-      }
-
-      const updated = await updateSharedCoverletterComment({
-        sharedid: req.params.sharedid,
-        commentId: req.params.commentId,
-        viewerid: viewerId, // service should enforce "only owner can resolve"
-        resolved,
-      });
-
-      if (updated?.error === "forbidden") {
-        return res.status(403).json({ error: "Not allowed" });
-      }
-      if (!updated) {
-        return res
-          .status(404)
-          .json({ error: "Share link or comment not found" });
-      }
-
-      res.status(200).json(updated);
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: "Server error" });
-    }
-  }
-);
-// POST /api/coverletter/generate-coverletterai
-router.post("/generate-coverletterai", async (req, res) => {
+router.post("/shared/:sharedid/comments", async (req, res) => {
   try {
-    // ✅ extract toneSettings here so it exists in this scope
+    const viewerId = req.query.userId
+    const { message,currentUseremail } = req.body || {};
+    if (!viewerId || !message || !message.trim()) {
+      return res.status(400).json({ error: "Missing viewer or message" });
+    }
+    const updated = await addSharedCoverletterComment({
+      sharedid: req.params.sharedid,
+      viewerid: viewerId,
+      message: message.trim(), 
+      currentUseremail: currentUseremail
+    });
+
+    if (!updated) {
+      return res.status(404).json({ error: "Share link invalid or expired" });
+    }
+
+    res.status(201).json(updated);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.patch("/shared/:sharedid/comments/:commentId", verifyJWT, async (req, res) => {
+  try {
+    const viewerId = req.query.userId
+    const { resolved } = req.body || {};
+    if (typeof resolved !== "boolean") {
+      return res.status(400).json({ error: "Missing resolved flag" });
+    }
+
+    const updated = await updateSharedCoverletterComment({
+      sharedid: req.params.sharedid,
+      commentId: req.params.commentId,
+      viewerid: viewerId,
+      resolved,
+    });
+
+    if (updated?.error === "forbidden") {
+      return res.status(403).json({ error: "Not allowed" });
+    }
+    if (!updated) {
+      return res.status(404).json({ error: "Share link or comment not found" });
+    }
+
+    res.status(200).json(updated);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /api/coverletter/generate-coverletterai - WITH LOGGING
+router.post("/generate-coverletterai", async (req, res) => {
+  const startTime = Date.now(); // ← ADD THIS
+  
+  try {
     const { userid, Jobdata, toneSettings, experienceMode } = req.body || {};
     
     console.log("🟦 experienceMode received from frontend:", experienceMode);
-    
 
     if (!userid || !Jobdata) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -331,7 +302,6 @@ router.post("/generate-coverletterai", async (req, res) => {
 
     const Usersinfo = await GetRelevantinfofromuser(userid);
 
-    // Clean Jobdata
     delete Jobdata._id;
     delete Jobdata.userId;
     delete Jobdata.createdAt;
@@ -361,7 +331,6 @@ router.post("/generate-coverletterai", async (req, res) => {
       };
     }
 
-    // Normalize
     CompanyInfo.roleTitle = Jobdata.jobTitle;
     CompanyInfo.cultureTraits = [CompanyInfo.culture || "inclusive", "collaborative"];
     CompanyInfo.values = CompanyInfo.values?.split?.(",") ?? [CompanyInfo.values ?? "innovation"];
@@ -375,11 +344,8 @@ router.post("/generate-coverletterai", async (req, res) => {
         url: n.link,
       })) ?? [];
 
-      
-    // LOG what we are sending to generator
     console.log("🔥 Sending into generator → experienceMode:", experienceMode);
 
-    // ✅ Pass toneSettings safely (defaults to empty object if missing)
     const AIresponse = await GenerateCoverletterBasedON(
       Usersinfo,
       CompanyInfo,
@@ -394,15 +360,23 @@ router.post("/generate-coverletterai", async (req, res) => {
       }
     );
 
+    // ← ADD THIS - Log successful Gemini call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
     return res.status(201).json(AIresponse);
   } catch (err) {
+    // ← ADD THIS - Log failed Gemini call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     console.error("❌ Error in /generate-coverletterai:", err);
     return res.status(500).json({ error: "Failed to generate cover letter" });
   }
 });
 
-// POST /api/coverletter/rewrite
+// POST /api/coverletter/rewrite - WITH LOGGING
 router.post("/rewrite", async (req, res) => {
+  const startTime = Date.now(); // ← ADD THIS
+  
   try {
     console.log("🔥 REWRITE BODY:", req.body);
     const { text, instruction } = req.body;
@@ -413,7 +387,6 @@ router.post("/rewrite", async (req, res) => {
 
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY_FOR_COVERLETTER);
 
-    // Use same model as your main generator (because your version supports it!)
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
       systemInstruction:
@@ -432,11 +405,18 @@ Return only the rewritten text. No headers, no markdown, no explanations.
 `;
 
     const result = await model.generateContent(prompt);
+    
+    // ← ADD THIS - Log successful Gemini call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+    
     const out = result.response.text().trim();
 
     return res.json({ rewritten: out });
 
   } catch (err) {
+    // ← ADD THIS - Log failed Gemini call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     console.error("🔥 Rewrite API Error:", err);
     return res.status(500).json({
       error: "Rewrite failed",
@@ -445,11 +425,6 @@ Return only the rewritten text. No headers, no markdown, no explanations.
   }
 });
 
-
-/**
- * POST /api/supporters/invite?userId=...
- * Body: { fullName, email, relationship?, presetKey? }
- */
 router.post("/invite", async (req, res) => {
   try {
     const { userId } = req.query;
@@ -458,14 +433,26 @@ router.post("/invite", async (req, res) => {
       return res.status(400).json({ error: "userId is required" });
     }
     if (!toemail || !sharedurl || !coverletterid) {
-      return res
-        .status(400)
-        .json({ error: "toemail and toemail are required" });
+      return res.status(400).json({ error: "toemail and toemail are required" });
     }
 
     const sent = await inviteReviewer({
-    ownerUserId: userId, email: toemail, url: sharedurl, role: role, reviewDeadline: reviewDeadline  });
-    await addreviewerCoverletterSharedsettings({coverletterid,userId,toemail,role ,canComment,canResolve})
+      ownerUserId: userId, 
+      email: toemail, 
+      url: sharedurl, 
+      role: role, 
+      reviewDeadline: reviewDeadline  
+    });
+    
+    await addreviewerCoverletterSharedsettings({
+      coverletterid,
+      userId,
+      toemail,
+      role,
+      canComment,
+      canResolve
+    });
+    
     res.status(201).json(sent);
   } catch (err) {
     console.error("Error inviting supporter:", err);
@@ -475,11 +462,6 @@ router.post("/invite", async (req, res) => {
   }
 });
 
-
-/**
- * POST /api/supporters/invite?userId=...
- * Body: { fullName, email, relationship?, presetKey? }
- */
 router.delete("/removeinvite", async (req, res) => {
   try {
     const { userId } = req.query;
@@ -488,13 +470,10 @@ router.delete("/removeinvite", async (req, res) => {
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
     }
-    if ( !coverletterid) {
-      return res
-        .status(400)
-        .json({ error: "coverletterid are required" });
+    if (!coverletterid) {
+      return res.status(400).json({ error: "coverletterid are required" });
     }
 
-    
     await removereviewerCoverletterSharedsettings({coverletterid,userId,email})
     res.status(201).json(true);
   } catch (err) {
@@ -504,4 +483,5 @@ router.delete("/removeinvite", async (req, res) => {
       .json({ error: err.message || "Server error inviting supporter" });
   }
 });
+
 export default router;

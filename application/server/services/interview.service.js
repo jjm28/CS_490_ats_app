@@ -1,5 +1,6 @@
 import { getDb } from "../db/connection.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logApiCall } from "../middleware/apiLogger.js"; // ← ADD THIS
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -16,7 +17,6 @@ export async function getInterviewInsights(company) {
 
   console.log("💬 Generating new interview insights for:", company);
 
-  // 🔹 Generate insights using Gemini
   const prompt = `
     Provide detailed interview insights for the company "${company}".
     Include:
@@ -28,21 +28,30 @@ export async function getInterviewInsights(company) {
   `;
 
   const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-  const response = await model.generateContent(prompt);
-  const text = response.response.text();
+  const startTime = Date.now(); // ← START TIMER
 
-  const insights = {
-    company,
-    summary: text,
-    updatedAt: new Date(),
-  };
+  try {
+    const response = await model.generateContent(prompt);
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime); // ← LOG SUCCESS
 
-  // 🔹 Cache it
-  await collection.updateOne(
-    { company },
-    { $set: insights },
-    { upsert: true }
-  );
+    const text = response.response.text();
 
-  return insights;
+    const insights = {
+      company,
+      summary: text,
+      updatedAt: new Date(),
+    };
+
+    await collection.updateOne(
+      { company },
+      { $set: insights },
+      { upsert: true }
+    );
+
+    return insights;
+  } catch (err) {
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message); // ← LOG ERROR
+    console.error("❌ Failed to generate interview insights:", err.message);
+    throw err; // or return fallback if desired
+  }
 }

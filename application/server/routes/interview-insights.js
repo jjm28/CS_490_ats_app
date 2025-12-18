@@ -3,8 +3,8 @@ const router = express.Router();
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyJWT } from "../middleware/auth.js"; 
 import Job from "../models/jobs.js";
-import InterviewInsights from "../models/interviewInsights.js"; 
-//import InterviewPrep from "../models/interviewPrep.js";
+import InterviewInsights from "../models/interviewInsights.js";
+import { logApiCall } from "../middleware/apiLogger.js"; // ← ADD THIS
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -12,8 +12,6 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 class RequestQueue {
   constructor(delayMs = 2000) {
     this.queue = [];
-
-    
     this.processing = false;
     this.delayMs = delayMs;
   }
@@ -48,7 +46,10 @@ const geminiQueue = new RequestQueue(2000);
 
 router.use(verifyJWT);
 
+// GET /:jobId - WITH LOGGING
 router.get("/:jobId", async (req, res) => {
+  const startTime = Date.now(); // ← ADD THIS
+  
   try {
     console.log("✅ interview-insights route hit");
     const userId = req.user?._id;
@@ -60,7 +61,6 @@ router.get("/:jobId", async (req, res) => {
     const { jobId } = req.params;
     console.log(`🔍 Fetching insights for job: ${jobId}`);
 
-    // ✅ CHECK IF INSIGHTS ALREADY EXIST IN SEPARATE COLLECTION
     let cachedInsights = await InterviewInsights.findOne({ jobId, userId });
     
     if (cachedInsights) {
@@ -77,7 +77,6 @@ router.get("/:jobId", async (req, res) => {
       });
     }
 
-    // ✅ FETCH JOB DETAILS FOR GENERATION
     const job = await Job.findOne({ _id: jobId, userId });
     if (!job) {
       console.log(`❌ Job not found: ${jobId}`);
@@ -87,13 +86,12 @@ router.get("/:jobId", async (req, res) => {
     const { jobTitle, company } = job;
     console.log(`🎯 Generating NEW insights for: ${jobTitle} at ${company}`);
 
-    // ✅ ADD TO QUEUE TO RESPECT RATE LIMITS
     const insights = await geminiQueue.add(async () => {
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp', // ✅ Use the latest stable version
+        model: 'gemini-2.0-flash-exp',
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 2096, // Reduced to save tokens
+          maxOutputTokens: 2096,
         }
       });
 
@@ -114,7 +112,6 @@ router.get("/:jobId", async (req, res) => {
       const rawText = result.response.text();
       console.log("📝 RAW GEMINI RESPONSE:\n", rawText.substring(0, 500));
 
-      // Clean and parse JSON
       let cleaned = rawText.replace(/```json|```/g, "").trim();
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -122,46 +119,43 @@ router.get("/:jobId", async (req, res) => {
       }
 
       let parsedInsights;
-try {
-  parsedInsights = JSON.parse(cleaned);
-  console.log("✅ Successfully parsed JSON");
-  
-  // ✅ CLEAN MARKDOWN FORMATTING FROM ALL TEXT FIELDS
-  const cleanMarkdown = (text) => {
-      if (typeof text !== 'string') return text;
-      return text.replace(/\*\*/g, '').replace(/\*/g, '');
-    };
-    
-    // Clean all string fields
-    if (parsedInsights.interviewFormat) {
-      parsedInsights.interviewFormat = cleanMarkdown(parsedInsights.interviewFormat);
-    }
-    if (parsedInsights.timeline) {
-      parsedInsights.timeline = cleanMarkdown(parsedInsights.timeline);
-    }
-    if (parsedInsights.interviewerInfo) {
-      parsedInsights.interviewerInfo = cleanMarkdown(parsedInsights.interviewerInfo);
-    }
-    
-    // Clean arrays
-    if (Array.isArray(parsedInsights.processStages)) {
-      parsedInsights.processStages = parsedInsights.processStages.map(cleanMarkdown);
-    }
-    if (Array.isArray(parsedInsights.commonQuestions)) {
-      parsedInsights.commonQuestions = parsedInsights.commonQuestions.map(cleanMarkdown);
-    }
-    if (Array.isArray(parsedInsights.preparationTips)) {
-      parsedInsights.preparationTips = parsedInsights.preparationTips.map(cleanMarkdown);
-    }
-    if (Array.isArray(parsedInsights.successTips)) {
-      parsedInsights.successTips = parsedInsights.successTips.map(cleanMarkdown);
-    }
-    
-  } catch (parseErr) {
-    console.error("❌ Failed to parse JSON:", parseErr);
-    throw new Error("Failed to parse AI response");
-  }
-      // Validate and set defaults
+      try {
+        parsedInsights = JSON.parse(cleaned);
+        console.log("✅ Successfully parsed JSON");
+        
+        const cleanMarkdown = (text) => {
+          if (typeof text !== 'string') return text;
+          return text.replace(/\*\*/g, '').replace(/\*/g, '');
+        };
+        
+        if (parsedInsights.interviewFormat) {
+          parsedInsights.interviewFormat = cleanMarkdown(parsedInsights.interviewFormat);
+        }
+        if (parsedInsights.timeline) {
+          parsedInsights.timeline = cleanMarkdown(parsedInsights.timeline);
+        }
+        if (parsedInsights.interviewerInfo) {
+          parsedInsights.interviewerInfo = cleanMarkdown(parsedInsights.interviewerInfo);
+        }
+        
+        if (Array.isArray(parsedInsights.processStages)) {
+          parsedInsights.processStages = parsedInsights.processStages.map(cleanMarkdown);
+        }
+        if (Array.isArray(parsedInsights.commonQuestions)) {
+          parsedInsights.commonQuestions = parsedInsights.commonQuestions.map(cleanMarkdown);
+        }
+        if (Array.isArray(parsedInsights.preparationTips)) {
+          parsedInsights.preparationTips = parsedInsights.preparationTips.map(cleanMarkdown);
+        }
+        if (Array.isArray(parsedInsights.successTips)) {
+          parsedInsights.successTips = parsedInsights.successTips.map(cleanMarkdown);
+        }
+        
+      } catch (parseErr) {
+        console.error("❌ Failed to parse JSON:", parseErr);
+        throw new Error("Failed to parse AI response");
+      }
+
       const requiredKeys = [
         "processStages", "commonQuestions", "interviewFormat",
         "timeline", "preparationTips", "successTips", "interviewerInfo"
@@ -181,7 +175,9 @@ try {
       return parsedInsights;
     });
 
-    // ✅ SAVE TO SEPARATE INSIGHTS COLLECTION
+    // ← ADD THIS - Log successful Gemini call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
     const savedInsights = await InterviewInsights.create({
       jobId,
       userId,
@@ -204,9 +200,11 @@ try {
     });
 
   } catch (err) {
+    // ← ADD THIS - Log failed Gemini call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     console.error("🔥 FULL ERROR:", err);
     
-    // Handle rate limit errors specifically
     if (err.message?.includes("429") || err.message?.includes("quota")) {
       return res.status(429).json({
         error: "API rate limit reached. Please try again in a few moments.",
@@ -221,7 +219,6 @@ try {
   }
 });
 
-// ✅ DELETE CACHED INSIGHTS (Force Regenerate)
 router.delete("/:jobId", async (req, res) => {
   try {
     const userId = req.user?._id;
@@ -242,7 +239,6 @@ router.delete("/:jobId", async (req, res) => {
   }
 });
 
-// ✅ GET QUEUE STATUS
 router.get("/queue/status", (req, res) => {
   res.json({
     queueLength: geminiQueue.queue.length,
@@ -251,7 +247,10 @@ router.get("/queue/status", (req, res) => {
   });
 });
 
+// POST /evaluate-session - WITH LOGGING
 router.post("/evaluate-session", async (req, res) => {
+  const startTime = Date.now(); // ← ADD THIS
+  
   try {
     const userId = req.user?._id;
     const { jobId, responses } = req.body;
@@ -260,11 +259,9 @@ router.post("/evaluate-session", async (req, res) => {
       return res.status(400).json({ error: "Invalid input" });
     }
 
-    // Get job title for context
     const job = await Job.findOne({ _id: jobId, userId });
     if (!job) return res.status(404).json({ error: "Job not found" });
 
-    // Use your existing queue
     const result = await geminiQueue.add(async () => {
       const model = genAI.getGenerativeModel({
         model: "gemini-2.0-flash-exp",
@@ -298,7 +295,9 @@ router.post("/evaluate-session", async (req, res) => {
       return JSON.parse(jsonMatch ? jsonMatch[0] : raw);
     });
 
-    // Save to DB
+    // ← ADD THIS - Log successful Gemini call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
     await Promise.all(
       result.questionFeedback.map((fb, idx) =>
         InterviewPrep.create({
@@ -314,12 +313,20 @@ router.post("/evaluate-session", async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    // ← ADD THIS - Log failed Gemini call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     console.error("Evaluation error:", err);
     res.status(500).json({ error: "Failed to evaluate session" });
   }
-});router.post("/generate-questions", async (req, res) => {
+});
+
+// POST /generate-questions - WITH LOGGING
+router.post("/generate-questions", async (req, res) => {
+  const startTime = Date.now(); // ← ADD THIS
+  
   try {
-    const { jobTitle, company, type } = req.body; // ADD type parameter
+    const { jobTitle, company, type } = req.body;
     
     if (!jobTitle) {
       return res.status(400).json({ error: "Job title required" });
@@ -331,7 +338,6 @@ router.post("/evaluate-session", async (req, res) => {
         generationConfig: { temperature: 0.6, maxOutputTokens: 1500 }
       });
 
-      // Different prompts based on type
       let prompt;
       
       if (type === 'technical') {
@@ -351,7 +357,6 @@ Examples of good technical situational questions:
 - "Describe how you would implement caching in a web application. What strategies would you use?"
 - "What are the trade-offs between microservices and monolithic architecture?"`;
       } else {
-        // Behavioral questions (default)
         prompt = `Generate exactly 10 behavioral interview questions for a ${jobTitle} position at ${company || "a company"}.
 
 Requirements:
@@ -366,10 +371,8 @@ Requirements:
       const response = await model.generateContent(prompt);
       let raw = response.response.text();
       
-      // Remove markdown code blocks
       raw = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       
-      // Try to extract JSON array
       const arrayMatch = raw.match(/\[([\s\S]*)\]/);
       if (!arrayMatch) {
         throw new Error('No JSON array found in response');
@@ -377,7 +380,6 @@ Requirements:
       
       const questions = JSON.parse(arrayMatch[0]);
       
-      // Validate based on type
       const expectedCount = type === 'technical' ? 5 : 10;
       if (!Array.isArray(questions) || questions.length < expectedCount) {
         throw new Error(`Insufficient questions generated. Expected ${expectedCount}, got ${questions.length}`);
@@ -386,8 +388,14 @@ Requirements:
       return questions.slice(0, expectedCount);
     });
 
+    // ← ADD THIS - Log successful Gemini call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
     res.json({ questions: result });
   } catch (err) {
+    // ← ADD THIS - Log failed Gemini call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     console.error("Question generation error:", err);
     res.status(500).json({ 
       error: "Failed to generate questions",
@@ -396,13 +404,10 @@ Requirements:
   }
 });
 
-// Add this to routes/interview-insights.js after your existing routes
-
-// ===================================
-// UC-084: Writing Practice AI Analysis
-// ===================================
-
+// POST /analyze-response - WITH LOGGING
 router.post("/analyze-response", verifyJWT, async (req, res) => {
+  const startTime = Date.now(); // ← ADD THIS
+  
   try {
     const userId = req.user?._id;
     if (!userId) {
@@ -419,14 +424,11 @@ router.post("/analyze-response", verifyJWT, async (req, res) => {
 
     console.log(`[Writing Analysis] Analyzing ${category} response for ${jobTitle || 'position'}`);
 
-    // Word count and basic metrics
     const wordCount = response.trim().split(/\s+/).filter(w => w.length > 0).length;
     const hasSTARKeywords = /\b(situation|task|action|result|challenge|problem|solution)\b/i.test(response);
 
-    // Generate prompt based on category
     const analysisPrompt = generateAnalysisPrompt(question, response, category, jobTitle, company);
 
-    // Use Gemini to analyze
     const analysis = await geminiQueue.add(async () => {
       const model = genAI.getGenerativeModel({
         model: 'gemini-2.0-flash-exp',
@@ -439,7 +441,6 @@ router.post("/analyze-response", verifyJWT, async (req, res) => {
       const result = await model.generateContent(analysisPrompt);
       let rawText = result.response.text();
       
-      // Clean and parse JSON
       rawText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       
@@ -450,12 +451,13 @@ router.post("/analyze-response", verifyJWT, async (req, res) => {
       return JSON.parse(jsonMatch[0]);
     });
 
-    // Validate analysis structure
+    // ← ADD THIS - Log successful Gemini call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
     if (!analysis.overallScore || !analysis.feedback) {
       throw new Error('Invalid analysis format from AI');
     }
 
-    // Construct response
     const analysisResult = {
       overallScore: Math.min(100, Math.max(0, analysis.overallScore)),
       structureScore: analysis.structureScore || null,
@@ -466,7 +468,6 @@ router.post("/analyze-response", verifyJWT, async (req, res) => {
       strengths: analysis.strengths || [],
       improvements: analysis.improvements || [],
       
-      // Metadata
       wordCount,
       hasSTARElements: category === 'behavioral' ? hasSTARKeywords : null,
       analyzedAt: new Date()
@@ -477,6 +478,9 @@ router.post("/analyze-response", verifyJWT, async (req, res) => {
     res.json(analysisResult);
 
   } catch (err) {
+    // ← ADD THIS - Log failed Gemini call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     console.error('[Writing Analysis] Error:', err);
     
     if (err.message?.includes("429") || err.message?.includes("quota")) {
@@ -493,7 +497,142 @@ router.post("/analyze-response", verifyJWT, async (req, res) => {
   }
 });
 
-// Helper function to generate analysis prompts
+// POST /generate-virtual-tips - WITH LOGGING
+router.post("/generate-virtual-tips", verifyJWT, async (req, res) => {
+  const startTime = Date.now(); // ← ADD THIS
+  
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ error: "Not logged in" });
+    }
+
+    const { jobTitle, company, interviewType } = req.body;
+
+    if (!jobTitle) {
+      return res.status(400).json({ error: "Job title is required" });
+    }
+
+    console.log(`[Virtual Tips] Generating for ${jobTitle} at ${company || 'company'}`);
+
+    const tips = await geminiQueue.add(async () => {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1200
+        }
+      });
+
+      const prompt = `Generate virtual/remote interview tips for a ${jobTitle} position at ${company || 'a company'}.
+
+Interview Type: ${interviewType || 'Video interview (Zoom/Teams)'}
+
+Provide practical, actionable tips in the following categories:
+1. Technical Setup (camera, lighting, background, audio)
+2. Professional Presence (eye contact, body language, attire)
+3. Communication Best Practices (speaking pace, clarity, engagement)
+4. Common Pitfalls to Avoid
+5. Pre-Interview Checklist
+
+Respond in JSON format ONLY:
+{
+  "technicalSetup": ["tip 1", "tip 2", "tip 3"],
+  "professionalPresence": ["tip 1", "tip 2", "tip 3"],
+  "communicationBestPractices": ["tip 1", "tip 2", "tip 3"],
+  "commonPitfalls": ["pitfall 1", "pitfall 2", "pitfall 3"],
+  "preInterviewChecklist": ["checklist item 1", "checklist item 2", "checklist item 3"]
+}
+
+Make tips specific to the role when relevant.`;
+
+      const result = await model.generateContent(prompt);
+      let rawText = result.response.text();
+      
+      rawText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) {
+        throw new Error('No JSON found in AI response');
+      }
+      
+      return JSON.parse(jsonMatch[0]);
+    });
+
+    // ← ADD THIS - Log successful Gemini call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
+    console.log('[Virtual Tips] Generated successfully');
+
+    res.json({
+      tips,
+      generatedFor: {
+        jobTitle,
+        company,
+        interviewType
+      },
+      generatedAt: new Date()
+    });
+
+  } catch (err) {
+    // ← ADD THIS - Log failed Gemini call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
+    console.error('[Virtual Tips] Error:', err);
+    
+    if (err.message?.includes("429") || err.message?.includes("quota")) {
+      return res.status(429).json({
+        error: "API rate limit reached. Please try again in a few moments.",
+        retryAfter: 60
+      });
+    }
+
+    const fallbackTips = {
+      technicalSetup: [
+        "Test your camera, microphone, and internet connection 30 minutes before",
+        "Position camera at eye level with good lighting from the front",
+        "Use a neutral, clutter-free background or virtual background",
+        "Close unnecessary applications to prevent notifications"
+      ],
+      professionalPresence: [
+        "Dress professionally from head to toe (you might need to stand up)",
+        "Look at the camera when speaking to simulate eye contact",
+        "Sit up straight with good posture throughout the interview",
+        "Use natural hand gestures but keep them in frame"
+      ],
+      communicationBestPractices: [
+        "Speak slightly slower than normal to account for audio lag",
+        "Pause after answering to give the interviewer time to respond",
+        "Use the chat feature to share links or clarify spellings if needed",
+        "Smile and nod to show engagement even when not speaking"
+      ],
+      commonPitfalls: [
+        "Avoid looking at yourself on screen - focus on the camera or interviewer",
+        "Don't interrupt - video lag can make this awkward",
+        "Mute when not speaking to avoid background noise",
+        "Don't read directly from notes - it's obvious on video"
+      ],
+      preInterviewChecklist: [
+        "Join the call 5 minutes early to handle any technical issues",
+        "Have the job description and your resume visible on second screen",
+        "Keep water nearby (out of frame)",
+        "Test screen sharing if you'll need to demonstrate anything"
+      ]
+    };
+
+    res.json({
+      tips: fallbackTips,
+      generatedFor: {
+        jobTitle: req.body.jobTitle,
+        company: req.body.company,
+        interviewType: req.body.interviewType
+      },
+      generatedAt: new Date(),
+      fallback: true
+    });
+  }
+});
+
 function generateAnalysisPrompt(question, response, category, jobTitle, company) {
   const baseContext = `You are an expert interview coach analyzing a written interview response.
 
@@ -572,158 +711,4 @@ Be constructive and specific. Focus on actionable improvements.`;
 }
 
 export { generateAnalysisPrompt };
-
-// Add this to routes/interview-insights.js
-
-// ===================================
-// UC-084: Generate Virtual Interview Tips
-// ===================================
-router.post("/generate-virtual-tips", verifyJWT, async (req, res) => {
-  try {
-    const userId = req.user?._id;
-    if (!userId) {
-      return res.status(401).json({ error: "Not logged in" });
-    }
-
-    const { jobTitle, company, interviewType } = req.body;
-
-    if (!jobTitle) {
-      return res.status(400).json({ error: "Job title is required" });
-    }
-
-    console.log(`[Virtual Tips] Generating for ${jobTitle} at ${company || 'company'}`);
-
-    const tips = await geminiQueue.add(async () => {
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1200
-        }
-      });
-
-      const prompt = `Generate virtual/remote interview tips for a ${jobTitle} position at ${company || 'a company'}.
-
-Interview Type: ${interviewType || 'Video interview (Zoom/Teams)'}
-
-Provide practical, actionable tips in the following categories:
-1. Technical Setup (camera, lighting, background, audio)
-2. Professional Presence (eye contact, body language, attire)
-3. Communication Best Practices (speaking pace, clarity, engagement)
-4. Common Pitfalls to Avoid
-5. Pre-Interview Checklist
-
-Respond in JSON format ONLY:
-{
-  "technicalSetup": [
-    "tip 1",
-    "tip 2",
-    "tip 3"
-  ],
-  "professionalPresence": [
-    "tip 1",
-    "tip 2",
-    "tip 3"
-  ],
-  "communicationBestPractices": [
-    "tip 1",
-    "tip 2",
-    "tip 3"
-  ],
-  "commonPitfalls": [
-    "pitfall 1",
-    "pitfall 2",
-    "pitfall 3"
-  ],
-  "preInterviewChecklist": [
-    "checklist item 1",
-    "checklist item 2",
-    "checklist item 3"
-  ]
-}
-
-Make tips specific to the role when relevant (e.g., for technical roles mention screen sharing, for design roles mention portfolio presentation).`;
-
-      const result = await model.generateContent(prompt);
-      let rawText = result.response.text();
-      
-      rawText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      
-      if (!jsonMatch) {
-        throw new Error('No JSON found in AI response');
-      }
-      
-      return JSON.parse(jsonMatch[0]);
-    });
-
-    console.log('[Virtual Tips] Generated successfully');
-
-    res.json({
-      tips,
-      generatedFor: {
-        jobTitle,
-        company,
-        interviewType
-      },
-      generatedAt: new Date()
-    });
-
-  } catch (err) {
-    console.error('[Virtual Tips] Error:', err);
-    
-    if (err.message?.includes("429") || err.message?.includes("quota")) {
-      return res.status(429).json({
-        error: "API rate limit reached. Please try again in a few moments.",
-        retryAfter: 60
-      });
-    }
-
-    // Return fallback tips if AI fails
-    const fallbackTips = {
-      technicalSetup: [
-        "Test your camera, microphone, and internet connection 30 minutes before",
-        "Position camera at eye level with good lighting from the front",
-        "Use a neutral, clutter-free background or virtual background",
-        "Close unnecessary applications to prevent notifications"
-      ],
-      professionalPresence: [
-        "Dress professionally from head to toe (you might need to stand up)",
-        "Look at the camera when speaking to simulate eye contact",
-        "Sit up straight with good posture throughout the interview",
-        "Use natural hand gestures but keep them in frame"
-      ],
-      communicationBestPractices: [
-        "Speak slightly slower than normal to account for audio lag",
-        "Pause after answering to give the interviewer time to respond",
-        "Use the chat feature to share links or clarify spellings if needed",
-        "Smile and nod to show engagement even when not speaking"
-      ],
-      commonPitfalls: [
-        "Avoid looking at yourself on screen - focus on the camera or interviewer",
-        "Don't interrupt - video lag can make this awkward",
-        "Mute when not speaking to avoid background noise",
-        "Don't read directly from notes - it's obvious on video"
-      ],
-      preInterviewChecklist: [
-        "Join the call 5 minutes early to handle any technical issues",
-        "Have the job description and your resume visible on second screen",
-        "Keep water nearby (out of frame)",
-        "Test screen sharing if you'll need to demonstrate anything"
-      ]
-    };
-
-    res.json({
-      tips: fallbackTips,
-      generatedFor: {
-        jobTitle: req.body.jobTitle,
-        company: req.body.company,
-        interviewType: req.body.interviewType
-      },
-      generatedAt: new Date(),
-      fallback: true
-    });
-  }
-});
-
 export default router;

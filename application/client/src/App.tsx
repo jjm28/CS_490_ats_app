@@ -145,6 +145,7 @@ import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
 import SkillCertifications from './components/Certifications/SkillCertifications';
 import { handleError } from './utils/errorHandler';
+import ApiMonitoring from './components/enterprise/APIMonitoring';
 // import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
 import OfferComparisonTool from "./components/Jobs/OfferComparisonTool";
 
@@ -602,27 +603,28 @@ function App() {
             element={<PrivateRoute><AdvisorSessionsPage /></PrivateRoute>}
           />
 // advisor side
-          <Route
-            path="/advisor/clients/:relationshipId/messages"
-            element={<PrivateRoute><AdvisorClientMessagesPage /></PrivateRoute>}
-          />
-          <Route
-            path="/advisors/:relationshipId/recommendations"
-            element={<AdvisorRecommendationsPage />}
-          />
-          <Route path="/advisor/availability" element={<PrivateRoute><AdvisorAvailabilityPage /></PrivateRoute>} />
-          <Route path="/enterprise/cohorts" element={<Cohorts />} />
-          <Route path="/enterprise/cohorts/:cohortId" element={<CohortDetail />} />
-          <Route path="/not-authorized" element={<div>Not authorized</div>} />
-          <Route path="/enterprise/users" element={<UserManagement />} />
-          <Route path="/enterprise/onboarding" element={<BulkOnboardingPage />} />
-          <Route
-            path="/jobseeker/accept-invite"
-            element={<PrivateRoute><JobSeekerAcceptInvitePage /></PrivateRoute>}
-          /><Route
-            path="/enterprise/analytics"
-            element={<OrgAnalyticsPage />}
-          />
+<Route
+  path="/advisor/clients/:relationshipId/messages"
+  element={<PrivateRoute><AdvisorClientMessagesPage /></PrivateRoute>}
+/>
+<Route
+  path="/advisors/:relationshipId/recommendations"
+  element={<AdvisorRecommendationsPage />}
+/>
+<Route path="/advisor/availability" element={<PrivateRoute><AdvisorAvailabilityPage /></PrivateRoute>} />
+<Route path="/enterprise/cohorts" element={<Cohorts />} />
+<Route path="/enterprise/cohorts/:cohortId" element={<CohortDetail />} />
+<Route path="/not-authorized" element={<div>Not authorized</div>} />
+<Route path="/enterprise/users" element={<UserManagement />} />
+<Route path="/enterprise/onboarding" element={<BulkOnboardingPage />} />
+<Route path="/APIMonitor" element={<ApiMonitoring />} />
+<Route
+  path="/jobseeker/accept-invite"
+  element={<PrivateRoute><JobSeekerAcceptInvitePage /></PrivateRoute>}
+/><Route
+  path="/enterprise/analytics"
+  element={<OrgAnalyticsPage />}
+/>
           <Route
             path="/job-search/sharing"
             element={

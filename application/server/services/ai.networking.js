@@ -1,18 +1,18 @@
+// /services/ai.networking.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logApiCall } from "../middleware/apiLogger.js"; // ← ADD THIS
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 // ---- Safe JSON cleaner (handles messy Gemini output) ----
 function cleanJson(raw) {
   if (!raw) return null;
-
   try {
     raw = raw
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .replace(/[\u0000-\u001F]+/g, "") // remove hidden control chars
       .trim();
-
     return JSON.parse(raw);
   } catch (err) {
     console.warn("⚠️ AI JSON parse failed:", err.message);
@@ -28,20 +28,20 @@ function model() {
 }
 
 // ====================================================
-// 1. AI Contact Profile
+// 1. AI Contact Profile - WITH LOGGING
 // ====================================================
 export async function aiContactProfile(contact) {
-  const prompt = `
+  const startTime = Date.now(); // ← ADD THIS
+  
+  try {
+    const prompt = `
 Generate a detailed professional network profile.
-
 Contact:
 - Name: ${contact.name}
 - Company: ${contact.company}
 - Title: ${contact.jobTitle}
 - Industry: ${contact.industry}
-
 Return valid JSON only:
-
 {
  "relationshipStrength": number,
  "relevanceScore": number,
@@ -49,97 +49,132 @@ Return valid JSON only:
  "recommendedNextActions": string[]
 }
 `;
-
-  const result = await model().generateContent(prompt);
-  return cleanJson(result.response.text());
+    const result = await model().generateContent(prompt);
+    
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+    
+    return cleanJson(result.response.text());
+  } catch (error) {
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, error.message);
+    throw error;
+  }
 }
 
 // ====================================================
-// 2. Relationship Score
+// 2. Relationship Score - WITH LOGGING
 // ====================================================
 export async function aiRelationshipScore(contact, interactions) {
-  const prompt = `
+  const startTime = Date.now(); // ← ADD THIS
+  
+  try {
+    const prompt = `
 Evaluate relationship strength.
-
 Contact: ${contact.name}
 Interactions: ${JSON.stringify(interactions, null, 2)}
-
 Return valid JSON only:
-
 {
  "strengthScore": number,
  "summary": string
 }
 `;
-
-  const result = await model().generateContent(prompt);
-  return cleanJson(result.response.text());
+    const result = await model().generateContent(prompt);
+    
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+    
+    return cleanJson(result.response.text());
+  } catch (error) {
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, error.message);
+    throw error;
+  }
 }
 
 // ====================================================
-// 3. Outreach Message Generator
+// 3. Outreach Message Generator - WITH LOGGING
 // ====================================================
 export async function aiOutreach(contact, job) {
-  const prompt = `
+  const startTime = Date.now(); 
+  
+  try {
+    const prompt = `
 Write a concise, professional networking outreach message.
-
 Contact:
 - Name: ${contact.name}
 - Role: ${contact.jobTitle}
 - Company: ${contact.company}
-
 Job I'm pursuing:
 - ${job?.jobTitle || ""}
 - ${job?.company || ""}
-
 Return plain text only (no JSON, no markdown).
 `;
-
-  const result = await model().generateContent(prompt);
-  return result.response.text().trim();
+    const result = await model().generateContent(prompt);
+    
+    // ← ADD THIS - Log successful call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+    
+    return result.response.text().trim();
+  } catch (error) {
+    // ← ADD THIS - Log failed call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, error.message);
+    throw error;
+  }
 }
 
 // ====================================================
-// 4. Interaction Sentiment Analysis
+// 4. Interaction Sentiment Analysis - WITH LOGGING
 // ====================================================
 export async function aiInteractionSentiment(text) {
-  const prompt = `
+  const startTime = Date.now(); // ← ADD THIS
+  
+  try {
+    const prompt = `
 Analyze the sentiment of this interaction.
-
 Text:
 "${text}"
-
 Return valid JSON only:
-
 {
  "score": number,
  "summary": string
 }
 `;
-
-  const result = await model().generateContent(prompt);
-  return cleanJson(result.response.text());
+    const result = await model().generateContent(prompt);
+    
+    // ← ADD THIS - Log successful call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+    
+    return cleanJson(result.response.text());
+  } catch (error) {
+    // ← ADD THIS - Log failed call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, error.message);
+    throw error;
+  }
 }
 
 // ====================================================
-// 5. Opportunity Match
+// 5. Opportunity Match - WITH LOGGING
 // ====================================================
 export async function aiOpportunityMatch(contact, jobs) {
-  const prompt = `
+  const startTime = Date.now(); // ← ADD THIS
+  
+  try {
+    const prompt = `
 Identify job opportunities where this contact can help.
-
 Contact industry: ${contact.industry}
-
 Jobs:
 ${JSON.stringify(jobs, null, 2)}
-
 Return a valid JSON array only:
-
 [
   { "jobTitle": string, "company": string, "matchScore": number }
 ]
 `;
-
-  const result = await model().generateContent(prompt);
-  return cleanJson(result.response.text());
+    const result = await model().generateContent(prompt);
+    
+    // ← ADD THIS - Log successful call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+    
+    return cleanJson(result.response.text());
+  } catch (error) {
+    // ← ADD THIS - Log failed call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, error.message);
+    throw error;
+  }
 }

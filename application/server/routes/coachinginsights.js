@@ -2,6 +2,7 @@ import express from "express";
 import InterviewCoachingInsight from "../models/coachinginsights.js";
 import { verifyJWT } from "../middleware/auth.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logApiCall } from "../middleware/apiLogger.js";
 
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -10,6 +11,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  * POST: Analyze response and save coaching insight
  */
 router.post("/analyze", verifyJWT, async (req, res) => {
+  const startTime = Date.now(); 
   try {
     const { question, response } = req.body;
     
@@ -54,7 +56,8 @@ Important: Return ONLY the JSON object, nothing else.`;
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
-    
+    const responseTime = Date.now() - startTime;
+    await logApiCall('gemini', '/generateContent', 200, responseTime);
     let rawText = result.response.text();
     console.log(`[Interview Analysis] Raw AI response:`, rawText);
     
@@ -73,8 +76,11 @@ Important: Return ONLY the JSON object, nothing else.`;
         error: "Failed to parse AI response",
         details: parseErr.message,
         rawResponse: cleaned
-      });
+      }); 
+            const responseTime = Date.now() - startTime;
+await logApiCall('gemini', '/generateContent', 500, responseTime, err.message); 
     }
+    
     
     // Log what we're about to save
     const dataToSave = {

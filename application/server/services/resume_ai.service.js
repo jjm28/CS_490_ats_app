@@ -1,7 +1,8 @@
 // services/resume_ai.service.js
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-import { GetRelevantinfofromuser } from "./coverletter.service.js"; // <-- reuse your existing function
+import { GetRelevantinfofromuser } from "./coverletter.service.js";
 import { getSkillsByUser } from "../routes/skills.js";
+import { logApiCall } from "../middleware/apiLogger.js"; // ← ADD THIS
 
 const genAI = new GoogleGenerativeAI(
   process.env.GOOGLE_API_KEY_FOR_FOLLOWUP || process.env.GOOGLE_API_KEY_FOR_WRITINGPRACTICE ||
@@ -32,7 +33,6 @@ const responseSchema = {
       },
     },
 
-    // NEW: education suggestions (normalized to your resume shape)
     education: {
       type: SchemaType.ARRAY,
       items: {
@@ -41,20 +41,19 @@ const responseSchema = {
           institution: { type: SchemaType.STRING },
           degree: { type: SchemaType.STRING },
           fieldOfStudy: { type: SchemaType.STRING },
-          graduationDate: { type: SchemaType.STRING }, // ISO or "YYYY-MM" is fine
+          graduationDate: { type: SchemaType.STRING },
         },
       },
     },
 
-    // NEW: project suggestions
     projects: {
       type: SchemaType.ARRAY,
       items: {
         type: SchemaType.OBJECT,
         properties: {
           name: { type: SchemaType.STRING },
-          technologies: { type: SchemaType.STRING }, // e.g. "React, TypeScript"
-          outcomes: { type: SchemaType.STRING },     // key results / impact
+          technologies: { type: SchemaType.STRING },
+          outcomes: { type: SchemaType.STRING },
           startDate: { type: SchemaType.STRING },
           endDate: { type: SchemaType.STRING },
           role: { type: SchemaType.STRING },
@@ -140,12 +139,12 @@ function jobToContext(job) {
 }
 
 export async function GenerateResumeBasedOn(userid, job, opts = {}) {
+  const startTime = Date.now(); // ← ADD THIS
+  
   const { temperature = 0.6, candidateCount = 3, maxBulletsPerRole = 5 } = opts;
 
-  // Fetch the user's saved info (same as cover letter flow)
   const baseProfile = await GetRelevantinfofromuser(userid);
 
-  // Fetch skills from the dedicated skills collection/service
   let skills = [];
   try {
     skills = await getSkillsByUser(userid);
@@ -153,7 +152,6 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
     console.error("Error fetching skills for resume AI:", err);
   }
 
-  // Merge skills into the profile so the rest of the logic can stay unchanged
   const userProfile = { ...baseProfile, skills };
   const baseEducation = (userProfile.EducationHistory || []).map((e) => ({
     institution: e.institution || e.schoolName || "",
@@ -201,7 +199,7 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
       "\n" +
       "TAILORING GOALS:\n" +
       "- Strongly tailor the resume to the TARGET_JOB description.\n" +
-      "- Emphasize responsibilities, tools, and achievements that match the job’s required skills and keywords.\n" +
+      "- Emphasize responsibilities, tools, and achievements that match the job's required skills and keywords.\n" +
       "- Use clear, action-oriented bullets that highlight measurable impact whenever possible (numbers, scale, time saved, revenue, performance, etc.).\n" +
       "- Prefer specific, concrete outcomes over generic soft statements.\n" +
       "\n" +
@@ -218,8 +216,8 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
       "SUMMARY & SKILLS:\n" +
       "- summarySuggestions should be 1–3 variations, each 2–4 sentences, explicitly targeting the TARGET_JOB.\n" +
       "- Each summary should mention years of experience (if derivable), key domains, core tools/technologies, and impact themes.\n" +
-      "- skills should be 10–25 items, prioritizing skills, tools, frameworks, and domains that appear in BOTH the user’s background and the TARGET_JOB.\n" +
-      "- atsKeywords should include job-relevant phrases and tools (taken from the TARGET_JOB and supported by the user’s history) to help with ATS matching.\n" +
+      "- skills should be 10–25 items, prioritizing skills, tools, frameworks, and domains that appear in BOTH the user's background and the TARGET_JOB.\n" +
+      "- atsKeywords should include job-relevant phrases and tools (taken from the TARGET_JOB and supported by the user's history) to help with ATS matching.\n" +
       "\n" +
       "MAPPING TO SOURCE EXPERIENCE:\n" +
       "- experienceBullets MUST always reference a valid sourceExperienceIndex from the EXPERIENCE array.\n" +
@@ -263,6 +261,9 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
       },
     });
 
+    // ← ADD THIS - Log successful call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+
     const candidates = result.response?.candidates || [];
     if (!candidates.length) throw new Error("Model returned no candidates.");
 
@@ -272,7 +273,6 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
       try {
         const parsed = JSON.parse(raw);
 
-        // sanitize shapes
         parsed.summarySuggestions = Array.isArray(parsed.summarySuggestions)
           ? parsed.summarySuggestions
           : [];
@@ -283,18 +283,6 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
         parsed.experienceBullets = Array.isArray(parsed.experienceBullets)
           ? parsed.experienceBullets
           : [];
-
-        // NEW: normalize education and projects to arrays of simple objects
-        /*parsed.education = Array.isArray(parsed.education)
-          ? parsed.education.map((e) => ({
-              institution: String(e?.institution ?? "").trim(),
-              degree: String(e?.degree ?? "").trim(),
-              fieldOfStudy: String(e?.fieldOfStudy ?? "").trim(),
-              graduationDate: e?.graduationDate
-                ? String(e.graduationDate).trim()
-                : "",
-            }))
-          : [];*/
 
         const aiEducation = Array.isArray(parsed.education)
           ? parsed.education.map((e) => ({
@@ -307,16 +295,9 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
             }))
           : [];
 
-        // Use real education from the profile when available (with real grad dates);
-        // otherwise fall back to AI's suggestion.
         parsed.education = baseEducation.length ? baseEducation : aiEducation;
-
-        // Projects: always use the user's stored projects so we don't get a giant
-        // blob of prompt text here. Each project has name, technologies, outcomes, dates, role.
         parsed.projects = baseProjects;
 
-        // Coerce bullets to strings + trim and enrich with start/end dates
-        // and location from the user's employment history whenever possible.
         parsed.experienceBullets = parsed.experienceBullets.map((e) => {
           const idx = Number(e?.sourceExperienceIndex ?? -1);
 
@@ -359,19 +340,18 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
     if (parsedCandidates.length === 1) return { data: parsedCandidates[0] };
     return { parsedCandidates };
   } catch (err) {
+    // ← ADD THIS - Log failed call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, err.message);
+    
     const msg = String(err?.message || err);
     const status = err?.status || err?.code || err?.statusCode;
 
-    // 1) QUOTA / RATE-LIMIT FALLBACK
+    // QUOTA / RATE-LIMIT FALLBACK
     if (status === 429 || /rate|quota|exceed/i.test(msg)) {
-      // Build a simple, deterministic resume suggestion from stored data,
-      // so the UI still gets something useful even when Gemini is unavailable.
-
       const skillsList = (userProfile.skills || [])
         .map((s) => s?.name)
         .filter(Boolean);
 
-      // Experience bullets from EmploymentHistory
       const experienceBullets = (userProfile.EmploymentHistory || []).map(
         (e, idx) => {
           const start = fmtMonthYear(e.startDate) || "";
@@ -403,7 +383,6 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
         }
       );
 
-      // Ensure we have at least one placeholder experience section
       if (experienceBullets.length === 0) {
         experienceBullets.push({
           sourceExperienceIndex: 0,
@@ -418,7 +397,6 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
         });
       }
 
-      // Education from EducationHistory
       const education = (userProfile.EducationHistory || []).map((e) => ({
         institution: e.institution || e.schoolName || "",
         degree: e.degree || "",
@@ -428,7 +406,6 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
           : "",
       }));
 
-      // Projects from ProjectHistory
       const projects = (userProfile.ProjectHistory || []).map((p) => ({
         name: p.name || "",
         technologies: p.technologies || "",
@@ -462,17 +439,15 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
       const fallback = {
         summarySuggestions,
         skills: skillsList,
-        atsKeywords: skillsList, // basic approximation – UI can still render
+        atsKeywords: skillsList,
         experienceBullets,
         education,
         projects,
       };
 
-      // IMPORTANT: return as a *success* payload so resume.js sends 201
       return { data: fallback };
     }
 
-    // 2) AUTH ERRORS – still surface as errors
     if (
       status === 401 ||
       status === 403 ||
@@ -481,7 +456,6 @@ export async function GenerateResumeBasedOn(userid, job, opts = {}) {
       return { error: "auth", message: msg };
     }
 
-    // 3) Other failures
     return { error: "generation_failed", message: msg };
   }
 }
