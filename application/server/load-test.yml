@@ -1,0 +1,18 @@
+config:
+  target: "http://127.0.0.1:5050"
+  phases:
+    - duration: 60
+      arrivalRate: 10
+      name: Warm up
+    - duration: 60
+      arrivalRate: 30
+      name: Sustained load
+    - duration: 30
+      arrivalRate: 50
+      name: Spike test
+      
+scenarios:
+  - name: "Health Check Load Test"
+    flow:
+      - get:
+          url: "/api/health"

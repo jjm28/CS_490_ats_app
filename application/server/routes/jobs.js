@@ -42,9 +42,17 @@ import {
 import Jobs from "../models/jobs.js";
 import { validateJobImport } from '../validators/jobimport.js';
 import { scrapeJobFromUrl } from '../services/jobscraper.service.js';
-import { calculateJobMatch } from "../__tests__/services/matchAnalysis.service.js";
+import { calculateJobMatch } from "../services/matchAnalysis.service.js";
 import { getSkillsByUser } from "./skills.js";
 import { incrementApplicationGoalsForUser } from "../services/jobSearchSharing.service.js";
+
+import { body } from "express-validator";
+import { handleValidationErrors } from "../middleware/validate.js";
+import { sanitizeQuery } from "../utils/sanitizeQuery.js";
+import redis from "../lib/redis.js";
+import { jobs } from "googleapis/build/src/apis/jobs/index.js";
+import  csrfProtection  from "../middleware/csrf.js"
+
 import Profile from "../models/profile.js";
 import { geocodeLocation } from "../services/geocoding.service.js";
 import {
@@ -81,6 +89,70 @@ function getDevId(req) {
   const dev = req.headers["x-dev-user-id"];
   return dev ? dev.toString() : null;
 }
+
+router.post(
+  "/",
+  verifyJWT,        // user must be logged in
+  csrfProtection,   // CSRF enforced
+  async (req, res) => {
+    res.json({ success: true });
+  }
+);
+
+router.get("/", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const page = parseInt(req.query.page || "1");
+    const limit = parseInt(req.query.limit || "10");
+    const skip = (page - 1) * limit;
+
+    const cacheKey = `jobs:${userId}:page:${page}:limit:${limit}`;
+
+    // 🔹 Redis cache (safe)
+    if (redis) {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return res.json(JSON.parse(cached));
+      }
+    }
+
+    const query = { userId, archived: { $ne: true } };
+
+    if (req.query.status) {
+      if (!VALID_STATUSES.includes(req.query.status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      query.status = req.query.status;
+    }
+
+    const jobs = await Jobs.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const total = await Jobs.countDocuments(query);
+
+    const response = {
+      data: jobs,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    // 🔹 Cache only if Redis exists
+    if (redis) {
+      await redis.setex(cacheKey, 60, JSON.stringify(response));
+    }
+
+    res.json(response);
+  } catch (err) {
+    console.error("Get jobs failed:", err);
+    res.status(500).json({ error: "Get jobs failed" });
+  }
+});
+
 
 // ============================================
 // USER PREFERENCES ROUTES
@@ -190,85 +262,125 @@ router.delete("/preferences", async (req, res) => {
 // JOB ROUTES
 // ============================================
 
-router.post("/", async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    const r = await validateJobCreate(req.body);
-    if (!r.ok) return res.status(r.status).json(r.error);
-    const created = await createJob({ userId, payload: r.value });
-    // increment goals that are are application unit (intuitive logic)
+// router.post("/", async (req, res) => {
+//   try {
+//     const userId = getUserId(req);
+//     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+//     const r = await validateJobCreate(req.body);
+//     if (!r.ok) return res.status(r.status).json(r.error);
+//     const created = await createJob({ userId, payload: r.value });
+//     // increment goals that are are application unit (intuitive logic)
+//     try {
+//       await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
+//     } catch (err) {
+//       console.error("Error auto-incrementing application goals:", err);
+//       // don't throw: job creation should still succeed even if this fails
+//     }
+//     res.status(201).json(created);
+//   } catch (err) {
+//     res.status(400).json({ error: err?.message || "Create failed" });
+//   }
+// });
+
+router.post(
+  "/",
+  [
+    body("jobTitle").isString().trim().notEmpty(),
+    body("company").isString().trim().notEmpty()
+  ],
+  handleValidationErrors,
+  (req, res, next) => {
+    req.body = sanitizeQuery(req.body); // 🛡 block NoSQL operators
+    next();
+  },
+  async (req, res) => {
     try {
-      await incrementApplicationGoalsForUser(String(userId), `New job added: ${created.jobTitle || ""}`);
-    } catch (err) {
-      console.error("Error auto-incrementing application goals:", err);
-      // don't throw: job creation should still succeed even if this fails
-    }
-    res.status(201).json(created);
-  } catch (err) {
-    res.status(400).json({ error: err?.message || "Create failed" });
-  }
-});
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-// ============================================
-// GET ALL JOBS (with matchScore + skill matching)
-// ============================================
+      // Original logic preserved
+      const r = await validateJobCreate(req.body);
+      if (!r.ok) return res.status(r.status).json(r.error);
 
-// ============================================
-// GET ALL JOBS (with matchScore + skill matching)
-// ============================================
-
-router.get("/", async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
-
-    // Build query: only non-archived jobs
-    const query = { userId, archived: { $ne: true } };
-
-    const statusParam = req.query.status;
-    if (statusParam) {
-      if (!VALID_STATUSES.includes(statusParam)) {
-        return res.status(400).json({
-          error: "Invalid status value",
-          validStatuses: VALID_STATUSES
-        });
+      const created = await createJob({ userId, payload: r.value });
+      try {
+        await incrementApplicationGoalsForUser(
+          String(userId),
+          `New job added: ${created.jobTitle || ""}`
+        );
+      } catch (err) {
+        console.error("Error auto-incrementing application goals:", err);
       }
-      query.status = statusParam;
+
+      res.status(201).json(created);
+    } catch (err) {
+      console.error("Create job failed:", err);
+      res.status(400).json({ error: err?.message || "Create failed" });
     }
-
-    // Fetch jobs sorted by newest
-    const jobs = await Jobs.find(query).sort({ createdAt: -1 }).lean();
-
-    // Fetch user skills
-    const userSkills = await getSkillsByUser(userId);
-    const skillNames = userSkills.map(s => s.name.toLowerCase());
-
-    // Enhance jobs with matchScore and skill comparisons
-    const enhancedJobs = jobs.map(job => {
-      const jobSkills = job.requiredSkills?.map(s => s.toLowerCase()) || [];
-      const skillsMatched = jobSkills.filter(skill => skillNames.includes(skill));
-      const skillsMissing = jobSkills.filter(skill => !skillNames.includes(skill));
-
-      const matchScore = jobSkills.length
-        ? Math.round((skillsMatched.length / jobSkills.length) * 100)
-        : 0;
-
-      return {
-        ...job,
-        matchScore,
-        skillsMatched,
-        skillsMissing,
-      };
-    });
-
-    return res.json(enhancedJobs);
-
-  } catch (err) {
-    console.error("Get jobs failed:", err);
-    res.status(500).json({ error: err?.message || "Get jobs failed" });
   }
-});
+);
+
+
+
+// ============================================
+// GET ALL JOBS (with matchScore + skill matching)
+// ============================================
+
+// ============================================
+// GET ALL JOBS (with matchScore + skill matching)
+// ============================================
+
+// router.get("/", async (req, res) => {
+//   try {
+//     const userId = getUserId(req);
+//     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+//     // Build query: only non-archived jobs
+//     const query = { userId, archived: { $ne: true } };
+
+//     const statusParam = req.query.status;
+//     if (statusParam) {
+//       if (!VALID_STATUSES.includes(statusParam)) {
+//         return res.status(400).json({
+//           error: "Invalid status value",
+//           validStatuses: VALID_STATUSES
+//         });
+//       }
+//       query.status = statusParam;
+//     }
+
+//     // Fetch jobs sorted by newest
+//     const jobs = await Jobs.find(query).sort({ createdAt: -1 }).lean();
+
+//     // Fetch user skills
+//     const userSkills = await getSkillsByUser(userId);
+//     const skillNames = userSkills.map(s => s.name.toLowerCase());
+
+//     // Enhance jobs with matchScore and skill comparisons
+//     const enhancedJobs = jobs.map(job => {
+//       const jobSkills = job.requiredSkills?.map(s => s.toLowerCase()) || [];
+//       const skillsMatched = jobSkills.filter(skill => skillNames.includes(skill));
+//       const skillsMissing = jobSkills.filter(skill => !skillNames.includes(skill));
+
+//       const matchScore = jobSkills.length
+//         ? Math.round((skillsMatched.length / jobSkills.length) * 100)
+//         : 0;
+
+//       return {
+//         ...job,
+//         matchScore,
+//         skillsMatched,
+//         skillsMissing,
+//       };
+//     });
+
+//     return res.json(enhancedJobs);
+
+//   } catch (err) {
+//     console.error("Get jobs failed:", err);
+//     res.status(500).json({ error: err?.message || "Get jobs failed" });
+//   }
+// });
 
 
 router.get("/map", async (req, res) => {

@@ -10,6 +10,7 @@ import { useToast } from "../../hooks/useToast";
 import Icon from "../StyledComponents/Icon";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 
+
 import {
   type Job,
   type JobStatus,
@@ -32,7 +33,10 @@ import {
   endProductivitySession,
 } from "../../api/productivity";
 
-// Configuration
+import { apiFetch } from "../../utils/apiFetch";
+import { getJobsPaginated } from "../../api/jobs";
+
+
 const JOBS_ENDPOINT = `${API_BASE}/api/jobs`;
 
 // Sort options
@@ -76,6 +80,12 @@ function JobsEntry() {
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  // ================================
+// PAGINATION STATE (SCALABILITY)
+// ================================
+const [page, setPage] = useState(1);
+const [limit] = useState(10); // jobs per page
+const [totalPages, setTotalPages] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -136,22 +146,23 @@ function JobsEntry() {
   const [isStartingSearchSession, setIsStartingSearchSession] = useState(false);
   const [isEndingSearchSession, setIsEndingSearchSession] = useState(false);
 
-  const token = useMemo(
-    () =>
-      localStorage.getItem("authToken") || localStorage.getItem("token") || "",
-    []
-  );
-  const isLoggedIn = !!token;
+  // const token = useMemo(
+  //   () =>
+  //     localStorage.getItem("authToken") || localStorage.getItem("token") || "",
+  //   []
+  // );
+  //const isLoggedIn = !!token;
+
+  const isLoggedIn = !!(
+  localStorage.getItem("authToken") || localStorage.getItem("token")
+);
+
 
   // Add this effect to fetch LinkedIn profile
   useEffect(() => {
     async function fetchLinkedInProfile() {
       try {
-        const response = await fetch(`${API_BASE}/api/linkedin/profile`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+        const response = await apiFetch(`${API_BASE}/api/linkedin/profile`, {
         });
 
         if (response.ok) {
@@ -166,7 +177,7 @@ function JobsEntry() {
     if (isLoggedIn) {
       fetchLinkedInProfile();
     }
-  }, [isLoggedIn, token]);
+  }, [isLoggedIn]);
 
   // Update the resetForm function to include LinkedIn URL
   const resetForm = () => {
@@ -413,11 +424,7 @@ function JobsEntry() {
 
   const loadSavedSearches = async () => {
     try {
-      const response = await fetch(`${JOBS_ENDPOINT}/preferences`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+      const response = await apiFetch(`${JOBS_ENDPOINT}/preferences`, {
       });
 
       if (response.ok) {
@@ -458,14 +465,12 @@ function JobsEntry() {
 
       const method = editingSearchId ? "PUT" : "POST";
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+
+const response = await apiFetch(url, {
+  method,
+  body: JSON.stringify(payload),
+});
+
 
       if (response.ok) {
         await loadSavedSearches();
@@ -487,14 +492,10 @@ function JobsEntry() {
     if (!confirm("Delete this saved search?")) return;
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${JOBS_ENDPOINT}/preferences/saved/${searchId}`,
         {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
         }
       );
 
@@ -511,12 +512,8 @@ function JobsEntry() {
 
   const saveLastSearch = async () => {
     try {
-      await fetch(`${JOBS_ENDPOINT}/preferences/last`, {
+      await apiFetch(`${JOBS_ENDPOINT}/preferences/last`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(getCurrentSearch()),
       });
     } catch (error) {
@@ -558,12 +555,8 @@ function JobsEntry() {
     reason?: string
   ) => {
     try {
-      const response = await fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+      const response = await apiFetch(`${JOBS_ENDPOINT}/${jobId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           applicationDeadline: newDeadline,
           extensionReason: reason,
@@ -599,12 +592,8 @@ function JobsEntry() {
         const newDeadline = new Date(currentDeadline);
         newDeadline.setDate(newDeadline.getDate() + days);
 
-        return fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+        return apiFetch(`${JOBS_ENDPOINT}/${jobId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify({
             applicationDeadline: newDeadline.toISOString(),
           }),
@@ -625,12 +614,8 @@ function JobsEntry() {
   const handleBulkSetDeadline = async (jobIds: string[], deadline: string) => {
     try {
       const promises = jobIds.map((jobId) =>
-        fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+        apiFetch(`${JOBS_ENDPOINT}/${jobId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify({
             applicationDeadline: deadline,
           }),
@@ -651,12 +636,8 @@ function JobsEntry() {
   const handleBulkRemoveDeadline = async (jobIds: string[]) => {
     try {
       const promises = jobIds.map((jobId) =>
-        fetch(`${JOBS_ENDPOINT}/${jobId}`, {
+        apiFetch(`${JOBS_ENDPOINT}/${jobId}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify({
             applicationDeadline: null,
           }),
@@ -740,12 +721,17 @@ function JobsEntry() {
   }, [isLoggedIn, navigate]);
 
   // Fetch all jobs and load saved searches
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetchJobs();
-      loadSavedSearches();
-    }
-  }, [isLoggedIn]);
+useEffect(() => {
+  if (isLoggedIn) {
+    fetchJobs(page);
+  }
+}, [isLoggedIn, page]);
+
+useEffect(() => {
+  if (isLoggedIn) {
+    loadSavedSearches();
+  }
+}, [isLoggedIn]);
 
   // Once logged in automatically start tracking time spent for productivity
   useEffect(() => {
@@ -780,42 +766,54 @@ function JobsEntry() {
       }
     };
   }, [isLoggedIn]);
+  // const fetchJobs = async () => {
+  //   console.log("Output");
+  //   setLoading(true);
+  //   setErr(null);
+  //   try {
+  //     const response = await apiFetch(JOBS_ENDPOINT);
 
-  const fetchJobs = async () => {
-    console.log("Output");
-    setLoading(true);
-    setErr(null);
-    try {
-      const response = await fetch(JOBS_ENDPOINT, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("authToken");
-        navigate("/login", {
-          state: { flash: "Your session has expired. Please log in again." },
-        });
-        return;
-      }
+  //     if (response.status === 401) {
+  //       localStorage.removeItem("token");
+  //       localStorage.removeItem("authToken");
+  //       navigate("/login", {
+  //         state: { flash: "Your session has expired. Please log in again." },
+  //       });
+  //       return;
+  //     }
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch jobs");
-      }
+  //     if (!response.ok) {
+  //       throw new Error("Failed to fetch jobs");
+  //     }
 
-      const data = await response.json();
-      setJobs(data);
-    } catch (error: any) {
-      console.error("Error fetching jobs:", error);
-      if (isLoggedIn) {
-        setErr(error?.message || "Failed to load job opportunities.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     const data = await response.json();
+  //     setJobs(data);
+  //   } catch (error: any) {
+  //     console.error("Error fetching jobs:", error);
+  //     if (isLoggedIn) {
+  //       setErr(error?.message || "Failed to load job opportunities.");
+  //     }
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+  const fetchJobs = async (pageNumber = page) => {
+  setLoading(true);
+  setErr(null);
+
+  try {
+    const response = await getJobsPaginated(pageNumber, limit);
+
+    setJobs(response.data);
+    setTotalPages(response.totalPages);
+  } catch (error: any) {
+    console.error("Error fetching jobs:", error);
+    setErr(error?.message || "Failed to load job opportunities.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const validateField = (
     name: string,
@@ -1015,14 +1013,11 @@ function JobsEntry() {
         : JOBS_ENDPOINT;
       const method = editingJob ? "PUT" : "POST";
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
+ const response = await apiFetch(url, {
+  method,
+  body: JSON.stringify(payload),
+});
+
 
       if (response.status === 401) {
         localStorage.removeItem("token");
@@ -1096,12 +1091,8 @@ function JobsEntry() {
     if (!confirm("Are you sure you want to delete this job?")) return;
 
     try {
-      const response = await fetch(`${JOBS_ENDPOINT}/${id}`, {
+      const response = await apiFetch(`${JOBS_ENDPOINT}/${id}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       if (response.status === 401) {
@@ -1127,8 +1118,8 @@ function JobsEntry() {
   };
 
   const handleArchive = async (jobId: string, reason?: string) => {
-    const token =
-      localStorage.getItem("authToken") || localStorage.getItem("token") || "";
+    // const token =
+    //   localStorage.getItem("authToken") || localStorage.getItem("token") || "";
 
     try {
       // 🔹 Archive the job
@@ -1145,12 +1136,8 @@ function JobsEntry() {
         actionLabel: "Undo",
         onAction: async () => {
           // Un-archive job on undo
-          const res = await fetch(`${API_BASE}/api/jobs/${jobId}/archive`, {
+          const res = await apiFetch(`${API_BASE}/api/jobs/${jobId}/archive`, {
             method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
             body: JSON.stringify({ archive: false }),
           });
 
@@ -1244,6 +1231,36 @@ function JobsEntry() {
       setIsEndingSearchSession(false);
     }
   };
+
+function calculateMatchScore(job: Job, userSkills: string[]) {
+  if (!job.description || userSkills.length === 0) {
+    return {
+      total: 0,
+      breakdown: { skills: 0, experience: 0, education: 0 },
+    };
+  }
+
+  const descriptionText = job.description.toLowerCase();
+
+  const matched = userSkills.filter((skill) =>
+    descriptionText.includes(skill.toLowerCase())
+  );
+
+  const skillScore = Math.round(
+    (matched.length / Math.max(userSkills.length, 1)) * 100
+  );
+
+  return {
+    total: skillScore,
+    breakdown: {
+      skills: skillScore,
+      experience: 70, // demo-safe static
+      education: 80,  // demo-safe static
+    },
+  };
+}
+
+
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -2044,11 +2061,35 @@ function JobsEntry() {
             </div>
           )}
 
-          {/* Results Summary */}
-          <div className="mb-4 text-sm text-gray-600">
-            Showing {filteredAndSortedJobs.length} of {jobs.length} job
-            {jobs.length !== 1 ? "s" : ""}
-          </div>
+{/* Results Summary */}
+<div className="mb-4 text-sm text-gray-600 flex justify-between items-center">
+  <span>
+    Showing {jobs.length} job{jobs.length !== 1 ? "s" : ""}
+  </span>
+
+  <div className="flex gap-2">
+    <Button
+      variant="secondary"
+      disabled={page === 1}
+      onClick={() => setPage((p) => p - 1)}
+    >
+      Prev
+    </Button>
+
+    <span className="px-3 py-1 text-sm">
+      Page {page} of {totalPages}
+    </span>
+
+    <Button
+      variant="secondary"
+      disabled={page === totalPages}
+      onClick={() => setPage((p) => p + 1)}
+    >
+      Next
+    </Button>
+  </div>
+</div>
+
 
           {/* Bulk Deadline Manager */}
           <BulkDeadlineManager
