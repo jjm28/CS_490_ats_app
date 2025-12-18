@@ -6,6 +6,7 @@
     "tailwindcss": "^4.1.15"
   },
   "dependencies": {
+    "cross-env": "^10.1.0",
     "use-persisted-state": "^0.3.3",
     "uuid": "^13.0.0"
   }
