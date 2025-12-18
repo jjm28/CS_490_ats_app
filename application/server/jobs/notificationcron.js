@@ -6,6 +6,45 @@
 import cron from 'node-cron';
 import notificationService from '../services/notifications.service.js';
 
+//application notifications
+import {
+  processDueSubmissions,
+  processDueReminders,
+  processExpiredSchedules,
+} from "../services/applicationScheduler.service.js";
+
+//setting up applications scheduler
+let _schedulerTickRunning = false;
+
+export async function runApplicationSchedulerTick() {
+  if (_schedulerTickRunning) return;
+  _schedulerTickRunning = true;
+
+  try {
+    await processDueSubmissions();
+    await processDueReminders();
+    await processExpiredSchedules();
+  } finally {
+    _schedulerTickRunning = false;
+  }
+}
+//sedning emial notifications at specified times
+export function setupApplicationSchedulerCron() {
+  cron.schedule(
+    "* * * * *",
+    async () => {
+      try {
+        await runApplicationSchedulerTick();
+      } catch (e) {
+        console.error("Application scheduler cron tick failed:", e?.message || e);
+      }
+    },
+    { timezone: process.env.APP_SCHEDULE_CRON_TZ || "America/New_York" }
+  );
+
+  console.log("✅ Application scheduler cron scheduled (runs every minute)");
+}
+
 /**
  * Set up the notification cron job
  * Runs every day at 9:00 AM

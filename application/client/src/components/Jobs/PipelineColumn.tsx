@@ -2,10 +2,12 @@ import React from "react";
 import JobCard from "./JobCard";
 import { useDroppable } from "@dnd-kit/core";
 import type { PipelineColumnProps } from "../../types/jobs.types";
+import type { Job } from "../../types/jobs.types";
 
 interface ColumnProps extends PipelineColumnProps {
   selectedJobs: string[];
   toggleJobSelection: (id: string, selected: boolean) => void;
+  updateJobLocal: (id: string, patch: Partial<Job>) => void;
 }
 
 const PipelineColumn: React.FC<ColumnProps> = ({
@@ -15,15 +17,15 @@ const PipelineColumn: React.FC<ColumnProps> = ({
   jobs,
   selectedJobs,
   toggleJobSelection,
+  updateJobLocal,
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id: status });
 
   return (
     <div
       ref={setNodeRef}
-      className={`w-72 flex-shrink-0 rounded-lg border border-gray-200 shadow-sm transition-all ${
-        isOver ? "bg-gray-200" : "bg-gray-50"
-      }`}
+      className={`w-72 flex-shrink-0 rounded-lg border border-gray-200 shadow-sm transition-all ${isOver ? "bg-gray-200" : "bg-gray-50"
+        }`}
       style={{
         minHeight: "400px", // ✅ ensures you can drop even when full
         display: "flex",
@@ -53,6 +55,7 @@ const PipelineColumn: React.FC<ColumnProps> = ({
             job={job}
             selectedJobs={selectedJobs}
             toggleJobSelection={toggleJobSelection}
+            updateJobLocal={updateJobLocal}
           />
         ))}
       </div>

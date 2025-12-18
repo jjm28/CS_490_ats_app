@@ -187,6 +187,7 @@ export default function CoverletterEditor() {
   const [updatingWorkflow, setUpdatingWorkflow] = useState(false);
 
   // Version management
+  const [showPdfDownload, setShowPdfDownload] = useState(false);
   const [showCreateVersionModal, setShowCreateVersionModal] = useState(false);
   const [versionName, setVersionName] = useState("");
   const [creatingVersion, setCreatingVersion] = useState(false);
@@ -1056,15 +1057,14 @@ export default function CoverletterEditor() {
               disabled={updatingWorkflow || !CoverletterID}
               className={`
             inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs
-            ${
-              workflowStatus === "approved"
-                ? "bg-green-50 border-green-200 text-green-700"
-                : workflowStatus === "in_review"
-                ? "bg-blue-50 border-blue-200 text-blue-700"
-                : workflowStatus === "changes_requested"
-                ? "bg-amber-50 border-amber-200 text-amber-700"
-                : "bg-gray-50 border-gray-200 text-gray-700"
-            }
+            ${workflowStatus === "approved"
+                  ? "bg-green-50 border-green-200 text-green-700"
+                  : workflowStatus === "in_review"
+                    ? "bg-blue-50 border-blue-200 text-blue-700"
+                    : workflowStatus === "changes_requested"
+                      ? "bg-amber-50 border-amber-200 text-amber-700"
+                      : "bg-gray-50 border-gray-200 text-gray-700"
+                }
           `}
             >
               <span className="capitalize">
@@ -1083,11 +1083,10 @@ export default function CoverletterEditor() {
 
             <button
               type="button"
-              className={`rounded border px-2 py-1 ${
-                workflowStatus === "draft"
+              className={`rounded border px-2 py-1 ${workflowStatus === "draft"
                   ? "border-gray-400"
                   : "border-gray-200"
-              }`}
+                }`}
               onClick={() => handleChangeWorkflowStatus("draft")}
               disabled={updatingWorkflow || !CoverletterID}
             >
@@ -1095,11 +1094,10 @@ export default function CoverletterEditor() {
             </button>
             <button
               type="button"
-              className={`rounded border px-2 py-1 ${
-                workflowStatus === "in_review"
+              className={`rounded border px-2 py-1 ${workflowStatus === "in_review"
                   ? "border-blue-400"
                   : "border-gray-200"
-              }`}
+                }`}
               onClick={() => handleChangeWorkflowStatus("in_review")}
               disabled={updatingWorkflow || !CoverletterID}
             >
@@ -1107,11 +1105,10 @@ export default function CoverletterEditor() {
             </button>
             <button
               type="button"
-              className={`rounded border px-2 py-1 ${
-                workflowStatus === "changes_requested"
+              className={`rounded border px-2 py-1 ${workflowStatus === "changes_requested"
                   ? "border-amber-400"
                   : "border-gray-200"
-              }`}
+                }`}
               onClick={() => handleChangeWorkflowStatus("changes_requested")}
               disabled={updatingWorkflow || !CoverletterID}
             >
@@ -1119,11 +1116,10 @@ export default function CoverletterEditor() {
             </button>
             <button
               type="button"
-              className={`rounded border px-2 py-1 ${
-                workflowStatus === "approved"
+              className={`rounded border px-2 py-1 ${workflowStatus === "approved"
                   ? "border-green-500"
                   : "border-gray-200"
-              }`}
+                }`}
               onClick={() => handleChangeWorkflowStatus("approved")}
               disabled={updatingWorkflow || !CoverletterID}
             >
@@ -1176,22 +1172,20 @@ export default function CoverletterEditor() {
                     <button
                       type="button"
                       onClick={() => setShareTab("settings")}
-                      className={`px-3 py-1 rounded-full transition ${
-                        shareTab === "settings"
+                      className={`px-3 py-1 rounded-full transition ${shareTab === "settings"
                           ? "bg-white shadow-sm text-gray-900"
                           : "text-gray-500 hover:text-gray-800"
-                      }`}
+                        }`}
                     >
                       Share settings
                     </button>
                     <button
                       type="button"
                       onClick={() => setShareTab("people")}
-                      className={`px-3 py-1 rounded-full transition ${
-                        shareTab === "people"
+                      className={`px-3 py-1 rounded-full transition ${shareTab === "people"
                           ? "bg-white shadow-sm text-gray-900"
                           : "text-gray-500 hover:text-gray-800"
-                      }`}
+                        }`}
                     >
                       Who I’m sharing with
                     </button>
@@ -1348,11 +1342,11 @@ export default function CoverletterEditor() {
                             onChange={(e) =>
                               setInviteRole(
                                 e.target.value as
-                                  | "mentor"
-                                  | "peer"
-                                  | "advisor"
-                                  | "recruiter"
-                                  | "other"
+                                | "mentor"
+                                | "peer"
+                                | "advisor"
+                                | "recruiter"
+                                | "other"
                               )
                             }
                             className="rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
@@ -1613,20 +1607,18 @@ export default function CoverletterEditor() {
                     setSelectedVarIdx(idx);
                     setData(v);
                   }}
-                  className={`text-left rounded-lg border p-4 hover:bg-white transition ${
-                    isSelected
+                  className={`text-left rounded-lg border p-4 hover:bg-white transition ${isSelected
                       ? "border-emerald-600 bg-white shadow"
                       : "border-gray-200 bg-gray-50"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="font-medium">Version {idx + 1}</div>
                     <div
-                      className={`text-xs px-2 py-0.5 rounded ${
-                        isSelected
+                      className={`text-xs px-2 py-0.5 rounded ${isSelected
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-gray-100 text-gray-600"
-                      }`}
+                        }`}
                     >
                       {isSelected ? "Selected" : "Select"}
                     </div>
@@ -1700,7 +1692,7 @@ export default function CoverletterEditor() {
             </Suspense>
           </div>
         </details>
-
+        {/*
         <Suspense
           fallback={
             <button className="px-4 py-2 bg-gray-300 text-white rounded">
@@ -1716,6 +1708,37 @@ export default function CoverletterEditor() {
             {({ loading }) => (loading ? "Preparing…" : "Download PDF")}
           </PDFDownloadLink>
         </Suspense>
+        */}
+        {/* SAFE PDF DOWNLOAD (gated) */}
+        <Button
+          type="button"
+          className="px-4 py-2 bg-black text-white rounded"
+          onClick={() => setShowPdfDownload(true)}
+        >
+          Download PDF
+        </Button>
+
+        {showPdfDownload && (
+          <Suspense
+            fallback={
+              <button className="px-4 py-2 bg-gray-300 text-white rounded">
+                Preparing…
+              </button>
+            }
+          >
+            <PDFDownloadLink
+              document={pdfDoc}
+              fileName={generatePdfFilename(filename)}
+              className="inline-block px-4 py-2 bg-emerald-600 text-white rounded ml-2"
+            >
+              {({ loading }) => (
+                <span onClick={() => !loading && setShowPdfDownload(false)}>
+                  {loading ? "Preparing…" : "Click to download"}
+                </span>
+              )}
+            </PDFDownloadLink>
+          </Suspense>
+        )}
       </div>
 
       {/* modal */}
@@ -1861,21 +1884,21 @@ export default function CoverletterEditor() {
 
                   {feedbackSummary.aiSummary.improvementSuggestions?.length >
                     0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-700 mb-1">
-                        Suggested improvements
-                      </p>
-                      <ul className="list-disc pl-4 space-y-1">
-                        {feedbackSummary.aiSummary.improvementSuggestions.map(
-                          (s, idx) => (
-                            <li key={idx} className="text-xs text-gray-600">
-                              {s}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  )}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700 mb-1">
+                          Suggested improvements
+                        </p>
+                        <ul className="list-disc pl-4 space-y-1">
+                          {feedbackSummary.aiSummary.improvementSuggestions.map(
+                            (s, idx) => (
+                              <li key={idx} className="text-xs text-gray-600">
+                                {s}
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </div>
+                    )}
                 </div>
               )}
             </div>

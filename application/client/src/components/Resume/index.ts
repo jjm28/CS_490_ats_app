@@ -36,17 +36,20 @@ export const resumePreviewRegistry: Record<
 };
 
 /* -------- PDF components (React-PDF) -------- */
-const ChronologicalPdf = React.lazy(() => import("./Pdf/ChronologicalPdf"));
-const FunctionalPdf    = React.lazy(() => import("./Pdf/FunctionalPdf"));
-const HybridPdf        = React.lazy(() => import("./Pdf/HybridPdf"));
+import ChronologicalPdf from "./Pdf/ChronologicalPdf";
+import FunctionalPdf from "./Pdf/FunctionalPdf";
+import HybridPdf from "./Pdf/HybridPdf";
 
-export type ResumeDocProps = { data: ResumeData, visibleSections?: SectionId;  };
+export type ResumeDocProps = {
+  data: ResumeData;
+  visibleSections?: SectionId[];
+};
 
 export const resumePdfRegistry: Record<
   TemplateKey,
-  React.LazyExoticComponent<React.FC<ResumeDocProps>>
+  React.FC<ResumeDocProps>
 > = {
   chronological: ChronologicalPdf,
-  functional:    FunctionalPdf,
-  hybrid:        HybridPdf,
+  functional: FunctionalPdf,
+  hybrid: HybridPdf,
 };

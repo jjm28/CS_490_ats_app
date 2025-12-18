@@ -67,7 +67,7 @@ export interface Job {
     negotiationOutcome: string;
     date: Date | string;
   }>;
-  
+
   compHistory?: Array<{
     totalComp: number;
     date: Date | string;
@@ -96,7 +96,11 @@ export interface Job {
 
   // Application package
   applicationPackage?: ApplicationPackage | null;
-  
+
+  // UC-122: Application Package Quality
+  applicationQualityScore?: number; // 0–100
+  enforceQualityGate?: boolean;     // DEV-ONLY toggle
+
   // References
   references?: JobReferenceUsage[];
 
@@ -120,7 +124,7 @@ export interface Job {
     equity?: number | null;
     otherComp?: number | null;
     totalComp?: number | null;
-    
+
     negotiation?: {
       attempted?: boolean;
       outcome?: string;
@@ -128,7 +132,7 @@ export interface Job {
       finalOffer?: number | null;
       improvedAmount?: number | null;
     };
-    
+
     market?: {
       role?: string | null;
       level?: string | null;
@@ -152,10 +156,10 @@ export interface Job {
   offerStage?: "Applied" | "Interviewing" | "Offer Received" | "Offer Accepted" | "Offer Declined";
   negotiationOutcome?: "Not attempted" | "Improved" | "No change" | "Worse" | "Lost offer";
 
-   
+
 
   // GeoCodeing uc115
-   workMode?: WorkMode;
+  workMode?: WorkMode;
   geo?: JobGeo;
   commute?: JobCommute;
   timeZone?: string;
@@ -184,13 +188,22 @@ export interface ApplicationHistoryEntry {
 }
 
 export interface ApplicationPackage {
+  // Base documents
   resumeId: string | null;
   coverLetterId: string | null;
 
-  // Support both single old format + new array format
+  // ✅ Versioned documents (UC-122)
+  resumeVersionId?: string | null;
+  resumeVersionLabel?: string | null;
+
+  coverLetterVersionId?: string | null;
+  coverLetterVersionLabel?: string | null;
+
+  // Portfolio
   portfolioUrl?: string | null;
   portfolioUrls?: string[];
 
+  // Metadata
   generatedAt: string | null;
   generatedByRuleId?: string | null;
 }
@@ -460,7 +473,7 @@ export interface FollowUp {
 export interface NegotiationPrep {
   generatedAt: Date;
   lastUpdatedAt: Date;
-  
+
   marketData: {
     yourOffer: number;
     marketMin: number;
@@ -470,7 +483,7 @@ export interface NegotiationPrep {
     dataSource: string;
     fetchedAt: Date;
   };
-  
+
   talkingPoints: TalkingPoint[];
   scripts: NegotiationScript[];
   counterOffer: CounterOffer;

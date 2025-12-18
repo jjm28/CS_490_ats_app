@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ontrac Tracker</title>
+    <style>
+      :root{
+        --bg:#eaf7ef;
+        --card:#f2fbf6;
+        --ink:#0b3b35;
+        --muted:#2c5a53;
+        --border:#a7dcc2;
+        --btn:#0f6b56;
+        --btnInk:#ffffff;
+      }
+      body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--ink); width: 360px;}
+      .wrap{ padding:12px; }
+      .title{ font-weight:800; letter-spacing:.2px; display:flex; align-items:center; gap:8px; }
+      .badge{ font-size:12px; border:1px solid var(--border); padding:2px 8px; border-radius:999px; background:var(--card); color:var(--muted); }
+      .card{ margin-top:10px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px; }
+      .row{ display:flex; gap:8px; align-items:center; }
+      .rowBetween{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+      .label{ font-size:12px; color:var(--muted); }
+      input{ width:100%; border:1px solid var(--border); border-radius:8px; padding:8px 10px; background:#fff; color:var(--ink); }
+      button{ border:1px solid var(--border); background:#fff; color:var(--ink); padding:8px 10px; border-radius:8px; cursor:pointer; }
+      button.primary{ background:var(--btn); color:var(--btnInk); border-color: var(--btn); }
+      button:disabled{ opacity:.6; cursor:not-allowed; }
+      .small{ font-size:12px; color:var(--muted); line-height:1.3; }
+      .err{ font-size:12px; color:#7a1c1c; margin-top:6px; }
+      .divider{ height:1px; background:var(--border); margin:10px 0; opacity:.7; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="rowBetween">
+        <div class="title">
+          <span>ontrac</span>
+          <span class="badge">UC-125 Tracker</span>
+        </div>
+        <label class="row small" style="gap:6px;">
+          <input id="enabledToggle" type="checkbox" />
+          <span>Enabled</span>
+        </label>
+      </div>
+
+      <div class="card" id="notConnectedBox">
+        <div style="font-weight:700;">Connect (pair) extension</div>
+        <div class="small" style="margin-top:6px;">
+          In the Ontrac app, generate a pairing code, then paste it here.
+          If your app copies a “pairingId|code” string, paste the full value.
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="label">Pairing code / pairing string</div>
+        <input id="pairInput" placeholder="Example: 737176  OR  pairingId|737176" />
+
+        <div class="row" style="margin-top:10px;">
+          <button class="primary" id="pairBtn" style="flex:1;">Connect</button>
+          <button id="openAppBtn">Open App</button>
+        </div>
+
+        <div id="pairError" class="err"></div>
+      </div>
+
+      <div class="card" id="connectedBox" style="display:none;">
+        <div style="font-weight:700;">Connected</div>
+        <div id="connectedMeta" class="small" style="margin-top:4px;"></div>
+
+        <div class="divider"></div>
+
+        <div class="rowBetween">
+          <div class="small">
+            Backend: <span id="apiBaseVal"></span><br />
+            App: <span id="appBaseVal"></span>
+          </div>
+          <button id="disconnectBtn">Disconnect</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;">Quick settings</div>
+        <div class="small" style="margin-top:6px;">(Optional) Only change these if you’re testing locally.</div>
+
+        <div class="divider"></div>
+
+        <div class="label">API Base URL</div>
+        <input id="apiBase" placeholder="http://localhost:5050" />
+
+        <div class="label" style="margin-top:8px;">App Base URL</div>
+        <input id="appBase" placeholder="http://localhost:5173" />
+
+        <div class="row" style="margin-top:10px;">
+          <button id="saveBtn" class="primary" style="flex:1;">Save</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;">Supported pages</div>
+        <div id="supportedMsg" class="small" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;">Last status</div>
+        <div id="statusMsg" class="small" style="margin-top:6px;"></div>
+      </div>
+    </div>
+
+    <!-- built output -->
+    <script src="../popup.js"></script>
+  </body>
+</html>

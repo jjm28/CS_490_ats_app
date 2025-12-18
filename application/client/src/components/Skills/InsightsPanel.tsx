@@ -57,8 +57,16 @@ export default function SkillInsightsPanel({ skills }: SkillInsightsPanelProps) 
       });
 
       if (!response.ok) throw new Error("Failed to fetch jobs");
-      const data = await response.json();
-      setJobs(data);
+const data = await response.json();
+
+const jobsArray = Array.isArray(data)
+  ? data
+  : Array.isArray(data.data)
+    ? data.data
+    : [];
+
+setJobs(jobsArray);
+
     } catch (err) {
       console.error("❌ Error fetching jobs:", err);
     } finally {

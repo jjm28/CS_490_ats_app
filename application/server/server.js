@@ -11,7 +11,7 @@ import { fileURLToPath } from "url";
 import { connectDB } from "./db/connection.js";
 import { ensureSystemTemplates } from "./services/templates.service.js";
 import { startAutomationRunner } from "./utils/automationRunner.js";
-import { setupNotificationCron } from "./jobs/notificationcron.js";
+import { setupNotificationCron, setupApplicationSchedulerCron } from "./jobs/notificationcron.js";
 import { setupSalaryRefreshCron } from "./services/salaryRefreshCron.js";
 import { setupGitHubSyncCron } from "./services/githubSyncJob.js";
 
@@ -44,7 +44,6 @@ import certificationRoutes from "./routes/certifications.js";
 import jobRoutes from "./routes/jobs.js";
 import jobSalaryRoutes from "./routes/jobs-salary.js";
 import salaryRoutes from "./routes/salary.js";
-
 import salaryAnalyticsRoutes from "./routes/salary-analytics.js";
 
 // 📊 INTERVIEW & COMPANY RESEARCH
@@ -103,6 +102,8 @@ import teamProgressRouter from "./routes/teamProgress.js";
 //import networkingRoutes from "./routes/networking.js";
 //import outreachRoutes from "./routes/outreach.js";
 //import referralSources from "./routes/referralSources.js";
+//import referralRoutes from "./routes/referrals.js";
+
 import networkingDiscovery from "./routes/networkingDiscovery.js";
 import mentorRoutes from "./routes/mentor.routes.js";
 import teamRoutes from "./routes/teams.js";
@@ -115,6 +116,22 @@ import customReportsRouter from "./routes/customReports.js";
 
 import githubRoutes from "./routes/github.js";
 import certificationBadgeRouter from "./routes/certification-badge.js";
+import csrfProtection from "./middleware/csrf.js";
+import { sanitizeInput } from "./middleware/sanitize.js";
+import helmet from "helmet";
+import metricsRouter from "./routes/metrics.js";
+
+
+
+import applicationMaterialsRouter from "./routes/application-materials.js";
+import applicationMethodsRouter from "./routes/application-methods.js";
+import applicationTimingRouter from "./routes/application-timing.js";
+
+import applicationQualityRoutes from "./routes/application-quality.js";
+import applicationSchedulerRoutes from "./routes/applicationScheduler.js";
+import applicationImportRoutes from "./routes/applicationImport.js";
+
+
 
 //
 // ===============================
@@ -128,6 +145,11 @@ const DB = process.env.DB_NAME || "appdb";
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+app.use(express.json());
+app.use(cookieParser()); // ⬅️ MUST come BEFORE csurf
+
+
 app.use("/exports", express.static(path.join(__dirname, "exports")));
 
 app.set("baseUrl", BASE);
@@ -143,11 +165,52 @@ app.use(
       "x-dev-user-id",
       "x-user-role",
       "x-org-id",
-    ],
+      "x-csrf-token",
+    ],}));
+
+    app.get("/api/csrf-token", csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        connectSrc: [
+          "'self'",
+          process.env.FRONTEND_ORIGIN || "http://localhost:5173"
+        ],
+        imgSrc: ["'self'", "data:", "https:"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+    },
+    frameguard: { action: "deny" },
+    noSniff: true,
   })
 );
-app.use(express.json());
-app.use(cookieParser());
+
+
+app.use(sanitizeInput);
+app.use("/api/metrics", metricsRouter);
+// Health check endpoint (for load testing & monitoring)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+
 
 // ===============================
 // 📸 STATIC UPLOADS
@@ -191,6 +254,16 @@ try {
   app.use("/api/profile", attachDevUser, profileRouter);
   app.use("/api/profile", attachDevUser, profilePhoto);
   app.use("/api/employment", attachDevUser, employmentRouter);
+
+//   //Protection
+//   app.use(csrfProtection);
+
+// // Expose CSRF token to frontend
+// app.get("/api/csrf-token", (req, res) => {
+//   res.json({ csrfToken: req.csrfToken() });
+// });
+
+
 
   // 📌 RECORDS / SKILLS
   app.use("/record", records);
@@ -253,6 +326,7 @@ try {
   // 🔔 NOTIFICATIONS
   logger.info('⏰ Setting up notification cron jobs...');
   setupNotificationCron();
+  setupApplicationSchedulerCron(); //added for application notifications
   setupSalaryRefreshCron();
   setupGitHubSyncCron();
   logger.info('✅ Cron jobs configured');
@@ -296,12 +370,15 @@ try {
 
   // Root route - confirms API is running
   app.get("/", (_req, res) => {
-    res.json({ 
-      message: "OnTrac API is running", 
+    res.json({
+      message: "OnTrac API is running",
       version: "1.0.0",
       endpoints: "/api/*"
     });
   });
+  // APPLICATION NOTIFICATION SERVICE
+  app.use("/api/application-scheduler", attachDevUser, applicationSchedulerRoutes);
+  app.use("/api/application-import", applicationImportRoutes);
 
   // Health check
   // ❤️ Health Check
@@ -311,6 +388,27 @@ try {
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);
   app.use("/api/github", githubRoutes);
+
+  app.use(
+    "/api/analytics/application-materials",
+    attachDevUser,
+    applicationMaterialsRouter
+  );
+
+  app.use(
+    "/api/analytics/application-methods",
+    attachDevUser,
+    applicationMethodsRouter
+  );
+
+  app.use(
+    "/api/analytics/application-timing",
+    attachDevUser,
+    applicationTimingRouter
+  );
+
+  app.use("/api/application-quality", applicationQualityRoutes);
+
   // Health check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 

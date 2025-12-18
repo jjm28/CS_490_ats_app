@@ -1,6 +1,6 @@
 // server/services/matchAnalysis.service.js
 import { ObjectId } from 'mongodb';
-import { getDb } from '../../db/connection.js'; // Adjust path if needed
+import { getDb } from '../db/connection.js'; // Adjust path if needed
 
 // Main function to calculate match score
 

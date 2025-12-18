@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Ontrac Application Tracker (UC-125)",
+  "version": "0.1.0",
+  "description": "Tracks job applications on LinkedIn/Indeed/Glassdoor and imports them into Ontrac.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "http://localhost:5050/*",
+    "https://www.linkedin.com/*",
+    "https://www.indeed.com/*",
+    "https://www.glassdoor.com/*"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "action": {
+    "default_title": "Ontrac Tracker",
+    "default_popup": "ui/popup.html"
+  },
+  "options_page": "ui/options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://www.indeed.com/*",
+        "https://www.glassdoor.com/*"
+      ],
+      "js": ["contentScript.js"],
+      "css": ["ui/uiBar.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["ui/*"],
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://www.indeed.com/*",
+        "https://www.glassdoor.com/*"
+      ]
+    }
+  ]
+}
