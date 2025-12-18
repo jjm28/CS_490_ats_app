@@ -2,7 +2,7 @@
 // FILE: frontend/src/components/Settings/NotificationSettings.tsx
 // ============================================
 // User interface for managing notification preferences
-
+import * as Sentry from "@sentry/react";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../StyledComponents/Button";
@@ -353,6 +353,41 @@ function NotificationSettings() {
           disabled={testingSend || !preferences.email.enabled}
         >
           {testingSend ? "Sending..." : "Send Test Email"}
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => {
+            console.log("Triggering test Sentry error");
+            Sentry.captureException(new Error("Test Sentry Error from Button"));
+            alert("Test Sentry error sent!");
+          }}
+          className="ml-4"
+        >
+          Test Sentry Error
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            // This will be caught by the global error handler
+            alert("Triggering real error");
+            throw new Error("Demo: Something went wrong in production!");
+          }}
+          className="ml-4"
+        >
+          Trigger Real Error
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={async () => {
+            // Simulate a failed API call
+            alert("Simulating API error");
+            await fetch('https://ontrac.onrender.com/api/nonexistent-endpoint');
+          }}
+          className="ml-4"
+        >
+          Simulate API Error
         </Button>
         {!preferences.email.enabled && (
           <p className="text-sm text-amber-600 mt-2">

@@ -117,7 +117,7 @@ const JobSchema = new Schema({
             "Other",
         ],
         default: "Other",
-        index: true,
+        //index: true,
     },
 
     applicationSource: {
@@ -560,7 +560,11 @@ const JobSchema = new Schema({
 }, { timestamps: true });
 
 // Compound index for efficient status queries
+JobSchema.index({ userId: 1 });
+JobSchema.index({ userId: 1, archived: 1 });
 JobSchema.index({ userId: 1, status: 1 });
+JobSchema.index({ createdAt: -1 });
+
 
 // Middleware to automatically add to statusHistory when status changes
 JobSchema.pre('save', function (next) {

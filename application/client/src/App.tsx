@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import Nav from './components/Nav';
@@ -143,6 +144,7 @@ import MentorInvite from './components/Networking/MentorInvite';
 import MentorDashboard from './components/Networking/MentorDashboard';
 import MentorDetails from './components/Networking/MentorDetails';
 import SkillCertifications from './components/Certifications/SkillCertifications';
+import { handleError } from './utils/errorHandler';
 // import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
 
 import ApplicationOptimizationDashboard from "./components/Analytics/ApplicationOptimizationDashboard";
@@ -151,6 +153,11 @@ import MaterialComparisonChart from "./components/Analytics/MaterialComparisonCh
 
 import JobMatchList from "./components/Analytics/JobMatchList";
 import JobMatchDetail from "./components/Analytics/JobMatchDetail";
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  enabled: !!import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.MODE || 'production',
+});
 
 // Lazy loaded components
 // Resume
@@ -200,10 +207,37 @@ function App() {
       return authUser ? JSON.parse(authUser).user?._id : null;
     } catch (error) {
       console.error("Error parsing authUser:", error);
+      handleError(error);
       return null;
     }
   };
   const userId = getAuthUserId();
+
+    // Global error handler for uncaught errors
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Uncaught error:', event.error);
+      if (import.meta.env.PROD) {
+        Sentry.captureException(event.error);
+      }
+    };
+    
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled rejection:', event.reason);
+      if (import.meta.env.PROD) {
+        Sentry.captureException(event.reason);
+      }
+    };
+    
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
+  
   useEffect(() => {
     // Adjust condition to only clear if leaving *this* page
     if (location.pathname === "/coverletter/editor") {
@@ -214,6 +248,7 @@ function App() {
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
+
   return (
     <>
       {showNavbar && <Nav />}

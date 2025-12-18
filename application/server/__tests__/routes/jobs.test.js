@@ -61,7 +61,9 @@ const MockJobs = {
 
 // Mock other services
 const mockScrapeJobFromUrl = jest.fn();
-// const mockCalculateJobMatch = jest.fn();
+const mockGetJobsByStatus = jest.fn();
+const mockUpdateApplicationPackage = jest.fn();
+const mockCalculateJobMatch = jest.fn();
 const mockGetSkillsByUser = jest.fn();
 const mockIncrementApplicationGoals = jest.fn();
 const mockGetDb = jest.fn();
@@ -114,6 +116,8 @@ jest.unstable_mockModule("../../services/jobs.service.js", () => ({
   saveFollowUp: mockSaveFollowUp,
   updateFollowUpStatus: mockUpdateFollowUpStatus,
   generateNegotiationPrep: mockGenerateNegotiationPrep,
+  getJobsByStatus: mockGetJobsByStatus,
+  updateApplicationPackage: mockUpdateApplicationPackage,
 }));
 
 jest.unstable_mockModule("../../services/userpreferences.service.js", () => ({
@@ -149,9 +153,9 @@ jest.unstable_mockModule("../../services/jobscraper.service.js", () => ({
   scrapeJobFromUrl: mockScrapeJobFromUrl,
 }));
 
-// jest.unstable_mockModule("../../../__tests__/services/matchAnalysis.service.js", () => ({
-//   calculateJobMatch: mockCalculateJobMatch,
-// }));
+jest.unstable_mockModule("../../services/matchAnalysis.service.js", () => ({
+  calculateJobMatch: mockCalculateJobMatch,
+}));
 
 jest.unstable_mockModule("../../routes/skills.js", () => ({
   getSkillsByUser: mockGetSkillsByUser,

@@ -10,6 +10,7 @@ import {
   declineTeamInvite,
   type TeamMembershipSummary,
 } from "../../api/teams";
+import { handleError } from "../../utils/errorHandler";
 
 const TeamsPage: React.FC = () => {
   const [teams, setTeams] = useState<TeamMembershipSummary[]>([]);
@@ -26,6 +27,7 @@ const TeamsPage: React.FC = () => {
       const data = await getMyTeams();
       setTeams(data || []);
     } catch (err: any) {
+      handleError(err);
       console.error("Error loading teams:", err);
       setError(err?.message || "Failed to load teams. Please try again.");
     } finally {
@@ -44,6 +46,7 @@ const TeamsPage: React.FC = () => {
     try {
       await acceptTeamInvite(teamId);
     } catch (err: any) {
+      handleError(err);
       console.error("Error accepting team invite:", err);
       const msg = err?.message || "";
 
@@ -74,6 +77,7 @@ const TeamsPage: React.FC = () => {
     try {
       await declineTeamInvite(teamId);
     } catch (err: any) {
+      handleError(err);
       console.error("Error declining team invite:", err);
       const msg = err?.message || "";
 

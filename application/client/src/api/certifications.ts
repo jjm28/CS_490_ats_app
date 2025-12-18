@@ -1,5 +1,6 @@
 import type { Certification } from "../components/Certifications/Certifications";
 import API_BASE from "../utils/apiBase";
+import { handleError } from "../utils/errorHandler";
 
 const API_URL = `${API_BASE}/api/certifications`;
 
@@ -73,6 +74,7 @@ export async function uploadCertificationBadge(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    handleError(res, body);
     throw new Error(body.error || "Failed to upload badge image");
   }
 
