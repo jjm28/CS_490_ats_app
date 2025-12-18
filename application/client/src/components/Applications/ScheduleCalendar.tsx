@@ -41,6 +41,13 @@ function statusColor(s: ApplicationSchedule) {
   return "bg-orange-500";
 }
 
+// ✅ UC-125: use submittedAt for submitted items so the application date is shown on the calendar
+function eventIso(s: ApplicationSchedule) {
+  const submittedAt = (s as any)?.submittedAt as string | undefined | null;
+  if (s.status === "submitted" && submittedAt) return submittedAt;
+  return s.scheduledAt;
+}
+
 export default function ScheduleCalendar(props: {
   schedules: ApplicationSchedule[];
   jobMap: Map<string, JobLite>;
@@ -56,7 +63,8 @@ export default function ScheduleCalendar(props: {
 
     const grouped: Record<string, ApplicationSchedule[]> = {};
     for (const s of schedules) {
-      const d = new Date(s.scheduledAt);
+      const iso = eventIso(s);
+      const d = new Date(iso);
       if (Number.isNaN(d.getTime())) continue;
       const key = ymd(d);
       grouped[key] = grouped[key] || [];
@@ -109,7 +117,10 @@ export default function ScheduleCalendar(props: {
 
               <div className="mt-1 space-y-1">
                 {items.slice(0, 3).map((s) => {
-                  const j = jobMap.get(s.jobId);
+                  // ✅ UC-125: fallback to embedded schedule.job when jobMap doesn't have it
+                  const embedded = (s as any)?.job as any | undefined;
+                  const j = jobMap.get(s.jobId) || embedded;
+
                   const title = `${j?.company || j?.companyName || "Company"} • ${
                     j?.jobTitle || j?.title || "Job"
                   }`;

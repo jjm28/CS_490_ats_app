@@ -1,0 +1,247 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ontrac Tracker</title>
+    <style>
+      :root{
+        --bg:#e9f6ee;         /* light green */
+        --ink:#0f3d3e;        /* dark green */
+        --muted:#2b5a56;
+        --border:#b9e3c8;
+        --btn:#0f3d3e;
+        --btnText:#e9f6ee;
+        --card:#f3fbf6;
+        --danger:#7a1f1f;
+        --dangerBorder:#e7a5a5;
+      }
+      html,body{ margin:0; padding:0; }
+      body{
+        width:360px;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background:var(--bg);
+        color:var(--ink);
+      }
+      .wrap{ padding:12px; }
+
+      .header{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        margin-bottom:10px;
+      }
+      .brand{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        font-weight:900;
+        letter-spacing:.2px;
+      }
+      .pill{
+        font-size:12px;
+        padding:3px 8px;
+        border-radius:999px;
+        background:var(--card);
+        border:1px solid var(--border);
+        color:var(--muted);
+        font-weight:700;
+      }
+
+      .card{
+        background:var(--card);
+        border:1px solid var(--border);
+        border-radius:14px;
+        padding:12px;
+        margin-bottom:10px;
+      }
+
+      .label{
+        font-size:12px;
+        color:var(--muted);
+        margin-bottom:6px;
+        font-weight:700;
+      }
+      .tiny{
+        font-size:12px;
+        color:var(--muted);
+        line-height:1.35;
+      }
+      .divider{
+        height:1px;
+        background:var(--border);
+        margin:10px 0;
+      }
+
+      input{
+        width:100%;
+        box-sizing:border-box;
+        padding:10px 10px;
+        border-radius:10px;
+        border:1px solid var(--border);
+        background:#fff;
+        color:var(--ink);
+        outline:none;
+        font-weight:600;
+      }
+      input:focus{ border-color:var(--muted); }
+
+      .row{ display:flex; gap:8px; align-items:center; }
+      .rowBetween{ display:flex; justify-content:space-between; gap:8px; align-items:center; }
+
+      button{
+        border:1px solid var(--border);
+        background:#fff;
+        color:var(--ink);
+        padding:9px 10px;
+        border-radius:10px;
+        cursor:pointer;
+        font-weight:800;
+      }
+      button.primary{
+        background:var(--btn);
+        color:var(--btnText);
+        border-color:var(--btn);
+      }
+      button.danger{
+        background:#fff;
+        color:var(--danger);
+        border-color:var(--dangerBorder);
+      }
+      button:disabled{ opacity:.6; cursor:not-allowed; }
+
+      .statusBox{
+        margin-top:6px;
+        font-size:12px;
+        color:var(--muted);
+        background:#fff;
+        border:1px dashed var(--border);
+        border-radius:10px;
+        padding:8px;
+        max-height:92px;
+        overflow:auto;
+        white-space:pre-wrap;
+      }
+      .error{
+        margin-top:8px;
+        font-size:12px;
+        color:var(--danger);
+        font-weight:700;
+      }
+
+      .toggleRow{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+      }
+      .toggleRow .left{
+        display:flex;
+        flex-direction:column;
+        gap:2px;
+      }
+      .toggleRow label{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        font-weight:900;
+      }
+
+      .list{ margin:6px 0 0 16px; }
+      .list li{ margin:4px 0; }
+      .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <div class="header">
+        <div class="brand">
+          <span>ontrac</span>
+          <span class="pill">Connect</span>
+        </div>
+        <span class="pill" id="connectStatePill">Extension</span>
+      </div>
+
+      <!-- NOT CONNECTED -->
+      <div class="card" id="notConnectedBox">
+        <div class="label">Connect to your Ontrac account</div>
+        <div class="tiny" style="margin-bottom:10px;">
+          In your Ontrac app, go to <b>Applications → Scheduler</b> and click <b>Generate code</b>. Then paste it here.
+          If your app shows a pairingId + code, paste <span class="mono">pairingId|code</span>.
+        </div>
+
+        <input id="pairInput" placeholder="Paste pairing code (e.g., 860844 or pairingId|860844)" />
+
+        <div class="row" style="margin-top:10px;">
+          <button class="primary" id="pairBtn">Connect / Pair</button>
+          <button id="openAppBtn">Open App</button>
+        </div>
+
+        <div class="error" id="pairError"></div>
+      </div>
+
+      <!-- CONNECTED -->
+      <div class="card" id="connectedBox" style="display:none;">
+        <div class="rowBetween">
+          <div>
+            <div class="label">Connected</div>
+            <div class="tiny" id="connectedMeta">Paired.</div>
+          </div>
+          <button class="danger" id="disconnectBtn">Disconnect</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="toggleRow">
+          <div class="left">
+            <div style="font-weight:900;">Tracking</div>
+            <div class="tiny">Turn ON while applying on supported sites.</div>
+          </div>
+          <label>
+            <input id="enabledToggle" type="checkbox" />
+            <span>ON</span>
+          </label>
+        </div>
+
+        <div class="divider"></div>
+
+        <div>
+          <div class="label">Supported pages</div>
+          <div class="tiny" id="supportedMsg"></div>
+          <ul class="list tiny">
+            <li>LinkedIn Jobs: <span class="mono">https://www.linkedin.com/jobs/*</span></li>
+            <li>Indeed: <span class="mono">https://www.indeed.com/*</span></li>
+            <li>Glassdoor Jobs: <span class="mono">https://www.glassdoor.com/Job/*</span></li>
+          </ul>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="label">Last status</div>
+          <div class="statusBox" id="statusMsg">No recent activity yet.</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <button id="openAppBtn">Open App</button>
+          <button id="saveBtn">Save</button>
+        </div>
+
+        <!-- Hidden fields popup.ts references -->
+        <div style="display:none;">
+          <input id="apiBase" />
+          <input id="appBase" />
+          <span id="apiBaseVal"></span>
+          <span id="appBaseVal"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPORTANT:
+         In dist, popup.html ends up in dist/ui/
+         and popup.js ends up in dist/
+         so the correct relative path is ../popup.js -->
+    <script type="module" src="../popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,95 @@
+:root {
+  /* Ontrac palette approximation: dark green on light green */
+  --ontrac-ink: #0e3f41;    /* dark green */
+  --ontrac-mint: #a7beb4;   /* light green */
+  --ontrac-mint-2: #b7cbc2;
+  --ontrac-border: rgba(14, 63, 65, 0.25);
+  --ontrac-warn: #c77800;
+  --ontrac-error: #b42318;
+  --ontrac-ok: #157f3b;
+}
+
+/* Top bar injected on supported sites */
+#uc125-ontrac-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  background: var(--ontrac-mint);
+  color: var(--ontrac-ink);
+  border-bottom: 1px solid var(--ontrac-border);
+  padding: 10px 12px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+#uc125-ontrac-bar .left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+#uc125-ontrac-bar .title {
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  text-transform: lowercase;
+}
+
+#uc125-ontrac-bar .meta {
+  font-size: 12px;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#uc125-ontrac-bar .right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#uc125-ontrac-bar button {
+  appearance: none;
+  border: 1px solid var(--ontrac-border);
+  background: var(--ontrac-mint-2);
+  color: var(--ontrac-ink);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#uc125-ontrac-bar button:hover {
+  filter: brightness(0.98);
+}
+
+#uc125-ontrac-toast {
+  position: fixed;
+  top: 58px;
+  right: 12px;
+  z-index: 2147483647;
+  max-width: 360px;
+
+  background: #fff;
+  color: var(--ontrac-ink);
+  border: 1px solid var(--ontrac-border);
+  border-left: 6px solid var(--ontrac-warn);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 13px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.uc125-ontrac-body-pad {
+  padding-top: 52px !important;
+}
+
+/* Popup/Options page stylesheet shared (loaded via ui/popup.css) */

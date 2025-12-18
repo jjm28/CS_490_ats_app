@@ -124,6 +124,7 @@ import metricsRouter from "./routes/metrics.js";
 
 
 import applicationSchedulerRoutes from "./routes/applicationScheduler.js";
+import applicationImportRoutes from "./routes/applicationImport.js";
 
 
 
@@ -372,6 +373,7 @@ try {
   });
   // APPLICATION NOTIFICATION SERVICE
   app.use("/api/application-scheduler", attachDevUser, applicationSchedulerRoutes);
+  app.use("/api/application-import", applicationImportRoutes);
 
   // Health check
   // ❤️ Health Check
