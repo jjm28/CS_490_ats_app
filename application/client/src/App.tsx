@@ -147,7 +147,14 @@ import SkillCertifications from './components/Certifications/SkillCertifications
 import { handleError } from './utils/errorHandler';
 import ApiMonitoring from './components/enterprise/APIMonitoring';
 // import CommuterPlannerPage from './components/Jobs/CommutePlanner/CommuterPlannerPage';
+import OfferComparisonTool from "./components/Jobs/OfferComparisonTool";
 
+import ApplicationOptimizationDashboard from "./components/Analytics/ApplicationOptimizationDashboard";
+import MaterialUsageDetail from "./components/Analytics/MaterialUsageDetail";
+import MaterialComparisonChart from "./components/Analytics/MaterialComparisonChart";
+
+import JobMatchList from "./components/Analytics/JobMatchList";
+import JobMatchDetail from "./components/Analytics/JobMatchDetail";
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   enabled: !!import.meta.env.VITE_SENTRY_DSN,
@@ -241,7 +248,7 @@ function App() {
       // we are currently ON the editor page → don't clear yet
       return;
     }
- 
+
     // leaving the editor → clear
     sessionStorage.removeItem("CoverletterID");
   }, [location.pathname]);
@@ -286,15 +293,15 @@ function App() {
           <Route path="/resumes" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><Resumes /></Suspense></PrivateRoute>} />
           <Route path="/resumes/new" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><NewResume /></Suspense></PrivateRoute>} />
           <Route path="/resumes/share" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><ResumeShareView /></Suspense></PrivateRoute>} />
-          <Route 
-            path="/resumes/editor" 
+          <Route
+            path="/resumes/editor"
             element={
               <PrivateRoute>
                 <Suspense fallback={<div>Loading...</div>}>
                   <ResumeEditor />
                 </Suspense>
               </PrivateRoute>
-            } 
+            }
           />
           <Route path="/Jobs/Stats" element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><JobStatsDashboard /></Suspense></PrivateRoute>} />
           <Route path="/Jobs/Archived" element={<PrivateRoute><ArchivedJobs /></PrivateRoute>} />
@@ -372,12 +379,12 @@ function App() {
               </PrivateRoute>
             }
           />
-                   
+
           <Route
             path="/networking/informational"
             element={<InformationalInterviews />}
           />
-          
+
           <Route
             path="/networking/informational/new"
             element={<NewInformationalInterview />}
@@ -488,7 +495,14 @@ function App() {
             path="/analytics/market-trends"
             element={<PrivateRoute><MarketTrends /></PrivateRoute>}
           />
-
+          <Route
+            path="/analytics/application-optimization"
+            element={
+              <PrivateRoute>
+                <ApplicationOptimizationDashboard />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/support"
             element={
@@ -537,57 +551,57 @@ function App() {
             path="/Jobs/CompetitiveAnalysis"
             element={<PrivateRoute><JobCompetitiveAnalysisDashboard /></PrivateRoute>}
           />
-        <Route
-          path="/job-search/sharing"
-          element={
-            <PrivateRoute>
-              <JobSearchSharingPage />
-            </PrivateRoute>
-          }/>
           <Route
-  path="/job-sharing/:ownerId"
-  element={
-    <PrivateRoute>
-      <JobSearchSharingPartnerPage />
-    </PrivateRoute>
-  }
-  />
-  <Route
-  path="/job-sharing/accept"
-  element={
-    <PrivateRoute>
-      <JobSearchPartnerInviteAcceptPage />
-    </PrivateRoute>
-  }
-/>
-  <Route
-  path="/advisors"
-  element={
-    <PrivateRoute>
-      <AdvisorsPage />
-    </PrivateRoute>
-  }
-/>
-      <Route
-        path="/advisor/accept"
-        element={ <PrivateRoute><AdvisorAcceptInvitePage /></PrivateRoute>}
-      />
-      <Route
-        path="/advisor/clients"
-        element={ <PrivateRoute><AdvisorClientsPage /></PrivateRoute>}
-      />
-      <Route
-        path="/advisor/clients/:relationshipId"
-        element={ <PrivateRoute><AdvisorClientProfilePage /></PrivateRoute>}
-      />
-      <Route
-  path="/advisors/:relationshipId/messages"
-  element={<PrivateRoute><AdvisorMessagesPage /></PrivateRoute>}
-/>
-<Route
-  path="/advisors/:relationshipId/sessions"
-  element={<PrivateRoute><AdvisorSessionsPage /></PrivateRoute>}
-/>
+            path="/job-search/sharing"
+            element={
+              <PrivateRoute>
+                <JobSearchSharingPage />
+              </PrivateRoute>
+            } />
+          <Route
+            path="/job-sharing/:ownerId"
+            element={
+              <PrivateRoute>
+                <JobSearchSharingPartnerPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/job-sharing/accept"
+            element={
+              <PrivateRoute>
+                <JobSearchPartnerInviteAcceptPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/advisors"
+            element={
+              <PrivateRoute>
+                <AdvisorsPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/advisor/accept"
+            element={<PrivateRoute><AdvisorAcceptInvitePage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisor/clients"
+            element={<PrivateRoute><AdvisorClientsPage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisor/clients/:relationshipId"
+            element={<PrivateRoute><AdvisorClientProfilePage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisors/:relationshipId/messages"
+            element={<PrivateRoute><AdvisorMessagesPage /></PrivateRoute>}
+          />
+          <Route
+            path="/advisors/:relationshipId/sessions"
+            element={<PrivateRoute><AdvisorSessionsPage /></PrivateRoute>}
+          />
 // advisor side
 <Route
   path="/advisor/clients/:relationshipId/messages"
@@ -671,34 +685,34 @@ function App() {
             element={<AdvisorRecommendationsPage />}
           />
           <Route path="/advisor/availability" element={<AdvisorAvailabilityPage />} />
-          <Route 
-            path="/teams" 
-            element={<PrivateRoute><TeamsPage /></PrivateRoute>} 
-          />
-          <Route 
-            path="/teams/:teamId" 
-            element={<PrivateRoute><TeamDetailPage /></PrivateRoute>} 
+          <Route
+            path="/teams"
+            element={<PrivateRoute><TeamsPage /></PrivateRoute>}
           />
           <Route
-           path="/teams/new" 
-           element={<PrivateRoute><CreateTeamPage /></PrivateRoute>} 
-           />
-          <Route 
-            path="/teams/:teamId/review" 
-            element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><TeamReviewPage /></Suspense></PrivateRoute>} 
+            path="/teams/:teamId"
+            element={<PrivateRoute><TeamDetailPage /></PrivateRoute>}
           />
-           <Route 
-           path="/teams/:teamId/share" 
-           element={<PrivateRoute><CandidateSharingPage /></PrivateRoute>} 
-           />
-           <Route 
-           path="/teams/:teamId/feedback" 
-           element={<PrivateRoute><TeamFeedbackPage /></PrivateRoute>} 
-           />
+          <Route
+            path="/teams/new"
+            element={<PrivateRoute><CreateTeamPage /></PrivateRoute>}
+          />
+          <Route
+            path="/teams/:teamId/review"
+            element={<PrivateRoute><Suspense fallback={<div>Loading...</div>}><TeamReviewPage /></Suspense></PrivateRoute>}
+          />
+          <Route
+            path="/teams/:teamId/share"
+            element={<PrivateRoute><CandidateSharingPage /></PrivateRoute>}
+          />
+          <Route
+            path="/teams/:teamId/feedback"
+            element={<PrivateRoute><TeamFeedbackPage /></PrivateRoute>}
+          />
 
-          <Route 
-          path="/teams/:teamId/comments" 
-          element={<PrivateRoute><TeamCommentsPage /></PrivateRoute>} />
+          <Route
+            path="/teams/:teamId/comments"
+            element={<PrivateRoute><TeamCommentsPage /></PrivateRoute>} />
 
           <Route
             path="/analytics/success-overview"
@@ -708,6 +722,34 @@ function App() {
           <Route
             path="/analytics/success-patterns"
             element={<PrivateRoute><SuccessPatternsDashboard /></PrivateRoute>}
+          />
+
+          <Route
+            path="/analytics/material-usage/:type/:versionId"
+            element={
+              <PrivateRoute>
+                <MaterialUsageDetail />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/analytics/material-comparison/:type/:baseId"
+            element={
+              <PrivateRoute>
+                <MaterialComparisonChart />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/analytics/job-match"
+            element={<JobMatchList />}
+          />
+
+          <Route
+            path="/analytics/job-match/:jobId"
+            element={<JobMatchDetail />}
           />
 
           <Route
@@ -722,6 +764,7 @@ function App() {
             path="/Applications/Scheduler"
             element={<PrivateRoute><ApplicationSchedulerPage /></PrivateRoute>}
           />
+          <Route path="/jobs/offers/compare" element={<PrivateRoute><OfferComparisonTool /></PrivateRoute>} />
         </Routes>
       </div>
     </>

@@ -358,6 +358,7 @@ export default function ApplicationSchedulerPage() {
       });
 
       setJobsAll(mergedJobs);
+      setJobsAll(jsAll);
       setJobsEligible(elig);
       setStats(st);
     } catch (e: any) {
@@ -706,6 +707,7 @@ function ScheduleRow(props: {
             <>
               {formatInTimeZone(s.deadlineAt, tz)}{" "}
               <span className="text-xs text-gray-600">({tz})</span>
+              {formatInTimeZone(s.deadlineAt, tz)} <span className="text-xs text-gray-600">({tz})</span>
             </>
           ) : (
             "—"

@@ -13,6 +13,11 @@ import Button from "../StyledComponents/Button";
 
 import { resumePreviewRegistry, resumePdfRegistry } from "./index";
 
+import {
+  updateResumeVersionContent,
+} from "../../api/resumes";
+
+
 import type {
   ResumeData,
   TemplateKey,
@@ -174,8 +179,8 @@ const ResumeEditor: React.FC = () => {
       Array.isArray(ai.parsedCandidates) && ai.parsedCandidates.length > 0
         ? (ai.parsedCandidates as AiResumeCandidate[])
         : ai.data
-        ? [ai.data as AiResumeCandidate]
-        : [];
+          ? [ai.data as AiResumeCandidate]
+          : [];
 
     if (candidates.length > 0) {
       initialAiCandidates = candidates;
@@ -268,12 +273,14 @@ const ResumeEditor: React.FC = () => {
   const [reviewers, setReviewers] = useState<ReviewerMeta[]>([]);
 
   // Version management
+  const [showPdfDownload, setShowPdfDownload] = useState(false);
   const [showCreateVersionModal, setShowCreateVersionModal] = useState(false);
   const [versionName, setVersionName] = useState("");
   const [creatingVersion, setCreatingVersion] = useState(false);
   const [versions, setVersions] = useState<
     Array<{ _id: string; name: string; createdAt: string }>
   >([]);
+  const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
 
   const handleAddInvite = async () => {
     const email = inviteEmail.trim();
@@ -461,8 +468,8 @@ const ResumeEditor: React.FC = () => {
           setShareDeadline(formattedDate);
           setInvitedEmails(
             resp.reviewers?.map((r: { email: any }) => r.email) ??
-              resp.restricteduserid ??
-              []
+            resp.restricteduserid ??
+            []
           );
           setReviewers(
             resp.reviewers?.map(
@@ -492,7 +499,7 @@ const ResumeEditor: React.FC = () => {
     }
   }, [resumeId]);
 
-  
+
 
   const previewData: ResumeData = useMemo(() => {
     const clone: ResumeData = { ...data };
@@ -516,11 +523,11 @@ const ResumeEditor: React.FC = () => {
   const combinedSkills: string[] =
     activeCandidate && (activeCandidate.skills || activeCandidate.atsKeywords)
       ? Array.from(
-          new Set([
-            ...(activeCandidate.skills || []),
-            ...(activeCandidate.atsKeywords || []),
-          ])
-        )
+        new Set([
+          ...(activeCandidate.skills || []),
+          ...(activeCandidate.atsKeywords || []),
+        ])
+      )
       : [];
 
   const Preview = useMemo(
@@ -623,25 +630,25 @@ const ResumeEditor: React.FC = () => {
 
   const updateExperienceField =
     (idx: number, field: string) =>
-    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value = e.target.value;
-      setData((d) => {
-        const arr = [...(d.experience || [])] as any[];
-        const target = { ...(arr[idx] || {}) };
+      (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        setData((d) => {
+          const arr = [...(d.experience || [])] as any[];
+          const target = { ...(arr[idx] || {}) };
 
-        if (field === "highlights") {
-          target.highlights = value
-            .split("\n")
-            .map((s) => s.trim())
-            .filter(Boolean);
-        } else {
-          (target as any)[field] = value;
-        }
+          if (field === "highlights") {
+            target.highlights = value
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean);
+          } else {
+            (target as any)[field] = value;
+          }
 
-        arr[idx] = target;
-        return { ...d, experience: arr };
-      });
-    };
+          arr[idx] = target;
+          return { ...d, experience: arr };
+        });
+      };
 
   const removeExperience = (idx: number) => {
     setData((d) => {
@@ -704,16 +711,16 @@ const ResumeEditor: React.FC = () => {
 
   const updateProjectField =
     (idx: number, field: string) =>
-    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const value = e.target.value;
-      setData((d) => {
-        const arr = [...(d.projects || [])] as any[];
-        const target = { ...(arr[idx] || {}) };
-        (target as any)[field] = value;
-        arr[idx] = target;
-        return { ...d, projects: arr };
-      });
-    };
+      (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        setData((d) => {
+          const arr = [...(d.projects || [])] as any[];
+          const target = { ...(arr[idx] || {}) };
+          (target as any)[field] = value;
+          arr[idx] = target;
+          return { ...d, projects: arr };
+        });
+      };
 
   const removeProject = (idx: number) => {
     setData((d) => {
@@ -754,17 +761,18 @@ const ResumeEditor: React.FC = () => {
         setResumeId(id);
         setLastSaved(ts);
         alert("Resume saved.");
-      } else {
-        await updateResume({
-          resumeid: resumeId,
+      } else if (activeVersionId) {
+        await updateResumeVersionContent({
           userid: uid,
-          filename,
-          resumedata: data,
-          lastSaved: ts,
-          templateKey: template.key,
+          versionid: activeVersionId,
+          content: data, // ✅ ONLY content
         });
+
         setLastSaved(ts);
-        alert("Resume updated.");
+        alert("Resume saved.");
+      }
+      else {
+        throw new Error("No active resume version to save");
       }
     } catch (e: any) {
       console.error(e);
@@ -805,6 +813,10 @@ const ResumeEditor: React.FC = () => {
         resumeid: resumeId,
       });
       setVersions(versionData?.items || []);
+
+      if (versionData?.items?.length) {
+        setActiveVersionId(versionData.items[0]._id); // newest version
+      }
     } catch (err) {
       console.error("Failed to load versions:", err);
     }
@@ -824,9 +836,9 @@ const ResumeEditor: React.FC = () => {
       await createResumeVersionNew({
         userid,
         resumeid: resumeId,
-        sourceVersionId: null, // Clone from base resume
         name: versionName.trim(),
         description: `Created on ${new Date().toLocaleDateString()}`,
+        content: data, // ✅ THIS IS THE FIX
       });
 
       // Refresh versions list
@@ -857,176 +869,199 @@ const ResumeEditor: React.FC = () => {
     }
   }, [resumeId, loadVersions]);
 
+  useEffect(() => {
+    if (!activeVersionId) return;
+
+    const raw = localStorage.getItem("authUser");
+    if (!raw) return;
+
+    const user = JSON.parse(raw).user;
+
+    fetch(`/api/resume_versions/${activeVersionId}?userid=${user._id}`, {
+      headers: getAuthHeaders(),
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((v) => {
+        if (v?.content) {
+          setData(v.content);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load resume version content", err);
+      });
+  }, [activeVersionId]);
+
   /* AI helpers – same applyAiCandidate/runAiWithJob logic as backup,
      plus tracking multiple variants for the suggestions UI. */
 
   function applyAiCandidate(candidate: AiResumeCandidate) {
-  setData((d) => {
-    const next: ResumeData = { ...d };
-    const exp = [...(next.experience || [])] as any[];
+    setData((d) => {
+      const next: ResumeData = { ...d };
+      const exp = [...(next.experience || [])] as any[];
 
-    // Experience bullets → merge into experience
-    if (Array.isArray(candidate.experienceBullets)) {
-      candidate.experienceBullets.forEach((eb) => {
-        const rawIdx = Number(eb?.sourceExperienceIndex ?? -1);
-        const idx = rawIdx >= 0 ? rawIdx : exp.length;
+      // Experience bullets → merge into experience
+      if (Array.isArray(candidate.experienceBullets)) {
+        candidate.experienceBullets.forEach((eb) => {
+          const rawIdx = Number(eb?.sourceExperienceIndex ?? -1);
+          const idx = rawIdx >= 0 ? rawIdx : exp.length;
 
-        const startFromEb = eb.startDate || "";
-        const endFromEb = eb.endDate || "";
-        const locFromEb = eb.location || "";
+          const startFromEb = eb.startDate || "";
+          const endFromEb = eb.endDate || "";
+          const locFromEb = eb.location || "";
 
-        if (!exp[idx]) {
+          if (!exp[idx]) {
+            exp[idx] = {
+              company: eb.company || "",
+              jobTitle: eb.jobTitle || "",
+              startDate: startFromEb,
+              endDate: endFromEb,
+              location: locFromEb,
+              highlights: [],
+            };
+          }
+
+          const existingHighlights = Array.isArray(exp[idx].highlights)
+            ? [...exp[idx].highlights]
+            : [];
+
+          for (const b of eb.bullets || []) {
+            if (!existingHighlights.includes(b)) existingHighlights.push(b);
+          }
+
           exp[idx] = {
-            company: eb.company || "",
-            jobTitle: eb.jobTitle || "",
-            startDate: startFromEb,
-            endDate: endFromEb,
-            location: locFromEb,
-            highlights: [],
+            ...exp[idx],
+            company: exp[idx].company || eb.company || "",
+            jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
+            startDate: exp[idx].startDate || startFromEb,
+            endDate:
+              exp[idx].endDate !== null && exp[idx].endDate !== undefined
+                ? exp[idx].endDate
+                : endFromEb,
+            location: exp[idx].location || locFromEb,
+            highlights: existingHighlights,
           };
-        }
+        });
+      }
 
-        const existingHighlights = Array.isArray(exp[idx].highlights)
-          ? [...exp[idx].highlights]
+      next.experience = exp;
+
+      // Skills / ATS keywords → merge into skills array
+      const have = new Set(
+        (next.skills || [])
+          .map((s: any) => (typeof s === "string" ? s : s?.name))
+          .filter(Boolean)
+      );
+      const incoming = [
+        ...(candidate.skills || []),
+        ...(candidate.atsKeywords || []),
+      ];
+      const toAdd = incoming.filter(
+        (s: string) => s && !have.has(String(s))
+      );
+      next.skills = [
+        ...(next.skills || []),
+        ...toAdd.map((name: string) => ({ name })),
+      ];
+
+      // --- merge education suggestions into resume education ---
+      if (Array.isArray((candidate as any).education)) {
+        const incomingEdu = (candidate as any).education as Array<{
+          institution?: string;
+          degree?: string;
+          fieldOfStudy?: string;
+          graduationDate?: string;
+        }>;
+
+        const existingEdu = Array.isArray((next as any).education)
+          ? [...(next as any).education]
           : [];
 
-        for (const b of eb.bullets || []) {
-          if (!existingHighlights.includes(b)) existingHighlights.push(b);
-        }
-
-        exp[idx] = {
-          ...exp[idx],
-          company: exp[idx].company || eb.company || "",
-          jobTitle: exp[idx].jobTitle || eb.jobTitle || "",
-          startDate: exp[idx].startDate || startFromEb,
-          endDate:
-            exp[idx].endDate !== null && exp[idx].endDate !== undefined
-              ? exp[idx].endDate
-              : endFromEb,
-          location: exp[idx].location || locFromEb,
-          highlights: existingHighlights,
-        };
-      });
-    }
-
-    next.experience = exp;
-
-    // Skills / ATS keywords → merge into skills array
-    const have = new Set(
-      (next.skills || [])
-        .map((s: any) => (typeof s === "string" ? s : s?.name))
-        .filter(Boolean)
-    );
-    const incoming = [
-      ...(candidate.skills || []),
-      ...(candidate.atsKeywords || []),
-    ];
-    const toAdd = incoming.filter(
-      (s: string) => s && !have.has(String(s))
-    );
-    next.skills = [
-      ...(next.skills || []),
-      ...toAdd.map((name: string) => ({ name })),
-    ];
-
-    // --- merge education suggestions into resume education ---
-    if (Array.isArray((candidate as any).education)) {
-      const incomingEdu = (candidate as any).education as Array<{
-        institution?: string;
-        degree?: string;
-        fieldOfStudy?: string;
-        graduationDate?: string;
-      }>;
-
-      const existingEdu = Array.isArray((next as any).education)
-        ? [...(next as any).education]
-        : [];
-
-      for (const e of incomingEdu) {
-        const key = [
-          (e.institution || "").trim(),
-          (e.degree || "").trim(),
-          (e.fieldOfStudy || "").trim(),
-        ]
-          .filter(Boolean)
-          .join(" | ");
-
-        if (!key) continue;
-
-        const already = existingEdu.some((ex: any) => {
-          const exKey = [
-            (ex.institution || "").trim(),
-            (ex.degree || "").trim(),
-            (ex.fieldOfStudy || "").trim(),
+        for (const e of incomingEdu) {
+          const key = [
+            (e.institution || "").trim(),
+            (e.degree || "").trim(),
+            (e.fieldOfStudy || "").trim(),
           ]
             .filter(Boolean)
             .join(" | ");
-          return exKey === key;
-        });
 
-        if (!already) {
-          existingEdu.push({
-            institution: e.institution || "",
-            degree: e.degree || "",
-            fieldOfStudy: e.fieldOfStudy || "",
-            graduationDate: e.graduationDate || "",
+          if (!key) continue;
+
+          const already = existingEdu.some((ex: any) => {
+            const exKey = [
+              (ex.institution || "").trim(),
+              (ex.degree || "").trim(),
+              (ex.fieldOfStudy || "").trim(),
+            ]
+              .filter(Boolean)
+              .join(" | ");
+            return exKey === key;
           });
+
+          if (!already) {
+            existingEdu.push({
+              institution: e.institution || "",
+              degree: e.degree || "",
+              fieldOfStudy: e.fieldOfStudy || "",
+              graduationDate: e.graduationDate || "",
+            });
+          }
         }
+
+        (next as any).education = existingEdu;
       }
 
-      (next as any).education = existingEdu;
-    }
+      // --- merge project suggestions into resume projects ---
+      if (Array.isArray((candidate as any).projects)) {
+        const incomingProjects = (candidate as any).projects as Array<{
+          name?: string;
+          technologies?: string;
+          outcomes?: string;
+          startDate?: string;
+          endDate?: string;
+          role?: string;
+        }>;
 
-    // --- merge project suggestions into resume projects ---
-    if (Array.isArray((candidate as any).projects)) {
-      const incomingProjects = (candidate as any).projects as Array<{
-        name?: string;
-        technologies?: string;
-        outcomes?: string;
-        startDate?: string;
-        endDate?: string;
-        role?: string;
-      }>;
+        const existingProjects = Array.isArray((next as any).projects)
+          ? [...(next as any).projects]
+          : [];
 
-      const existingProjects = Array.isArray((next as any).projects)
-        ? [...(next as any).projects]
-        : [];
+        for (const p of incomingProjects) {
+          const key = (p.name || "").trim();
+          if (!key) continue;
 
-      for (const p of incomingProjects) {
-        const key = (p.name || "").trim();
-        if (!key) continue;
+          const already = existingProjects.some(
+            (ex: any) => (ex.name || "").trim() === key
+          );
 
-        const already = existingProjects.some(
-          (ex: any) => (ex.name || "").trim() === key
-        );
-
-        if (!already) {
-          existingProjects.push({
-            name: p.name || "",
-            technologies: p.technologies || "",
-            outcomes: p.outcomes || "",
-            startDate: p.startDate || "",
-            endDate: p.endDate || "",
-            role: p.role || "",
-          });
+          if (!already) {
+            existingProjects.push({
+              name: p.name || "",
+              technologies: p.technologies || "",
+              outcomes: p.outcomes || "",
+              startDate: p.startDate || "",
+              endDate: p.endDate || "",
+              role: p.role || "",
+            });
+          }
         }
+
+        (next as any).projects = existingProjects;
       }
 
-      (next as any).projects = existingProjects;
-    }
+      // Summary suggestion – only if we don’t already have one
+      if (
+        (!next.summary || !String(next.summary).trim()) &&
+        Array.isArray(candidate.summarySuggestions) &&
+        candidate.summarySuggestions.length > 0
+      ) {
+        next.summary = candidate.summarySuggestions[0];
+      }
 
-    // Summary suggestion – only if we don’t already have one
-    if (
-      (!next.summary || !String(next.summary).trim()) &&
-      Array.isArray(candidate.summarySuggestions) &&
-      candidate.summarySuggestions.length > 0
-    ) {
-      next.summary = candidate.summarySuggestions[0];
-    }
-
-    return next;
-  });
-}
+      return next;
+    });
+  }
   async function runAiWithJob(jobOrDraft: Job | JobDraft) {
     try {
       setAiError(null);
@@ -1050,8 +1085,8 @@ const ResumeEditor: React.FC = () => {
         result && Array.isArray(result.parsedCandidates)
           ? (result.parsedCandidates as AiResumeCandidate[])
           : result?.data
-          ? [result.data as AiResumeCandidate]
-          : [];
+            ? [result.data as AiResumeCandidate]
+            : [];
 
       // 🔍 Log parsed candidates + first candidate’s experience bullets
       console.log("[AI] Parsed candidates array:", arr);
@@ -1218,15 +1253,14 @@ const ResumeEditor: React.FC = () => {
               disabled={updatingWorkflow || !resumeId}
               className={`
             inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs
-            ${
-              workflowStatus === "approved"
-                ? "bg-green-50 border-green-200 text-green-700"
-                : workflowStatus === "in_review"
-                ? "bg-blue-50 border-blue-200 text-blue-700"
-                : workflowStatus === "changes_requested"
-                ? "bg-amber-50 border-amber-200 text-amber-700"
-                : "bg-gray-50 border-gray-200 text-gray-700"
-            }
+            ${workflowStatus === "approved"
+                  ? "bg-green-50 border-green-200 text-green-700"
+                  : workflowStatus === "in_review"
+                    ? "bg-blue-50 border-blue-200 text-blue-700"
+                    : workflowStatus === "changes_requested"
+                      ? "bg-amber-50 border-amber-200 text-amber-700"
+                      : "bg-gray-50 border-gray-200 text-gray-700"
+                }
           `}
             >
               <span className="capitalize">
@@ -1245,11 +1279,10 @@ const ResumeEditor: React.FC = () => {
 
             <button
               type="button"
-              className={`rounded border px-2 py-1 ${
-                workflowStatus === "draft"
-                  ? "border-gray-400"
-                  : "border-gray-200"
-              }`}
+              className={`rounded border px-2 py-1 ${workflowStatus === "draft"
+                ? "border-gray-400"
+                : "border-gray-200"
+                }`}
               onClick={() => handleChangeWorkflowStatus("draft")}
               disabled={updatingWorkflow || !resumeId}
             >
@@ -1257,11 +1290,10 @@ const ResumeEditor: React.FC = () => {
             </button>
             <button
               type="button"
-              className={`rounded border px-2 py-1 ${
-                workflowStatus === "in_review"
-                  ? "border-blue-400"
-                  : "border-gray-200"
-              }`}
+              className={`rounded border px-2 py-1 ${workflowStatus === "in_review"
+                ? "border-blue-400"
+                : "border-gray-200"
+                }`}
               onClick={() => handleChangeWorkflowStatus("in_review")}
               disabled={updatingWorkflow || !resumeId}
             >
@@ -1269,11 +1301,10 @@ const ResumeEditor: React.FC = () => {
             </button>
             <button
               type="button"
-              className={`rounded border px-2 py-1 ${
-                workflowStatus === "changes_requested"
-                  ? "border-amber-400"
-                  : "border-gray-200"
-              }`}
+              className={`rounded border px-2 py-1 ${workflowStatus === "changes_requested"
+                ? "border-amber-400"
+                : "border-gray-200"
+                }`}
               onClick={() => handleChangeWorkflowStatus("changes_requested")}
               disabled={updatingWorkflow || !resumeId}
             >
@@ -1281,11 +1312,10 @@ const ResumeEditor: React.FC = () => {
             </button>
             <button
               type="button"
-              className={`rounded border px-2 py-1 ${
-                workflowStatus === "approved"
-                  ? "border-green-500"
-                  : "border-gray-200"
-              }`}
+              className={`rounded border px-2 py-1 ${workflowStatus === "approved"
+                ? "border-green-500"
+                : "border-gray-200"
+                }`}
               onClick={() => handleChangeWorkflowStatus("approved")}
               disabled={updatingWorkflow || !resumeId}
             >
@@ -1352,22 +1382,20 @@ const ResumeEditor: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShareTab("settings")}
-                  className={`px-3 py-1 rounded-full transition ${
-                    shareTab === "settings"
-                      ? "bg-white shadow-sm text-gray-900"
-                      : "text-gray-500 hover:text-gray-800"
-                  }`}
+                  className={`px-3 py-1 rounded-full transition ${shareTab === "settings"
+                    ? "bg-white shadow-sm text-gray-900"
+                    : "text-gray-500 hover:text-gray-800"
+                    }`}
                 >
                   Share settings
                 </button>
                 <button
                   type="button"
                   onClick={() => setShareTab("people")}
-                  className={`px-3 py-1 rounded-full transition ${
-                    shareTab === "people"
-                      ? "bg-white shadow-sm text-gray-900"
-                      : "text-gray-500 hover:text-gray-800"
-                  }`}
+                  className={`px-3 py-1 rounded-full transition ${shareTab === "people"
+                    ? "bg-white shadow-sm text-gray-900"
+                    : "text-gray-500 hover:text-gray-800"
+                    }`}
                 >
                   Who I’m sharing with
                 </button>
@@ -1518,11 +1546,11 @@ const ResumeEditor: React.FC = () => {
                         onChange={(e) =>
                           setInviteRole(
                             e.target.value as
-                              | "mentor"
-                              | "peer"
-                              | "advisor"
-                              | "recruiter"
-                              | "other"
+                            | "mentor"
+                            | "peer"
+                            | "advisor"
+                            | "recruiter"
+                            | "other"
                           )
                         }
                         className="rounded-md border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
@@ -1682,7 +1710,7 @@ const ResumeEditor: React.FC = () => {
                     Suggested summary
                   </p>
                   {activeCandidate.summarySuggestions &&
-                  activeCandidate.summarySuggestions.length > 0 ? (
+                    activeCandidate.summarySuggestions.length > 0 ? (
                     activeCandidate.summarySuggestions.map((s, idx) => (
                       <div
                         key={idx}
@@ -1748,7 +1776,7 @@ const ResumeEditor: React.FC = () => {
                     Suggested bullet points
                   </p>
                   {activeCandidate.experienceBullets &&
-                  activeCandidate.experienceBullets.length > 0 ? (
+                    activeCandidate.experienceBullets.length > 0 ? (
                     <>
                       <ul className="list-disc ml-4 space-y-1 max-h-32 overflow-auto">
                         {activeCandidate.experienceBullets.flatMap(
@@ -2184,9 +2212,8 @@ const ResumeEditor: React.FC = () => {
                   onDragStart={() => handleDragStart(s.id)}
                   onDragOver={handleDragOver}
                   onDrop={() => handleDrop(s.id)}
-                  className={`flex items-center justify-between border rounded px-2 py-1 text-xs cursor-move ${
-                    draggingId === s.id ? "bg-indigo-50 border-indigo-300" : ""
-                  }`}
+                  className={`flex items-center justify-between border rounded px-2 py-1 text-xs cursor-move ${draggingId === s.id ? "bg-indigo-50 border-indigo-300" : ""
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <input
@@ -2264,11 +2291,10 @@ const ResumeEditor: React.FC = () => {
                   key={key}
                   type="button"
                   onClick={() => setThemeKey(key as ThemeKey)}
-                  className={`px-2 py-1 rounded text-xs border ${
-                    key === themeKey
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
+                  className={`px-2 py-1 rounded text-xs border ${key === themeKey
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
                 >
                   {t.label}
                 </button>
@@ -2285,6 +2311,7 @@ const ResumeEditor: React.FC = () => {
               <span className="text-xs font-medium text-gray-700">
                 Live Preview
               </span>
+              {/*
               <PDFDownloadLink
                 document={<PdfComp data={data} />}
                 fileName={`${filename || "resume"}.pdf`}
@@ -2295,6 +2322,30 @@ const ResumeEditor: React.FC = () => {
                   </Button>
                 )}
               </PDFDownloadLink>
+              */}
+              <Button
+                type="button"
+                className="text-xs px-3 py-1"
+                onClick={() => setShowPdfDownload(true)}
+              >
+                Download PDF
+              </Button>
+              {showPdfDownload && (
+                <PDFDownloadLink
+                  document={<PdfComp data={data} />}
+                  fileName={`${filename || "resume"}.pdf`}
+                >
+                  {({ loading }) => (
+                    <Button
+                      type="button"
+                      className="text-xs px-3 py-1"
+                      onClick={() => setShowPdfDownload(false)}
+                    >
+                      {loading ? "Preparing PDF…" : "Click again to download"}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              )}
             </div>
             <div className="p-3 max-h-[70vh] overflow-auto bg-gray-100">
               <Suspense
@@ -2305,7 +2356,7 @@ const ResumeEditor: React.FC = () => {
                 <div className="bg-white shadow-sm">
                   <Preview
                     data={previewData}
-                    onEdit={() => {}}
+                    onEdit={() => { }}
                     visibleSections={visibleSectionIds}
                     sectionOrder={draggableSections.map((s) => s.id)}
                     theme={theme}
@@ -2467,21 +2518,21 @@ const ResumeEditor: React.FC = () => {
 
                   {feedbackSummary.aiSummary.improvementSuggestions?.length >
                     0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-700 mb-1">
-                        Suggested improvements
-                      </p>
-                      <ul className="list-disc pl-4 space-y-1">
-                        {feedbackSummary.aiSummary.improvementSuggestions.map(
-                          (s, idx) => (
-                            <li key={idx} className="text-xs text-gray-600">
-                              {s}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  )}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700 mb-1">
+                          Suggested improvements
+                        </p>
+                        <ul className="list-disc pl-4 space-y-1">
+                          {feedbackSummary.aiSummary.improvementSuggestions.map(
+                            (s, idx) => (
+                              <li key={idx} className="text-xs text-gray-600">
+                                {s}
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </div>
+                    )}
                 </div>
               )}
             </div>

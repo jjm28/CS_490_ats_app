@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSuccessAnalysis } from "../../api/jobs";
 import { buildApplicationSuccessInsights } from "../../utils/applicationInsights";
+import { useNavigate } from "react-router-dom";
 
 // -----------------------------
 // Types
@@ -124,6 +125,7 @@ function ComparisonCard({
 // Main Component
 // -----------------------------
 export default function ApplicationSuccess() {
+  const navigate = useNavigate();
   const [data, setData] = useState<SuccessResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,10 +188,19 @@ export default function ApplicationSuccess() {
     <div className="p-10 space-y-16">
 
       {/* PAGE HEADER */}
-      <div className="text-center space-y-2">
+      <div className="relative text-center space-y-2">
+        {/* Top-right action button */}
+        <button
+          onClick={() => navigate("/analytics/application-optimization")}
+          className="absolute right-0 top-0 bg-(--brand-navy) text-white px-4 py-2 rounded-md hover:opacity-90 transition"
+        >
+          Optimize My Applications →
+        </button>
+
         <h1 className="text-3xl font-bold text-(--brand-navy)">
           Application Success Analysis
         </h1>
+
         <p className="text-gray-600">
           Understand what types of jobs and application behaviors lead to the best results.
         </p>

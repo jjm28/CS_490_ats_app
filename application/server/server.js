@@ -125,8 +125,17 @@ import metricsRouter from "./routes/metrics.js";
 
 
 
+import applicationMaterialsRouter from "./routes/application-materials.js";
+import applicationMethodsRouter from "./routes/application-methods.js";
+import applicationTimingRouter from "./routes/application-timing.js";
+
+import applicationQualityRoutes from "./routes/application-quality.js";
 import applicationSchedulerRoutes from "./routes/applicationScheduler.js";
 import applicationImportRoutes from "./routes/applicationImport.js";
+import applicationSchedulerRoutes from "./routes/applicationScheduler.js";
+import applicationImportRoutes from "./routes/applicationImport.js";
+
+import offersRouter from "./routes/offers.js";
 
 
 
@@ -365,11 +374,12 @@ try {
   app.use("/api/market", attachDevUser, marketRoutes);
 
   app.use("/api/referrals", referralRoutes);
+  app.use("/api/offers", offersRouter);
 
   // Root route - confirms API is running
   app.get("/", (_req, res) => {
-    res.json({ 
-      message: "OnTrac API is running", 
+    res.json({
+      message: "OnTrac API is running",
       version: "1.0.0",
       endpoints: "/api/*"
     });
@@ -386,6 +396,27 @@ try {
   app.use("/api/success-snapshots", successSnapshots);
   app.use("/api/custom-reports", customReportsRouter);
   app.use("/api/github", githubRoutes);
+
+  app.use(
+    "/api/analytics/application-materials",
+    attachDevUser,
+    applicationMaterialsRouter
+  );
+
+  app.use(
+    "/api/analytics/application-methods",
+    attachDevUser,
+    applicationMethodsRouter
+  );
+
+  app.use(
+    "/api/analytics/application-timing",
+    attachDevUser,
+    applicationTimingRouter
+  );
+
+  app.use("/api/application-quality", applicationQualityRoutes);
+
   // Health check
   app.get("/healthz", (_req, res) => res.sendStatus(204));
 

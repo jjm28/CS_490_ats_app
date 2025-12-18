@@ -44,9 +44,21 @@ const JobsPipeline: React.FC = () => {
         },
       });
       if (!res.ok) throw new Error("Failed to fetch jobs");
-      const data: Job[] = await res.json();
-      setJobs(data);
-      const analysisPromises = data.map(async (job) => {
+      const json = await res.json();
+
+      // Handle both legacy and paginated responses safely
+      const jobsArray: Job[] = Array.isArray(json)
+        ? json
+        : Array.isArray(json?.data)
+          ? json.data
+          : [];
+
+      setJobs(jobsArray);
+
+      const analysisPromises = jobsArray.map(async (job) => {
+        console.log("Jobs API response:", json);
+        console.log("Using jobsArray:", jobsArray);
+
         if (job._id && (job.matchScore === undefined || job.matchScore === null)) {
           try {
             await fetch(`${API_BASE}/api/jobs/${job._id}/analyze-match`, {
@@ -69,6 +81,18 @@ const JobsPipeline: React.FC = () => {
       setLoading(false);
     }
   };
+
+  function updateJobLocal(id: string, patch: Partial<Job>) {
+    setJobs((prev) =>
+      prev.map((j) => (j._id === id ? { ...j, ...patch } : j))
+    );
+  }
+
+  function passesQualityGate(job: Job): boolean {
+    if (!job.enforceQualityGate) return true;
+    if (job.applicationQualityScore == null) return false;
+    return job.applicationQualityScore >= 70;
+  }
 
   const toggleJobSelection = (id: string, selected: boolean) => {
     setSelectedJobs((prev) =>
@@ -131,6 +155,14 @@ const JobsPipeline: React.FC = () => {
     // 🛑 Prevent illegal moves (stage skipping or backward moves)
     if (!canMove(job.status, targetStatus)) {
       console.warn(`Blocked illegal move: ${job.status} → ${targetStatus}`);
+      return;
+    }
+
+    // 🛑 Block movement if quality gate is enforced and score < 70
+    if (!passesQualityGate(job)) {
+      alert(
+        "🚫 Application quality below 70. Improve resume or cover letter before advancing."
+      );
       return;
     }
 
@@ -206,6 +238,7 @@ const JobsPipeline: React.FC = () => {
               jobs={groupedJobs[status]}
               selectedJobs={selectedJobs}
               toggleJobSelection={toggleJobSelection}
+              updateJobLocal={updateJobLocal}
             />
           ))}
         </DndContext>

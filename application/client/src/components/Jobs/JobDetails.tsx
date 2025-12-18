@@ -25,6 +25,7 @@ const RESUME_VERSIONS_ENDPOINT = `${API_BASE}/api/resume-versions`; // NEW
 import MilestoneShareModal from "../Support/MilestoneShareModal";
 import { useNavigate } from "react-router-dom";
 import JobSalaryBenchmarkCard from "./JobSalaryBenchmarkCard";
+import { getApplicationQuality } from "../../api/applicationQuality";
 import {
   listCoverletterVersionsLinkedToJob,
   updateCoverletterVersion,
@@ -73,6 +74,9 @@ export default function JobDetails({
   const [analyzing, setAnalyzing] = useState(false);
   const [matchAnalysis, setMatchAnalysis] = useState<any | null>(null);
   const [analysisError, setAnalysisError] = useState("");
+  const [applicationQuality, setApplicationQuality] = useState<any | null>(null);
+  const [qualityLoading, setQualityLoading] = useState(false);
+  const [qualityError, setQualityError] = useState<string | null>(null);
   const [resumeName, setResumeName] = useState<string | null>(null);
   const [coverLetterName, setCoverLetterName] = useState<string | null>(null);
   const [showInterviewInsights, setShowInterviewInsights] = useState(false);
@@ -262,12 +266,12 @@ export default function JobDetails({
   };
 
   // Link resume version
-  const linkResumeVersion = async (versionId: string) => {
+  const linkResumeVersion = async (versionId: string, versionName?: string) => {
     try {
       const userid = getUserId();
-      if (!userid) throw new Error("Missing user session");
 
-      const res = await fetch(`${API_BASE}/api/resume-versions/${versionId}`, {
+      // 1️⃣ Link version → job (existing behavior)
+      await fetch(`${API_BASE}/api/resume-versions/${versionId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -279,16 +283,36 @@ export default function JobDetails({
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to link resume version");
+      // 2️⃣ Save version ID on the JOB
+      await fetch(`${JOBS_ENDPOINT}/${jobId}/application-package`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          applicationPackage: {
+            ...job?.applicationPackage,
+            resumeVersionId: versionId,
+            resumeVersionLabel: versionName || null,
+            generatedAt:
+              job?.applicationPackage?.generatedAt ||
+              new Date().toISOString(),
+          },
+        }),
+      });
 
+      await fetchJob();
       await fetchLinkedResumes();
-      alert("Resume version linked successfully!");
+      await refreshApplicationQuality();
     } catch (err) {
-      console.error("Failed to link resume version:", err);
+      console.error(err);
       alert("Failed to link resume version");
     }
   };
 
+
+  // Unlink resume version
   // Unlink resume version
   const unlinkResumeVersion = async (versionId: string) => {
     if (!confirm("Unlink this resume version from this job?")) return;
@@ -297,6 +321,7 @@ export default function JobDetails({
       const userid = getUserId();
       if (!userid) throw new Error("Missing user session");
 
+      // 1️⃣ Unlink version → job
       const res = await fetch(`${API_BASE}/api/resume-versions/${versionId}`, {
         method: "PATCH",
         headers: {
@@ -311,8 +336,33 @@ export default function JobDetails({
 
       if (!res.ok) throw new Error("Failed to unlink resume version");
 
+      // 2️⃣ CLEAR resumeVersion info from the JOB
+      await fetch(`${JOBS_ENDPOINT}/${jobId}/application-package`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          applicationPackage: {
+            ...job?.applicationPackage,
+            resumeVersionId: null,
+            resumeVersionLabel: null,
+            generatedAt: null,
+          },
+        }),
+      });
+
+      // 3️⃣ Refresh local state
+      await fetchJob();
       await fetchLinkedResumes();
-      alert("Resume version unlinked successfully!");
+      // ✅ RESET APPLICATION QUALITY AFTER UNLINK
+      setApplicationQuality({
+        score: 0,
+        resumeCoverage: 0,
+        coverLetterCoverage: 0,
+        missingKeywords: [],
+      });
     } catch (err) {
       console.error("Failed to unlink resume version:", err);
       alert("Failed to unlink resume version");
@@ -320,25 +370,49 @@ export default function JobDetails({
   };
 
   // Link cover letter version
-  const linkCoverLetterVersion = async (versionId: string) => {
+  const linkCoverLetterVersion = async (
+    versionId: string,
+    versionName?: string
+  ) => {
     try {
       const userid = getUserId();
-      if (!userid) throw new Error("Missing user session");
 
+      // 1️⃣ Link version
       await updateCoverletterVersion({
         userid,
         versionid: versionId,
         linkJobIds: [jobId],
       });
 
+      // 2️⃣ Save version ID on job
+      await fetch(`${JOBS_ENDPOINT}/${jobId}/application-package`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          applicationPackage: {
+            ...job?.applicationPackage,
+            coverLetterVersionId: versionId,
+            coverLetterVersionLabel: versionName || null,
+            generatedAt:
+              job?.applicationPackage?.generatedAt ||
+              new Date().toISOString(),
+          },
+        }),
+      });
+
+      await fetchJob();
       await fetchLinkedCoverLetters();
-      alert("Cover letter version linked successfully!");
+      await refreshApplicationQuality();
     } catch (err) {
-      console.error("Failed to link cover letter version:", err);
+      console.error(err);
       alert("Failed to link cover letter version");
     }
   };
 
+  // Unlink cover letter version
   // Unlink cover letter version
   const unlinkCoverLetterVersion = async (versionId: string) => {
     if (!confirm("Unlink this cover letter version from this job?")) return;
@@ -347,14 +421,40 @@ export default function JobDetails({
       const userid = getUserId();
       if (!userid) throw new Error("Missing user session");
 
+      // 1️⃣ Unlink version
       await updateCoverletterVersion({
         userid,
         versionid: versionId,
         unlinkJobIds: [jobId],
       });
 
+      // 2️⃣ CLEAR coverLetterVersion info from the JOB
+      await fetch(`${JOBS_ENDPOINT}/${jobId}/application-package`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          applicationPackage: {
+            ...job?.applicationPackage,
+            coverLetterVersionId: null,
+            coverLetterVersionLabel: null,
+            generatedAt: null,
+          },
+        }),
+      });
+
+      // 3️⃣ Refresh local state
+      await fetchJob();
       await fetchLinkedCoverLetters();
-      alert("Cover letter version unlinked successfully!");
+      // ✅ RESET APPLICATION QUALITY AFTER UNLINK
+      setApplicationQuality({
+        score: 0,
+        resumeCoverage: 0,
+        coverLetterCoverage: 0,
+        missingKeywords: [],
+      });
     } catch (err) {
       console.error("Failed to unlink cover letter version:", err);
       alert("Failed to unlink cover letter version");
@@ -497,6 +597,25 @@ export default function JobDetails({
     }
   };
 
+  const refreshApplicationQuality = async () => {
+    if (!job?._id) {
+      setApplicationQuality(null);
+      return;
+    }
+
+    try {
+      setQualityLoading(true);
+      setQualityError(null);
+      const data = await getApplicationQuality(job._id);
+      setApplicationQuality(data);
+    } catch (err) {
+      console.error("Failed to refresh application quality", err);
+      setQualityError("Unable to analyze application package quality");
+    } finally {
+      setQualityLoading(false);
+    }
+  };
+
   // Load linked versions on mount
   useEffect(() => {
     fetchLinkedResumes();
@@ -538,7 +657,7 @@ export default function JobDetails({
           const portfolioValue =
             job.applicationPackage.portfolioUrl ||
             (Array.isArray(job.applicationPackage.portfolioUrls) &&
-            job.applicationPackage.portfolioUrls.length > 0
+              job.applicationPackage.portfolioUrls.length > 0
               ? job.applicationPackage.portfolioUrls[0]
               : "");
           setPackagePortfolioUrl(portfolioValue);
@@ -560,6 +679,28 @@ export default function JobDetails({
   useEffect(() => {
     fetchJob();
   }, [jobId]);
+
+  useEffect(() => {
+    const resumeVersionId = job?.applicationPackage?.resumeVersionId;
+    const coverLetterVersionId = job?.applicationPackage?.coverLetterVersionId;
+
+    // 🚨 NOTHING LINKED → RESET SCORE
+    if (!resumeVersionId && !coverLetterVersionId) {
+      setApplicationQuality({
+        score: 0,
+        resumeCoverage: 0,
+        coverLetterCoverage: 0,
+        missingKeywords: [],
+      });
+      return;
+    }
+
+    // 🔁 VERSION CHANGED → RE-ANALYZE
+    refreshApplicationQuality();
+  }, [
+    job?.applicationPackage?.resumeVersionId,
+    job?.applicationPackage?.coverLetterVersionId,
+  ]);
 
   function authHeaders() {
     const raw = localStorage.getItem("authUser");
@@ -933,10 +1074,10 @@ export default function JobDetails({
   const canShowInterviewInsights = job && (
 
 
-    job.status === "interview" || 
+    job.status === "interview" ||
 
 
-    job.status === "offer" || 
+    job.status === "offer" ||
 
 
     job.status === "phone_screen"
@@ -1044,7 +1185,7 @@ export default function JobDetails({
                   value={formData.workMode ? WorkMode_DISPLAY[formData.workMode] : ""}
                   isEditing={isEditing}
                   type="select"
-                  options={ ["Remote", "Hybrid", "Onsite"]}
+                  options={["Remote", "Hybrid", "Onsite"]}
                   onChange={(val) =>
                     setFormData({ ...formData, workMode: WorkMode_VALUE[val] })
                   }
@@ -1054,7 +1195,7 @@ export default function JobDetails({
             </section>
             {/* Interview Insights Button */}
             {canShowInterviewInsights && (
-                 <Button
+              <Button
 
 
                 variant="primary"
@@ -1073,7 +1214,7 @@ export default function JobDetails({
 
 
               </Button>
-                 )}
+            )}
             {(job.status === "offer" || job.status === "interview") && (
               <Button
                 type="button"
@@ -1083,14 +1224,14 @@ export default function JobDetails({
                 Share this win with supporters
               </Button>
             )}
-               {(job.location || job.location != "") && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate(`/commuter-planner?jobId=${job._id}`)}
-            >
-              Plan commute
-            </Button>
+            {(job.location || job.location != "") && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => navigate(`/commuter-planner?jobId=${job._id}`)}
+              >
+                Plan commute
+              </Button>
             )}
             <MilestoneShareModal
               userId={currentuserId}
@@ -1130,7 +1271,7 @@ export default function JobDetails({
                       const portfolioValue =
                         job.applicationPackage.portfolioUrl ||
                         (Array.isArray(job.applicationPackage.portfolioUrls) &&
-                        job.applicationPackage.portfolioUrls.length > 0
+                          job.applicationPackage.portfolioUrls.length > 0
                           ? job.applicationPackage.portfolioUrls[0]
                           : "");
                       setPackagePortfolioUrl(portfolioValue);
@@ -1202,8 +1343,8 @@ export default function JobDetails({
                     <span>
                       {job.applicationPackage?.generatedAt
                         ? new Date(
-                            job.applicationPackage.generatedAt
-                          ).toLocaleString()
+                          job.applicationPackage.generatedAt
+                        ).toLocaleString()
                         : "Unknown"}
                     </span>
                   </div>
@@ -1212,6 +1353,92 @@ export default function JobDetails({
                 <p className="text-gray-500 text-sm">
                   No application package has been generated for this job yet.
                 </p>
+              )}
+              {job.applicationPackage && (
+                <div className="mt-4 bg-white border rounded-lg p-4">
+                  <h4 className="font-semibold text-md mb-2">
+                    Application Package Quality
+                  </h4>
+
+                  {qualityLoading && (
+                    <p className="text-sm text-gray-500">
+                      Analyzing resume and cover letter…
+                    </p>
+                  )}
+
+                  {qualityError && (
+                    <p className="text-sm text-red-600">{qualityError}</p>
+                  )}
+
+                  {applicationQuality && (
+                    <>
+                      <div className="text-3xl font-bold text-blue-600">
+                        {applicationQuality.score}%
+                      </div>
+
+                      <p className="text-sm text-gray-600 mt-1">
+                        Resume alignment: {applicationQuality.resumeCoverage}% •
+                        Cover letter alignment: {applicationQuality.coverLetterCoverage}%
+                      </p>
+
+                      {applicationQuality.missingKeywords?.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-sm font-medium text-gray-700">
+                            Missing keywords from job description:
+                          </p>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {applicationQuality.missingKeywords.slice(0, 10).map((k: string) => (
+                              <span
+                                key={k}
+                                className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs"
+                              >
+                                {k}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* 🔧 Improvement Recommendations */}
+                      {applicationQuality.suggestions?.length > 0 && (
+                        <div className="mt-4">
+                          <h5 className="text-sm font-semibold text-gray-800 mb-2">
+                            Recommended Improvements
+                          </h5>
+
+                          <ul className="space-y-2">
+                            {applicationQuality.suggestions.map(
+                              (
+                                s: {
+                                  priority: "high" | "medium" | "low";
+                                  source: string;
+                                  message: string;
+                                },
+                                idx: number
+                              ) => (
+                                <li
+                                  key={idx}
+                                  className={`text-sm p-3 rounded border
+              ${s.priority === "high"
+                                      ? "bg-red-50 border-red-300 text-red-700"
+                                      : s.priority === "medium"
+                                        ? "bg-yellow-50 border-yellow-300 text-yellow-700"
+                                        : "bg-green-50 border-green-300 text-green-700"
+                                    }
+            `}
+                                >
+                                  <div className="font-semibold uppercase text-xs mb-1">
+                                    {s.priority} priority · {s.source.replace("_", " ")}
+                                  </div>
+                                  <div>{s.message}</div>
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
             </section>
 
@@ -1306,70 +1533,70 @@ export default function JobDetails({
                 )}
               </div>
             </section>
-             {/* Interview Insights Modal */}
+            {/* Interview Insights Modal */}
 
 
-      {showInterviewInsights && (
+            {showInterviewInsights && (
 
 
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
 
-          <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+                <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
 
 
-            <div className="flex justify-between items-center border-b p-4 bg-white sticky top-0 z-10">
+                  <div className="flex justify-between items-center border-b p-4 bg-white sticky top-0 z-10">
 
 
-              <h3 className="font-semibold text-lg">
+                    <h3 className="font-semibold text-lg">
 
 
-                Interview Insights - {job.jobTitle} at {job.company}
+                      Interview Insights - {job.jobTitle} at {job.company}
 
 
-              </h3>
+                    </h3>
 
 
-              <button
+                    <button
 
 
-                type="button"
+                      type="button"
 
 
-                onClick={() => setShowInterviewInsights(false)}
+                      onClick={() => setShowInterviewInsights(false)}
 
 
-                className="text-gray-500 hover:text-gray-800"
+                      className="text-gray-500 hover:text-gray-800"
 
 
-              >
+                    >
 
 
-                ✕
+                      ✕
 
 
-              </button>
+                    </button>
 
 
-            </div>
+                  </div>
 
 
-            <div>
+                  <div>
 
 
-              <InterviewInsightsDisplay jobId={job._id} />
+                    <InterviewInsightsDisplay jobId={job._id} />
 
 
-            </div>
+                  </div>
 
 
-          </Card>
+                </Card>
 
 
-        </div>
+              </div>
 
 
-      )}
+            )}
             {/* Application History */}
             <section>
               <div className="flex justify-between items-center mb-3">
@@ -1411,8 +1638,8 @@ export default function JobDetails({
                           matchAnalysis.matchScore >= 90
                             ? "text-green-700"
                             : matchAnalysis.matchScore >= 70
-                            ? "text-yellow-600"
-                            : "text-red-600"
+                              ? "text-yellow-600"
+                              : "text-red-600"
                         }
                       >
                         {matchAnalysis.matchScore || 0}%
@@ -1426,8 +1653,8 @@ export default function JobDetails({
                           matchAnalysis.matchBreakdown?.skills < 70
                             ? "text-red-600"
                             : matchAnalysis.matchBreakdown?.skills < 90
-                            ? "text-yellow-600"
-                            : "text-green-700"
+                              ? "text-yellow-600"
+                              : "text-green-700"
                         }
                       >
                         Skills: {matchAnalysis.matchBreakdown?.skills ?? 0}%
@@ -1437,8 +1664,8 @@ export default function JobDetails({
                           matchAnalysis.matchBreakdown?.experience < 70
                             ? "text-red-600"
                             : matchAnalysis.matchBreakdown?.experience < 90
-                            ? "text-yellow-600"
-                            : "text-green-700"
+                              ? "text-yellow-600"
+                              : "text-green-700"
                         }
                       >
                         Experience:{" "}
@@ -1449,8 +1676,8 @@ export default function JobDetails({
                           matchAnalysis.matchBreakdown?.education < 70
                             ? "text-red-600"
                             : matchAnalysis.matchBreakdown?.education < 90
-                            ? "text-yellow-600"
-                            : "text-green-700"
+                              ? "text-yellow-600"
+                              : "text-green-700"
                         }
                       >
                         Education:{" "}
@@ -2084,11 +2311,10 @@ export default function JobDetails({
                     return (
                       <div
                         key={version._id}
-                        className={`p-3 rounded border ${
-                          isLinked
-                            ? "bg-blue-50 border-blue-300"
-                            : "bg-white border-gray-200"
-                        }`}
+                        className={`p-3 rounded border ${isLinked
+                          ? "bg-blue-50 border-blue-300"
+                          : "bg-white border-gray-200"
+                          }`}
                       >
                         <div className="flex justify-between items-center">
                           <div>
@@ -2113,7 +2339,7 @@ export default function JobDetails({
                               </button>
                             ) : (
                               <button
-                                onClick={() => linkResumeVersion(version._id)}
+                                onClick={() => linkResumeVersion(version._id, version.name)}
                                 className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                               >
                                 Link to Job
@@ -2183,11 +2409,10 @@ export default function JobDetails({
                       return (
                         <div
                           key={version._id}
-                          className={`p-3 rounded border ${
-                            isLinked
-                              ? "bg-blue-50 border-blue-300"
-                              : "bg-white border-gray-200"
-                          }`}
+                          className={`p-3 rounded border ${isLinked
+                            ? "bg-blue-50 border-blue-300"
+                            : "bg-white border-gray-200"
+                            }`}
                         >
                           <div className="flex justify-between items-center">
                             <div>
@@ -2217,7 +2442,7 @@ export default function JobDetails({
                               ) : (
                                 <button
                                   onClick={() =>
-                                    linkCoverLetterVersion(version._id)
+                                    linkCoverLetterVersion(version._id, version.name)
                                   }
                                   className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                                 >
@@ -2412,9 +2637,8 @@ function ContactFields({
               type="email"
               value={contact?.email || ""}
               onChange={(e) => handleFieldChange("email", e.target.value)}
-              className={`w-full form-input ${
-                emailError ? "border-red-500" : ""
-              }`}
+              className={`w-full form-input ${emailError ? "border-red-500" : ""
+                }`}
               placeholder="john@company.com"
             />
           ) : (
