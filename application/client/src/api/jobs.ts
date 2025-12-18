@@ -162,10 +162,11 @@ export async function getJobById(id: string) {
   return res.json();
 }
 
-/* ======================================================
-   📈 SUCCESS ANALYTICS (UC-119 / UC-120)
-====================================================== */
 
+
+// ==============================
+// 📈 SUCCESS ANALYTICS
+// ==============================
 export async function getSuccessAnalysis() {
   const res = await apiFetch(`${API_BASE}/api/success-analysis`);
   if (!res.ok) throw new Error("Failed to fetch success analysis");

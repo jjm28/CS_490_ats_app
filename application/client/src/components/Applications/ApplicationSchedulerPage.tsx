@@ -704,8 +704,7 @@ function ScheduleRow(props: {
         <div className="text-gray-900">
           {s.deadlineAt ? (
             <>
-              {formatInTimeZone(s.deadlineAt, tz)}{" "}
-              <span className="text-xs text-gray-600">({tz})</span>
+              {formatInTimeZone(s.deadlineAt, tz)} <span className="text-xs text-gray-600">({tz})</span>
             </>
           ) : (
             "—"

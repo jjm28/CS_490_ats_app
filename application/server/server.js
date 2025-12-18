@@ -130,6 +130,10 @@ import applicationTimingRouter from "./routes/application-timing.js";
 import applicationQualityRoutes from "./routes/application-quality.js";
 import applicationSchedulerRoutes from "./routes/applicationScheduler.js";
 import applicationImportRoutes from "./routes/applicationImport.js";
+import applicationSchedulerRoutes from "./routes/applicationScheduler.js";
+import applicationImportRoutes from "./routes/applicationImport.js";
+
+import offersRouter from "./routes/offers.js";
 
 
 
@@ -367,6 +371,7 @@ try {
   app.use("/api/market", attachDevUser, marketRoutes);
 
   app.use("/api/referrals", referralRoutes);
+  app.use("/api/offers", offersRouter);
 
   // Root route - confirms API is running
   app.get("/", (_req, res) => {

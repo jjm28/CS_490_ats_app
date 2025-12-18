@@ -272,6 +272,12 @@ function Navbar() {
                     Application Scheduler
                   </NavLink>
                   <NavLink
+                    to="/jobs/offers/compare"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    Offer Comparison
+                  </NavLink>
+                  <NavLink
                     to="/company-research"
                     className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
                   >
