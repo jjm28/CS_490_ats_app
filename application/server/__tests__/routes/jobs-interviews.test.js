@@ -40,6 +40,7 @@ const mockCreateFollowUpTemplate = jest.fn();
 const mockSaveFollowUp = jest.fn();
 const mockUpdateFollowUpStatus = jest.fn();
 const mockGenerateNegotiationPrep = jest.fn();
+const mockGetJobsByStatus = jest.fn();
 
 // Mock mongoose
 const mockMongooseObjectId = jest.fn((id) => new ObjectId(id));
@@ -98,6 +99,7 @@ jest.unstable_mockModule("../../services/jobs.service.js", () => ({
   saveFollowUp: mockSaveFollowUp,
   updateFollowUpStatus: mockUpdateFollowUpStatus,
   generateNegotiationPrep: mockGenerateNegotiationPrep,
+  getJobsByStatus: mockGetJobsByStatus,
   // Mock other unused functions to prevent errors
   createJob: jest.fn(),
   getAllJobs: jest.fn(),
@@ -136,7 +138,7 @@ jest.unstable_mockModule("../../services/jobscraper.service.js", () => ({
   scrapeJobFromUrl: jest.fn(),
 }));
 
-jest.unstable_mockModule("../../../__tests__/services/matchAnalysis.service.js", () => ({
+jest.unstable_mockModule("../../services/matchAnalysis.service.js", () => ({
   calculateJobMatch: jest.fn(),
 }));
 

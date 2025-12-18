@@ -42,7 +42,7 @@ import {
 import Jobs from "../models/jobs.js";
 import { validateJobImport } from '../validators/jobimport.js';
 import { scrapeJobFromUrl } from '../services/jobscraper.service.js';
-import { calculateJobMatch } from "../__tests__/services/matchAnalysis.service.js";
+import { calculateJobMatch } from "../services/matchAnalysis.service.js";
 import { getSkillsByUser } from "./skills.js";
 import { incrementApplicationGoalsForUser } from "../services/jobSearchSharing.service.js";
 
