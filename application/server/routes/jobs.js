@@ -104,27 +104,66 @@ router.get("/", async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
+    const query = { userId, archived: { $ne: true } };
+
+    // Status filter
+    if (req.query.status) {
+      if (!VALID_STATUSES.includes(req.query.status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      query.status = req.query.status;
+    }
+
+    // ============================================
+    // 🔑 KEY LOGIC: Check if pagination is requested
+    // ============================================
+    const isPaginated = req.query.page !== undefined;
+
+    if (!isPaginated) {
+      // ============================================
+      // OLD BEHAVIOR: Return array with match scores
+      // ============================================
+      const jobs = await Jobs.find(query).sort({ createdAt: -1 }).lean();
+
+      // Calculate match scores
+      const userSkills = await getSkillsByUser(userId);
+      const skillNames = userSkills.map(s => s.name.toLowerCase());
+
+      const enhancedJobs = jobs.map(job => {
+        const jobSkills = job.requiredSkills?.map(s => s.toLowerCase()) || [];
+        const skillsMatched = jobSkills.filter(skill => skillNames.includes(skill));
+        const skillsMissing = jobSkills.filter(skill => !skillNames.includes(skill));
+
+        const matchScore = jobSkills.length
+          ? Math.round((skillsMatched.length / jobSkills.length) * 100)
+          : 0;
+
+        return {
+          ...job,
+          matchScore,
+          skillsMatched,
+          skillsMissing,
+        };
+      });
+
+      return res.json(enhancedJobs); // ← Returns ARRAY (old format)
+    }
+
+    // ============================================
+    // NEW BEHAVIOR: Paginated response with caching
+    // ============================================
     const page = parseInt(req.query.page || "1");
     const limit = parseInt(req.query.limit || "10");
     const skip = (page - 1) * limit;
 
     const cacheKey = `jobs:${userId}:page:${page}:limit:${limit}`;
 
-    // 🔹 Redis cache (safe)
+    // Redis cache check
     if (redis) {
       const cached = await redis.get(cacheKey);
       if (cached) {
         return res.json(JSON.parse(cached));
       }
-    }
-
-    const query = { userId, archived: { $ne: true } };
-
-    if (req.query.status) {
-      if (!VALID_STATUSES.includes(req.query.status)) {
-        return res.status(400).json({ error: "Invalid status" });
-      }
-      query.status = req.query.status;
     }
 
     const jobs = await Jobs.find(query)
@@ -141,12 +180,13 @@ router.get("/", async (req, res) => {
       totalPages: Math.ceil(total / limit),
     };
 
-    // 🔹 Cache only if Redis exists
+    // Cache the response
     if (redis) {
       await redis.setex(cacheKey, 60, JSON.stringify(response));
     }
 
-    res.json(response);
+    res.json(response); // ← Returns OBJECT (new format)
+
   } catch (err) {
     console.error("Get jobs failed:", err);
     res.status(500).json({ error: "Get jobs failed" });
