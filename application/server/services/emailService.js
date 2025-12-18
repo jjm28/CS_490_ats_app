@@ -388,3 +388,122 @@ ${deadlineText || ""}If you weren’t expecting this email, you can ignore it.
     html: htmlBody,
   });
 }
+
+//Email Handling for application notifications
+
+/**
+ * Application Scheduler Emails (APPEND-ONLY)
+ * Uses existing `transporter` from this module.
+ */
+
+export async function sendApplicationScheduleCreatedEmail({
+  toEmail,
+  job,
+  scheduledAt,
+  deadlineAt,
+}) {
+  const subject = `Scheduled application submission: ${job?.jobTitle || "Application"}`;
+  const text = `
+Your application submission has been scheduled.
+
+Job: ${job?.jobTitle || "—"} @ ${job?.company || job?.companyName || "—"}
+Scheduled Time: ${new Date(scheduledAt).toLocaleString()}
+Deadline: ${new Date(deadlineAt).toLocaleString()}
+
+You will receive an email when the scheduled submission time arrives, plus deadline reminders (if configured).
+  `.trim();
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text,
+  });
+}
+
+export async function sendApplicationDeadlineReminderEmail({
+  toEmail,
+  job,
+  deadlineAt,
+  minutesBefore,
+}) {
+  const hours = Math.round(Number(minutesBefore) / 60);
+  const subject = `Deadline reminder: ${job?.jobTitle || "Application"} due soon`;
+  const text = `
+Reminder: Your application deadline is approaching.
+
+Job: ${job?.jobTitle || "—"} @ ${job?.company || job?.companyName || "—"}
+Deadline: ${new Date(deadlineAt).toLocaleString()}
+Reminder: ${minutesBefore} minutes (${hours} hours) before deadline
+
+If you plan to submit, do it as soon as possible.
+  `.trim();
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text,
+  });
+}
+
+export async function sendApplicationSubmissionExecutedEmail({
+  toEmail,
+  job,
+  scheduledAt,
+  deadlineAt,
+  mode, // "scheduled" | "manual"
+  submittedLate,
+}) {
+  const subject = `Submission recorded (${mode}): ${job?.jobTitle || "Application"}`;
+  const text = `
+Your ATS has recorded the application as submitted.
+
+Job: ${job?.jobTitle || "—"} @ ${job?.company || job?.companyName || "—"}
+Recorded Submission Time: ${new Date(scheduledAt).toLocaleString()}
+Deadline: ${new Date(deadlineAt).toLocaleString()}
+Mode: ${mode}
+Late: ${submittedLate ? "Yes" : "No"}
+
+Note: This system records your submission timing for tracking and analytics. If you must also submit on an external job board, ensure you complete that step.
+  `.trim();
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text,
+  });
+}
+
+export async function sendApplicationExpiredEmail({ toEmail, job, deadlineAt }) {
+  const subject = `Expired: Application not submitted before deadline`;
+  const text = `
+This is a notice that an application schedule expired before being submitted.
+
+Job: ${job?.jobTitle || "—"} @ ${job?.company || job?.companyName || "—"}
+Deadline: ${new Date(deadlineAt).toLocaleString()}
+
+If you submitted outside the system, you can mark it submitted manually for your records.
+  `.trim();
+
+  await transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to: toEmail,
+    subject,
+    text,
+  });
+}
+
+export async function sendNotificationEmail({ to, subject, text, html }) {
+  if (!to) throw new Error("sendNotificationEmail: missing 'to'");
+  if (!subject) throw new Error("sendNotificationEmail: missing 'subject'");
+
+  return transporter.sendMail({
+    from: EMAIL_FROM || "no-reply@example.com",
+    to,
+    subject,
+    text: text || "",
+    html,
+  });
+}
