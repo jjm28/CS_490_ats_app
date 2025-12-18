@@ -39,12 +39,42 @@ export async function updateJob({ userId, id, payload }) {
 
 // Dedicated function for updating application package (bypasses full validation)
 export async function updateApplicationPackage({ userId, id, packageData }) {
+  const safe = packageData || {};
+
+  console.log("[updateApplicationPackage] incoming:", safe);
+
+  const applicationPackage = {
+    resumeId: safe.resumeId ?? null,
+    resumeVersionId: safe.resumeVersionId ?? null,
+    resumeVersionLabel: safe.resumeVersionLabel ?? null,
+
+    coverLetterId: safe.coverLetterId ?? null,
+    coverLetterVersionId: safe.coverLetterVersionId ?? null,
+    coverLetterVersionLabel: safe.coverLetterVersionLabel ?? null,
+
+    portfolioUrls: Array.isArray(safe.portfolioUrls)
+      ? safe.portfolioUrls
+      : safe.portfolioUrl
+        ? [safe.portfolioUrl]
+        : [],
+
+    generatedAt: safe.generatedAt
+      ? new Date(safe.generatedAt)
+      : new Date(),
+
+    generatedByRuleId: safe.generatedByRuleId ?? null,
+  };
+
+  console.log(
+    "[updateApplicationPackage] replacing applicationPackage:",
+    applicationPackage
+  );
+
   await Jobs.updateOne(
     { _id: id, userId },
-    { $set: { applicationPackage: packageData } }
+    { $set: { applicationPackage } }
   );
-  
-  // Return the updated job
+
   return Jobs.findOne({ _id: id, userId }).lean();
 }
 
@@ -500,8 +530,8 @@ export async function deleteApplicationHistory({ userId, id, historyIndex }) {
 export async function getUpcomingInterviews({ userId }) {
   try {
     const now = new Date();
-    const jobs = await Jobs.find({ 
-      userId, 
+    const jobs = await Jobs.find({
+      userId,
       archived: { $ne: true },
       'interviews.0': { $exists: true } // Only get jobs that have interviews
     }).lean();
@@ -512,7 +542,7 @@ export async function getUpcomingInterviews({ userId }) {
       if (job.interviews && job.interviews.length > 0) {
         for (const interview of job.interviews) {
           const interviewDate = new Date(interview.date);
-          
+
           // Only include future interviews
           if (interviewDate >= now) {
             upcomingInterviews.push({
@@ -551,7 +581,7 @@ export async function generateChecklistItems(job, interview) {
   try {
     console.log(`🤖 Attempting AI checklist generation for ${job.company} - ${job.jobTitle}`);
     const aiItems = await generateChecklistWithAI(job, interview);
-    
+
     if (aiItems && aiItems.length > 0) {
       console.log(`✅ AI generated ${aiItems.length} items successfully`);
       return aiItems;
@@ -562,7 +592,7 @@ export async function generateChecklistItems(job, interview) {
 
   // ✅ FALLBACK: HARDCODED CHECKLIST (your existing code)
   console.log("📋 Using fallback hardcoded checklist");
-  
+
   const items = [];
   let order = 1;
   const jobTitleLower = job.jobTitle?.toLowerCase() || '';
@@ -575,7 +605,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   items.push({
     id: 'research-recent-news',
     category: 'research',
@@ -583,7 +613,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   if (interview.interviewer) {
     items.push({
       id: 'research-interviewer',
@@ -593,7 +623,7 @@ export async function generateChecklistItems(job, interview) {
       order: order++
     });
   }
-  
+
   items.push({
     id: 'research-competitors',
     category: 'research',
@@ -601,7 +631,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   // LOGISTICS CATEGORY
   if (interview.type === 'video') {
     items.push({
@@ -611,7 +641,7 @@ export async function generateChecklistItems(job, interview) {
       completed: false,
       order: order++
     });
-    
+
     items.push({
       id: 'logistics-background',
       category: 'logistics',
@@ -620,7 +650,7 @@ export async function generateChecklistItems(job, interview) {
       order: order++
     });
   }
-  
+
   if (interview.type === 'in-person') {
     items.push({
       id: 'logistics-directions',
@@ -629,26 +659,26 @@ export async function generateChecklistItems(job, interview) {
       completed: false,
       order: order++
     });
-    
+
     // Enhanced attire suggestion
     const companyName = job.company?.toLowerCase() || '';
     let attireGuidance = 'Choose and prepare professional attire';
-    
-    if (companyName.includes('startup') || 
-        job.companySize === 'Small' || 
-        jobTitleLower.includes('founder')) {
+
+    if (companyName.includes('startup') ||
+      job.companySize === 'Small' ||
+      jobTitleLower.includes('founder')) {
       attireGuidance += ' (business casual likely appropriate for startup culture)';
-    } 
-    else if (companyName.includes('bank') || 
-            companyName.includes('consulting') || 
-            companyName.includes('finance') ||
-            companyName.includes('law')) {
+    }
+    else if (companyName.includes('bank') ||
+      companyName.includes('consulting') ||
+      companyName.includes('finance') ||
+      companyName.includes('law')) {
       attireGuidance += ' (business formal recommended for corporate environment)';
     }
     else if (jobTitleLower.includes('engineer') || jobTitleLower.includes('developer')) {
       attireGuidance += ' (smart casual is often appropriate for tech roles)';
     }
-    
+
     items.push({
       id: 'logistics-attire',
       category: 'logistics',
@@ -657,7 +687,7 @@ export async function generateChecklistItems(job, interview) {
       order: order++
     });
   }
-  
+
   items.push({
     id: 'logistics-materials',
     category: 'logistics',
@@ -665,7 +695,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   // MATERIALS CATEGORY
   items.push({
     id: 'materials-resume-review',
@@ -674,7 +704,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   items.push({
     id: 'materials-questions',
     category: 'materials',
@@ -682,7 +712,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   items.push({
     id: 'materials-examples',
     category: 'materials',
@@ -690,7 +720,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   // Design roles
   if (jobTitleLower.includes('designer') || jobTitleLower.includes('ux') || jobTitleLower.includes('ui')) {
     items.push({
@@ -701,7 +731,7 @@ export async function generateChecklistItems(job, interview) {
       order: order++
     });
   }
-  
+
   // PRACTICE CATEGORY
   items.push({
     id: 'practice-common-questions',
@@ -710,7 +740,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   items.push({
     id: 'practice-star-method',
     category: 'practice',
@@ -718,10 +748,10 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
-  if (jobTitleLower.includes('engineer') || 
-      jobTitleLower.includes('developer') ||
-      jobTitleLower.includes('technical')) {
+
+  if (jobTitleLower.includes('engineer') ||
+    jobTitleLower.includes('developer') ||
+    jobTitleLower.includes('technical')) {
     items.push({
       id: 'practice-technical',
       category: 'practice',
@@ -760,7 +790,7 @@ export async function generateChecklistItems(job, interview) {
       order: order++
     });
   }
-  
+
   // MINDSET CATEGORY
   items.push({
     id: 'mindset-achievements',
@@ -817,7 +847,7 @@ export async function generateChecklistItems(job, interview) {
     completed: false,
     order: order++
   });
-  
+
   console.log(`✅ Fallback generated ${items.length} items`);
   return items;
 }
@@ -843,7 +873,7 @@ export async function createFollowUpTemplate({ userId, jobId, interviewId, type 
     const interview = job.interviews?.find(
       (i) => i._id.toString() === interviewId.toString()
     );
-    
+
     if (!interview) {
       throw new Error("Interview not found in this job");
     }
@@ -851,7 +881,7 @@ export async function createFollowUpTemplate({ userId, jobId, interviewId, type 
     // 🆕 Fetch user information for personalization
     const db = getDb(); // Make sure you import getDb from your connection file
     const user = await db.collection('users').findOne({ _id: userId });
-    
+
     const userInfo = {
       firstName: user?.firstName || '',
       lastName: user?.lastName || '',
@@ -860,7 +890,7 @@ export async function createFollowUpTemplate({ userId, jobId, interviewId, type 
 
     // 🆕 Call the AI Service with user info
     const template = await generateFollowUpContent(job, interview, type, userInfo);
-    
+
     return { ...template, type };
   } catch (err) {
     console.error("Error in createFollowUpTemplate:", err);
@@ -941,8 +971,8 @@ export async function saveFollowUp({ userId, jobId, interviewId, payload }) {
         // Fetch user info for sender name
         const db = getDb();
         const user = await db.collection('users').findOne({ _id: normalizedUserId });
-        
-        const senderName = user?.firstName 
+
+        const senderName = user?.firstName
           ? `${user.firstName} ${user.lastName || ''}`.trim()
           : null;
 
@@ -958,14 +988,14 @@ export async function saveFollowUp({ userId, jobId, interviewId, payload }) {
         savedFollowUp.sent = false;
         savedFollowUp.sentVia = 'copied';
         await job.save();
-        
+
         throw new Error(
           `Follow-up saved as draft, but email failed to send: ${emailError.message}. ` +
           "You can copy the email content and send it manually."
         );
       }
     }
-    
+
     // Return the newly created item
     return savedFollowUp.toObject ? savedFollowUp.toObject() : savedFollowUp;
   } catch (err) {
@@ -1002,7 +1032,7 @@ export async function updateFollowUpStatus({ userId, jobId, interviewId, followU
     const jobIdValid = mongoose.Types.ObjectId.isValid(normalizedJobId);
     const interviewIdValid = mongoose.Types.ObjectId.isValid(normalizedInterviewId);
     const followUpIdValid = mongoose.Types.ObjectId.isValid(normalizedFollowUpId);
-    
+
     console.log('  jobId valid?', jobIdValid);
     console.log('  interviewId valid?', interviewIdValid);
     console.log('  followUpId valid?', followUpIdValid);
@@ -1022,7 +1052,7 @@ export async function updateFollowUpStatus({ userId, jobId, interviewId, followU
     // ✅ Find job (NOT using .lean() because we need to modify it)
     console.log('🔎 Searching for job with query:', { _id: normalizedJobId, userId: normalizedUserId });
     const job = await Jobs.findOne({ _id: normalizedJobId, userId: normalizedUserId });
-    
+
     console.log('📊 Job found?', !!job);
     if (job) {
       console.log('  Job ID:', job._id);
@@ -1050,7 +1080,7 @@ export async function updateFollowUpStatus({ userId, jobId, interviewId, followU
     // ✅ Find interview
     console.log('🔎 Searching for interview...');
     const interview = job.interviews.id(normalizedInterviewId);
-    
+
     console.log('📊 Interview found?', !!interview);
     if (interview) {
       console.log('  Interview ID:', interview._id);
@@ -1070,7 +1100,7 @@ export async function updateFollowUpStatus({ userId, jobId, interviewId, followU
     // ✅ Find follow-up
     console.log('🔎 Searching for follow-up...');
     const followUp = interview.followUps?.id(normalizedFollowUpId);
-    
+
     console.log('📊 Follow-up found?', !!followUp);
     if (followUp) {
       console.log('  Follow-up ID:', followUp._id);
@@ -1087,19 +1117,19 @@ export async function updateFollowUpStatus({ userId, jobId, interviewId, followU
     console.log('🔍 Validating update fields...');
     const allowedUpdates = ['sent', 'sentAt', 'sentVia', 'responseReceived', 'responseDate', 'customized'];
     const updateKeys = Object.keys(updates);
-    
+
     const invalidKeys = updateKeys.filter(key => !allowedUpdates.includes(key));
     if (invalidKeys.length > 0) {
       console.log('❌ Invalid update fields detected:', invalidKeys);
       throw new Error(`Invalid update fields: ${invalidKeys.join(', ')}`);
     }
-    
+
     console.log('✅ All update fields are valid:', updateKeys);
 
     // ✅ Apply updates
     console.log('📝 Applying updates to follow-up...');
     Object.assign(followUp, updates);
-    
+
     // ✅ Auto-set sentAt if marking as sent
     if (updates.sent === true && !followUp.sentAt) {
       console.log('📅 Auto-setting sentAt timestamp');
@@ -1120,7 +1150,7 @@ export async function updateFollowUpStatus({ userId, jobId, interviewId, followU
     console.log('✅ Returning updated follow-up');
     const result = followUp.toObject ? followUp.toObject() : followUp;
     console.log('📊 Result:', result);
-    
+
     return result;
   } catch (err) {
     console.error("❌ Error in updateFollowUpStatus:", err.message);
@@ -1137,11 +1167,11 @@ export async function generateNegotiationPrep({ userId, jobId }) {
     // 1. Fetch job
     const job = await Jobs.findOne({ _id: jobId, userId });
     if (!job) throw new Error("Job not found");
-    
+
     if (job.status !== 'offer') {
       throw new Error("Negotiation prep is only available for jobs with offer status");
     }
-    
+
     if (!job.finalSalary) {
       throw new Error("Please enter the offered salary first (in job details)");
     }
@@ -1150,7 +1180,7 @@ export async function generateNegotiationPrep({ userId, jobId }) {
     const db = getDb();
     const user = await db.collection("users").findOne({ _id: userId });
     if (!user) throw new Error("User not found");
-    
+
     const userInfo = {
       firstName: user.firstName,
       lastName: user.lastName,
@@ -1159,17 +1189,17 @@ export async function generateNegotiationPrep({ userId, jobId }) {
 
     // 3. Get or fetch market salary data
     let marketData = await getSalaryResearch(jobId);
-    
+
     // If no cached data or data is old (>7 days), fetch new data
-    const needsFreshData = !marketData || 
+    const needsFreshData = !marketData ||
       (marketData.cachedAt && (Date.now() - new Date(marketData.cachedAt).getTime() > 7 * 24 * 60 * 60 * 1000));
-    
+
     if (needsFreshData) {
       // Call Adzuna API (reuse existing logic)
       try {
         const ADZUNA_API_ID = process.env.ADZUNA_APP_ID;
         const ADZUNA_API_KEY = process.env.ADZUNA_API_KEY;
-        
+
         if (!ADZUNA_API_ID || !ADZUNA_API_KEY) {
           console.warn('Adzuna API credentials not found, using default market data');
           marketData = {
@@ -1181,10 +1211,10 @@ export async function generateNegotiationPrep({ userId, jobId }) {
         } else {
           const searchLocation = job.location || "us";
           const adzunaURL = `https://api.adzuna.com/v1/api/jobs/us/search/1?app_id=${ADZUNA_API_ID}&app_key=${ADZUNA_API_KEY}&what=${encodeURIComponent(job.jobTitle)}&where=${encodeURIComponent(searchLocation)}&results_per_page=100`;
-          
+
           const response = await axios.get(adzunaURL, { timeout: 10000 });
           const salaryResults = response.data.results || [];
-          
+
           const salaryNumbers = salaryResults
             .map(r => {
               const min = r.salary_min || r.salary_max;
@@ -1202,7 +1232,7 @@ export async function generateNegotiationPrep({ userId, jobId }) {
               sourceCount: salaryResults.length,
               cachedAt: new Date()
             };
-            
+
             // Cache it
             await db.collection("salaryResearch").updateOne(
               { jobId: jobId },

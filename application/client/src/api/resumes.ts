@@ -359,6 +359,7 @@ export async function createResumeVersionNew(args: {
   sourceVersionId?: string | null;
   name?: string;
   description?: string;
+  content: ResumeData;
 }) {
   const r = await fetch(`${API}/resume-versions`, {
     method: "POST",

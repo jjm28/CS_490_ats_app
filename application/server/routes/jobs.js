@@ -51,7 +51,7 @@ import { handleValidationErrors } from "../middleware/validate.js";
 import { sanitizeQuery } from "../utils/sanitizeQuery.js";
 import redis from "../lib/redis.js";
 import { jobs } from "googleapis/build/src/apis/jobs/index.js";
-import  csrfProtection  from "../middleware/csrf.js"
+import csrfProtection from "../middleware/csrf.js"
 
 import Profile from "../models/profile.js";
 import { geocodeLocation } from "../services/geocoding.service.js";
@@ -90,14 +90,14 @@ function getDevId(req) {
   return dev ? dev.toString() : null;
 }
 
-router.post(
+/*router.post(
   "/",
   verifyJWT,        // user must be logged in
   csrfProtection,   // CSRF enforced
   async (req, res) => {
     res.json({ success: true });
   }
-);
+);*/
 
 router.get("/", async (req, res) => {
   try {
@@ -153,6 +153,29 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ============================================
+// 🤖 AI JOB PICKER — FLAT JOB LIST (NO PAGINATION)
+// ============================================
+router.get("/all", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const jobs = await Jobs.find({
+      userId,
+      archived: { $ne: true }
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(jobs); // 🔥 IMPORTANT: plain array
+  } catch (err) {
+    console.error("Get all jobs for AI failed:", err);
+    res.status(500).json({ error: "Failed to fetch jobs" });
+  }
+});
 
 // ============================================
 // USER PREFERENCES ROUTES
@@ -384,9 +407,9 @@ router.post(
 
 
 router.get("/map", async (req, res) => {
-      
-console.log("----------============")
-  try{
+
+  console.log("----------============")
+  try {
     if (!req.user || !req.user._id) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -409,15 +432,15 @@ console.log("----------============")
     const profile = await ensureHomeGeoForUser(userId);
     const home = profile?.homeGeo
       ? {
-          location: `${ profile.location.city},${profile.location.state}`|| null,
-          geo: {
-            lat: profile.homeGeo.lat,
-            lng: profile.homeGeo.lng,
-          },
-          timeZone: profile.homeTimeZone || null,
-        }
+        location: `${profile.location.city},${profile.location.state}` || null,
+        geo: {
+          lat: profile.homeGeo.lat,
+          lng: profile.homeGeo.lng,
+        },
+        timeZone: profile.homeTimeZone || null,
+      }
       : null;
- 
+
     // 2. Load jobs
     const query = { userId };
 
@@ -433,10 +456,10 @@ console.log("----------============")
     for (const job of jobs) {
       // Skip remote-only jobs if you decide they don't need geocoding,
       // but for now we still geocode their base location for context.
-      let updatedlocation 
+      let updatedlocation
       if ((!job.geo || !job.geo.lat || !job.geo.lng || job.location != job.geo.userquery) && job.location) {
         const geo = await geocodeLocation(job.location);
-         updatedlocation = (job.location != job.geo.userquery) || false
+        updatedlocation = (job.location != job.geo.userquery) || false
         if (geo) {
           job.geo = {
             lat: geo.lat,
@@ -453,7 +476,7 @@ console.log("----------============")
         }
       }
 
-      if (job.geo && (!job.timeZone || updatedlocation==true)) {
+      if (job.geo && (!job.timeZone || updatedlocation == true)) {
         job.timeZone = getTimeZoneForCoords(job.geo.lat, job.geo.lng);
       }
 
@@ -462,7 +485,7 @@ console.log("----------============")
         home.geo &&
         job.geo &&
         (!job.commute ||
-          job.commute.homeLocationSnapshot !== home.location || updatedlocation== true)
+          job.commute.homeLocationSnapshot !== home.location || updatedlocation == true)
       ) {
         job.commute = computeCommute(
           home.geo,
@@ -524,9 +547,9 @@ console.log("----------============")
         },
         commute: job.commute
           ? {
-              distanceKm: job.commute.distanceKm,
-              durationMinutes: job.commute.durationMinutes,
-            }
+            distanceKm: job.commute.distanceKm,
+            durationMinutes: job.commute.durationMinutes,
+          }
           : null,
         timeZone: job.timeZone || null,
       }));
@@ -902,18 +925,39 @@ router.patch("/:id/application-package", async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
-    
+
     const { applicationPackage } = req.body;
     if (!applicationPackage) {
       return res.status(400).json({ error: "applicationPackage is required" });
     }
-    
+
+    console.log("[PATCH application-package] body.applicationPackage:", applicationPackage);
+
+    // 🔧 Normalize applicationPackage labels (defensive fix)
+    if (applicationPackage) {
+      // Resume label
+      if (
+        applicationPackage.resumeVersionId &&
+        !applicationPackage.resumeVersionLabel
+      ) {
+        applicationPackage.resumeVersionLabel = "Unnamed Version";
+      }
+
+      // Cover letter label
+      if (
+        applicationPackage.coverLetterVersionId &&
+        !applicationPackage.coverLetterVersionLabel
+      ) {
+        applicationPackage.coverLetterVersionLabel = "Unnamed Version";
+      }
+    }
+
     const updated = await updateApplicationPackage({
       userId,
       id: req.params.id,
       packageData: applicationPackage
     });
-    
+
     if (!updated) return res.status(404).json({ error: "Job not found" });
     res.json(updated);
   } catch (err) {
@@ -956,7 +1000,7 @@ router.put("/:id", async (req, res) => {
           }
         }
 
-                // ---------- 2) TOTAL COMPENSATION HISTORY ----------
+        // ---------- 2) TOTAL COMPENSATION HISTORY ----------
         const isLostOffer = r.value.negotiationOutcome === "Lost offer";
 
         // For a lost offer, force everything to 0
@@ -996,8 +1040,8 @@ router.put("/:id", async (req, res) => {
             date: new Date(),
           });
         }
-        if (jobDoc.workMode) { jobDoc.workMode = r.value.workMode}
-        else {jobDoc.workMode = "onsite" }
+        if (jobDoc.workMode) { jobDoc.workMode = r.value.workMode }
+        else { jobDoc.workMode = "onsite" }
         await jobDoc.save();
       }
     }
@@ -1040,6 +1084,21 @@ router.patch("/:id/status", async (req, res) => {
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     const r = await validateStatusUpdate(req.body);
     if (!r.ok) return res.status(r.status).json(r.error);
+
+    const job = await Jobs.findOne({ _id: req.params.id, userId });
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    // 🔒 UC-122 Enforcement
+    if (
+      job.enforceQualityGate &&
+      typeof job.applicationQualityScore === "number" &&
+      job.applicationQualityScore < 70
+    ) {
+      return res.status(400).json({
+        error: "Application quality score below required threshold (70)",
+        score: job.applicationQualityScore
+      });
+    }
 
     let updated = await updateJobStatus({
       userId,
@@ -1620,6 +1679,34 @@ router.patch("/:id/negotiation", async (req, res) => {
   } catch (err) {
     console.error("❌ Error updating negotiation prep:", err);
     res.status(500).json({ error: err.message || "Failed to update negotiation prep" });
+  }
+});
+
+// ============================================
+// PATCH /:id/quality-gate (UC-122 DEV TOGGLE)
+// ============================================
+router.patch("/:id/quality-gate", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { enforceQualityGate } = req.body;
+    if (typeof enforceQualityGate !== "boolean") {
+      return res.status(400).json({ error: "enforceQualityGate must be boolean" });
+    }
+
+    const job = await Jobs.findOneAndUpdate(
+      { _id: req.params.id, userId },
+      { enforceQualityGate },
+      { new: true }
+    );
+
+    if (!job) return res.status(404).json({ error: "Job not found" });
+
+    res.json(job);
+  } catch (err) {
+    console.error("Quality gate toggle failed:", err);
+    res.status(500).json({ error: "Failed to update quality gate" });
   }
 });
 
