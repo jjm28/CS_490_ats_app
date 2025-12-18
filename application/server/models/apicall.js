@@ -1,12 +1,22 @@
 // models/ApiCall.js
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const apiCallSchema = new mongoose.Schema({
   apiName: {
     type: String,
     required: true,
-    enum: ['openai', 'gemini', 'github', 'google', 'microsoft', 'linkedin', 
-           'newsapi', 'adzuna', 'careeronestop', 'google-search']
+    enum: [
+      'openai',
+      'gemini',
+      'github',
+      'google',
+      'microsoft',
+      'linkedin',
+      'newsapi',
+      'adzuna',
+      'careeronestop',
+      'google-search'
+    ]
   },
   endpoint: String,
   method: String,
@@ -17,4 +27,6 @@ const apiCallSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('ApiCall', apiCallSchema);
+const ApiCall = mongoose.model('ApiCall', apiCallSchema);
+
+export default ApiCall;

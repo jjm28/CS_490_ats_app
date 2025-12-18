@@ -89,6 +89,8 @@ import productivityRoutes from "./routes/productivity.js";
 import successAnalysisRouter from "./routes/success-analysis.js";
 import successPatternsRouter from "./routes/success-patterns.js";
 import competitiveAnalysisRouter from "./routes/competitive-analysis.js";
+import apiMonitoringRoute from './routes/apimonitoring.js';
+
 
 import jobSearchSharingRoutes from "./routes/jobSearchSharing.routes.js";
 //import networkingRoutes from "./routes/networking.js";
@@ -279,6 +281,7 @@ try {
     attachDevUser,
     competitiveAnalysisRouter
   );
+  app.use("/apiMonitor", apiMonitoringRoute);
 
   // 🤝 JOB SEARCH SHARING
   app.use("/api/job-search", jobSearchSharingRoutes);

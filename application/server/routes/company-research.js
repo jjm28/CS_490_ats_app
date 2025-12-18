@@ -3,8 +3,7 @@ import axios from 'axios';
 import NodeCache from 'node-cache';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import InterviewPrep from '../models/interviewPrep.js';
-import { get } from 'mongoose';
-
+import { logApiCall } from '../middleware/apiLogger.js'; // ← ADD THIS
 
 const router = express.Router();
 
@@ -18,11 +17,10 @@ const cache = new NodeCache({
   checkperiod: 3600 
 });
 
-
 function getUserId(req) {
-  if (req.user?._id) return req.user._id.toString();  // MONGO ID
-  if (req.user?.id) return req.user.id.toString();    // CLERK ID fallback
-  const dev = req.headers["x-dev-user-id"];           // for Postman/testing
+  if (req.user?._id) return req.user._id.toString();
+  if (req.user?.id) return req.user.id.toString();
+  const dev = req.headers["x-dev-user-id"];
   return dev ? dev.toString() : null;
 }
 
@@ -41,11 +39,9 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Create cache key with today's date
     const today = new Date().toISOString().split('T')[0];
     const cacheKey = `company:${companyName.toLowerCase()}:${today}`;
     
-    // CHECK CACHE FIRST
     const cachedData = cache.get(cacheKey);
     if (cachedData) {
       console.log(`✅ Cache HIT for ${companyName}`);
@@ -54,7 +50,6 @@ router.post('/', async (req, res) => {
 
     console.log(`🔄 Cache MISS - Researching: ${companyName}`);
 
-    // Run all searches in parallel for speed
     const [
         basicInfo,
         newsResults,
@@ -71,7 +66,6 @@ router.post('/', async (req, res) => {
         searchFinancialHealth(companyName)
     ]);
 
-    // Compile results
     const companyData = {
         name: companyName,
         basicInfo,
@@ -83,7 +77,6 @@ router.post('/', async (req, res) => {
         lastUpdated: new Date().toISOString()
     };
 
-    // SAVE TO CACHE
     cache.set(cacheKey, companyData);
     console.log(`💾 Cached data for ${companyName}`);
 
@@ -98,8 +91,10 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Helper: Google Custom Search
+// Helper: Google Custom Search - WITH LOGGING
 async function googleSearch(query, numResults = 10) {
+  const startTime = Date.now(); // ← ADD THIS
+  
   try {
     const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
       params: {
@@ -109,19 +104,26 @@ async function googleSearch(query, numResults = 10) {
         num: numResults
       }
     });
- /// when interviewing, what makes someone standout or like you know they've done their hw
+    
+    // ← ADD THIS - Log successful search
+    await logApiCall('google-search', '/customsearch/v1', response.status, Date.now() - startTime);
+    
     return response.data.items || [];
   } catch (error) {
+    // ← ADD THIS - Log failed search
+    await logApiCall('google-search', '/customsearch/v1', error.response?.status || 500, Date.now() - startTime, error.message);
+    
     console.error(`Search error for "${query}":`, error.response?.data?.error?.message || error.message);
     return [];
   }
 }
 
-// UPDATED: Use Gemini for basic company info
+// UPDATED: Use Gemini for basic company info - WITH LOGGING
 async function searchCompanyBasicInfo(companyName) {
+  const startTime = Date.now(); // ← ADD THIS
+  
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    // Improved prompt
     const prompt = `Research the company "${companyName}" using your general knowledge about well-known companies. Return ONLY valid JSON (no markdown, no preamble, no backticks) with this exact structure:
 
 {
@@ -143,22 +145,24 @@ async function searchCompanyBasicInfo(companyName) {
 }`;
 
     const result = await model.generateContent(prompt);
+    
+    // ← ADD THIS - Log successful Gemini call
+    await logApiCall('gemini', '/generateContent', 200, Date.now() - startTime);
+    
     const response = await result.response;
     const rawText = response.text();
 
-    console.log('Gemini Raw Response:', rawText); // Debug log
+    console.log('Gemini Raw Response:', rawText);
 
-    // Clean and parse JSON
     const cleanText = rawText
       .replace(/```json/g, '')
       .replace(/```/g, '')
       .trim();
 
-    console.log('Gemini Cleaned Text for Parsing:', cleanText); // Debug log
+    console.log('Gemini Cleaned Text for Parsing:', cleanText);
 
     const parsed = JSON.parse(cleanText);
 
-    // Return in the format your existing code expects
     return {
       description: parsed.description || 'No information found',
       website: parsed.website || '',
@@ -186,14 +190,13 @@ async function searchCompanyBasicInfo(companyName) {
             ? parsed.glassdoorReviewsCount
             : undefined,
       glassdoorUrl: parsed.glassdoorUrl || "",
-      
     };
-    
 
   } catch (error) {
+    // ← ADD THIS - Log failed Gemini call
+    await logApiCall('gemini', '/generateContent', 500, Date.now() - startTime, error.message);
+    
     console.error('Gemini API error:', error.message);
-
-    // Fallback to Google search if Gemini fails
     console.log(`Gemini failed for ${companyName}, falling back to Google...`);
 
     const query = `"${companyName}" company overview headquarters industry`;
@@ -224,11 +227,9 @@ async function searchCompanyBasicInfo(companyName) {
         glassdoorRating: undefined,
         glassdoorReviewsCount: undefined,
         glassdoorUrl: "",
-        searchResults: [],
       };
     }
 
-    // No results found anywhere
     return {
       description: 'No public information found.',
       website: '',
@@ -242,6 +243,7 @@ async function searchCompanyBasicInfo(companyName) {
     };
   }
 }
+
 function categorizeArticle(article) {
   const categories = {
     financial: [
@@ -281,31 +283,26 @@ function scoreRelevance(article, companyName) {
   const description = (article.description || '').toLowerCase();
   const lowerCompany = companyName.toLowerCase();
   
-  // Extract just the company name without legal suffixes for better matching
   const cleanCompanyName = lowerCompany
     .replace(/,?\s*(inc\.?|llc|corporation|corp\.?|ltd\.?|limited)/gi, '')
     .trim();
 
   let score = 0;
 
-  // Check if company name appears in title (highest priority)
   if (title.includes(lowerCompany) || title.includes(cleanCompanyName)) {
     score += 5;
   }
 
-  // Check if company name appears in description
   if (description.includes(lowerCompany) || description.includes(cleanCompanyName)) {
     score += 3;
   }
 
-  // Bonus for reputable source
   const reputableSources = ['bloomberg', 'reuters', 'forbes', 'wsj', 'financial times', 'cnbc'];
   const sourceName = (article.source?.name || '').toLowerCase();
   if (reputableSources.some(s => sourceName.includes(s))) {
     score += 2;
   }
 
-  // Recency bonus
   if (article.publishedAt) {
     const daysOld = (Date.now() - new Date(article.publishedAt)) / (1000 * 60 * 60 * 24);
     if (daysOld <= 7) score += 2;
@@ -347,6 +344,7 @@ function extractKeyPoints(article) {
   return points;
 }
 
+// News API - WITH LOGGING
 async function searchCompanyNews(companyName) {
   const NEWS_API_KEY = process.env.NEWS_API_KEY;
   if (!NEWS_API_KEY) {
@@ -354,17 +352,21 @@ async function searchCompanyNews(companyName) {
     return [];
   }
 
+  const startTime = Date.now(); // ← ADD THIS
+
   try {
-    // Get more articles to have a better pool
     const response = await axios.get('https://newsapi.org/v2/everything', {
       params: {
-        q: companyName, // Simple query without quotes for better results
+        q: companyName,
         sortBy: 'publishedAt',
         language: 'en',
-        pageSize: 50, // Increased from 10 to get more articles
+        pageSize: 50,
         apiKey: NEWS_API_KEY
       }
     });
+
+    // ← ADD THIS - Log successful NewsAPI call
+    await logApiCall('newsapi', '/v2/everything', response.status, Date.now() - startTime);
 
     console.log(`News API returned ${response.data.articles?.length || 0} articles for ${companyName}`);
 
@@ -375,7 +377,6 @@ async function searchCompanyNews(companyName) {
 
     const articles = Array.isArray(response.data.articles) ? response.data.articles : [];
 
-    // Enrich articles with metadata
     const enriched = articles.map(article => {
       const category = categorizeArticle(article);
       const relevanceScore = scoreRelevance(article, companyName);
@@ -393,24 +394,24 @@ async function searchCompanyNews(companyName) {
       };
     });
 
-    // Filter and sort by relevance
     const filtered = enriched
-      .filter(article => article.relevanceScore >= 3) // Lower threshold for more results
-      .sort((a, b) => b.relevanceScore - a.relevanceScore) // Sort by relevance
-      .slice(0, 15); // Return top 15 most relevant
+      .filter(article => article.relevanceScore >= 3)
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 15);
 
     console.log(`Filtered to ${filtered.length} relevant articles (score >= 3)`);
 
     return filtered;
 
   } catch (error) {
+    // ← ADD THIS - Log failed NewsAPI call
+    await logApiCall('newsapi', '/v2/everything', error.response?.status || 500, Date.now() - startTime, error.message);
+    
     console.error('News API error:', error.response?.data || error.message);
     return [];
   }
 }
 
-
-// Search leadership team
 async function searchLeadership(companyName) {
   const results = await googleSearch(`${companyName} CEO founder executives leadership team`, 5);
   
@@ -423,11 +424,9 @@ async function searchLeadership(companyName) {
   };
 }
 
-// Search social media
 async function searchSocialMedia(companyName) {
   const socialMedia = {};
 
-  // Search for each platform
   const platforms = [
     { name: 'linkedin', query: `${companyName} site:linkedin.com/company` },
     { name: 'twitter', query: `${companyName} site:twitter.com OR site:x.com` },
@@ -435,7 +434,6 @@ async function searchSocialMedia(companyName) {
     { name: 'instagram', query: `${companyName} site:instagram.com` }
   ];
 
-  // Run social searches in parallel
   const socialResults = await Promise.all(
     platforms.map(async (platform) => {
       const results = await googleSearch(platform.query, 1);
@@ -443,7 +441,6 @@ async function searchSocialMedia(companyName) {
     })
   );
 
-  // Map results to socialMedia object
   socialResults.forEach(result => {
     if (result.url) {
       socialMedia[result.name] = result.url;
@@ -453,7 +450,6 @@ async function searchSocialMedia(companyName) {
   return socialMedia;
 }
 
-// Search competitors
 async function searchCompetitors(companyName) {
   const results = await googleSearch(`${companyName} competitors alternatives similar companies`, 5);
   
@@ -468,20 +464,14 @@ async function searchFinancialHealth(companyName) {
   return await googleSearch(`"${companyName}" earnings OR revenue OR investor relations OR quarterly results site:finance.yahoo.com OR site:investors.${companyName.toLowerCase().replace(/\s+/g, '')}.com`, 5);
 }
 
-
-
-// Save company research to database
-// Save company research to database
 router.post("/save-research", async (req, res) => {
   try {
-
     console.log('=== SAVE RESEARCH DEBUG ===');
     console.log('req.user:', getUserId(req));
     console.log('req.body:', req.body);
     console.log('userId:', req.user?.id);
     console.log('jobId:', req.body.jobId);
     console.log('companyInfo:', req.body.companyInfo);
-  
     console.log('========================');
 
     const userId = getUserId(req);
@@ -501,7 +491,6 @@ router.post("/save-research", async (req, res) => {
       jobId,
       companyName: companyInfo.name,
       basicInfo: companyInfo.basicInfo,
-      // ✅ Save leadership as OBJECT (matches schema)
       leadership: {
         searchResults: companyInfo.leadership?.searchResults || []
       },
@@ -512,7 +501,6 @@ router.post("/save-research", async (req, res) => {
       lastResearched: new Date()
     };
 
-    // ✅ Use findOneAndUpdate for cleaner upsert
     const research = await InterviewPrep.findOneAndUpdate(
       { userId, jobId },
       researchData,
@@ -526,7 +514,6 @@ router.post("/save-research", async (req, res) => {
   }
 });
 
-// Get saved company research
 router.get("/saved-research/:jobId", async (req, res) => {
   try {
     const userId = getUserId(req);  
@@ -538,7 +525,6 @@ router.get("/saved-research/:jobId", async (req, res) => {
       return res.status(404).json({ error: "No saved research found" });
     }
 
-    // Transform back to frontend format
     const companyInfo = {
       name: research.companyName,
       basicInfo: research.basicInfo,
@@ -556,7 +542,5 @@ router.get("/saved-research/:jobId", async (req, res) => {
     res.status(500).json({ error: "Failed to load research" });
   }
 });
-
-
 
 export default router;

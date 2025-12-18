@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+// models/ApiQuota.js
+import mongoose from 'mongoose';
 
 const apiQuotaSchema = new mongoose.Schema({
   apiName: { type: String, required: true, unique: true },
@@ -8,4 +9,6 @@ const apiQuotaSchema = new mongoose.Schema({
   lastUpdated: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('ApiQuota', apiQuotaSchema);
+const ApiQuota = mongoose.model('ApiQuota', apiQuotaSchema);
+
+export default ApiQuota;

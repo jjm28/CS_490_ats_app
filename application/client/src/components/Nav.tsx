@@ -154,6 +154,12 @@ function Navbar() {
                   >
                     Analytics
                   </NavLink>
+                  <NavLink
+                    to="/APIMonitor"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+                  >
+                    API Status
+                  </NavLink>
                 </PopoverPanel>
               </Popover>
             )}
